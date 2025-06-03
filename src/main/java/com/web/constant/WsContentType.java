@@ -1,15 +1,17 @@
 package com.web.constant;
 
-import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-@Data
-public class WsContentType {
-    //消息
-    public static final String Msg = "msg";
-    //通知
-    public static final String Notify = "notify";
-    //视频/音频
-    public static String Video = "video";
-    //文件
-    public static String File = "file";
+@Getter
+@AllArgsConstructor
+public enum WsContentType {
+    MSG("msg", "Normal message"),
+    NOTIFY("notify", "Notification message"),
+    VIDEO("video", "Video stream message"),
+    FILE("file", "File message"),
+    STATUS_CHANGE("status_change", "User status change notification"); // New type
+
+    private final String type; // Keep 'type' as the field name to match existing sendMsg usage
+    private final String description;
 }
