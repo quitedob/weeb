@@ -1,181 +1,59 @@
 package com.web.model;
 
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.web.vo.message.TextMessageContent; // Import new VO
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 import java.io.Serializable;
 import java.sql.Timestamp;
-import java.util.Objects;
 
 /**
- * 消息实体类，表示数据库中的消息记录
+ * 消息实体类
+ * 简化注释：消息实体
  */
+@Data
+@EqualsAndHashCode(callSuper = false) // Common Lombok practice
+@Entity // JPA annotation
+@Table(name = "message") // JPA annotation for table name
+@TableName(value = "message", autoResultMap = true) // MyBatis Plus: 启用MyBatis Plus的类型处理器
 public class Message implements Serializable {
-    private static final long serialVersionUID = 1L; // 序列化 UID
+    private static final long serialVersionUID = 1L;
 
+    @Id // JPA
+    @TableId // MyBatis Plus
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // JPA
     private Long id; // 消息ID
-    private Long chatId; // 聊天ID
-    private Long senderId; // 发送者ID
-    private String msgContent; // 消息内容
-    private String msgType; // 消息类型，String 类型
-    private Integer readStatus; // 已读状态
-    private Integer isRecalled; // 是否撤回
-    private String userIp; // 发送者IP地址
+
+    private Long senderId; // 发送者ID (Kept from existing: senderId)
+    private Long chatId;   // 会话列表ID (Kept from existing: chatId)
+
+    @Column(columnDefinition = "TEXT") // JPA: 明确指定为TEXT类型以存储JSON
+    @TableField(typeHandler = JacksonTypeHandler.class) // MyBatis Plus自动处理JSON转换
+    private TextMessageContent content; // 消息内容，现在是结构化对象 (Changed from msgContent)
+
+    // Changed from msgType (String) to messageType (Integer) to align with TextContentType
+    private Integer messageType;
+
+    // Retaining fields from existing Message.java
+    private Integer readStatus;
+    private Integer isRecalled;
+    private String userIp;
     private String source; // 消息来源
-    private Long referenceMsgId; // 参考消息ID
-    private Integer isShowTime; // 是否显示时间
-    private Timestamp createdAt; // 创建时间
-    private Timestamp updatedAt; // 更新时间
+    private Integer isShowTime;
+    private Timestamp createdAt;
+    private Timestamp updatedAt;
 
-    // Getter 和 Setter 方法
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Long getChatId() {
-        return chatId;
-    }
-
-    public void setChatId(Long chatId) {
-        this.chatId = chatId;
-    }
-
-    public Long getSenderId() {
-        return senderId;
-    }
-
-    public void setSenderId(Long senderId) {
-        this.senderId = senderId;
-    }
-
-    public String getMsgContent() {
-        return msgContent;
-    }
-
-    public void setMsgContent(String msgContent) {
-        this.msgContent = msgContent;
-    }
-
-    public String getMsgType() { // 确保返回类型为 String
-        return msgType;
-    }
-
-    public void setMsgType(String msgType) { // 确保接收类型为 String
-        this.msgType = msgType;
-    }
-
-    public Integer getReadStatus() {
-        return readStatus;
-    }
-
-    public void setReadStatus(Integer readStatus) {
-        this.readStatus = readStatus;
-    }
-
-    public Integer getIsRecalled() {
-        return isRecalled;
-    }
-
-    public void setIsRecalled(Integer isRecalled) {
-        this.isRecalled = isRecalled;
-    }
-
-    public String getUserIp() {
-        return userIp;
-    }
-
-    public void setUserIp(String userIp) {
-        this.userIp = userIp;
-    }
-
-    public String getSource() {
-        return source;
-    }
-
-    public void setSource(String source) {
-        this.source = source;
-    }
-
-    public Long getReferenceMsgId() {
-        return referenceMsgId;
-    }
-
-    public void setReferenceMsgId(Long referenceMsgId) {
-        this.referenceMsgId = referenceMsgId;
-    }
-
-    public Integer getIsShowTime() {
-        return isShowTime;
-    }
-
-    public void setIsShowTime(Integer isShowTime) {
-        this.isShowTime = isShowTime;
-    }
-
-    public Timestamp getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Timestamp createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public Timestamp getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(Timestamp updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    // 重写 toString 方法
-    @Override
-    public String toString() {
-        return "Message{" +
-                "id=" + id +
-                ", chatId=" + chatId +
-                ", senderId=" + senderId +
-                ", msgContent='" + msgContent + '\'' +
-                ", msgType='" + msgType + '\'' +
-                ", readStatus=" + readStatus +
-                ", isRecalled=" + isRecalled +
-                ", userIp='" + userIp + '\'' +
-                ", source='" + source + '\'' +
-                ", referenceMsgId=" + referenceMsgId +
-                ", isShowTime=" + isShowTime +
-                ", createdAt=" + createdAt +
-                ", updatedAt=" + updatedAt +
-                '}';
-    }
-
-    // 重写 equals 方法
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true; // 对象相同时返回true
-        if (o == null || getClass() != o.getClass()) return false; // 类型不同时返回false
-
-        Message message = (Message) o;
-        return Objects.equals(id, message.id) &&
-                Objects.equals(chatId, message.chatId) &&
-                Objects.equals(senderId, message.senderId) &&
-                Objects.equals(msgContent, message.msgContent) &&
-                Objects.equals(msgType, message.msgType) &&
-                Objects.equals(readStatus, message.readStatus) &&
-                Objects.equals(isRecalled, message.isRecalled) &&
-                Objects.equals(userIp, message.userIp) &&
-                Objects.equals(source, message.source) &&
-                Objects.equals(referenceMsgId, message.referenceMsgId) &&
-                Objects.equals(isShowTime, message.isShowTime) &&
-                Objects.equals(createdAt, message.createdAt) &&
-                Objects.equals(updatedAt, message.updatedAt);
-    }
-
-    // 重写 hashCode 方法
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, chatId, senderId, msgContent, msgType, readStatus, isRecalled, userIp, source,
-                referenceMsgId, isShowTime, createdAt, updatedAt);
-    }
+    // Renamed existing 'referenceMsgId' to 'replyToMessageId'
+    private Long replyToMessageId; // 回复的消息ID
 }

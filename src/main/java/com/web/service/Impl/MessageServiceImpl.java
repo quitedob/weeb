@@ -27,6 +27,12 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.Date; // For MessageReaction
+import org.springframework.transaction.annotation.Transactional;
+import com.web.mapper.MessageReactionMapper; // Assuming this will be created
+import com.web.model.MessageReaction;
+import com.web.vo.message.ReactionVo;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper; // For reaction query
 
 /**
  * 消息服务实现类，处理消息的发送、记录获取和撤回操作
@@ -55,6 +61,9 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
     @Resource
     private AiChatService aiChatService;
+
+    @Resource // or @Autowired
+    private MessageReactionMapper messageReactionMapper; // Assuming this will be created
 
     /**
      * 发送消息，根据消息来源调用相应的方法
@@ -274,5 +283,47 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
         // 如果保存失败，返回 null
         return null;
+    }
+
+    @Override
+    @Transactional // Ensure atomicity
+    public void handleReaction(ReactionVo reactionVo, Long userId) { // Changed userId to Long
+        Message message = getById(reactionVo.getMessageId());
+        if (message == null || message.getIsRecalled() == 1) { // Using isRecalled from Message.java
+            throw new WeebException("消息不存在或已撤回"); // Assuming WeebException is a custom exception class
+        }
+
+        // Assuming MessageReactionMapper has:
+        // - selectOne(QueryWrapper)
+        // - deleteById(Long id)
+        // - insert(MessageReaction reaction)
+
+        MessageReaction existingReaction = messageReactionMapper.selectOne(
+            new QueryWrapper<MessageReaction>()
+                .eq("message_id", reactionVo.getMessageId())
+                .eq("user_id", userId)
+                .eq("emoji", reactionVo.getEmoji())
+        );
+
+        if (existingReaction != null) {
+            // Reaction exists, so remove it
+            messageReactionMapper.deleteById(existingReaction.getId());
+            log.info("Reaction removed for messageId: {}, userId: {}, emoji: {}",
+                reactionVo.getMessageId(), userId, reactionVo.getEmoji());
+        } else {
+            // Reaction does not exist, so add it
+            MessageReaction newReaction = new MessageReaction();
+            newReaction.setMessageId(reactionVo.getMessageId());
+            newReaction.setUserId(userId.intValue()); // Cast Long to Integer for MessageReaction.userId
+            newReaction.setEmoji(reactionVo.getEmoji());
+            newReaction.setCreateTime(new Date()); // Set current time for creation
+            messageReactionMapper.insert(newReaction);
+            log.info("Reaction added for messageId: {}, userId: {}, emoji: {}",
+                reactionVo.getMessageId(), userId, reactionVo.getEmoji());
+        }
+
+        // TODO: Through WebSocket, notify all users in the session that the reactions for this message have been updated.
+        // webSocketService.sendReactionUpdate(reactionVo.getMessageId(), updatedReactionData);
+        log.warn("WebSocket notification for reaction update is a TODO.");
     }
 }

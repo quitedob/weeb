@@ -63,4 +63,12 @@ public interface MessageService {
      * @return 发送后的消息对象
      */
     Message sendMessageToUser(Long userId, Message messageBody);
+
+  /**
+   * 处理用户对消息的反应（添加/取消）
+   * @param reactionVo 反应视图
+   * @param userId 用户ID
+   * 简化注释：处理反应
+   */
+  void handleReaction(com.web.vo.message.ReactionVo reactionVo, Long userId); // Changed userId to Long
 }
