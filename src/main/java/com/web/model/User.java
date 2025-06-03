@@ -43,15 +43,21 @@ public class User implements Serializable {
     private String badge;         // 用户徽章信息
     private Date loginTime;       // 最后一次登录时间
 
+    private String bio; // 个人简介
+    private Integer onlineStatus; // 用户在线状态, stores code from UserOnlineStatus
+
     // 无参构造函数
     public User() {
+        this.bio = null; // Or ""
+        this.onlineStatus = com.web.constant.UserOnlineStatus.OFFLINE.getCode();
     }
 
     // 全参构造函数（包括新增字段）
     public User(Long id, String username, String password, int sex, String phoneNumber, String userEmail,
                 Long fansCount, String uniqueArticleLink, String uniqueVideoLink, Long totalLikes,
                 Long totalFavorites, Long totalSponsorship, Long totalArticleExposure, Long websiteCoins,
-                Date registrationDate, String ipOwnership, String type, String avatar, String badge, Date loginTime) {
+                Date registrationDate, String ipOwnership, String type, String avatar, String badge, Date loginTime,
+                String bio, Integer onlineStatus) { // Added new params
         this.id = id;                               // 设置用户ID
         this.username = username;                   // 设置用户名
         this.password = password;                   // 设置密码
@@ -72,6 +78,8 @@ public class User implements Serializable {
         this.avatar = avatar;                       // 设置用户头像
         this.badge = badge;                         // 设置用户徽章信息
         this.loginTime = loginTime;                 // 设置最后一次登录时间
+        this.bio = bio;                             // 设置个人简介
+        this.onlineStatus = onlineStatus;           // 设置在线状态
     }
 
     // Getter 和 Setter 方法
@@ -238,6 +246,22 @@ public class User implements Serializable {
         this.loginTime = loginTime; // 设置最后一次登录时间
     }
 
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public Integer getOnlineStatus() {
+        return onlineStatus;
+    }
+
+    public void setOnlineStatus(Integer onlineStatus) {
+        this.onlineStatus = onlineStatus;
+    }
+
     // 重写 toString 方法
     @Override
     public String toString() {
@@ -261,6 +285,8 @@ public class User implements Serializable {
                 ", avatar='" + avatar + '\'' +
                 ", badge='" + badge + '\'' +
                 ", loginTime=" + loginTime +
+                ", bio='" + bio + '\'' +
+                ", onlineStatus=" + onlineStatus +
                 '}';
     }
 
@@ -289,7 +315,9 @@ public class User implements Serializable {
                 Objects.equals(type, user.type) &&
                 Objects.equals(avatar, user.avatar) &&
                 Objects.equals(badge, user.badge) &&
-                Objects.equals(loginTime, user.loginTime);
+                Objects.equals(loginTime, user.loginTime) &&
+                Objects.equals(bio, user.bio) &&       // Added bio
+                Objects.equals(onlineStatus, user.onlineStatus); // Added onlineStatus
     }
 
     // 重写 hashCode 方法
@@ -299,6 +327,6 @@ public class User implements Serializable {
                 fansCount, uniqueArticleLink, uniqueVideoLink,
                 totalLikes, totalFavorites, totalSponsorship,
                 totalArticleExposure, websiteCoins, registrationDate, ipOwnership,
-                type, avatar, badge, loginTime);
+                type, avatar, badge, loginTime, bio, onlineStatus); // Added bio and onlineStatus
     }
 }
