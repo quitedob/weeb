@@ -5,6 +5,7 @@ import com.web.model.Article;
 import com.web.service.ArticleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // Added import
 
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.Map;
 @Service
 public class ArticleServiceImpl implements ArticleService {
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean deleteArticle(Long id) {
         // 调用 Mapper 层的方法, 返回影响行数大于 0 则说明删除成功
         return articleMapper.deleteArticleById(id) > 0;
@@ -25,11 +27,13 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int createArticle(Article article) {
         return articleMapper.insertArticle(article);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> getUserAllArticlesStats(Long userId) {
         // 获取聚合统计数据
         Map<String, Object> stats = articleMapper.selectAggregatedStatsByUserId(userId);
@@ -53,6 +57,7 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> getUserInformation(Long userId) {
         // 更新指定用户在 auth 表中的文章统计数据
         articleMapper.updateAuthTotals(userId);
@@ -61,11 +66,13 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean likeArticle(Long id) {
         return articleMapper.increaseLikeCount(id) > 0;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean subscribeUser(Long userId, Long targetUserId) {
         return articleMapper.subscribeUser(userId, targetUserId) > 0;
     }
@@ -75,16 +82,19 @@ public class ArticleServiceImpl implements ArticleService {
         return articleMapper.getAllArticles();
     }
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean editArticle(Long id, Article article) {
         return articleMapper.updateArticleContent(id, article) > 0;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean addCoin(Long id, Double amount) {
         return articleMapper.addCoin(id, amount) > 0;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean increaseReadCount(Long id) {
         return articleMapper.increaseReadCount(id) > 0;
     }

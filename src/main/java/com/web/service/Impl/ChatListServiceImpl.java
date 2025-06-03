@@ -10,6 +10,7 @@ import com.web.service.AuthService;          // 导入 AuthService 接口
 import com.web.service.ChatListService;      // 导入 ChatListService 接口
 import org.springframework.context.annotation.Lazy;  // 导入 Spring 的 @Lazy 注解
 import org.springframework.stereotype.Service;         // 导入 Spring 的 @Service 注解
+import org.springframework.transaction.annotation.Transactional; // Added import
 
 import java.time.LocalDateTime;            // 导入 LocalDateTime 用于获取当前时间
 import java.time.format.DateTimeFormatter; // 导入 DateTimeFormatter 用于格式化时间
@@ -50,6 +51,7 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
      * @return 群聊记录对象
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ChatList getOrCreateGroupChat(Long userId) {
         // 调用自定义 Mapper 方法，根据用户ID和聊天类型（"1"：群聊）查询聊天记录
         ChatList chat = baseMapper.selectOneByUserIdAndType(userId, 1);
@@ -89,6 +91,7 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
      * @return 私聊记录对象，若用户自己与自己私聊或目标用户不存在，则返回 null
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ChatList createPrivateChat(Long userId, Long targetId) {
         if (userId.equals(targetId)) {
             return null;  // 用户不能与自己创建聊天
@@ -131,6 +134,7 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
      * @return 如果更新成功返回 true，否则返回 false
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateGroupChatLastMessage(Message message) {
         // 通过调用自定义 Mapper 方法更新群聊记录的最后消息字段，并判断影响行数是否大于 0
         return baseMapper.updateGroupChatLastMessage(message.getMsgContent()) > 0;
@@ -144,6 +148,7 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
      * @return 如果更新成功返回 true，否则返回 false
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean updatePrivateChatLastMessage(Long userId, Long targetId, Message message) {
         // 查询私聊记录
         ChatList chatList = baseMapper.selectPrivateChat(userId, targetId);
@@ -184,6 +189,7 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
      * @return 如果更新成功返回 true，否则返回 false
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean resetUnreadCount(Long userId, Long targetId) {
         // 通过调用自定义 Mapper 方法重置未读计数，并判断影响行数是否大于 0
         return baseMapper.resetUnreadCount(userId, targetId) > 0;
@@ -196,6 +202,7 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
      * @return 如果删除成功返回 true，否则返回 false
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean deleteChatRecord(Long userId, Long chatListId) {
         // 通过调用自定义 Mapper 方法删除聊天记录，并判断影响行数是否大于 0
         return baseMapper.deleteChatRecord(userId, chatListId) > 0;
