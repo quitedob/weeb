@@ -112,7 +112,6 @@
 
 ## 📁 项目结构
 
-```
 WEEB/
 ├── .mvn/
 ├── src/
@@ -152,7 +151,6 @@ Vue/
 ├── index.html                      # 主 HTML 文件
 ├── package.json                    # NPM 依赖配置
 └── vite.config.js                  # Vite 配置文件
-```
 
 ---
 
