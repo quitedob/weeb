@@ -25,6 +25,11 @@ import com.web.constant.ContactStatus;
 import com.web.mapper.UserMapper;
 import java.util.Map;
 // NotifyDto is already imported but will be used generically.
+import com.web.Config.RedisConfig; // For USER_MESSAGE_TOPIC
+import com.web.dto.RedisBroadcastMsg;
+import org.springframework.data.redis.core.RedisTemplate;
+import cn.hutool.json.JSONUtil; // Already uses this, ensure it's used for RedisBroadcastMsg content if needed.
+
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
@@ -57,6 +62,13 @@ public class WebSocketService {
     @Autowired
     public void setContactService(ContactService contactService) {
         WebSocketService.contactService = contactService;
+    }
+
+    private static RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    public void setRedisTemplate(RedisTemplate<String, Object> redisTemplate) {
+        WebSocketService.redisTemplate = redisTemplate;
     }
 
     /**
@@ -156,26 +168,60 @@ public class WebSocketService {
      * @param userId 发送方用户 ID
      * @param targetId 目标用户 ID
      */
-    public void sendMsgToUser(Object msg, Long userId, Long targetId) {
-        Channel channel = Online_User.get(userId); // 获取发送方的连接通道
-        if (channel != null) {
-            sendMsg(channel, msg, WsContentType.Msg); // 向发送方发送消息
+    public void sendMsgToUser(Object msgPayload, Long fromUserId, Long targetId) { // msgPayload is likely a Message or NotifyDto
+        if (redisTemplate == null) {
+            log.warn("RedisTemplate not injected in sendMsgToUser for message from {} to {}. Message not sent via Redis.", fromUserId, targetId);
+            // Fallback to direct send if user is local? Or just fail? For now, log and return.
+            // Alternative: direct send if target is local, but that bypasses Redis for that message.
+            // For consistency, if Redis is down/unconfigured, messages might not be sent.
+            Channel localTargetChannel = Online_User.get(targetId);
+            if (localTargetChannel != null && localTargetChannel.isActive()) {
+                log.warn("Attempting direct local send for user {} due to missing RedisTemplate.", targetId);
+                // We need to know the WsContentType of msgPayload. This is problematic for a generic Object.
+                // This fallback needs a way to determine type, or sendMsg needs to handle Object better.
+                // For now, assuming msgPayload is a Message DTO if it's not a NotifyDto
+                String type = (msgPayload instanceof NotifyDto) ? ((NotifyDto<?>)msgPayload).getType() : WsContentType.MSG.getType();
+                sendMsg(localTargetChannel, msgPayload, type);
+            }
+            Channel localFromChannel = Online_User.get(fromUserId);
+             if (localFromChannel != null && localFromChannel.isActive() && !fromUserId.equals(targetId)) {
+                log.warn("Attempting direct local self-send for user {} due to missing RedisTemplate.", fromUserId);
+                String type = (msgPayload instanceof NotifyDto) ? ((NotifyDto<?>)msgPayload).getType() : WsContentType.MSG.getType();
+                sendMsg(localFromChannel, msgPayload, type);
+            }
+            return;
         }
-        channel = Online_User.get(targetId); // 获取目标用户的连接通道
-        if (channel != null) {
-            sendMsg(channel, msg, WsContentType.Msg); // 向目标用户发送消息
+        String messageBodyJson = JSONUtil.toJsonStr(msgPayload);
+
+        // Send to target user via Redis
+        RedisBroadcastMsg toTargetMsg = RedisBroadcastMsg.builder()
+                .targetUserId(targetId)
+                .messageBody(messageBodyJson)
+                .build();
+        redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, toTargetMsg);
+        log.debug("Published message from {} to target {} via Redis: {}", fromUserId, targetId, messageBodyJson);
+
+        // Send to self (sender) via Redis as well, if they should get a copy on all their sessions
+        if (!fromUserId.equals(targetId)) { // Avoid double send if sending to self
+            RedisBroadcastMsg toSelfMsg = RedisBroadcastMsg.builder()
+                    .targetUserId(fromUserId)
+                    .messageBody(messageBodyJson) // Same message body
+                    .build();
+            redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, toSelfMsg);
+            log.debug("Published self-copy of message to user {} via Redis: {}", fromUserId, messageBodyJson);
         }
     }
 
-    /**
-     * 向所有在线用户发送群组消息
-     * @param message 消息内容
-     */
-    public void sendMsgToGroup(Message message) {
-        Online_Channel.forEach((channel, userId) -> {
-            sendMsg(channel, message, WsContentType.Msg);
-        });
-    }
+    // Old sendMsgToGroup and sendNotifyToGroup are removed as group messaging is now handled by services publishing per-user messages to Redis.
+    // /**
+    //  * 向所有在线用户发送群组消息
+    //  * @param message 消息内容
+    //  */
+    // public void sendMsgToGroup(Message message) {
+    //     Online_Channel.forEach((channel, userId) -> {
+    //         sendMsg(channel, message, WsContentType.Msg);
+    //     });
+    // }
 
     /**
      * 获取当前在线用户数量
@@ -197,11 +243,11 @@ public class WebSocketService {
      * 向所有在线用户发送通知
      * @param notify 通知内容
      */
-    public void sendNotifyToGroup(NotifyDto notify) {
-        Online_Channel.forEach((channel, userId) -> {
-            sendMsg(channel, notify, WsContentType.Notify);
-        });
-    }
+    // public void sendNotifyToGroup(NotifyDto notify) {
+    //     Online_Channel.forEach((channel, userId) -> {
+    //         sendMsg(channel, notify, WsContentType.Notify);
+    //     });
+    // }
 
     /**
      * 向特定用户发送视频流消息
@@ -228,8 +274,8 @@ public class WebSocketService {
     }
 
     private void updateAndBroadcastStatus(Long userId, UserOnlineStatus status) {
-        if (userMapper == null || contactService == null) {
-            log.warn("UserMapper or ContactService not injected into WebSocketService. Cannot update/broadcast status for user {}.", userId);
+        if (userMapper == null || contactService == null || redisTemplate == null) { // Added redisTemplate check
+            log.warn("UserMapper, ContactService, or RedisTemplate not injected. Cannot update/broadcast status for user {}.", userId);
             // Potentially call original userService.online/offline as fallback if that's critical
             if (status == UserOnlineStatus.ONLINE && userService != null) {
                 log.info("Falling back to userService.online for user {}", userId);
@@ -245,38 +291,61 @@ public class WebSocketService {
         userMapper.updateOnlineStatus(userId, status.getCode());
 
         NotifyDto<Map<String, Object>> notifyDto = new NotifyDto<>();
-        notifyDto.setType(WsContentType.STATUS_CHANGE.getType()); // Use the enum's type string
+        notifyDto.setType(WsContentType.STATUS_CHANGE.getType());
         notifyDto.setData(Map.of("userId", userId, "status", status.getCode()));
-        notifyDto.setTime(new Date()); // Set time for the notification
+        notifyDto.setTime(new Date());
+
+        String messageBodyJson = JSONUtil.toJsonStr(notifyDto); // Serialize NotifyDto to JSON string for messageBody
 
         List<Long> contactFriendIds = contactService.getContactUserIds(userId, ContactStatus.ACCEPTED);
+
         if (contactFriendIds != null && !contactFriendIds.isEmpty()) {
-            log.info("Broadcasting status change of user {} to contacts: {}", userId, contactFriendIds);
-            sendMessageToUsers(contactFriendIds, notifyDto);
+            log.info("Publishing status change of user {} to Redis for contacts: {}", userId, contactFriendIds);
+            for (Long contactId : contactFriendIds) {
+                RedisBroadcastMsg broadcastMsg = RedisBroadcastMsg.builder()
+                        .targetUserId(contactId)
+                        .messageBody(messageBodyJson) // messageBody is the JSON string of NotifyDto
+                        .build();
+                redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, broadcastMsg); // Send RedisBroadcastMsg object
+            }
         } else {
             log.info("User {} has no contacts to notify for status change.", userId);
         }
+        // The old sendMessageToUsers call is removed from here.
     }
 
-    // New method as per user spec, adapted to use existing sendMsg structure
-    public void sendMessageToUsers(List<Long> userIds, NotifyDto<?> notificationPayload) { // Specifically for NotifyDto
-        if (userIds == null || userIds.isEmpty() || notificationPayload == null) {
-            return;
-        }
-        // The existing sendMsg(Channel, Object, String type) expects the 'content' part of WsContent
-        // and the type string. The notificationPayload is the 'content'.
-        String notificationType = notificationPayload.getType(); // This should be WsContentType.STATUS_CHANGE.getType()
+    // sendMessageToUsers method removed as per plan. sendLocalMessage will handle messages from Redis.
+    // public void sendMessageToUsers(List<Long> userIds, NotifyDto<?> notificationPayload) { ... } // REMOVE or DEPRECATE
 
-        for (Long targetUserId : userIds) {
-            Channel channel = Online_User.get(targetUserId);
-            if (channel != null && channel.isActive()) { // Use isActive() for Netty Channel
-                // Pass the NotifyDto itself as the content for sendMsg,
-                // and its type as the type string for WsContent.
-                log.debug("Sending notification type '{}' to user {}", notificationType, targetUserId);
-                sendMsg(channel, notificationPayload, notificationType);
-            } else {
-                log.debug("Channel not active or found for user {} while sending notification type '{}'", targetUserId, notificationType);
+    /**
+     * 【NEW METHOD】Sends a message string to a user connected to THIS SPECIFIC instance.
+     * This method is intended to be called by RedisSubscriber.
+     * @param targetUserId The ID of the user to send the message to.
+     * @param messageText The raw message text (expected to be a JSON string of the actual payload, e.g., serialized NotifyDto or WsContent).
+     */
+    public void sendLocalMessage(Long targetUserId, String messageText) {
+        Channel channel = Online_User.get(targetUserId);
+        if (channel != null && channel.isActive()) {
+            try {
+                // messageText is the JSON of a NotifyDto (or potentially other DTOs in future).
+                // We need to deserialize it to get its type for WsContent, then pass the DTO as content.
+                NotifyDto<?> receivedPayload = JSONUtil.toBean(messageText, NotifyDto.class, true); // Added 'true' for ignoreError
+
+                if (receivedPayload != null && receivedPayload.getType() != null) {
+                    log.debug("Sending local message type '{}' to user {}", receivedPayload.getType(), targetUserId);
+                    sendMsg(channel, receivedPayload, receivedPayload.getType());
+                } else {
+                    log.warn("Could not determine WsContentType from messageText for local delivery to user {}: {}", targetUserId, messageText);
+                    // Fallback: send as generic message if type extraction fails and it's just a string.
+                    // This might not be desired if strict DTO structure is expected.
+                    // sendMsg(channel, messageText, WsContentType.MSG.getType());
+                }
+
+            } catch (Exception e) {
+                log.error("Send local message to " + targetUserId + " failed: " + messageText, e);
             }
+        } else {
+            log.debug("User {} not connected to this instance. No local message sent for payload: {}", targetUserId, messageText);
         }
     }
 }
