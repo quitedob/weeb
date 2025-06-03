@@ -1,87 +1,57 @@
-package com.web.exception;
+package com.web.exception; // Adjusted package name
 
-import com.web.util.ResultUtil;
-import lombok.extern.slf4j.Slf4j;
+import com.web.common.ApiResponse; // Adjusted import
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.validation.FieldError; // For more detailed validation errors
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest; // Corrected import for Spring Boot 3+
+import java.util.HashMap; // For collecting multiple validation errors
+import java.util.Map; // For collecting multiple validation errors
+
 
 /**
- * 改进版全局异常处理类，提供更安全、更详细的异常处理和日志记录。
- *
- * @author: dwh
- **/
+ * 全局异常拦截器，捕获所有未处理的异常，并返回统一响应格式
+ */
 @RestControllerAdvice
-@Slf4j
 public class GlobalExceptionHandler {
+  private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    /**
-     * 捕获未处理的通用异常。
-     *
-     * @param e 捕获的异常
-     * @param request 当前 HTTP 请求对象
-     * @return 统一格式的错误响应
-     */
-    @ExceptionHandler(value = Exception.class)
-    public Object handleException(Exception e, HttpServletRequest request) {
-        // 打印异常详细日志
-        log.error("未处理异常 -> {}", e.getClass(), e);
-        log.error("URL -> {}", request.getRequestURL());
-        log.error("HTTP Method -> {}", request.getMethod());
+  /** 处理所有未知异常 */
+  @ExceptionHandler(Exception.class)
+  @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+  public ApiResponse<Void> handleException(HttpServletRequest req, Exception e) {
+    logger.error("Internal Server Error: URI={}, message={}", req.getRequestURI(), e.getMessage(), e);
+    return ApiResponse.error(-1, "Internal server error: " + e.getMessage()); // Return actual message in dev might be good
+  }
 
-        // 返回通用的失败响应，隐藏敏感信息
-        return ResultUtil.Fail("系统内部错误，请稍后重试。");
-    }
+  /** 处理参数校验异常 (MethodArgumentNotValidException) */
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  public ApiResponse<Map<String, String>> handleValidationException(MethodArgumentNotValidException ex) {
+    Map<String, String> errors = new HashMap<>();
+    ex.getBindingResult().getAllErrors().forEach((error) -> {
+      String fieldName = ((FieldError) error).getField();
+      String errorMessage = error.getDefaultMessage();
+      errors.put(fieldName, errorMessage);
+    });
+    logger.warn("Validation Error: {}", errors, ex);
+    return ApiResponse.error(1002, "Validation failed", errors);
+  }
 
-    /**
-     * 捕获参数校验异常。
-     *
-     * @param e 捕获的校验异常
-     * @param request 当前 HTTP 请求对象
-     * @return 统一格式的错误响应，包含校验错误信息
-     */
-    @ExceptionHandler(value = MethodArgumentNotValidException.class)
-    public Object validationException(MethodArgumentNotValidException e, HttpServletRequest request) {
-        // 打印校验异常的详细信息
-        String errorMessage = e.getBindingResult().getFieldError() != null
-                ? e.getBindingResult().getFieldError().getDefaultMessage()
-                : "参数校验失败";
-        log.error("参数校验异常 -> {}", e.getClass(), e);
-        log.error("URL -> {}", request.getRequestURL());
-        log.error("HTTP Method -> {}", request.getMethod());
-        log.error("Validation Error -> {}", errorMessage);
-
-        // 返回校验错误信息
-        return ResultUtil.Fail(errorMessage);
-    }
-
-    /**
-     * 捕获自定义异常。
-     *
-     * @param e 捕获的自定义异常
-     * @param request 当前 HTTP 请求对象
-     * @return 自定义格式的错误响应，包含错误码和错误信息
-     */
-    @ExceptionHandler(value = com.web.exception.WeebException.class)
-    public Object LinyuException(WeebException e, HttpServletRequest request) {
-        // 打印自定义异常的详细信息
-        log.error("自定义异常 -> {}", e.getClass(), e);
-        log.error("URL -> {}", request.getRequestURL());
-        log.error("HTTP Method -> {}", request.getMethod());
-        log.error("Custom Error Code -> {}", e.getCode());
-        log.error("Custom Error Message -> {}", e.getMessage());
-
-        // 如果异常包含附加参数，则记录参数
-        if (null != e.paramToString()) {
-            log.error("Exception Params -> {}", e.paramToString());
-        }
-
-        // 清空异常中的附加参数
-        e.empty();
-
-        // 返回自定义的错误响应
-        return ResultUtil.Result(e.getCode(), e.getMessage());
-    }
+  // Example: Custom business exception
+  // Assume BusinessException exists: public class BusinessException extends RuntimeException { ... }
+  /*
+  @ExceptionHandler(BusinessException.class)
+  @ResponseStatus(HttpStatus.BAD_REQUEST) // Or another appropriate status
+  public ApiResponse<Void> handleBusinessException(BusinessException ex) {
+      logger.warn("Business Exception: {}", ex.getMessage());
+      return ApiResponse.error(ex.getCode(), ex.getMessage()); // Assuming BusinessException has a code
+  }
+  */
 }
