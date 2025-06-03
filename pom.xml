@@ -182,6 +182,14 @@
 			<artifactId>volcengine-java-sdk-ark-runtime</artifactId>
 			<version>LATEST</version>
 		</dependency>
+
+		<!-- Aliyun OSS SDK -->
+		<dependency>
+			<groupId>com.aliyun.oss</groupId>
+			<artifactId>aliyun-sdk-oss</artifactId>
+			<version>3.15.1</version>
+		</dependency>
+
 		<!-- Spring Boot AOP 依赖 -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

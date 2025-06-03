@@ -54,6 +54,8 @@ import com.web.mapper.elasticsearch.MessageSearchRepository; // Added for ES
 @Slf4j
 public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> implements MessageService {
 
+    private static final int MAX_MESSAGE_LENGTH = 500; // Added constant
+
     @Resource
     private MessageMapper messageMapper;
 
@@ -307,6 +309,17 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         messageBody.setCreatedAt(new Timestamp(System.currentTimeMillis()));
         messageBody.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
         messageBody.setIsRecalled(0); // 初始为未撤回
+
+        // --- ADD LENGTH CHECK HERE ---
+        if (messageBody.getContent() != null &&
+            com.web.constant.TextContentType.TEXT.getType().equals(messageBody.getContent().getContentType())) {
+
+            String textContent = messageBody.getContent().getContent();
+            if (textContent != null && textContent.length() > MAX_MESSAGE_LENGTH) {
+                throw new WeebException("消息内容过长，最多允许 " + MAX_MESSAGE_LENGTH + " 个字符");
+            }
+        }
+        // --- END OF LENGTH CHECK ---
 
         StringBuilder sb = new StringBuilder();
         // 用于保存机器人回复相关信息

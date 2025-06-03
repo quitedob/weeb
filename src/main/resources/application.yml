@@ -23,3 +23,11 @@ WEEB:
     count-limit: 5 #次数限制,0-不限制
     length-limit: 50 #内容长度限制,0-不限制
     model: ep-20241231132608-lbm7g
+
+# 阿里云OSS配置
+aliyun:
+  oss:
+    endpoint: oss-cn-hangzhou.aliyuncs.com # Example: Hangzhou region
+    accessKeyId: YOUR_ACCESS_KEY_ID_REPLACE_ME
+    accessKeySecret: YOUR_ACCESS_KEY_SECRET_REPLACE_ME
+    bucketName: your-bucket-name-replace-me
