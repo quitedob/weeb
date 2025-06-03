@@ -39,6 +39,12 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
+		<!-- Spring Boot Data Elasticsearch -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+		</dependency>
+
 		<!-- MySQL 连接器 -->
 		<dependency>
 			<groupId>com.mysql</groupId>

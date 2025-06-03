@@ -323,29 +323,19 @@ public class WebSocketService {
      * @param targetUserId The ID of the user to send the message to.
      * @param messageText The raw message text (expected to be a JSON string of the actual payload, e.g., serialized NotifyDto or WsContent).
      */
-    public void sendLocalMessage(Long targetUserId, String messageText) {
-        Channel channel = Online_User.get(targetUserId);
-        if (channel != null && channel.isActive()) {
+    public void sendLocalMessage(Long targetUserId, String messageText) { // targetUserId is Long
+        Channel channel = Online_User.get(targetUserId); // Online_User is ConcurrentHashMap<Long, Channel>
+        if (channel != null && channel.isActive()) { // isActive() for Netty Channel
             try {
-                // messageText is the JSON of a NotifyDto (or potentially other DTOs in future).
-                // We need to deserialize it to get its type for WsContent, then pass the DTO as content.
-                NotifyDto<?> receivedPayload = JSONUtil.toBean(messageText, NotifyDto.class, true); // Added 'true' for ignoreError
-
-                if (receivedPayload != null && receivedPayload.getType() != null) {
-                    log.debug("Sending local message type '{}' to user {}", receivedPayload.getType(), targetUserId);
-                    sendMsg(channel, receivedPayload, receivedPayload.getType());
-                } else {
-                    log.warn("Could not determine WsContentType from messageText for local delivery to user {}: {}", targetUserId, messageText);
-                    // Fallback: send as generic message if type extraction fails and it's just a string.
-                    // This might not be desired if strict DTO structure is expected.
-                    // sendMsg(channel, messageText, WsContentType.MSG.getType());
-                }
-
+                log.debug("Sending local message (WsContent JSON) to user {}: {}", targetUserId, messageText);
+                // messageText is already the JSON string of the WsContent object
+                // that the client expects.
+                channel.writeAndFlush(new TextWebSocketFrame(messageText));
             } catch (Exception e) {
-                log.error("Send local message to " + targetUserId + " failed: " + messageText, e);
+                log.error("Send local message to " + targetUserId + " failed for message: " + messageText, e);
             }
         } else {
-            log.debug("User {} not connected to this instance. No local message sent for payload: {}", targetUserId, messageText);
+            log.debug("User {} not connected to this instance. No local message sent for: {}", targetUserId, messageText);
         }
     }
 }

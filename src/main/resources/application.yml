@@ -1,6 +1,10 @@
 spring:
   profiles:
     active: dev # Default to dev environment
+  elasticsearch:
+    uris: http://localhost:9200
+    # username: your_username # Optional
+    # password: your_password # Optional
 
 # Keep existing WEEB specific configurations if they are environment agnostic
 # or move them to dev/prod specific files if they differ.

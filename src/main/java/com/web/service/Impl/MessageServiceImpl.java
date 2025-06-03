@@ -43,6 +43,9 @@ import com.web.dto.RedisBroadcastMsg; // Added for Redis Pub/Sub
 import com.web.dto.NotifyDto; // For recall and reaction notifications
 import com.web.constant.WsContentType; // For notification types
 import java.util.Map; // For NotifyDto data for reactions
+import org.springframework.scheduling.annotation.Async; // Added for @Async
+import com.web.model.elasticsearch.MessageDocument; // Added for ES
+import com.web.mapper.elasticsearch.MessageSearchRepository; // Added for ES
 
 /**
  * 消息服务实现类，处理消息的发送、记录获取和撤回操作
@@ -83,6 +86,9 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
     @Resource
     private RedisTemplate<String, Object> redisTemplate; // Injected for Redis Pub/Sub
+
+    @Resource
+    private MessageSearchRepository messageSearchRepository; // Injected for ES
 
     /**
      * 发送消息，根据消息来源调用相应的方法
@@ -364,6 +370,8 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         // 保存消息到数据库
         boolean saveResult = save(messageBody);
         if (saveResult) {
+            this.indexMessage(messageBody); // Call the async indexing method
+
             // 如果存在 @机器人回复需求
             User botUser = botUserRef.get();
             if (botUser != null) {
@@ -462,6 +470,43 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
                 }
                 log.info("Published reaction notification for messageId {} to participants of private chat {}", reactionVo.getMessageId(), reactedMessage.getChatId());
             }
+        }
+    }
+
+    @Async
+    public void indexMessage(Message message) { // Should be public for Spring AOP to proxy @Async
+        if (message == null) {
+            log.warn("Attempted to index a null message.");
+            return;
+        }
+        try {
+            MessageDocument doc = new MessageDocument();
+            doc.setId(message.getId());
+            doc.setFromId(message.getSenderId()); // Corrected fromId mapping
+            doc.setChatListId(message.getChatId()); // Corrected chatListId mapping
+
+            if (message.getContent() != null && message.getContent().getContentType().equals(com.web.constant.TextContentType.TEXT.getType())) {
+               doc.setContent(message.getContent().getContent());
+            } else if (message.getContent() != null && message.getContent().getContentType().equals(com.web.constant.TextContentType.MARKDOWN.getType())) {
+               doc.setContent(message.getContent().getContent()); // Indexing raw Markdown
+            } else {
+               if (message.getContent() != null) {
+                  doc.setContent(message.getContent().getContent()); // Default to indexing the main content string
+               }
+            }
+
+            if (message.getCreatedAt() != null) { // Corrected sendTime mapping
+                doc.setSendTime(new Date(message.getCreatedAt().getTime()));
+            } else {
+                doc.setSendTime(new Date()); // Fallback
+            }
+
+            messageSearchRepository.save(doc);
+            log.info("Successfully indexed message id {} to Elasticsearch.", message.getId());
+
+        } catch (Exception e) {
+            log.error("Failed to index message id {} to Elasticsearch: {}", message.getId(), e.getMessage(), e);
+            // Handle exception: e.g., add to a retry queue, log for monitoring
         }
     }
 }
