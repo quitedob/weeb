@@ -33,6 +33,10 @@ import com.web.mapper.MessageReactionMapper; // Assuming this will be created
 import com.web.model.MessageReaction;
 import com.web.vo.message.ReactionVo;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper; // For reaction query
+import com.web.mapper.GroupMemberMapper; // Added for group message routing
+import com.web.mapper.ChatListMapper;   // Added for group message routing
+import com.web.model.ChatList;         // Added for group message routing
+import com.web.constant.ChatListType;  // Added for group message routing
 
 /**
  * 消息服务实现类，处理消息的发送、记录获取和撤回操作
@@ -64,6 +68,12 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
     @Resource // or @Autowired
     private MessageReactionMapper messageReactionMapper; // Assuming this will be created
+
+    @Resource
+    private GroupMemberMapper groupMemberMapper; // Injected for group message routing
+
+    @Resource
+    private ChatListMapper chatListMapper;     // Injected for group message routing
 
     /**
      * 发送消息，根据消息来源调用相应的方法
@@ -166,11 +176,49 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
      */
     @Override
     public Message sendMessageToGroup(Long userId, Message messageBody) {
-        Message message = sendMessage(userId, messageBody, MessageSource.Group);
-        // 更新群聊列表
-        chatListService.updateGroupChatLastMessage(message);
-        // 发送消息到群组
-        webSocketService.sendMsgToGroup(message);
+        Message message = sendMessage(userId, messageBody, MessageSource.Group); // This saves the message
+
+        // --- Start of Group Message Routing Logic ---
+        if (message != null && message.getChatId() != null) {
+            // message.getChatId() in this context is the ID of the ChatList entry for the group chat.
+            ChatList chatListForGroup = chatListMapper.selectById(message.getChatId());
+
+            if (chatListForGroup != null && ChatListType.GROUP.getCode().equals(chatListForGroup.getType())) {
+                Long actualGroupId = chatListForGroup.getGroupId(); // Use the new groupId field from ChatList
+                if (actualGroupId != null) {
+                    List<Long> memberIds = groupMemberMapper.findUserIdsByGroupId(actualGroupId); // Returns List<Long>
+
+                    log.info("Routing group messageId: {} to members: {} of groupId: {}", message.getId(), memberIds, actualGroupId);
+                    // TODO: Replace existing webSocketService.sendMsgToGroup(message) with a method
+                    // that takes memberIds and the message, e.g.,
+                    // webSocketService.sendMessageToSpecificUsers(memberIds, message);
+                    // For now, retain original call but log the members.
+                    webSocketService.sendMsgToGroup(message); // Original call
+                    log.warn("WebSocket call in sendMessageToGroup needs to be updated to use fetched memberIds if direct fan-out is intended here.");
+
+                } else {
+                    log.error("ChatList entry for group chat (id: {}) has a null groupId field.", chatListForGroup.getId());
+                    // Fallback to original behavior if groupId is missing in ChatList
+                    webSocketService.sendMsgToGroup(message);
+                }
+            } else {
+                log.error("Could not find ChatList or it's not a GROUP type for chatId: {} from messageId: {}", message.getChatId(), message.getId());
+                // Fallback or error handling if chatList is not found or not a group.
+                webSocketService.sendMsgToGroup(message);
+            }
+        } else {
+            log.error("Message object or its chatId is null after saving. Cannot route group message for messageBody with chatId: {}", messageBody.getChatId());
+             // If message is null but messageBody is not, consider logging messageBody details if helpful
+            if (message == null && messageBody != null) {
+                log.error("Message save operation may have failed for senderId: {}, targetChatId: {}", userId, messageBody.getChatId());
+            }
+        }
+        // --- End of Group Message Routing Logic ---
+
+        // The original call to updateGroupChatLastMessage should still be here if message is not null
+        if (message != null) {
+            chatListService.updateGroupChatLastMessage(message);
+        }
         return message;
     }
 
