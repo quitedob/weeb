@@ -37,6 +37,12 @@ import com.web.mapper.GroupMemberMapper; // Added for group message routing
 import com.web.mapper.ChatListMapper;   // Added for group message routing
 import com.web.model.ChatList;         // Added for group message routing
 import com.web.constant.ChatListType;  // Added for group message routing
+import org.springframework.data.redis.core.RedisTemplate; // Added for Redis Pub/Sub
+import com.web.Config.RedisConfig; // Added for Redis Pub/Sub
+import com.web.dto.RedisBroadcastMsg; // Added for Redis Pub/Sub
+import com.web.dto.NotifyDto; // For recall and reaction notifications
+import com.web.constant.WsContentType; // For notification types
+import java.util.Map; // For NotifyDto data for reactions
 
 /**
  * 消息服务实现类，处理消息的发送、记录获取和撤回操作
@@ -74,6 +80,9 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
 
     @Resource
     private ChatListMapper chatListMapper;     // Injected for group message routing
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate; // Injected for Redis Pub/Sub
 
     /**
      * 发送消息，根据消息来源调用相应的方法
@@ -138,15 +147,50 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
         message.setUpdatedAt(now);
         updateById(message);
 
-        // 发送更新后的消息到相应的聊天对象
-        if (MessageSource.Group.equals(message.getSource())) {
-            chatListService.updateGroupChatLastMessage(message);
-            webSocketService.sendMsgToGroup(message);
-        } else {
-            chatListService.updatePrivateChatLastMessage(userId, message.getChatId(), message);
-            webSocketService.sendMsgToUser(message, userId, message.getChatId());
-        }
+        // Notification part:
+        WebSocketService.WsContent wsContent = new WebSocketService.WsContent();
+        wsContent.setType(WsContentType.MSG.getType()); // Or a specific "recall_notify" type
+        wsContent.setContent(message); // Send the updated message object
+        String wsContentJson = JSONUtil.toJsonStr(wsContent);
 
+        if (MessageSource.Group.equals(message.getSource())) {
+            chatListService.updateGroupChatLastMessage(message); // Already here
+            // Publish to all group members
+            ChatList chatListForGroup = chatListMapper.selectById(message.getChatId());
+            if (chatListForGroup != null && ChatListType.GROUP.getCode().equals(chatListForGroup.getType()) && chatListForGroup.getGroupId() != null) {
+                List<Long> memberIds = groupMemberMapper.findUserIdsByGroupId(chatListForGroup.getGroupId());
+                if (memberIds != null && !memberIds.isEmpty()) {
+                    for (Long memberId : memberIds) {
+                        RedisBroadcastMsg broadcastMsg = RedisBroadcastMsg.builder()
+                                .targetUserId(memberId)
+                                .messageBody(wsContentJson)
+                                .build();
+                        redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, broadcastMsg);
+                    }
+                    log.info("Published recall notification for messageId {} to group members of groupId {}", msgId, chatListForGroup.getGroupId());
+                }
+            }
+        } else { // Private chat
+            chatListService.updatePrivateChatLastMessage(userId, message.getChatId(), message); // Already here
+
+            // Determine other participant in private chat
+            ChatList privateChat = chatListMapper.selectById(message.getChatId());
+            if (privateChat != null) {
+                Long user1 = privateChat.getUserId();
+                Long user2 = privateChat.getTargetId();
+                Long otherParticipantId = userId.equals(user1) ? user2 : user1;
+
+                // Publish to sender (for sync) and other participant
+                RedisBroadcastMsg toSenderMsg = RedisBroadcastMsg.builder().targetUserId(userId).messageBody(wsContentJson).build();
+                redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, toSenderMsg);
+
+                if (!userId.equals(otherParticipantId)) {
+                   RedisBroadcastMsg toReceiverMsg = RedisBroadcastMsg.builder().targetUserId(otherParticipantId).messageBody(wsContentJson).build();
+                   redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, toReceiverMsg);
+                }
+                log.info("Published recall notification for messageId {} to participants of private chat {}", msgId, message.getChatId());
+            }
+        }
         return message;
     }
 
@@ -176,46 +220,45 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
      */
     @Override
     public Message sendMessageToGroup(Long userId, Message messageBody) {
-        Message message = sendMessage(userId, messageBody, MessageSource.Group); // This saves the message
+        Message message = sendMessage(userId, messageBody, MessageSource.Group);
 
-        // --- Start of Group Message Routing Logic ---
         if (message != null && message.getChatId() != null) {
-            // message.getChatId() in this context is the ID of the ChatList entry for the group chat.
             ChatList chatListForGroup = chatListMapper.selectById(message.getChatId());
 
             if (chatListForGroup != null && ChatListType.GROUP.getCode().equals(chatListForGroup.getType())) {
-                Long actualGroupId = chatListForGroup.getGroupId(); // Use the new groupId field from ChatList
+                Long actualGroupId = chatListForGroup.getGroupId();
                 if (actualGroupId != null) {
-                    List<Long> memberIds = groupMemberMapper.findUserIdsByGroupId(actualGroupId); // Returns List<Long>
+                    List<Long> memberIds = groupMemberMapper.findUserIdsByGroupId(actualGroupId);
 
-                    log.info("Routing group messageId: {} to members: {} of groupId: {}", message.getId(), memberIds, actualGroupId);
-                    // TODO: Replace existing webSocketService.sendMsgToGroup(message) with a method
-                    // that takes memberIds and the message, e.g.,
-                    // webSocketService.sendMessageToSpecificUsers(memberIds, message);
-                    // For now, retain original call but log the members.
-                    webSocketService.sendMsgToGroup(message); // Original call
-                    log.warn("WebSocket call in sendMessageToGroup needs to be updated to use fetched memberIds if direct fan-out is intended here.");
+                    if (memberIds != null && !memberIds.isEmpty()) {
+                        log.info("Publishing group messageId: {} to Redis for members: {} of groupId: {}", message.getId(), memberIds, actualGroupId);
 
+                        WebSocketService.WsContent wsContent = new WebSocketService.WsContent();
+                        wsContent.setType(WsContentType.MSG.getType());
+                        wsContent.setContent(message);
+                        String wsContentJson = JSONUtil.toJsonStr(wsContent);
+
+                        for (Long memberId : memberIds) {
+                            RedisBroadcastMsg broadcastMsg = RedisBroadcastMsg.builder()
+                                    .targetUserId(memberId)
+                                    .messageBody(wsContentJson)
+                                    .build();
+                            redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, broadcastMsg);
+                        }
+                    }
                 } else {
                     log.error("ChatList entry for group chat (id: {}) has a null groupId field.", chatListForGroup.getId());
-                    // Fallback to original behavior if groupId is missing in ChatList
-                    webSocketService.sendMsgToGroup(message);
                 }
             } else {
-                log.error("Could not find ChatList or it's not a GROUP type for chatId: {} from messageId: {}", message.getChatId(), message.getId());
-                // Fallback or error handling if chatList is not found or not a group.
-                webSocketService.sendMsgToGroup(message);
+                 log.error("Could not find ChatList or it's not a GROUP type for chatId: {} from messageId: {}", message.getChatId(), message.getId());
             }
         } else {
             log.error("Message object or its chatId is null after saving. Cannot route group message for messageBody with chatId: {}", messageBody.getChatId());
-             // If message is null but messageBody is not, consider logging messageBody details if helpful
             if (message == null && messageBody != null) {
                 log.error("Message save operation may have failed for senderId: {}, targetChatId: {}", userId, messageBody.getChatId());
             }
         }
-        // --- End of Group Message Routing Logic ---
 
-        // The original call to updateGroupChatLastMessage should still be here if message is not null
         if (message != null) {
             chatListService.updateGroupChatLastMessage(message);
         }
@@ -370,8 +413,55 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
                 reactionVo.getMessageId(), userId, reactionVo.getEmoji());
         }
 
-        // TODO: Through WebSocket, notify all users in the session that the reactions for this message have been updated.
-        // webSocketService.sendReactionUpdate(reactionVo.getMessageId(), updatedReactionData);
-        log.warn("WebSocket notification for reaction update is a TODO.");
+        log.info("Reaction change by user {} for message {}. Publishing to Redis.", userId, reactionVo.getMessageId());
+        Message reactedMessage = getById(reactionVo.getMessageId()); // Use getById from ServiceImpl (superClass)
+        if (reactedMessage == null) {
+            log.error("Cannot send reaction notification, original message {} not found.", reactionVo.getMessageId());
+            return;
+        }
+
+        Map<String, Object> reactionData = Map.of(
+            "messageId", reactionVo.getMessageId(),
+            "emoji", reactionVo.getEmoji(),
+            "reactingUserId", userId,
+            "action", (existingReaction != null) ? "removed" : "added"
+            // "updatedReactions": fetchUpdatedReactionsForMessage(reactionVo.getMessageId()) // Example for more complex payload
+        );
+        // Using WsContentType.NOTIFY for generic notifications. Client needs to check data content.
+        // Could define WsContentType.REACTION_UPDATE for specific handling.
+        NotifyDto<Map<String, Object>> notifyDto = new NotifyDto<>(WsContentType.NOTIFY.getType(), reactionData);
+
+        WebSocketService.WsContent wsContent = new WebSocketService.WsContent();
+        wsContent.setType(WsContentType.NOTIFY.getType());
+        wsContent.setContent(notifyDto);
+        String wsContentJson = JSONUtil.toJsonStr(wsContent);
+
+        if (MessageSource.Group.equals(reactedMessage.getSource())) {
+            ChatList chatListForGroup = chatListMapper.selectById(reactedMessage.getChatId());
+            if (chatListForGroup != null && ChatListType.GROUP.getCode().equals(chatListForGroup.getType()) && chatListForGroup.getGroupId() != null) {
+                List<Long> memberIds = groupMemberMapper.findUserIdsByGroupId(chatListForGroup.getGroupId());
+                if (memberIds != null && !memberIds.isEmpty()) {
+                    for (Long memberId : memberIds) {
+                        RedisBroadcastMsg broadcastMsg = RedisBroadcastMsg.builder().targetUserId(memberId).messageBody(wsContentJson).build();
+                        redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, broadcastMsg);
+                    }
+                    log.info("Published reaction notification for messageId {} to group members of groupId {}", reactionVo.getMessageId(), chatListForGroup.getGroupId());
+                }
+            }
+        } else { // Private chat
+            ChatList privateChat = chatListMapper.selectById(reactedMessage.getChatId());
+            if (privateChat != null) {
+                Long user1 = privateChat.getUserId();
+                Long user2 = privateChat.getTargetId();
+
+                RedisBroadcastMsg toUser1Msg = RedisBroadcastMsg.builder().targetUserId(user1).messageBody(wsContentJson).build();
+                redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, toUser1Msg);
+                if (!user1.equals(user2)) {
+                    RedisBroadcastMsg toUser2Msg = RedisBroadcastMsg.builder().targetUserId(user2).messageBody(wsContentJson).build();
+                    redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, toUser2Msg);
+                }
+                log.info("Published reaction notification for messageId {} to participants of private chat {}", reactionVo.getMessageId(), reactedMessage.getChatId());
+            }
+        }
     }
 }
