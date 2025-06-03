@@ -24,6 +24,8 @@ public class ChatList implements Serializable {
     private String createTime;
     // 最后更新时间（对应数据库 update_time 字段，timestamp(3)，不允许为 null）
     private String updateTime;
+    // 群组ID, for group chats
+    private Long groupId;
 
     // 无参构造函数
     public ChatList() {
@@ -31,7 +33,7 @@ public class ChatList implements Serializable {
 
     // 全参构造函数
     public ChatList(String id, Long userId, Long targetId, String targetInfo, Integer unreadCount, String lastMessage,
-                    String type, String createTime, String updateTime) {
+                    String type, String createTime, String updateTime, Long groupId) {
         this.id = id;
         this.userId = userId;
         this.targetId = targetId;
@@ -41,6 +43,7 @@ public class ChatList implements Serializable {
         this.type = type;
         this.createTime = createTime;
         this.updateTime = updateTime;
+        this.groupId = groupId;
     }
 
     // Getter 和 Setter 方法
@@ -117,6 +120,14 @@ public class ChatList implements Serializable {
         this.updateTime = updateTime;
     }
 
+    public Long getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(Long groupId) {
+        this.groupId = groupId;
+    }
+
     // 重写 toString 方法
     @Override
     public String toString() {
@@ -130,6 +141,7 @@ public class ChatList implements Serializable {
                 ", type='" + type + '\'' +
                 ", createTime='" + createTime + '\'' +
                 ", updateTime='" + updateTime + '\'' +
+                ", groupId=" + groupId +
                 '}';
     }
 
@@ -147,12 +159,13 @@ public class ChatList implements Serializable {
                 Objects.equals(lastMessage, chatList.lastMessage) &&
                 Objects.equals(type, chatList.type) &&
                 Objects.equals(createTime, chatList.createTime) &&
-                Objects.equals(updateTime, chatList.updateTime);
+                Objects.equals(updateTime, chatList.updateTime) &&
+                Objects.equals(groupId, chatList.groupId);
     }
 
     // 重写 hashCode 方法
     @Override
     public int hashCode() {
-        return Objects.hash(id, userId, targetId, targetInfo, unreadCount, lastMessage, type, createTime, updateTime);
+        return Objects.hash(id, userId, targetId, targetInfo, unreadCount, lastMessage, type, createTime, updateTime, groupId);
     }
 }
