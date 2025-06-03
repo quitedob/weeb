@@ -204,4 +204,7 @@ Vue/
 | `GET`  | `/articles/userinform-by-username` | 根据用户名获取详细信息（含注册天数）|
 
 ---
+
+## Production-Grade Setup Notes
+Detailed instructions will be added here.
 ```

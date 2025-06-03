@@ -1,36 +1,13 @@
-# 应用程序配置文件
-server:
-  port: 8080   # 服务器端口号
-
 spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/weeb?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=UTC  # 数据库连接地址，数据库名称为 weeb
-    username: root    # 数据库用户名
-    password:     # 替换为实际的数据库密码
-    driver-class-name: com.mysql.cj.jdbc.Driver   # MySQL 驱动类
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      password:
-      database: 0
+  profiles:
+    active: dev # Default to dev environment
 
-mybatis:
-  mapper-locations: classpath:mapper/*.xml    # MyBatis 映射文件位置
-  type-aliases-package: com.web.model     # 实体类包路径，可根据实际包结构调整
-
-jwt:
-  secret:
-  expiration: 3600000   # JWT 过期时间（毫秒）
-
-logging:
-  level:
-    root: INFO
-    com.web: DEBUG # 设置为DEBUG以便看到更多日志信息
-
-mybatis-plus:
-  configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+# Keep existing WEEB specific configurations if they are environment agnostic
+# or move them to dev/prod specific files if they differ.
+# For now, I will assume they are environment agnostic and keep them here.
+# If the original application.yml had other spring top-level keys like 'server',
+# 'mybatis', 'jwt', 'logging', 'mybatis-plus', they should be moved to
+# application-dev.yml and application-prod.yml as appropriate.
 
 WEEB:
   password: sun55@kong #群聊密码

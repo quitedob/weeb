@@ -1,0 +1,39 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/weeb?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=UTC
+    username: root
+    password: YOUR_DEV_DB_PASSWORD # Placeholder - user should change this
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: # Keep empty if no password for dev Redis
+      database: 0
+  # Assuming JPA might be added or Mybatis settings for dev
+  # For now, using Mybatis settings from original application.yml
+  jpa: # As per recommendation, though project uses MyBatis
+    hibernate:
+      ddl-auto: update # Development setting
+    show-sql: true     # Development setting
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.web.model # As per original application.yml
+
+jwt:
+  secret: DEV_JWT_SECRET_KEY_PLEASE_CHANGE # Placeholder
+  expiration: 3600000
+
+logging:
+  level:
+    root: INFO
+    com.web: DEBUG # As per original application.yml
+    org.springframework.security: DEBUG # useful for dev
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # As per original
