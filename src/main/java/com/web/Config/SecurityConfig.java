@@ -44,6 +44,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/articles/{id}",
                                 "/findByUserID").permitAll()
+                        // Add new authenticated paths explicitly
+                        .requestMatchers(
+                                "/user/info",       // UserController is at /user
+                                "/user/update",     // UserController is at /user
+                                "/api/group/my-list" // GroupController is at /api/group
+                        ).authenticated()
                         // 其余请求需要认证
                         .anyRequest().authenticated()
                 );
