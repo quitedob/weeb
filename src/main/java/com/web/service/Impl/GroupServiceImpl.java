@@ -18,6 +18,7 @@ import com.web.vo.group.GroupInviteVo;
 import com.web.vo.group.GroupKickVo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl; // For ServiceImpl
 import org.springframework.beans.factory.annotation.Autowired; // Using Autowired
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,12 +28,12 @@ import java.util.Date;
 import java.util.List;
 
 @Service
-public class GroupServiceImpl implements GroupService {
+public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements GroupService {
 
     private static final Logger log = LoggerFactory.getLogger(GroupServiceImpl.class);
 
-    @Autowired
-    private GroupMapper groupMapper;
+    // @Autowired
+    // private GroupMapper groupMapper; // Removed, use baseMapper
 
     @Autowired
     private GroupMemberMapper groupMemberMapper;
@@ -54,7 +55,7 @@ public class GroupServiceImpl implements GroupService {
         group.setOwnerId(userId); // Owner is the creator
         // group.setGroupAvatarUrl(); // Can be set later or if provided in VO
         // createTime is set by Group constructor
-        groupMapper.insert(group); // Insert and get the auto-generated group ID
+        baseMapper.insert(group); // Insert and get the auto-generated group ID
 
         // 2. Create Group's ChatList entry
         ChatList chatList = new ChatList();
@@ -213,5 +214,16 @@ public class GroupServiceImpl implements GroupService {
         if (operator.getRole() < GroupRole.ADMIN.getCode()) { // OWNER(2), ADMIN(1), MEMBER(0)
             throw new WeebException("You do not have permission to perform this action (Admin or Owner required).");
         }
+    }
+
+    /**
+     * 实现根据用户ID获取群组列表的方法
+     * @param userId 用户ID
+     * @return 群组列表
+     */
+    @Override
+    public List<Group> getGroupsByUserId(Integer userId) {
+        // 直接调用 Mapper 层的方法来执行数据库查询 (via baseMapper)
+        return baseMapper.findGroupsByUserId(userId);
     }
 }
