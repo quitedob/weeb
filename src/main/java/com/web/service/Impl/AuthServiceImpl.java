@@ -10,6 +10,10 @@ import com.web.service.ChatListService;
 import com.web.service.WebSocketService;
 import com.web.util.CacheUtil;
 import com.web.util.JwtUtil;
+import com.web.mapper.UserMapper; // Import UserMapper
+import com.web.exception.WeebException;
+import com.web.vo.user.UpdateUserVo;
+import org.springframework.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -41,6 +45,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private AuthMapper authMapper;   // 改名后的 Mapper 注入
+
+    @Autowired
+    private UserMapper userMapper;
 
     @Autowired
     private JwtUtil jwtUtil; // JWT 工具类，用于生成和解析 Token
@@ -285,4 +292,27 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    @Override
+    public User getUserById(Integer userId) {
+        return userMapper.selectById(userId);
+    }
+
+    @Override
+    public User updateUser(Integer userId, UpdateUserVo updateUserVo) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new WeebException("用户不存在");
+        }
+
+        // 仅当传入的字段不为空时才更新
+        if (StringUtils.hasText(updateUserVo.getUsername())) {
+            user.setUsername(updateUserVo.getUsername());
+        }
+        if (StringUtils.hasText(updateUserVo.getAvatar())) {
+            user.setAvatar(updateUserVo.getAvatar());
+        }
+
+        userMapper.updateById(user);
+        return user;
+    }
 }

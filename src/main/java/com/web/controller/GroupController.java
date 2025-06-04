@@ -11,6 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 // Using jakarta.validation.Valid
 import jakarta.validation.Valid;
+import com.web.common.ApiResponse; // For ApiResponse
+import com.web.util.SecurityUtil;   // For SecurityUtil
+import java.util.List;              // For List
 
 /**
  * 群组管理控制器
@@ -45,5 +48,16 @@ public class GroupController {
     public Object leaveGroup(@PathVariable("groupId") Long groupId, @Userid Long userId) { // groupId and userId as Long
         groupService.leaveGroup(groupId, userId);
         return ResultUtil.success();
+    }
+
+    /**
+     * 获取当前用户加入的所有群组
+     * @return 群组列表
+     */
+    @GetMapping("/my-list")
+    public ApiResponse<List<Group>> getMyGroupList() {
+        Integer userId = SecurityUtil.getUserId();
+        List<Group> groupList = groupService.getGroupsByUserId(userId);
+        return ApiResponse.success(groupList);
     }
 }
