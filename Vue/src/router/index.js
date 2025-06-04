@@ -16,6 +16,11 @@ import ChatPage from "@/Chat/ChatPage.vue";
 import UserInform from "@/auth/UserInform.vue";
 import UserValue from "@/value/usevalue.vue";
 
+// New component imports
+import ContactPage from '@/contact/ContactPage.vue';
+import GroupPage from '@/group/GroupPage.vue';
+import SearchPage from '@/search/SearchPage.vue';
+
 const routes = [
     { path: '/login', component: Login },
     { path: '/register', component: Register },
@@ -32,6 +37,11 @@ const routes = [
     { path: '/chatpage' , component: ChatPage},
     { path: '/userinform', component: UserInform},
     { path: '/uservalue', component: UserValue},
+
+    // New routes
+    { path: '/contacts', component: ContactPage },
+    { path: '/groups', component: GroupPage },
+    { path: '/search', component: SearchPage },
 ]
 
 const router = createRouter({
