@@ -1,17 +1,18 @@
 package com.web.vo.user;
 
 import lombok.Data;
+import org.hibernate.validator.constraints.Length;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
-
+/**
+ * 更新用户信息的VO
+ * 用于接收前端传递的更新数据
+ */
 @Data
 public class UpdateUserVo {
-    @NotBlank(message = "用户名不能为空~")
-    @Pattern(
-            regexp = "^[a-zA-Z][a-zA-Z0-9]{2,15}$",
-            message = "用户名只能包含英文字母和数字，且必须以英文字母开头，长度为[3-16]位~"
-    )
-    private String name;
-    private String avatar;
+
+    @Length(max = 20, message = "用户名长度不能超过20个字符")
+    private String username; // 用户名
+
+    @Length(max = 255, message = "头像URL过长")
+    private String avatar; // 头像URL
 }

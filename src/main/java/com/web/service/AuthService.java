@@ -107,4 +107,7 @@ public interface AuthService {
     boolean updateUser(User user);
 
     User getUserByIdForTalk(Long userId);
+
+    User getUserById(Integer userId);
+    User updateUser(Integer userId, com.web.vo.user.UpdateUserVo updateUserVo);
 }
