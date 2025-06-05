@@ -131,7 +131,7 @@ const router = createRouter({
 // It's better to handle such UI notifications within Vue components or a dedicated notification service.
 
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('accessToken'); // Or from Pinia store
+  const token = localStorage.getItem('jwt_token'); // Or from Pinia store
   if (to.meta.requiresAuth && !token) {
     // ElMessage.warning('请先登录'); // Commenting out for .js file context
     console.warn('Router Guard: Auth required, no token. Redirecting to login.');

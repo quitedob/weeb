@@ -23,7 +23,7 @@
       <template #title>联系人</template>
     </el-menu-item>
 
-    <el-menu-item index="/groups"> <!-- Added Groups link -->
+    <el-menu-item index="/groups">
       <el-icon><Collection /></el-icon> <template #title>群组</template>
     </el-menu-item>
 
@@ -32,11 +32,12 @@
       <template #title>搜索</template>
     </el-menu-item>
 
-    <!-- Article link can be added here later when ArticlePage is implemented -->
-    <!-- <el-menu-item index="/article">
-      <el-icon><Document /></el-icon>
-      <template #title>文章</template>
-    </el-menu-item> -->
+    <!-- User Info Display -->
+    <el-menu-item v-if="authStore.currentUser && !isCollapse" class="user-info-menu-item" disabled>
+      <el-icon><Avatar /></el-icon> <!-- Added Avatar icon -->
+      <template #title>{{ authStore.currentUser.username }}</template>
+    </el-menu-item>
+    <!-- End User Info Display -->
 
     <div class="menu-spacer"></div>
 
@@ -59,17 +60,42 @@ import {
   User,
   Setting,
   Search,
-  Document,
+  // Document, // Article icon, can be added later
   Collection,
   SwitchButton,
+  Avatar // Added Avatar icon for user info display
 } from '@element-plus/icons-vue';
-// import { useAppStore } from '@/stores/appStore'; // Commented out
-// import { useAuthStore } from '@/stores/authStore'; // Commented out
+import { useAppStore } from '@/stores/appStore'; // Assuming appStore.js will be created
+import { useAuthStore } from '@/stores/authStore';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import api from '@/api'; // Import API
+import api from '@/api';
 
-const appStore = { isSidebarCollapsed: false }; // Placeholder
-const authStore = { logout: () => console.log('authStore.logout called (placeholder)') }; // Placeholder
+// Assuming appStore.js might be simple like:
+// import { defineStore } from 'pinia';
+// export const useAppStore = defineStore('app', {
+//   state: () => ({ isSidebarCollapsed: false }),
+//   actions: { toggleSidebar() { this.isSidebarCollapsed = !this.isSidebarCollapsed; } }
+// });
+// For now, if useAppStore is not available, provide a placeholder to avoid immediate error.
+let appStoreInstance; // Renamed to avoid conflict with the import
+let authStoreInstance;  // Renamed to avoid conflict with the import
+try {
+  appStoreInstance = useAppStore();
+} catch (e) {
+  console.warn("AsideMenu.vue: appStore not available, using placeholder. Functionality like sidebar collapse might be affected.");
+  appStoreInstance = { isSidebarCollapsed: false, toggleSidebar: () => {} }; // Placeholder
+}
+
+try {
+  authStoreInstance = useAuthStore();
+} catch (e) {
+  console.warn("AsideMenu.vue: authStore not available, using placeholder. User info and logout might be affected.");
+  authStoreInstance = { currentUser: null, logout: () => console.log("Placeholder authStore.logout called") }; // Placeholder
+}
+// Use the potentially placeholder instances with the original names used in the template/script logic
+const appStore = appStoreInstance;
+const authStore = authStoreInstance;
+
 
 const route = useRoute();
 const router = useRouter();
@@ -94,24 +120,22 @@ const handleLogout = async () => {
     type: 'warning',
   }).then(async () => {
     try {
-      // Changed from api.auth.logout() to api.logout()
-      // This still requires api.logout to be defined in Vue/src/api/index.js
-      // If api.logout is not defined, this will cause a runtime error.
-      // For the subtask to pass, this line itself is fine.
-      // The user's api/index.js provided earlier did NOT include a logout function.
-      // To be safe and allow the page to load without runtime errors from this specific call,
-      // I will comment out the actual API call for the subtask, assuming it will be fixed later.
-      console.warn("api.logout() call in AsideMenu.vue is commented out for now, pending definition in api/index.js");
-      // await api.logout(); // Call to a currently undefined function
-
-      authStore.logout();
-      ElMessage.success('已成功退出登录 (simulated)'); // Simulate success
+      // This should use the modular API structure: api.auth.logout()
+      await api.auth.logout();
+      // authStore.logout() in Pinia store should handle clearing localStorage and state
+      if (authStore.logout) { // Check if placeholder or real store
+        // This calls the action in Pinia store, which should also clear state and localStorage
+        authStore.logout(); // This is the Pinia action, which itself calls api.auth.logout and then cleanup
+      }
+      ElMessage.success('已成功退出登录');
       router.push('/login');
     } catch (error) {
       console.error('登出失败:', error);
       ElMessage.error('登出失败，请稍后再试');
-      authStore.logout();
-      router.push('/login');
+      if (authStore.logout) { // Ensure cleanup even if API call within store action failed
+        authStore.logoutCleanup ? authStore.logoutCleanup() : authStore.logout();
+      }
+      router.push('/login'); // Ensure redirection
     }
   }).catch(() => {
     // User cancelled
@@ -171,6 +195,16 @@ const handleLogout = async () => {
   font-size: 18px;
   vertical-align: middle;
 }
+
+.user-info-menu-item.is-disabled { /* Style for disabled user info item */
+  opacity: 1 !important;
+  cursor: default !important;
+  color: #bfcbd9 !important; /* Match text-color */
+}
+.user-info-menu-item .el-icon { /* Ensure icon color matches */
+ color: #bfcbd9 !important;
+}
+
 
 .menu-spacer {
   flex-grow: 1;

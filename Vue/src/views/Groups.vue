@@ -16,7 +16,7 @@
           <el-empty description="您还没有加入任何群组，快去发现或创建一个吧！" />
         </div>
         <div v-else class="group-list">
-          <el-card v-for="group in myGroups" :key="group.groupId" shadow="hover" class="group-card" @click="navigateToGroupDetail(group.groupId)">
+          <el-card v-for="group in myGroups" :key="group.id" shadow="hover" class="group-card" @click="navigateToGroupDetail(group.id)">
             <template #header>
               <div class="card-header">
                 <span>{{ group.groupName }}</span>
@@ -26,13 +26,13 @@
               </div>
             </template>
             <div class="group-info">
-              <p>群ID: {{ group.groupId }}</p>
+              <p>群ID: {{ group.id }}</p>
               <p>成员数: {{ group.memberCount }}</p>
               </div>
             <template #footer>
                 <div class="card-footer">
-                    <el-button type="primary" text @click.stop="navigateToGroupChat(group.groupId, group.groupName)">进入群聊</el-button>
-                    <el-button type="info" text @click.stop="navigateToGroupDetail(group.groupId)">查看详情</el-button>
+                    <el-button type="primary" text @click.stop="navigateToGroupChat(group.id, group.groupName)">进入群聊</el-button>
+                    <el-button type="info" text @click.stop="navigateToGroupDetail(group.id)">查看详情</el-button>
                 </div>
             </template>
           </el-card>
@@ -63,20 +63,20 @@
             <el-empty description="输入关键词搜索公开群组吧！" />
           </div>
           <div v-else class="group-list">
-            <el-card v-for="group in discoveredGroups" :key="group.groupId" shadow="hover" class="group-card">
+            <el-card v-for="group in discoveredGroups" :key="group.id" shadow="hover" class="group-card">
               <template #header>
                 <div class="card-header">
                   <span>{{ group.groupName }}</span>
                 </div>
               </template>
               <div class="group-info">
-                <p>群ID: {{ group.groupId }}</p>
+                <p>群ID: {{ group.id }}</p>
                 <p>群主: {{ group.ownerUsername || '未知' }}</p>
                 <p>成员数: {{ group.memberCount }}</p>
               </div>
               <template #footer>
-                <el-button type="success" @click="applyToJoinGroup(group.groupId)" :disabled="isMemberOf(group.groupId)">
-                  {{ isMemberOf(group.groupId) ? '已加入' : '申请加入' }}
+                <el-button type="success" @click="applyToJoinGroup(group.id)" :disabled="isMemberOf(group.id)">
+                  {{ isMemberOf(group.id) ? '已加入' : '申请加入' }}
                 </el-button>
               </template>
             </el-card>
@@ -107,28 +107,22 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
-import api from '@/api'; // 假设 api/index.js 正确导出
+import api from '@/api';
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
 import { Plus, Search } from '@element-plus/icons-vue';
-// import { useChatStore } from '@/stores/chatStore'; // 引入聊天状态管理 - User mentioned this but it's not in the file list yet.
-// For now, I will comment this out. If chatStore is essential, it needs to be created first.
-// Based on the usage (chatStore.currentUser?.userId, chatStore.setActiveChat), it seems important.
-// However, the user's instruction for THIS task is to create Groups.vue.
-// I will create Groups.vue as provided, and if it fails due to chatStore,
-// the user can provide chatStore.js or I can create a placeholder for it in a subsequent step.
-
-// Let's assume for now that chatStore might be provided later or is not strictly critical for the page to load initially (though functionality will be limited).
-// The immediate task is to create this Groups.vue file.
+import { useChatStore } from '@/stores/chatStore';
+import { useAuthStore } from '@/stores/authStore'; // Added
 
 const router = useRouter();
-// const chatStore = useChatStore(); // Using聊天状态 - Commented out for now
+const chatStore = useChatStore();
+const authStore = useAuthStore(); // Added
 
 const activeTab = ref('myGroups');
 const myGroups = ref([]);
 const discoveredGroups = ref([]);
 const loadingMyGroups = ref(false);
 const loadingDiscoveredGroups = ref(false);
-const initialDiscoverLoad = ref(true); // 用于区分初始状态和搜索无结果状态
+const initialDiscoverLoad = ref(true);
 const searchQuery = ref('');
 
 const createGroupDialogVisible = ref(false);
@@ -146,25 +140,20 @@ const createGroupRules = {
   ]
 };
 
-// 获取我加入的群组列表
 const fetchMyGroups = async () => {
   loadingMyGroups.value = true;
   try {
-    console.warn('Groups.vue: fetchMyGroups 需要对接后端 API 获取用户群组列表');
-    // Simulating API call based on provided logic, actual API methods are in api/index.js
-    // const response = await api.getMyGroups(); // Corrected to use a method name from api/index.js
-    const response = await api.getMyGroups(); // Using the actual method from api/index.js
-    if (response && response.code === 200 && response.data) { // Assuming response.data is the array
+    const response = await api.group.getUserJoinedGroups();
+    if (response && response.code === 200 && response.data) {
         myGroups.value = response.data.map(group => ({
             ...group,
-            groupId: group.id, // Mapping id to groupId if backend sends 'id'
-            memberCount: group.memberCount || (group.memberIds ? group.memberIds.length : 0),
-            // role: group.ownerId === chatStore.currentUser?.userId ? 'OWNER' : 'MEMBER' // Depends on chatStore
-            role: group.isOwner ? 'OWNER' : 'MEMBER' // Assuming backend might send an isOwner flag or similar
+            // Assuming backend sends 'id' for group, and 'memberCount' directly.
+            // Role calculation needs currentUser from authStore.
+            role: group.ownerId === authStore.currentUser?.id ? 'OWNER' : 'MEMBER' // Corrected: authStore and currentUser.id
         }));
     } else {
         myGroups.value = [];
-        // ElMessage.error(response.message || '获取我的群组列表失败');
+        ElMessage.error(response.message || '获取我的群组列表失败');
     }
   } catch (error) {
     console.error('获取我的群组列表失败:', error);
@@ -175,7 +164,6 @@ const fetchMyGroups = async () => {
   }
 };
 
-// 搜索公开群组
 const searchPublicGroups = async () => {
   if (!searchQuery.value.trim()) {
     discoveredGroups.value = [];
@@ -185,19 +173,15 @@ const searchPublicGroups = async () => {
   loadingDiscoveredGroups.value = true;
   initialDiscoverLoad.value = false;
   try {
-    console.warn('Groups.vue: searchPublicGroups 需要对接后端 API 搜索公开群组');
-    // const response = await api.searchGroups(searchQuery.value); // Corrected to use a method name from api/index.js
-    const response = await api.searchGroups(searchQuery.value);  // Using actual method from api/index.js
-     if (response && response.code === 200 && response.data) { // Assuming response.data is the array
+    const response = await api.search.searchGroups(searchQuery.value);
+     if (response && response.code === 200 && response.data) {
         discoveredGroups.value = response.data.map(group => ({
             ...group,
-            groupId: group.id, // Mapping id to groupId
-            memberCount: group.memberCount || (group.members ? group.members.length : 0),
-            ownerUsername: group.owner ? group.owner.username : (group.ownerUsername || '未知')
+            // Assuming backend sends 'id', 'groupName', 'ownerUsername', 'memberCount'
         }));
     } else {
         discoveredGroups.value = [];
-        // ElMessage.error(response.message || '未找到群组');
+        // ElMessage.error(response.message || '未找到群组'); // Optionally show message
     }
   } catch (error) {
     console.error('搜索群组失败:', error);
@@ -208,12 +192,10 @@ const searchPublicGroups = async () => {
   }
 };
 
-// 打开创建群组对话框
 const openCreateGroupDialog = () => {
   createGroupDialogVisible.value = true;
 };
 
-// 重置创建群组表单
 const resetCreateGroupForm = () => {
   if (createGroupFormRef.value) {
     createGroupFormRef.value.resetFields();
@@ -222,20 +204,17 @@ const resetCreateGroupForm = () => {
   createGroupForm.description = '';
 };
 
-// 处理创建群组
 const handleCreateGroup = async () => {
   if (!createGroupFormRef.value) return;
   await createGroupFormRef.value.validate(async (valid) => {
     if (valid) {
       creatingGroup.value = true;
       try {
-        console.warn('Groups.vue: handleCreateGroup 需要对接后端 API 创建群组', createGroupForm);
         const payload = {
             groupName: createGroupForm.groupName,
-            // description: createGroupForm.description, // Backend GroupCreateVo in previous context did not have description
+            description: createGroupForm.description,
         };
-        // const response = await api.createGroup(payload); // Corrected to use a method name from api/index.js
-        const response = await api.createGroup(payload); // Using actual method from api/index.js
+        const response = await api.group.createGroup(payload);
 
         if (response && response.code === 200) {
             ElMessage.success('群组创建成功');
@@ -259,21 +238,18 @@ const handleCreateGroup = async () => {
   });
 };
 
-// 申请加入群组
 const applyToJoinGroup = async (groupId) => {
   ElMessageBox.confirm('确定要申请加入该群组吗？', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'info',
   }).then(async () => {
-    const loading = ElLoading.service({ text: '正在处理...' }); // Changed text
+    const loading = ElLoading.service({ text: '正在处理...' });
     try {
-      console.warn(`Groups.vue: applyToJoinGroup 需要对接后端 API 申请加入群组 ${groupId}`);
-      // const response = await api.joinGroup({ groupId }); // Corrected to use a method name from api/index.js
-      const response = await api.joinGroup({ groupId }); // Using actual method, assuming it's for direct join or request
+      const response = await api.group.joinGroup({ groupId }); // Corrected API call
       if (response.code === 200) {
-         ElMessage.success('操作成功！请等待群主或管理员审核或查看群组列表。'); // Generic message
-         fetchMyGroups(); // Refresh my groups list
+         ElMessage.success('操作成功！请等待群主或管理员审核或查看群组列表。');
+         fetchMyGroups();
       } else {
          ElMessage.error(response.message || '操作失败');
       }
@@ -284,41 +260,38 @@ const applyToJoinGroup = async (groupId) => {
       loading.close();
     }
   }).catch(() => {
-    // 用户取消
+    // User cancelled
   });
 };
 
-// 判断用户是否已经是某群组成员
 const isMemberOf = (groupId) => {
-  return myGroups.value.some(group => group.groupId === groupId);
+  return myGroups.value.some(group => group.id === groupId); // Assuming group object has 'id'
 };
 
-// 跳转到群组详情页 (待实现)
 const navigateToGroupDetail = (groupId) => {
   router.push(`/group/${groupId}`);
 };
 
-// 跳转到群聊
 const navigateToGroupChat = (groupId, groupName) => {
-    // const groupChatSession = {
-    //     id: groupId,
-    //     name: groupName,
-    //     avatar: '',
-    //     type: 'GROUP',
-    //     unreadCount: 0,
-    //     lastMessage: null,
-    //     lastMessageTime: new Date().toISOString(),
-    // };
-    // chatStore.setActiveChat(groupChatSession); // Depends on chatStore
-    // router.push('/chat');
-    // Simplified navigation for now if chatStore is not ready
-    router.push(`/chat/group/${groupId}`); // Assuming a route like /chat/:type/:id
-    ElMessage.info(`进入群聊 ${groupName} (ID: ${groupId}) - chatStore integration pending.`);
+    const groupFromList = myGroups.value.find(g => g.id === groupId) || discoveredGroups.value.find(g => g.id === groupId);
+    const groupChatSession = {
+        id: groupId,
+        name: groupName,
+        avatar: groupFromList?.avatarUrl || groupFromList?.avatar || '', // Use group's avatar if available
+        type: 'GROUP',
+        unreadCount: 0,
+        lastMessage: null,
+        lastMessageTime: new Date().toISOString(),
+    };
+    chatStore.setActiveChat(groupChatSession);
+    router.push('/chat');
 };
 
 
 onMounted(() => {
   fetchMyGroups();
+  // Optionally, load some initial discovered groups or popular groups if desired
+  // searchPublicGroups(); // Example: if you want to show some groups on initial load of "Discover"
 });
 </script>
 
@@ -350,7 +323,8 @@ onMounted(() => {
 
 .el-tabs__content {
     overflow-y: auto;
-    height: calc(100% - 55px);
+    /* Set a fixed height or ensure parent has height for calc to work effectively */
+    /* height: calc(100% - 55px); */ /* Adjust 55px based on actual tab header height */
 }
 
 .group-list {
@@ -410,7 +384,7 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 200px;
+  min-height: 200px; /* Ensure it takes some space */
   color: #909399;
 }
 

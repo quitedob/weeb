@@ -25,7 +25,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import api from '@/api'; // 引入api管理文件
+import api from '@/api';
+import { useAuthStore } from '@/stores/authStore';
+import { ElMessage } from 'element-plus';
+
+const authStore = useAuthStore();
 
 const user = ref(null);
 const form = ref({
@@ -33,46 +37,62 @@ const form = ref({
   avatar: '',
 });
 const message = ref('');
-const messageType = ref('success'); // 'success' 或 'error'
-const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'; // 默认头像
+const messageType = ref('success');
+const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png';
 
-// 组件挂载后获取用户信息
 onMounted(async () => {
-  try {
-    const response = await api.getUserInfo();
-    if (response.code === 200) {
-      user.value = response.data;
-      form.value.username = response.data.username;
-      form.value.avatar = response.data.avatar;
-    } else {
-      showMessage('获取用户信息失败: ' + response.message, 'error');
+  if (authStore.currentUser) {
+    user.value = { ...authStore.currentUser };
+    form.value.username = authStore.currentUser.username;
+    form.value.avatar = authStore.currentUser.avatar || '';
+  } else {
+    try {
+      const response = await api.user.getUserInfo();
+      if (response.code === 200 && response.data) {
+        authStore.setCurrentUser(response.data);
+        user.value = { ...response.data };
+        form.value.username = response.data.username;
+        form.value.avatar = response.data.avatar || '';
+      } else {
+        showMessage('获取用户信息失败: ' + (response.message || 'Unknown error'), 'error');
+      }
+    } catch (error) {
+      showMessage('网络请求失败: ' + (error.message || 'Unknown error'), 'error');
     }
-  } catch (error) {
-    showMessage('网络请求失败', 'error');
   }
 });
 
-// 显示提示信息
 const showMessage = (msg, type = 'success') => {
   message.value = msg;
   messageType.value = type;
+  ElMessage[type](msg);
   setTimeout(() => (message.value = ''), 3000);
 };
 
-// 更新用户信息
 const updateProfile = async () => {
-  if (!user.value) return;
+  if (!form.value) return;
   try {
-    const response = await api.updateUserInfo(form.value);
-    if (response.code === 200) {
+    const payload = {
+        username: form.value.username,
+        avatar: form.value.avatar,
+    };
+    const response = await api.user.updateUserInfo(payload);
+    if (response.code === 200 && response.data) {
+      authStore.setCurrentUser(response.data);
+      user.value = { ...response.data };
+      form.value.username = response.data.username;
+      form.value.avatar = response.data.avatar || '';
       showMessage('更新成功！', 'success');
-      // 可选：更新本地存储或状态管理中的用户信息
     } else {
-      showMessage('更新失败: ' + response.message, 'error');
+      showMessage('更新失败: ' + (response.message || 'Unknown error'), 'error');
     }
   } catch (error) {
-    showMessage('网络请求失败', 'error');
+    showMessage('网络请求失败: ' + (error.message || 'Unknown error'), 'error');
   }
+};
+
+const onAvatarError = (e) => {
+  e.target.src = defaultAvatar;
 };
 </script>
 
