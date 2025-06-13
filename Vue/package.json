@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@wangeditor/vue-next": "^1.0.5", // Added WangEditor for Vue
     "axios": "^1.7.9",
     "pinia": "^2.1.7", // Added Pinia
     "quill": "^2.0.3",

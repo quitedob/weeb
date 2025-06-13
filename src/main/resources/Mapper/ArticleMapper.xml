@@ -9,7 +9,7 @@
         <id property="id" column="article_id"/>
         <result property="userId" column="user_id"/>
         <result property="articleTitle" column="article_title"/>
-        <result property="articleLink" column="article_link"/>
+        <result property="articleContent" column="article_content"/> <!-- Changed property and column -->
         <result property="likesCount" column="likes_count"/>
         <result property="favoritesCount" column="favorites_count"/>
         <result property="sponsorsCount" column="sponsors_count"/>
@@ -19,18 +19,25 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="getAllArticles" resultMap="ArticleResultMap">
+    <select id="getAllArticles" parameterType="map" resultMap="ArticleResultMap">
         SELECT
             article_id,
             user_id,
             article_title,
-            article_link,
+            article_content,    <!-- Ensure this column is selected -->
             likes_count,
             favorites_count,
             sponsors_count,
+            created_at,         <!-- Ensure this column is selected -->
             updated_at,
             exposure_count
         FROM articles
+        ORDER BY updated_at DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countAllArticles" resultType="int">
+        SELECT COUNT(*) FROM articles
     </select>
 
     <select id="selectArticleById" parameterType="long" resultMap="ArticleResultMap">
@@ -128,36 +135,23 @@
     <!-- 根据 userId 汇总 articles 表中各项数据并更新 auth 表 -->
     <update id="updateAuthTotals" parameterType="long">
         UPDATE auth a
+        JOIN (
+            SELECT
+                user_id,
+                COALESCE(SUM(likes_count), 0) AS total_likes,
+                COALESCE(SUM(favorites_count), 0) AS total_favorites,
+                COALESCE(SUM(sponsors_count), 0) AS total_sponsorship,
+                COALESCE(SUM(exposure_count), 0) AS total_article_exposure
+            FROM articles
+            WHERE user_id = #{userId}
+            GROUP BY user_id
+        ) AS stats ON a.id = stats.user_id
         SET
-            -- 将 articles 表中该用户的所有文章的 likes_count 总和更新到 auth 表的 total_likes 字段
-            total_likes = (
-                SELECT
-                    COALESCE(SUM(likes_count), 0)
-                FROM articles
-                WHERE user_id = #{userId}
-            ),
-            -- 将 articles 表中该用户的所有文章的 favorites_count 总和更新到 auth 表的 total_favorites 字段
-            total_favorites = (
-                SELECT
-                    COALESCE(SUM(favorites_count), 0)
-                FROM articles
-                WHERE user_id = #{userId}
-            ),
-            -- 将 articles 表中该用户的所有文章的 sponsors_count 总和更新到 auth 表的 total_sponsorship 字段
-            total_sponsorship = (
-                SELECT
-                    COALESCE(SUM(sponsors_count), 0)
-                FROM articles
-                WHERE user_id = #{userId}
-            ),
-            -- 将 articles 表中该用户的所有文章的 exposure_count 总和更新到 auth 表的 total_article_exposure 字段
-            total_article_exposure = (
-                SELECT
-                    COALESCE(SUM(exposure_count), 0)
-                FROM articles
-                WHERE user_id = #{userId}
-            )
-        WHERE a.id = #{userId}
+            a.total_likes = stats.total_likes,
+            a.total_favorites = stats.total_favorites,
+            a.total_sponsorship = stats.total_sponsorship,
+            a.total_article_exposure = stats.total_article_exposure
+        WHERE a.id = #{userId};
     </update>
 
     <!-- 查询 auth 表中的用户信息 -->

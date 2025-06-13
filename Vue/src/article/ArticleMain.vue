@@ -6,75 +6,91 @@
     </div>
     <el-card class="article-list-card">
       <template #header>
-        <div class="clearfix">
-          <span>最新文章</span>
-        </div>
+        <span>最新文章</span>
       </template>
-      <el-table :data="articles" style="width: 100%" @row-click="readArticle">
+      <el-table :data="articles" style="width: 100%" @row-click="readArticle" v-loading="loading">
         <el-table-column prop="articleTitle" label="标题"></el-table-column>
         <el-table-column prop="userId" label="作者ID" width="120"></el-table-column>
         <el-table-column prop="likesCount" label="点赞" width="100"></el-table-column>
         <el-table-column prop="exposureCount" label="阅读" width="100"></el-table-column>
-        <el-table-column prop="updatedAt" label="更新时间" width="180">
-          <template #default="scope">
-            <span>{{ formatDate(scope.row.updatedAt) }}</span>
-          </template>
-        </el-table-column>
+        <el-table-column prop="updatedAt" label="更新时间" width="180"></el-table-column>
+        <!-- Raw date string will be shown, which is fine as backend formats it -->
       </el-table>
+
+      <div class="pagination-block">
+        <el-pagination
+          v-model:current-page="pagination.page"
+          v-model:page-size="pagination.pageSize"
+          :total="pagination.total"
+          layout="total, prev, pager, next, jumper"
+          @current-change="handlePageChange"
+          :hide-on-single-page="false"
+        />
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { getAllArticles } from '../api/modules/article'; // Correct path assuming ArticleMain.vue is in Vue/src/article/
+import { getAllArticles } from '../api/modules/article'; // Path should be correct
 import { ElMessage } from 'element-plus';
 
 const router = useRouter();
 const articles = ref([]);
+const loading = ref(false);
 
-// Helper function to format date, can be moved to a utils file later
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  // Basic formatting, can be enhanced with libraries like date-fns or moment.js
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-};
+const pagination = reactive({
+  page: 1,
+  pageSize: 10, // Default page size
+  total: 0
+});
 
-onMounted(async () => {
+const fetchArticles = async () => {
+  loading.value = true;
   try {
-    const response = await getAllArticles(); // This is an object { code, message, data }
+    // API function now takes page and pageSize
+    const response = await getAllArticles(pagination.page, pagination.pageSize);
+    // Backend response for paginated articles: { code, message, data: { list: [], total: 0 } }
     if (response.code === 200 && response.data) {
-      articles.value = response.data;
+      articles.value = response.data.list;
+      pagination.total = response.data.total;
     } else {
       ElMessage.error(response.message || '加载文章列表失败');
-      articles.value = []; // Ensure articles is an array on failure for table
+      articles.value = [];
+      pagination.total = 0;
     }
   } catch (error) {
     console.error('获取文章列表失败:', error);
     ElMessage.error('加载文章列表失败，请稍后重试。');
-    articles.value = []; // Ensure articles is an array on error
+    articles.value = [];
+    pagination.total = 0;
+  } finally {
+    loading.value = false;
   }
-});
+};
+
+onMounted(fetchArticles);
+
+const handlePageChange = (newPage) => {
+  pagination.page = newPage;
+  fetchArticles();
+};
 
 const goToWriteArticle = () => {
-  router.push({ name: 'ArticleWrite' }); // Assumes named route
+  router.push({ name: 'ArticleWrite' });
 };
 
 const goToManageArticles = () => {
-  router.push({ name: 'ArticleManage' }); // Assumes named route
+  router.push({ name: 'ArticleManage' });
 };
 
 const readArticle = (row) => {
-  // Assuming 'row.id' contains the article ID from the backend data
-  // The user's code used row.id. Article model might have 'id' or 'articleId'
-  // Let's assume backend 'Article' model has an 'id' field for its primary key.
-  if (row.id) {
-    router.push({ name: 'ArticleRead', params: { articleId: row.id } }); // Assumes named route
+  if (row.id) { // Assuming article object has 'id'
+    router.push({ name: 'ArticleRead', params: { articleId: row.id } });
   } else {
     ElMessage.warning('无法打开文章：缺少文章ID。');
-    console.warn('Article row data for navigation:', row);
   }
 };
 </script>
@@ -87,9 +103,14 @@ const readArticle = (row) => {
   margin-bottom: 20px;
 }
 .article-list-card {
-  /* cursor: pointer; */ /* Table rows are clickable, card itself maybe not */
+  /* cursor: pointer; */ /* Row click is handled by el-table @row-click */
 }
-.el-table :deep(.el-table__row) { /* Allow clicking on table row */
+.el-table :deep(.el-table__row) {
     cursor: pointer;
+}
+.pagination-block {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

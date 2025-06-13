@@ -1,173 +1,130 @@
 package com.web.model;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.io.Serializable;
-import java.util.Objects;
+import java.time.LocalDateTime; // Import LocalDateTime
+import java.util.Objects; // Keep Objects if equals/hashCode are implemented
 
 /**
  * 文章实体类，对应数据库中的文章记录
  */
 public class Article implements Serializable {
-    private static final long serialVersionUID = 1L; // 序列化 UID
+    private static final long serialVersionUID = 1L;
 
-    // 文章ID，主键
     private Long id;
-    // 用户ID
     private Long userId;
-    // 文章标题
     private String articleTitle;
-    // 文章链接，唯一标识
-    private String articleLink;
-    // 点赞数
+    private String articleContent; // Renamed from articleLink
     private Integer likesCount;
-    // 收藏数
-    private Integer favoritesCount;
-    // 赞助金额
-    private Double sponsorsCount;
-    // 文章曝光总数
+    private Integer favoritesCount; // Assuming this field exists or will be used
+    private Double sponsorsCount;  // Assuming this field exists or will be used
     private Long exposureCount;
-    // 创建时间
-    private String createdAt;
-    // 最后更新时间
-    private String updatedAt;
 
-    // 无参构造函数
-    public Article() {
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime createdAt;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime updatedAt;
+
+    // Default constructor
+    public Article() {}
+
+    // Constructor with all fields (example provided by user)
+    public Article(Long id, Long userId, String articleTitle, String articleContent,
+                   Integer likesCount, Integer favoritesCount, Double sponsorsCount,
+                   Long exposureCount, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
+        this.userId = userId;
+        this.articleTitle = articleTitle;
+        this.articleContent = articleContent;
+        this.likesCount = likesCount;
+        this.favoritesCount = favoritesCount;
+        this.sponsorsCount = sponsorsCount;
+        this.exposureCount = exposureCount;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
-    // 全参构造函数
-    public Article(Long id, Long userId, String articleTitle, String articleLink, Integer likesCount, Integer favoritesCount,
-                   Double sponsorsCount, Long exposureCount, String createdAt, String updatedAt) {
-        this.id = id;                             // 设置文章ID
-        this.userId = userId;                     // 设置用户ID
-        this.articleTitle = articleTitle;         // 设置文章标题
-        this.articleLink = articleLink;           // 设置文章链接
-        this.likesCount = likesCount;             // 设置点赞数
-        this.favoritesCount = favoritesCount;     // 设置收藏数
-        this.sponsorsCount = sponsorsCount;       // 设置赞助金额
-        this.exposureCount = exposureCount;       // 设置文章曝光总数
-        this.createdAt = createdAt;               // 设置创建时间
-        this.updatedAt = updatedAt;               // 设置最后更新时间
-    }
+    // Getters and Setters for all fields
 
-    // getter 和 setter 方法
     public Long getId() {
-        return id; // 返回文章ID
+        return id;
     }
 
     public void setId(Long id) {
-        this.id = id; // 设置文章ID
+        this.id = id;
     }
 
     public Long getUserId() {
-        return userId; // 返回用户ID
+        return userId;
     }
 
     public void setUserId(Long userId) {
-        this.userId = userId; // 设置用户ID
+        this.userId = userId;
     }
 
     public String getArticleTitle() {
-        return articleTitle; // 返回文章标题
+        return articleTitle;
     }
 
     public void setArticleTitle(String articleTitle) {
-        this.articleTitle = articleTitle; // 设置文章标题
+        this.articleTitle = articleTitle;
     }
 
-    public String getArticleLink() {
-        return articleLink; // 返回文章链接
+    public String getArticleContent() {
+        return articleContent;
     }
 
-    public void setArticleLink(String articleLink) {
-        this.articleLink = articleLink; // 设置文章链接
+    public void setArticleContent(String articleContent) {
+        this.articleContent = articleContent;
     }
 
     public Integer getLikesCount() {
-        return likesCount; // 返回点赞数
+        return likesCount;
     }
 
     public void setLikesCount(Integer likesCount) {
-        this.likesCount = likesCount; // 设置点赞数
+        this.likesCount = likesCount;
     }
 
     public Integer getFavoritesCount() {
-        return favoritesCount; // 返回收藏数
+        return favoritesCount;
     }
 
     public void setFavoritesCount(Integer favoritesCount) {
-        this.favoritesCount = favoritesCount; // 设置收藏数
+        this.favoritesCount = favoritesCount;
     }
 
     public Double getSponsorsCount() {
-        return sponsorsCount; // 返回赞助金额
+        return sponsorsCount;
     }
 
     public void setSponsorsCount(Double sponsorsCount) {
-        this.sponsorsCount = sponsorsCount; // 设置赞助金额
+        this.sponsorsCount = sponsorsCount;
     }
 
     public Long getExposureCount() {
-        return exposureCount; // 返回文章曝光总数
+        return exposureCount;
     }
 
     public void setExposureCount(Long exposureCount) {
-        this.exposureCount = exposureCount; // 设置文章曝光总数
+        this.exposureCount = exposureCount;
     }
 
-    public String getCreatedAt() {
-        return createdAt; // 返回创建时间
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 
-    public void setCreatedAt(String createdAt) {
-        this.createdAt = createdAt; // 设置创建时间
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
-    public String getUpdatedAt() {
-        return updatedAt; // 返回最后更新时间
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
-    public void setUpdatedAt(String updatedAt) {
-        this.updatedAt = updatedAt; // 设置最后更新时间
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
-    // 重写 toString 方法
-    @Override
-    public String toString() {
-        return "Article{" +
-                "id=" + id +
-                ", userId=" + userId +
-                ", articleTitle='" + articleTitle + '\'' +
-                ", articleLink='" + articleLink + '\'' +
-                ", likesCount=" + likesCount +
-                ", favoritesCount=" + favoritesCount +
-                ", sponsorsCount=" + sponsorsCount +
-                ", exposureCount=" + exposureCount +
-                ", createdAt='" + createdAt + '\'' +
-                ", updatedAt='" + updatedAt + '\'' +
-                '}';
-    }
-
-    // 重写 equals 方法
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true; // 如果对象相同，返回true
-        if (o == null || getClass() != o.getClass()) return false; // 如果对象为空或类型不同，返回false
-        Article article = (Article) o;
-        return Objects.equals(id, article.id) &&
-                Objects.equals(userId, article.userId) &&
-                Objects.equals(articleTitle, article.articleTitle) &&
-                Objects.equals(articleLink, article.articleLink) &&
-                Objects.equals(likesCount, article.likesCount) &&
-                Objects.equals(favoritesCount, article.favoritesCount) &&
-                Objects.equals(sponsorsCount, article.sponsorsCount) &&
-                Objects.equals(exposureCount, article.exposureCount) &&
-                Objects.equals(createdAt, article.createdAt) &&
-                Objects.equals(updatedAt, article.updatedAt);
-    }
-
-    // 重写 hashCode 方法
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, userId, articleTitle, articleLink, likesCount, favoritesCount, sponsorsCount, exposureCount, createdAt, updatedAt);
-    }
 }
