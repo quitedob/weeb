@@ -62,7 +62,7 @@ public interface ArticleService {
     /**
      * 获取所有文章的列表
      */
-    List<Article> getAllArticles();
+    Map<String, Object> getAllArticles(int page, int pageSize);
 
     /**
      * 为指定文章增加金币或赞助金额。

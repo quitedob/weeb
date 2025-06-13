@@ -272,16 +272,20 @@ public class ArticleCenterController {
     }
 
     /**
-     * 获取articles表中所有文章的基本信息
-     * POST /articles/getall
+     * [修改] 获取articles表中所有文章的基本信息（支持分页）
+     * GET /articles/getall?page=1&pageSize=10
      */
-    @PostMapping("/getall")
-    public ResponseEntity<List<Article>> getAllArticles() {
+    @GetMapping("/getall") // Changed from @PostMapping to @GetMapping
+    public ResponseEntity<Map<String, Object>> getAllArticles(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize) {
         try {
-            List<Article> articles = articleService.getAllArticles();
-            return ResponseEntity.ok(articles);
+            Map<String, Object> articlesMap = articleService.getAllArticles(page, pageSize); // Calls new service method
+            // The service now returns a map like {"list": [...], "total": ...}
+            // This map can be directly returned.
+            return ResponseEntity.ok(articlesMap);
         } catch (Exception e) {
-            logger.error("获取所有文章时出错", e);
+            logger.error("获取所有文章时出错", e); // Error message in Chinese as per existing log
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

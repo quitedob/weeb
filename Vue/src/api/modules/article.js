@@ -9,9 +9,9 @@ import { instance as request } from '../axiosInstance';
  * 负责所有与文章相关的操作
  */
 
-// 获取所有文章列表
-export const getAllArticles = () => {
-    return request.post('/articles/getall');
+// [修改] 获取所有文章列表（分页）
+export const getAllArticles = (page, pageSize) => {
+    return request.get('/articles/getall', { params: { page, pageSize } });
 };
 
 // 根据文章 ID 获取文章详情
