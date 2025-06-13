@@ -24,7 +24,12 @@
     </el-menu-item>
 
     <el-menu-item index="/groups">
-      <el-icon><Collection /></el-icon> <template #title>群组</template>
+      <el-icon><House /></el-icon> <template #title>群组</template>
+    </el-menu-item>
+
+    <el-menu-item index="/article">
+      <el-icon><Document /></el-icon>
+      <template #title>文章中心</template>
     </el-menu-item>
 
     <el-menu-item index="/search">
@@ -60,10 +65,11 @@ import {
   User,
   Setting,
   Search,
-  // Document, // Article icon, can be added later
-  Collection,
+  Document,      // Added Document icon
+  Collection,    // Kept Collection, will change to House if needed in template
+  House,         // Added House icon
   SwitchButton,
-  Avatar // Added Avatar icon for user info display
+  Avatar
 } from '@element-plus/icons-vue';
 import { useAppStore } from '@/stores/appStore'; // Assuming appStore.js will be created
 import { useAuthStore } from '@/stores/authStore';

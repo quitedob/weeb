@@ -1,334 +1,131 @@
 <template>
-  <div class="write-article">
-    <!-- 顶部导航栏 -->
-    <header class="header">
-      <nav class="nav">
-        <div class="logo">小蓝盒平台</div>
-        <ul class="nav-links">
-          <!-- 设置导航链接 -->
-          <li><button @click="goToUser" class="nav-link">用户</button></li>
-          <li><button @click="goBack" class="nav-link">返回</button></li>
-        </ul>
-      </nav>
-    </header>
-
-    <!-- 主内容区域 -->
-    <main class="centered">
-      <div class="form-container">
-        <form @submit.prevent="publishArticle">
-          <!-- 标题输入 -->
-          <div class="form-group">
-            <label for="title">文章标题：</label>
-            <input
-                v-model="article.title"
-                type="text"
-                id="title"
-                placeholder="输入文章标题"
-                maxlength="80"
-                required
-            />
-          </div>
-
-          <!-- 内容输入 -->
-          <div class="form-group">
-            <label for="content">文章内容：</label>
-            <textarea
-                v-model="article.content"
-                id="content"
-                placeholder="请输入文章内容"
-                rows="15"
-                required
-            ></textarea>
-          </div>
-
-          <!-- 按钮 -->
-          <div class="buttons">
-            <button type="submit">发布</button>
-          </div>
-        </form>
-      </div>
-    </main>
-
-    <!-- 底部 -->
-    <footer>
-      <p>© 2025 神人平台  | <a href="#">请不要联系我们</a></p>
-    </footer>
+  <div class="article-write-container">
+    <el-card>
+      <template #header>
+        <h2>发布新文章</h2>
+      </template>
+      <el-form :model="form" :rules="rules" ref="articleFormRef" label-width="120px" @submit.prevent="submitArticle">
+        <el-form-item label="文章标题" prop="articleTitle">
+          <el-input v-model="form.articleTitle" placeholder="请输入文章标题"></el-input>
+        </el-form-item>
+        <el-form-item label="文章链接" prop="articleLink">
+          <el-input v-model="form.articleLink" placeholder="请输入内容的链接 (例如 https://...)"></el-input>
+        </el-form-item>
+        <!-- Placeholder for a rich text editor in the future -->
+        <!-- <el-form-item label="文章内容" prop="articleContent">
+          <RichTextEditor v-model="form.articleContent" />
+        </el-form-item> -->
+        <el-form-item>
+          <el-button type="primary" @click="submitArticle" :loading="isSubmitting">
+            {{ isSubmitting ? '发布中...' : '发布' }}
+          </el-button>
+          <el-button @click="resetForm">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
   </div>
 </template>
 
-<script>
-import axios from "axios";
+<script setup>
+import { reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { createArticle } from '@/api/modules/article'; // Using @ alias for api
+import { useAuthStore } from '@/stores/authStore';    // Using @ alias for stores
+import { ElMessage } from 'element-plus';
 
-export default {
-  data() {
-    return {
-      isLoggedIn: false,
-      username: "",
-      token: "", // 添加 token 字段
-      article: {
-        title: "",
-        content: "",
-      },
-    };
-  },
-  methods: {
-    // 检查用户登录状态
-    checkLoginStatus() {
-      const token = localStorage.getItem("token");
-      if (!token || token.length <= 10) { // 判断令牌是否存在且长度大于 10
-        alert("尚未登录或令牌无效, 将跳转到登录页面");
-        this.$router.push("/login");
-        return;
-      }
+const router = useRouter();
+const authStore = useAuthStore();
+const articleFormRef = ref(null); // Ref for the form instance
+const isSubmitting = ref(false);  // Loading state for submit button
 
-      this.token = token; // 将令牌存储到组件数据中
-      this.isLoggedIn = true; // 假设用户已登录
-      this.username = "已登录用户"; // 设置默认用户名
-    },
+const form = reactive({
+  articleTitle: '',
+  articleLink: '',
+  userId: authStore.currentUser ? authStore.currentUser.id : null, // Get current user's ID (assuming currentUser.id)
+  // articleContent: '', // For rich text editor content
+});
 
-    // 发布文章方法
-    async publishArticle() {
-      if (!this.token) {
-        alert("令牌无效，请重新登录！");
-        this.$router.push("/login");
-        return;
-      }
+// Basic validation rules
+const rules = reactive({
+  articleTitle: [
+    { required: true, message: '请输入文章标题', trigger: 'blur' },
+    { min: 3, max: 100, message: '长度在 3 到 100 个字符', trigger: 'blur' }
+  ],
+  articleLink: [
+    { required: true, message: '请输入文章链接', trigger: 'blur' },
+    { type: 'url', message: '请输入有效的链接地址', trigger: ['blur', 'change'] }
+  ],
+  // articleContent: [
+  //   { required: true, message: '请输入文章内容', trigger: 'blur' }
+  // ]
+});
 
-      if (!this.article.title || !this.article.content) {
-        alert("标题和内容不能为空！");
-        return;
-      }
+// Submit article
+const submitArticle = async () => {
+  if (!articleFormRef.value) return;
+  if (!authStore.currentUser || !authStore.currentUser.id) { // Assuming currentUser.id
+      ElMessage.error('用户未登录或无法获取用户信息，请重新登录。');
+      router.push('/login'); // Redirect to login if user info is missing
+      return;
+  }
+  // Update userId in form just before submit, in case it wasn't set initially
+  form.userId = authStore.currentUser.id; // Assuming currentUser.id
 
-      // 打包文章数据
-      const articleData = {
-        userId: this.article.userId || 1, // 假设有一个默认的用户 ID
-        articleTitle: this.article.title,
-        articleLink: this.article.content, // 假设内容是文章链接
-      };
-
+  await articleFormRef.value.validate(async (valid) => {
+    if (valid) {
+      isSubmitting.value = true;
       try {
-        // 发送请求到后端 API
-        const response = await axios.post(
-            "http://localhost:8080/articles/new", // 替换为你的 API 路径
-            articleData,
-            {
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${this.token}`,
-              },
-            }
-        );
-
-        // 处理响应结果
-        if (response.status === 200 || response.status === 201) {
-          alert("文章已发布！");
+        // The backend expects 'userId' in the articleData payload.
+        // The 'createArticle' in api/modules/article.js takes 'articleData'.
+        // The form object already includes userId.
+        const response = await createArticle(form);
+        if (response.code === 200) {
+            ElMessage.success('文章发布成功！');
+            router.push({ name: 'ArticleMain' }); // Navigate after successful submission
         } else {
-          alert("文章发布失败，请稍后再试！");
+            ElMessage.error(response.message || '发布失败，请稍后重试。');
         }
       } catch (error) {
-        console.error("文章发布失败：", error);
-        alert("文章发布失败，请检查网络或重试！");
+        console.error('发布文章失败:', error);
+        ElMessage.error('发布失败，请稍后重试。');
+      } finally {
+        isSubmitting.value = false;
       }
-    },
-
-    // 返回上一页方法
-    goBack() {
-      window.history.back();
-    },
-
-    // 跳转到用户页面方法
-    goToUser() {
-      this.$router.push("/usermain");
-    },
-  },
-  created() {
-    // 在组件创建时检查登录状态
-    this.checkLoginStatus();
-  },
+    } else {
+      ElMessage.warning('请检查表单输入是否正确！');
+      return false;
+    }
+  });
 };
+
+// Reset form
+const resetForm = () => {
+  if (articleFormRef.value) {
+    articleFormRef.value.resetFields();
+  }
+  // Re-initialize form if needed, especially if userId might have become null
+  form.articleTitle = '';
+  form.articleLink = '';
+  // form.articleContent = '';
+  form.userId = authStore.currentUser ? authStore.currentUser.id : null; // Assuming currentUser.id
+};
+
+// Check user login status on component setup - if no user, redirect.
+// This is an additional local check, route guards are primary.
+if (!authStore.currentUser) {
+  ElMessage.warning('请先登录再发布文章。');
+  router.replace('/login'); // Use replace to not add to history
+}
+
 </script>
 
-
-
 <style scoped>
-.write-article {
-  background-color: white;
-}
-
-/* 顶部导航栏样式 */
-.header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: white;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 1000;
-  overflow: hidden;
-  background-color: #007bff;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  height: 60px; /* 缩短顶部导航栏的高度 */
-}
-
-.nav {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: 5px 20px; /* 减小内边距 */
-  box-sizing: border-box;
-}
-
-.logo {
-  font-size: 20px; /* 减小字体大小 */
-  font-weight: bold;
-  color: white;
-}
-
-.nav-links {
-  list-style: none;
-  display: flex;
-  margin-left: auto;
-  padding: 0;
-}
-
-.nav-links li {
-  margin: 0 15px; /* 减小链接间距 */
-}
-
-.nav-links .nav-link {
-  color: white;
-  text-decoration: none;
-  font-size: 14px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: opacity 0.3s ease;
-  font-family: 'Arial', sans-serif;
-  padding: 5px 10px;
-  border-radius: 4px;
-}
-
-.nav-links .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-/* 主内容区域居中样式 */
-.centered {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 80px;
-  margin-bottom: 100px;
-  padding: 0 10px;
-}
-
-/* 设置滚动条样式 */
-.form-container {
-  background-color: white;
-  width: 100%;
-  max-width: 800px;
+.article-write-container {
   padding: 20px;
-  border-radius: 45px;
-  box-sizing: border-box;
-  min-height: 600px;
-  max-height: calc(100vh - 160px); /* 限制容器最大高度 */
-  overflow-y: auto; /* 启用垂直滚动条 */
-  scrollbar-width: thin; /* Firefox 滚动条宽度 */
-  scrollbar-color: gray #1a1a1a; /* Firefox 滚动条颜色 */
+  max-width: 800px; /* Limit width for better form readability */
+  margin: 0 auto; /* Center the card */
 }
-
-/* Webkit 浏览器滚动条样式 */
-.form-container::-webkit-scrollbar {
-  width: 8px; /* 滚动条宽度 */
-}
-
-.form-container::-webkit-scrollbar-track {
-  background: #1a1a1a; /* 滚动条轨道背景色 */
-}
-
-.form-container::-webkit-scrollbar-thumb {
-  background-color: gray; /* 滚动条颜色 */
-  border-radius: 10px; /* 圆角 */
-  border: 2px solid #1a1a1a; /* 间隙 */
-}
-
-
-/* 表单样式 */
-.form-group {
-  margin-bottom: 20px;
-}
-
-label {
-  display: block;
-  font-size: 18px;
-  margin-bottom: 8px;
-  font-weight: bold;
-}
-
-input,
-textarea {
-  width: 100%;
-  padding: 12px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-textarea {
-  resize: vertical;
-}
-
-/* 按钮样式 */
-.buttons {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-
-button {
-  padding: 12px 24px;
-  font-size: 16px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-button:hover {
-  background-color: #0056b3;
-}
-
-/* 底部样式 */
-footer {
-  text-align: center;
-  padding: 20px;
-  background-color: #007bff;
-  color: white;
-  font-size: 14px;
-  margin: 0;
-  width: 100%;
-  box-sizing: border-box;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  height: 60px;
-}
-
-footer a {
-  color: white;
-  text-decoration: none;
-  margin: 0 5px;
-}
-
-footer a:hover {
-  text-decoration: underline;
+.el-card {
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1); /* Add some shadow for better appearance */
 }
 </style>
