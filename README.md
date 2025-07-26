@@ -13,24 +13,24 @@ WEEB 是一个功能全面的全栈即时通讯平台，采用现代技术栈构
   - **💬 实时聊天**：
       - 基于 WebSocket (Netty) 实现实时双向通信。
       - 支持私聊和群聊。
-      - [cite\_start]消息频率限制，防止刷屏。 [cite: 51, 52]
-      - [cite\_start]支持文本、表情、Markdown 等多种消息类型。 [cite: 104, 303, 706]
-      - [cite\_start]消息撤回、Emoji 反应等互动功能。 [cite: 182, 184]
+      - 消息频率限制，防止刷屏。 
+      - 支持文本、表情、Markdown 等多种消息类型。
+      - 消息撤回、Emoji 反应等互动功能。
   - **📝 文章中心**：
       - 完整的文章 CRUD (创建、读取、更新、删除) 功能。
       - 文章点赞、阅读数统计、订阅作者等社交功能。
   - **🔔 实时通知系统**：
-      - [cite\_start]用户上线/下线通知。 [cite: 105]
+      - 用户上线/下线通知。
       - 文章点赞、新关注者等事件通知。
-      - [cite\_start]通过 Redis Pub/Sub 实现跨实例消息广播。 [cite: 75, 401]
+      - 通过 Redis Pub/Sub 实现跨实例消息广播。
   - **👥 好友与群组系统**：
-      - [cite\_start]好友申请、同意/拒绝、拉黑。 [cite: 160, 161, 162, 163]
+      - 好友申请、同意/拒绝、拉黑。
       - 群组创建、邀请成员、踢出成员、退群等。
   - **🔍 全局搜索**：
-      - [cite\_start]基于 Elasticsearch 实现消息内容的全文检索。 [cite: 202]
+      - 基于 Elasticsearch 实现消息内容的全文检索。
   - **🔐 安全与过滤**：
-      - [cite\_start]接口访问频率限制 (基于 Caffeine)。 [cite: 59, 60, 61]
-      - [cite\_start]敏感词过滤 (基于 `houbb/sensitive-word`)。 [cite: 89]
+      - 接口访问频率限制 (基于 Caffeine)。 
+      - 敏感词过滤 (基于 `houbb/sensitive-word`)。 
   - **💻 SSH 命令行**：
       - 内置一个基于 SSH 的命令行交互界面，用于执行自定义后台命令。
   - **🔧 其他特性**：
@@ -72,12 +72,12 @@ WEEB 是一个功能全面的全栈即时通讯平台，采用现代技术栈构
 2.  **配置数据库**
 
       - 创建一个名为 `weeb` 的 MySQL 数据库。
-      - [cite\_start]根据您的数据库信息，修改 `weeb/src/main/resources/application-dev.yml` 文件中的 `spring.datasource` 配置。
+      - 根据您的数据库信息，修改 `weeb/src/main/resources/application-dev.yml` 文件中的 `spring.datasource` 配置。
 
 3.  **配置 Redis & Elasticsearch**
 
       - 确保 Redis 和 Elasticsearch 服务正在运行。
-      - [cite\_start]根据需要修改 `application-dev.yml` 和 `application.yml` 中的相关配置。 
+      - 根据需要修改 `application-dev.yml` 和 `application.yml` 中的相关配置。 
 
 4.  **运行项目**
 
@@ -149,4 +149,4 @@ WEEB/
 
 ## 📄 许可证
 
-[cite\_start]该项目根据 [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0) 许可证授权。 
+该项目根据 [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0) 许可证授权。 
