@@ -65,8 +65,8 @@ WEEB 是一个功能全面的全栈即时通讯平台，采用现代技术栈构
 1.  **克隆仓库**
 
     ```bash
-    git clone <your-repository-url>
-    cd <project-root>
+    git clone https://github.com/quitedob/weeb.git
+    cd weeb
     ```
 
 2.  **配置数据库**
