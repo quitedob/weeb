@@ -1,5 +1,3 @@
-好的，这是为您项目生成的带有图标的 `README.md` 文件。
-
 # 💬 WEEB - 全栈即时通讯应用
 
 [](https://www.java.com)
@@ -74,12 +72,12 @@ WEEB 是一个功能全面的全栈即时通讯平台，采用现代技术栈构
 2.  **配置数据库**
 
       - 创建一个名为 `weeb` 的 MySQL 数据库。
-      - [cite\_start]根据您的数据库信息，修改 `weeb/src/main/resources/application-dev.yml` 文件中的 `spring.datasource` 配置。 [cite: 711]
+      - [cite\_start]根据您的数据库信息，修改 `weeb/src/main/resources/application-dev.yml` 文件中的 `spring.datasource` 配置。
 
 3.  **配置 Redis & Elasticsearch**
 
       - 确保 Redis 和 Elasticsearch 服务正在运行。
-      - [cite\_start]根据需要修改 `application-dev.yml` 和 `application.yml` 中的相关配置。 [cite: 711, 717]
+      - [cite\_start]根据需要修改 `application-dev.yml` 和 `application.yml` 中的相关配置。 
 
 4.  **运行项目**
 
@@ -102,7 +100,7 @@ WEEB 是一个功能全面的全栈即时通讯平台，采用现代技术栈构
 
 3.  **配置代理**
 
-      - [cite\_start]前端项目通过 Vite 代理将 API 请求转发到后端。请检查 `vite.config.js` 文件中的 `server.proxy` 配置，确保目标地址 (`target`) 指向您的后端服务地址（默认为 `http://localhost:8080`）。 [cite: 1224]
+      - [cite\_start]前端项目通过 Vite 代理将 API 请求转发到后端。请检查 `vite.config.js` 文件中的 `server.proxy` 配置，确保目标地址 (`target`) 指向您的后端服务地址（默认为 `http://localhost:8080`）。 
 
 4.  **运行项目**
 
@@ -151,4 +149,4 @@ WEEB/
 
 ## 📄 许可证
 
-[cite\_start]该项目根据 [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0) 许可证授权。 [cite: 1, 17]
+[cite\_start]该项目根据 [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0) 许可证授权。 
