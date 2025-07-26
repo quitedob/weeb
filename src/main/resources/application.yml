@@ -1,0 +1,40 @@
+spring:
+  profiles:
+    active: dev # Default to dev environment
+  elasticsearch:
+    uris: http://localhost:9200
+    connection-timeout: 5000ms
+    socket-timeout: 60000ms
+    username: ${ES_USERNAME:}
+    password: ${ES_PASSWORD:}
+    rest:
+      client:
+        http-client:
+          max-conn-per-route: 20
+          max-conn-total: 100
+
+# Keep existing WEEB specific configurations if they are environment agnostic
+# or move them to dev/prod specific files if they differ.
+# For now, I will assume they are environment agnostic and keep them here.
+# If the original application.yml had other spring top-level keys like 'server',
+# 'mybatis', 'jwt', 'logging', 'mybatis-plus', they should be moved to
+# application-dev.yml and application-prod.yml as appropriate.
+
+WEEB:
+  password: sun55@kong #群聊密码
+  limit: 100 #在线人数限制
+  name: 233 #群聊名称
+  expires: 7 #数据过期时间（天）
+  doubao: #豆包
+    api-key: apikey
+    count-limit: 5 #次数限制,0-不限制
+    length-limit: 50 #内容长度限制,0-不限制
+    model: ep-20241231132608-lbm7g
+
+# 阿里云OSS配置
+aliyun:
+  oss:
+    endpoint: oss-cn-hangzhou.aliyuncs.com # Example: Hangzhou region
+    accessKeyId: YOUR_ACCESS_KEY_ID_REPLACE_ME
+    accessKeySecret: YOUR_ACCESS_KEY_SECRET_REPLACE_ME
+    bucketName: your-bucket-name-replace-me

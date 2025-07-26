@@ -1,0 +1,50 @@
+server:
+  port: 8080 # Can be overridden by environment variable if needed
+
+spring:
+  datasource:
+    url: ${PROD_DB_URL:jdbc:mysql://localhost:3306/weeb_prod?useSSL=false&serverTimezone=UTC} # Example default
+    username: ${PROD_DB_USERNAME:prod_user}
+    password: ${PROD_DB_PASSWORD:prod_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${PROD_REDIS_HOST:localhost}
+      port: ${PROD_REDIS_PORT:6379}
+      password: ${PROD_REDIS_PASSWORD:}
+      database: 0
+  # Assuming JPA might be added or Mybatis settings for prod
+  # For now, using Mybatis settings from original application.yml
+  jpa: # As per recommendation, though project uses MyBatis
+    hibernate:
+      ddl-auto: none # Production setting
+    show-sql: false    # Production setting
+
+# MyBatis specific settings for prod could be added if different from dev
+# mybatis:
+#   configuration:
+#     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl # Recommended for prod if using logback
+
+jwt:
+  secret: ${PROD_JWT_SECRET_KEY} # Should be set via environment variable
+  expiration: 3600000 # Or configure as needed
+
+logging:
+  level:
+    root: INFO
+    com.web: INFO # Less verbose for prod
+
+# Actuator exposure for prod (will be fully configured in next step)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,httptrace,loggers # Expose more endpoints for prod as per recommendation 2.2.1
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  # Ensure health check details are shown
+  endpoint:
+    health:
+      show-details: always # Or "when-authorized" if security is tighter

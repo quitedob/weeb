@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.web.mapper.MessageMapper">
+
+    <!--
+        定义 resultMap，将数据库列映射到 model.Message 对象的字段
+    -->
+    <resultMap id="MessageResultMap" type="com.web.model.Message">
+        <id column="id" property="id" />
+        <result column="from_id" property="senderId" />
+        <result column="to_id" property="chatId" />
+        <result column="message" property="msgContent" />
+        <result column="type" property="msgType" />
+        <result column="read_status" property="readStatus" />
+        <result column="is_recalled" property="isRecalled" />
+        <result column="user_ip" property="userIp" />
+        <result column="source" property="source" />
+        <result column="reference_msg" property="referenceMsgId" />
+        <result column="is_show_time" property="isShowTime" />
+        <result column="create_time" property="createdAt" />
+        <result column="update_time" property="updatedAt" />
+    </resultMap>
+
+    <!--
+        默认的 selectById 映射（用于 MyBatis Plus 默认方法 selectById）
+    -->
+    <select id="selectById" parameterType="java.lang.Long" resultMap="MessageResultMap">
+        SELECT *
+        FROM `message`
+        WHERE id = #{id}
+    </select>
+
+    <!--
+        插入消息（为 from_info 和 at_user 字段设置默认值，避免插入出错）
+    -->
+    <insert id="insert" parameterType="com.web.model.Message">
+        INSERT INTO `message`
+        (
+        id,
+        from_id,
+        to_id,
+        from_info,
+        message,
+        reference_msg,
+        at_user,
+        is_show_time,
+        read_status,
+        is_recalled,
+        user_ip,
+        type,
+        source,
+        create_time,
+        update_time
+        )
+        VALUES
+        (
+        #{id},
+        #{senderId},
+        #{chatId},
+        '',               <!-- 默认空字符串 -->
+        #{msgContent},
+        #{referenceMsgId},
+        '',               <!-- 默认空字符串 -->
+        #{isShowTime},
+        #{readStatus},
+        #{isRecalled},
+        #{userIp},
+        #{msgType},
+        #{source},
+        #{createdAt},
+        #{updatedAt}
+        )
+    </insert>
+
+    <!--
+        查询上一条需要显示时间的消息
+    -->
+    <select id="getPreviousShowTimeMsg" parameterType="map" resultMap="MessageResultMap">
+        SELECT *
+        FROM `message`
+        WHERE (`from_id` = #{userId} AND `to_id` = #{targetId})
+           OR (`from_id` = #{targetId} AND `to_id` = #{userId})
+        ORDER BY `create_time` DESC
+            LIMIT 1
+    </select>
+
+    <!--
+        查询聊天记录
+    -->
+    <select id="record" parameterType="map" resultMap="MessageResultMap">
+        SELECT *
+        FROM `message`
+        WHERE (`from_id` = #{userId} AND `to_id` = #{targetId})
+           OR (`from_id` = #{targetId} AND `to_id` = #{userId})
+           OR (`source` = 'Group' AND `to_id` = #{targetId})
+        ORDER BY `create_time` DESC
+            LIMIT #{index}, #{num}
+    </select>
+
+</mapper>
