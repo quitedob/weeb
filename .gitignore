@@ -39,6 +39,6 @@ build/
 
 # VS Code
 .vscode/
-.mvn/
+.mvn/wrapper
 # Node.js（新增）
 node_modules/
