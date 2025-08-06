@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.NotificationMapper">
+    
+    <!-- 根据接收者ID分页查询通知列表 -->
+    <select id="findNotificationsByRecipientId" resultType="com.web.model.Notification">
+        SELECT 
+            id,
+            recipient_id as recipientId,
+            actor_id as actorId,
+            type,
+            entity_type as entityType,
+            entity_id as entityId,
+            is_read as isRead,
+            created_at as createdAt
+        FROM notifications 
+        WHERE recipient_id = #{recipientId} 
+        ORDER BY created_at DESC 
+        LIMIT #{offset}, #{limit}
+    </select>
+    
+    <!-- 统计用户未读通知数量 -->
+    <select id="countUnreadNotifications" resultType="int">
+        SELECT COUNT(*) FROM notifications 
+        WHERE recipient_id = #{recipientId} AND is_read = false
+    </select>
+    
+    <!-- 统计用户总通知数量 -->
+    <select id="countTotalNotifications" resultType="int">
+        SELECT COUNT(*) FROM notifications 
+        WHERE recipient_id = #{recipientId}
+    </select>
+    
+    <!-- 将指定用户的所有通知标记为已读 -->
+    <update id="markAllAsRead">
+        UPDATE notifications 
+        SET is_read = true 
+        WHERE recipient_id = #{recipientId} AND is_read = false
+    </update>
+    
+    <!-- 将指定通知标记为已读 -->
+    <update id="markAsRead">
+        UPDATE notifications 
+        SET is_read = true 
+        WHERE id = #{notificationId} AND recipient_id = #{recipientId}
+    </update>
+    
+    <!-- 删除指定用户的所有已读通知 -->
+    <delete id="deleteReadNotifications">
+        DELETE FROM notifications 
+        WHERE recipient_id = #{recipientId} AND is_read = true
+    </delete>
+    
+</mapper> 

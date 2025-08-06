@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.web.mapper.AuthMapper">
+
+    <!-- 根据用户名查询用户信息 -->
+    <select id="findByUsername" parameterType="string" resultType="com.web.model.User">
+        SELECT id, username, password
+        FROM auth
+        WHERE username = #{username}
+    </select>
+
+    <insert id="insertUser" parameterType="com.web.model.User">
+        INSERT INTO auth (
+            username,
+            password,
+            sex,
+            phone_number,
+            user_email,
+            registration_date,
+            type
+        )
+        VALUES (
+                   #{username},
+                   #{password},
+                   #{sex},
+                   #{phoneNumber},
+                   #{userEmail},
+                   #{registrationDate},
+                   #{type}
+               )
+    </insert>
+
+
+    <!-- 根据用户名只返回用户ID -->
+    <select id="findUserIdByUsername" parameterType="string" resultType="long">
+        SELECT id
+        FROM auth
+        WHERE username = #{username}
+    </select>
+
+    <!-- 根据用户ID查询用户信息 -->
+    <select id="findByUserID" parameterType="long" resultType="com.web.model.User">
+        SELECT id, username
+        FROM auth
+        WHERE id = #{userID}
+    </select>
+
+    <!-- 根据用户名查询用户信息，同时查询 registration_date -->
+    <select id="findDateByUsername" parameterType="string" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            password,
+            registration_date AS registrationDate
+        FROM auth
+        WHERE username = #{username}
+    </select>
+
+    <!-- 获取所有用户的列表，按类型降序排序 -->
+    <select id="listUser" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            password,
+            type
+        FROM auth
+        ORDER BY type DESC
+    </select>
+
+    <!-- 获取所有用户的映射，按类型降序排序 -->
+    <select id="listMapUser" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            password,
+            type
+        FROM auth
+        ORDER BY type DESC
+    </select>
+
+    <!-- 根据用户id查询用户信息，用于聊天时展示 -->
+    <select id="getUserByIdForTalk" parameterType="long" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            sex,
+            phone_number,
+            user_email,
+            registration_date,
+            type,
+            avatar,
+            badge,
+            login_time
+        FROM auth
+        WHERE id = #{userID}
+    </select>
+
+    <!-- 更新用户信息，只更新允许的字段 -->
+    <update id="updateUser" parameterType="com.web.model.User">
+        UPDATE auth
+        <set>
+            <!-- 只更新允许的字段 -->
+            <if test="username != null">
+                username = #{username},
+            </if>
+            <if test="avatar != null">
+                avatar = #{avatar},
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 根据用户ID获取用户基本信息 -->
+    <select id="selectAuthById" parameterType="long" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            COALESCE(phone_number, '') AS phoneNumber,
+            COALESCE(user_email, '') AS userEmail,
+            sex
+        FROM auth
+        WHERE id = #{id}
+    </select>
+
+
+    <!-- 更新用户的基本信息 -->
+    <update id="updateAuth" parameterType="com.web.model.User">
+        UPDATE auth
+        SET
+            username = #{username},
+            user_email = #{userEmail},
+            phone_number = #{phoneNumber},
+            sex = #{sex}
+        WHERE id = #{id}
+    </update>
+</mapper>
