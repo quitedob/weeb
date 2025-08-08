@@ -35,8 +35,11 @@ public class ContactServiceImpl implements ContactService {
     @Autowired
     private UserMapper userMapper; // Assuming UserMapper exists and works with User model
 
-    // @Autowired
-    // private WebSocketService webSocketService; // For actual notifications
+    // 通过Redis广播实时通知，避免形成循环依赖
+    @Autowired
+    private org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate; // Redis模板
+
+    // 移除未使用依赖，常量直接使用 RedisConfig.USER_MESSAGE_TOPIC
 
     @Override
     @Transactional
@@ -101,8 +104,25 @@ public class ContactServiceImpl implements ContactService {
         contactMapper.insert(newContact);
 
         log.info("Friend request from {} to {} created with id {}", fromUserId, applyVo.getFriendId(), newContact.getId());
-        // TODO: Send WebSocket notification to applyVo.getFriendId()
-        // Example: webSocketService.sendFriendRequestNotification(applyVo.getFriendId(), fromUserId);
+        // 通过Redis发布通知消息（由 RedisSubscriber 转发到目标用户）
+        try {
+            var payload = java.util.Map.of(
+                    "event", "contact_apply",
+                    "fromUserId", fromUserId,
+                    "contactId", newContact.getId()
+            );
+            com.web.service.WebSocketService.WsContent ws = new com.web.service.WebSocketService.WsContent();
+            ws.setType(com.web.constant.WsContentType.NOTIFICATION.getCode());
+            ws.setContent(payload);
+            String wsJson = cn.hutool.json.JSONUtil.toJsonStr(ws);
+            com.web.dto.RedisBroadcastMsg msg = com.web.dto.RedisBroadcastMsg.builder()
+                    .targetUserId(applyVo.getFriendId())
+                    .messageBody(wsJson)
+                    .build();
+            redisTemplate.convertAndSend(com.web.Config.RedisConfig.USER_MESSAGE_TOPIC, msg);
+        } catch (Exception ex) {
+            log.warn("Notify contact apply failed: {}", ex.getMessage());
+        }
     }
 
     @Override
@@ -132,8 +152,25 @@ public class ContactServiceImpl implements ContactService {
         // For simplicity, we assume queries will handle bidirectionality.
 
         log.info("Contact request id {} accepted by user {}", contactId, toUserId);
-        // TODO: Send WebSocket notification to original applicant (contactRequest.getUserId())
-        // Example: webSocketService.sendFriendRequestAcceptedNotification(contactRequest.getUserId(), toUserId);
+        // 通过Redis发布通知：好友请求被接受
+        try {
+            var payload = java.util.Map.of(
+                    "event", "contact_accepted",
+                    "byUserId", toUserId,
+                    "contactId", contactId
+            );
+            com.web.service.WebSocketService.WsContent ws = new com.web.service.WebSocketService.WsContent();
+            ws.setType(com.web.constant.WsContentType.NOTIFICATION.getCode());
+            ws.setContent(payload);
+            String wsJson = cn.hutool.json.JSONUtil.toJsonStr(ws);
+            com.web.dto.RedisBroadcastMsg msg = com.web.dto.RedisBroadcastMsg.builder()
+                    .targetUserId(contactRequest.getUserId())
+                    .messageBody(wsJson)
+                    .build();
+            redisTemplate.convertAndSend(com.web.Config.RedisConfig.USER_MESSAGE_TOPIC, msg);
+        } catch (Exception ex) {
+            log.warn("Notify contact accepted failed: {}", ex.getMessage());
+        }
     }
 
     @Override
@@ -166,7 +203,26 @@ public class ContactServiceImpl implements ContactService {
         contactMapper.updateById(contact);
 
         log.info("Contact record {} status updated to {} by user {}", contactId, newStatus, currentUserId);
-        // TODO: Send WebSocket notification if appropriate (e.g., to other user if an accepted friendship is blocked)
+        // 通过Redis通知对方（如被拉黑、被拒绝）
+        try {
+            var payload = java.util.Map.of(
+                    "event", "contact_status_changed",
+                    "status", newStatus.getCode(),
+                    "contactId", contactId
+            );
+            com.web.service.WebSocketService.WsContent ws = new com.web.service.WebSocketService.WsContent();
+            ws.setType(com.web.constant.WsContentType.NOTIFICATION.getCode());
+            ws.setContent(payload);
+            String wsJson = cn.hutool.json.JSONUtil.toJsonStr(ws);
+            Long otherUserId = contact.getUserId().equals(currentUserId) ? contact.getFriendId() : contact.getUserId();
+            com.web.dto.RedisBroadcastMsg msg = com.web.dto.RedisBroadcastMsg.builder()
+                    .targetUserId(otherUserId)
+                    .messageBody(wsJson)
+                    .build();
+            redisTemplate.convertAndSend(com.web.Config.RedisConfig.USER_MESSAGE_TOPIC, msg);
+        } catch (Exception ex) {
+            log.warn("Notify contact status change failed: {}", ex.getMessage());
+        }
     }
 
     @Override

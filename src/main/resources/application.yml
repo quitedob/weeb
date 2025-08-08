@@ -20,15 +20,15 @@ spring:
 # 'mybatis', 'jwt', 'logging', 'mybatis-plus', they should be moved to
 # application-dev.yml and application-prod.yml as appropriate.
 
-WEEB:
-  password: ${WEEB_PASSWORD:sun55@kong} #群聊密码
-  limit: 100 #在线人数限制
-  name: 233 #群聊名称
-  expires: 7 #数据过期时间（天）
-  doubao: #豆包
+weeb:
+  password: ${WEEB_PASSWORD:sun55@kong} # 群聊密码
+  limit: 100 # 在线人数限制
+  name: 233 # 群聊名称
+  expires: 7 # 数据过期时间（天）
+  doubao: # 豆包
     api-key: ${DOUBAO_API_KEY:apikey}
-    count-limit: 5 #次数限制,0-不限制
-    length-limit: 50 #内容长度限制,0-不限制
+    count-limit: 5 # 次数限制,0-不限制
+    length-limit: 50 # 内容长度限制,0-不限制
     model: ${DOUBAO_MODEL:ep-20241231132608-lbm7g}
 
 # 阿里云OSS配置

@@ -33,7 +33,8 @@ public class AuthServiceImpl implements AuthService {
     private CacheUtil cacheUtil; // 自定义缓存工具类
 
     @Autowired
-    private WebSocketService webSocketService; // WebSocket 服务，用于发送上线/下线通知
+    @Lazy
+    private WebSocketService webSocketService; // WebSocket 服务（懒加载，避免循环依赖）
 
     // 使用构造器注入，并添加@Lazy注解，避免循环依赖
     private final ChatListService chatListService;
@@ -183,7 +184,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void online(Long userId) {
         // 用户上线通知
-        NotifyDto notifyDto = new NotifyDto();
+        NotifyDto<String> notifyDto = new NotifyDto<>(); // 指定泛型为字符串
         notifyDto.setTime(new Date()); // 设置当前时间
         notifyDto.setType(NotifyType.Web_Online); // 设置通知类型
         notifyDto.setContent(JSONUtil.toJsonStr(getUserByIdForTalk(userId))); // 设置通知内容
@@ -204,7 +205,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void offline(Long userId) {
         // 用户下线通知
-        NotifyDto notifyDto = new NotifyDto();
+        NotifyDto<String> notifyDto = new NotifyDto<>(); // 指定泛型为字符串
         notifyDto.setTime(new Date());
         notifyDto.setType(NotifyType.Web_Offline);
         notifyDto.setContent(JSONUtil.toJsonStr(getUserByIdForTalk(userId)));

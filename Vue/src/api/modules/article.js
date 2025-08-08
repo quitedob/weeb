@@ -31,10 +31,8 @@ export const updateArticle = (id, articleData) => {
 
 // 根据文章 ID 删除文章
 export const deleteArticle = (id) => {
-    // Backend ArticleCenterController has:
-    // @PostMapping("/deletearticle") public ApiResponse<?> deleteArticle(@RequestParam String id)
-    // So, the request should be POST with id as a query parameter.
-    return request.post(`/articles/deletearticle?id=${id}`);
+    // 后端已改为 RESTful：DELETE /articles/{id}
+    return request.delete(`/articles/${id}`);
 };
 
 // 根据用户 ID 获取该用户发布的所有文章

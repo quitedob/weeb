@@ -291,9 +291,9 @@ public class ArticleCenterController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-    // 新增删除文章的接口
-    @PostMapping("/deletearticle")
-    public ResponseEntity<String> deleteArticle(@RequestParam("id") Long id, @Userid Long authenticatedUserId) {
+    // RESTful 删除文章接口
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteArticle(@PathVariable("id") Long id, @Userid Long authenticatedUserId) {
         try {
             // 安全验证：确保用户只能删除自己的文章
             boolean deleted = articleService.deleteArticle(id, authenticatedUserId);

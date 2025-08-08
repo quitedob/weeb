@@ -41,6 +41,9 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     @Autowired
     private ChatListMapper chatListMapper;
 
+    @Autowired(required = false)
+    private com.web.service.WebSocketService webSocketService; // WebSocket 通知服务（可选注入）
+
     // @Autowired
     // private WebSocketService webSocketService; // For future notifications
 
@@ -107,7 +110,25 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
                 log.info("Added initial member {} to group id {}", memberId, group.getId());
             }
         }
-        // TODO: Notify initial members via WebSocket?
+        // 通知初始成员：被拉入群
+        try {
+            if (webSocketService != null && !CollectionUtils.isEmpty(createVo.getInitialMemberIds())) {
+                for (Long memberId : createVo.getInitialMemberIds()) {
+                    if (memberId.equals(userId)) continue; // 跳过群主
+                    var payload = java.util.Map.of(
+                            "event", "group_invited",
+                            "groupId", group.getId(),
+                            "groupName", group.getGroupName()
+                    );
+                    com.web.service.WebSocketService.WsContent wsContent = new com.web.service.WebSocketService.WsContent();
+                    wsContent.setType(com.web.constant.WsContentType.NOTIFICATION.getCode());
+                    wsContent.setContent(payload);
+                    webSocketService.sendMsgToUser(wsContent, userId, memberId);
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("WebSocket notify initial members failed: {}", ex.getMessage());
+        }
         return group;
     }
 
@@ -132,7 +153,21 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             member.setJoinTime(new Date());
             groupMemberMapper.insert(member);
             log.info("Invited user {} to group {}", memberId, inviteVo.getGroupId());
-            // TODO: Notify invited user (memberId) via WebSocket
+            // 实时通知被邀请用户
+            try {
+                if (webSocketService != null) {
+                    var payload = java.util.Map.of(
+                            "event", "group_invited",
+                            "groupId", inviteVo.getGroupId()
+                    );
+                    com.web.service.WebSocketService.WsContent ws = new com.web.service.WebSocketService.WsContent();
+                    ws.setType(com.web.constant.WsContentType.NOTIFICATION.getCode());
+                    ws.setContent(payload);
+                    webSocketService.sendMsgToUser(ws, userId, memberId);
+                }
+            } catch (Exception ex) {
+                log.warn("Notify invited user failed: {}", ex.getMessage());
+            }
         }
     }
 
@@ -161,7 +196,37 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         int deletedRows = groupMemberMapper.deleteById(memberToKick.getId());
         if (deletedRows > 0) {
             log.info("User {} successfully kicked from group {}", kickVo.getKickedUserId(), kickVo.getGroupId());
-            // TODO: Notify kicked user and other group members via WebSocket
+            // 通知被踢用户与其他成员
+            try {
+                if (webSocketService != null) {
+                    var payloadKicked = java.util.Map.of(
+                            "event", "group_kicked",
+                            "groupId", kickVo.getGroupId()
+                    );
+                    com.web.service.WebSocketService.WsContent wsKicked = new com.web.service.WebSocketService.WsContent();
+                    wsKicked.setType(com.web.constant.WsContentType.NOTIFICATION.getCode());
+                    wsKicked.setContent(payloadKicked);
+                    webSocketService.sendMsgToUser(wsKicked, userId, kickVo.getKickedUserId());
+
+                    // 通知群内其他成员
+                    List<Long> memberIds = groupMemberMapper.findUserIdsByGroupId(kickVo.getGroupId());
+                    if (memberIds != null && !memberIds.isEmpty()) {
+                        for (Long memberId : memberIds) {
+                            if (memberId.equals(kickVo.getKickedUserId())) continue; // 已单独通知
+                            com.web.service.WebSocketService.WsContent wsOthers = new com.web.service.WebSocketService.WsContent();
+                            wsOthers.setType(com.web.constant.WsContentType.NOTIFICATION.getCode());
+                            wsOthers.setContent(java.util.Map.of(
+                                    "event", "group_member_removed",
+                                    "groupId", kickVo.getGroupId(),
+                                    "userId", kickVo.getKickedUserId()
+                            ));
+                            webSocketService.sendMsgToUser(wsOthers, userId, memberId);
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("Notify kicked user failed: {}", ex.getMessage());
+            }
         } else {
             log.warn("Failed to kick user {} from group {}. Member record not found or delete failed.", kickVo.getKickedUserId(), kickVo.getGroupId());
             // This case should ideally not be reached if findByGroupAndUser found the member.
@@ -198,7 +263,27 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
         groupMemberMapper.deleteById(member.getId());
         log.info("User {} successfully left group {}", userId, groupId);
-        // TODO: Notify other group members via WebSocket
+        // 通知其他群成员：有人退群
+        try {
+            if (webSocketService != null) {
+                List<Long> memberIds = groupMemberMapper.findUserIdsByGroupId(groupId);
+                if (memberIds != null && !memberIds.isEmpty()) {
+                    for (Long memberId : memberIds) {
+                        if (memberId.equals(userId)) continue; // 不通知已退出用户
+                        com.web.service.WebSocketService.WsContent ws = new com.web.service.WebSocketService.WsContent();
+                        ws.setType(com.web.constant.WsContentType.NOTIFICATION.getCode());
+                        ws.setContent(java.util.Map.of(
+                                "event", "group_member_left",
+                                "groupId", groupId,
+                                "userId", userId
+                        ));
+                        webSocketService.sendMsgToUser(ws, userId, memberId);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Notify group members about leave failed: {}", ex.getMessage());
+        }
     }
 
     /**
