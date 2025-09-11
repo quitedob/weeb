@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- 定义 MyBatis Mapper XML 文件，用于描述 ChatListMapper 接口对应的 SQL 语句 -->
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.ChatListMapper">
+    <!--
+         注意：此处字段名称必须与数据库表结构一致，
+         数据库表 chat_list 字段：
+         id (varchar(255)),
+         user_id (BIGINT),
+         target_id (BIGINT),
+         target_info (text, NOT NULL),
+         unread_count (int, 默认 0),
+         last_message (text),
+         type (varchar(255)),
+         create_time (timestamp(3), NOT NULL),
+         update_time (timestamp(3), NOT NULL)
+    -->
+
+    <!-- 1. 根据用户ID和会话类型查询聊天记录集合 -->
+    <select id="selectByUserIdAndType" resultType="com.web.model.ChatList">
+        SELECT
+        id,               <!-- 聊天记录的主键ID -->
+        user_id,          <!-- 用户ID -->
+        target_id,        <!-- 目标用户ID -->
+        target_info,      <!-- 会话标题/目标信息 -->
+        type,             <!-- 会话类型 -->
+        unread_count,     <!-- 未读消息数 -->
+        last_message,     <!-- 最后一条消息 -->
+        update_time,      <!-- 最后更新时间 -->
+        create_time       <!-- 创建时间 -->
+        FROM chat_list
+        WHERE user_id = #{userId}   <!-- 根据传入的用户ID过滤 -->
+        AND type = #{type}        <!-- 根据传入的会话类型过滤 -->
+    </select>
+
+    <!-- 2. 根据用户ID和会话类型查询单个聊天记录 -->
+    <select id="selectOneByUserIdAndType" resultType="com.web.model.ChatList">
+        SELECT
+        id,
+        user_id,
+        target_id,
+        target_info,
+        type,
+        unread_count,
+        last_message,
+        update_time,      <!-- 使用数据库字段 update_time -->
+        create_time       <!-- 使用数据库字段 create_time -->
+        FROM chat_list
+        WHERE user_id = #{userId}  <!-- 根据用户ID过滤 -->
+        AND type = #{type}       <!-- 根据会话类型过滤 -->
+        LIMIT 1                   <!-- 只返回一条记录 -->
+    </select>
+
+    <!-- 3. 根据用户ID和目标用户ID查询私聊记录（私聊类型假设为 0） -->
+    <select id="selectPrivateChat" resultType="com.web.model.ChatList">
+        SELECT
+        id,
+        user_id,
+        target_id,
+        target_info,
+        type,
+        unread_count,
+        last_message,
+        update_time,      <!-- 使用数据库字段 update_time -->
+        create_time       <!-- 使用数据库字段 create_time -->
+        FROM chat_list
+        WHERE user_id = #{userId}      <!-- 用户ID匹配 -->
+        AND target_id = #{targetId}    <!-- 目标用户ID匹配 -->
+        AND type = 0                 <!-- 仅查询私聊记录（假设私聊类型为 0） -->
+        LIMIT 1                       <!-- 返回单条记录 -->
+    </select>
+
+    <!-- 4. 插入新的聊天记录 -->
+    <insert id="insertChatList" parameterType="com.web.model.ChatList">
+        INSERT INTO chat_list
+        (id, user_id, target_id, target_info, type, unread_count, last_message, update_time, create_time)
+        VALUES
+        (#{id}, #{userId}, #{targetId}, #{targetInfo}, #{type}, #{unreadCount}, #{lastMessage}, #{updateTime}, #{createTime})
+        <!-- 此处使用实体中对应的属性：
+             targetInfo 对应数据库字段 target_info，
+             updateTime 对应 update_time，
+             createTime 对应 create_time -->
+    </insert>
+
+    <update id="updateChatListById" parameterType="com.web.model.ChatList">
+        UPDATE chat_list
+        SET
+            user_id = #{userId},
+            target_id = #{targetId},
+            target_info = #{targetInfo},
+            type = #{type},
+            unread_count = #{unreadCount},
+            last_message = #{lastMessage},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 6. 更新所有群聊记录的最后一条消息 -->
+    <update id="updateGroupChatLastMessage" parameterType="map">
+        UPDATE chat_list
+        SET last_message = #{lastMessage}  <!-- 更新最后消息内容 -->
+        WHERE type = 1                   <!-- 仅更新群聊记录（假设群聊类型为 1） -->
+    </update>
+
+    <!-- 7. 重置指定用户与目标用户之间的未读消息数为 0 -->
+    <update id="resetUnreadCount" parameterType="map">
+        UPDATE chat_list
+        SET unread_count = 0             <!-- 将未读消息数置为 0 -->
+        WHERE user_id = #{userId}        <!-- 根据用户ID匹配 -->
+        AND target_id = #{targetId}    <!-- 根据目标用户ID匹配 -->
+    </update>
+
+    <!-- 8. 根据用户ID和聊天记录ID删除聊天记录 -->
+    <delete id="deleteChatRecord" parameterType="map">
+        DELETE FROM chat_list
+        WHERE id = #{chatListId}         <!-- 根据聊天记录ID匹配 -->
+        AND user_id = #{userId}        <!-- 根据用户ID匹配 -->
+    </delete>
+</mapper>

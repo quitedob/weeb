@@ -1,0 +1,40 @@
+<!-- 文件路径: src/main/resources/logback-spring.xml -->
+<configuration scan="true" scanPeriod="30 seconds">
+
+  <springProfile name="dev">
+    <!-- 开发环境：控制台输出详细日志 -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+      </encoder>
+    </appender>
+    <root level="DEBUG"> <!-- More verbose for dev -->
+      <appender-ref ref="STDOUT" />
+    </root>
+    <logger name="org.springframework" level="INFO"/> <!-- Example: reduce Spring noise if needed -->
+    <logger name="com.web" level="DEBUG"/> <!-- Ensure app specific logs are detailed -->
+  </springProfile>
+
+  <springProfile name="prod">
+    <!-- 生产环境：文件输出、按大小和时间滚动 -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>logs/weeb-app.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>logs/weeb-app.%d{yyyy-MM-dd}.%i.log.zip</fileNamePattern>
+        <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+          <maxFileSize>10MB</maxFileSize>
+        </timeBasedFileNamingAndTriggeringPolicy>
+        <maxHistory>30</maxHistory> <!-- Keep logs for 30 days -->
+        <totalSizeCap>1GB</totalSizeCap> <!-- Total size of all archive files -->
+      </rollingPolicy>
+      <encoder>
+        <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+      </encoder>
+    </appender>
+    <root level="INFO"> <!-- Standard for prod -->
+      <appender-ref ref="FILE" />
+    </root>
+    <logger name="com.web" level="INFO"/> <!-- App specific logs at INFO for prod -->
+  </springProfile>
+
+</configuration>

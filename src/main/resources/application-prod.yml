@@ -1,0 +1,76 @@
+server:
+  port: 8080 # Can be overridden by environment variable if needed
+
+spring:
+  datasource:
+    url: ${PROD_DB_URL:jdbc:mysql://localhost:3306/weeb_prod?useSSL=false&serverTimezone=UTC} # Example default
+    username: ${PROD_DB_USERNAME:prod_user}
+    password: ${PROD_DB_PASSWORD:prod_password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # HikariCP连接池配置 - 生产环境优化
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-timeout: 60000
+      leak-detection-threshold: 60000
+      validation-timeout: 5000
+      pool-name: WeebProdHikariPool
+  data:
+    redis:
+      host: ${PROD_REDIS_HOST:localhost}
+      port: ${PROD_REDIS_PORT:6379}
+      password: ${PROD_REDIS_PASSWORD:}
+      database: 0
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 10
+          max-wait: -1ms
+          time-between-eviction-runs: 30000ms
+  # Assuming JPA might be added or Mybatis settings for prod
+  # For now, using Mybatis settings from original application.yml
+  jpa: # As per recommendation, though project uses MyBatis
+    hibernate:
+      ddl-auto: none # Production setting
+    show-sql: false    # Production setting
+
+# MyBatis specific settings for prod could be added if different from dev
+# mybatis:
+#   configuration:
+#     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl # Recommended for prod if using logback
+
+jwt:
+  secret: ${PROD_JWT_SECRET_KEY} # Should be set via environment variable
+  expiration: 3600000 # Or configure as needed
+
+logging:
+  level:
+    root: INFO
+    com.web: INFO # Less verbose for prod
+
+# OAuth2 配置
+oauth2:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
+    client-secret: ${GOOGLE_CLIENT_SECRET}
+  microsoft:
+    client-id: ${MICROSOFT_CLIENT_ID}
+    client-secret: ${MICROSOFT_CLIENT_SECRET}
+
+# Actuator exposure for prod (will be fully configured in next step)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,httptrace,loggers # Expose more endpoints for prod as per recommendation 2.2.1
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  # Ensure health check details are shown
+  endpoint:
+    health:
+      show-details: always # Or "when-authorized" if security is tighter
