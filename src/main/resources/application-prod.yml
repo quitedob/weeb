@@ -1,76 +1,62 @@
-server:
-  port: 8080 # Can be overridden by environment variable if needed
-
 spring:
+  profiles:
+    active: prod
+
+  # MySQL生产环境配置
   datasource:
-    url: ${PROD_DB_URL:jdbc:mysql://localhost:3306/weeb_prod?useSSL=false&serverTimezone=UTC} # Example default
-    username: ${PROD_DB_USERNAME:prod_user}
-    password: ${PROD_DB_PASSWORD:prod_password}
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:weeb}?useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=false
     driver-class-name: com.mysql.cj.jdbc.Driver
-    # HikariCP连接池配置 - 生产环境优化
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
     hikari:
-      maximum-pool-size: 50
+      pool-name: WeebProdHikariPool
       minimum-idle: 10
+      maximum-pool-size: 50
+      connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
-      connection-timeout: 60000
-      leak-detection-threshold: 60000
       validation-timeout: 5000
-      pool-name: WeebProdHikariPool
-  data:
-    redis:
-      host: ${PROD_REDIS_HOST:localhost}
-      port: ${PROD_REDIS_PORT:6379}
-      password: ${PROD_REDIS_PASSWORD:}
-      database: 0
-      lettuce:
-        pool:
-          max-active: 50
-          max-idle: 20
-          min-idle: 10
-          max-wait: -1ms
-          time-between-eviction-runs: 30000ms
-  # Assuming JPA might be added or Mybatis settings for prod
-  # For now, using Mybatis settings from original application.yml
-  jpa: # As per recommendation, though project uses MyBatis
-    hibernate:
-      ddl-auto: none # Production setting
-    show-sql: false    # Production setting
+      leak-detection-threshold: 60000
 
-# MyBatis specific settings for prod could be added if different from dev
-# mybatis:
-#   configuration:
-#     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl # Recommended for prod if using logback
+  # MyBatis-Plus生产环境配置
+  mybatis-plus:
+    mapper-locations: classpath*:/Mapper/*.xml
+    type-aliases-package: com.web.model
+    configuration:
+      map-underscore-to-camel-case: true
+      cache-enabled: true
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    global-config:
+      db-config:
+        logic-delete-field: deleted  # 全局逻辑删除字段名
+        logic-delete-value: 1 # 逻辑已删除值(默认为 1)
+        logic-not-delete-value: 0 # 逻辑未删除值(默认为 0)
 
-jwt:
-  secret: ${PROD_JWT_SECRET_KEY} # Should be set via environment variable
-  expiration: 3600000 # Or configure as needed
-
+# 日志配置
 logging:
   level:
-    root: INFO
-    com.web: INFO # Less verbose for prod
+    com.web: INFO
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/weeb-prod.log
+    max-size: 100MB
+    max-history: 30
 
-# OAuth2 配置
-oauth2:
-  google:
-    client-id: ${GOOGLE_CLIENT_ID}
-    client-secret: ${GOOGLE_CLIENT_SECRET}
-  microsoft:
-    client-id: ${MICROSOFT_CLIENT_ID}
-    client-secret: ${MICROSOFT_CLIENT_SECRET}
+# 服务器配置
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
 
-# Actuator exposure for prod (will be fully configured in next step)
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,httptrace,loggers # Expose more endpoints for prod as per recommendation 2.2.1
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-  # Ensure health check details are shown
-  endpoint:
-    health:
-      show-details: always # Or "when-authorized" if security is tighter
+# JWT生产环境配置
+jwt:
+  secret: ${JWT_SECRET}  # 生产环境必须设置强密钥
+  expiration: ${JWT_EXPIRATION:3600000}  # 生产环境默认1小时

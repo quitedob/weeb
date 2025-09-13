@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.List;
@@ -89,8 +90,8 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     @Resource
     private RedisTemplate<String, Object> redisTemplate; // Injected for Redis Pub/Sub
 
-    @Resource
-    private MessageSearchRepository messageSearchRepository; // Injected for ES
+    @Autowired(required = false)
+    private MessageSearchRepository messageSearchRepository; // Injected for ES (optional)
 
     /**
      * 发送消息，根据消息来源调用相应的方法
@@ -539,8 +540,14 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
             }
 
             doc.setSendTime(message.getCreatedAt());
-            messageSearchRepository.save(doc);
-            log.debug("Message {} indexed to Elasticsearch", message.getId());
+
+            // 只有在Elasticsearch可用时才保存
+            if (messageSearchRepository != null) {
+                messageSearchRepository.save(doc);
+                log.debug("Message {} indexed to Elasticsearch", message.getId());
+            } else {
+                log.debug("Elasticsearch is disabled, skipping message indexing for message {}", message.getId());
+            }
         } catch (Exception e) {
             log.error("Failed to index message {} to Elasticsearch: {}", message.getId(), e.getMessage(), e);
         }

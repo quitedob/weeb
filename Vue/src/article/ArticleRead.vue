@@ -19,7 +19,7 @@
         <!-- <div v-html="article.content"></div> -->
       </div>
        <div class="article-actions">
-        <el-button type="primary" @click="like" :icon="LikeIcon">点赞</el-button> <!-- Added LikeIcon -->
+        <el-button type="primary" @click="like"><el-icon><Plus /></el-icon>点赞</el-button> <!-- Like button with icon -->
       </div>
     </el-card>
   </div>
@@ -38,7 +38,7 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router'; // Added useRouter
 import { getArticleById, increaseReadCount, likeArticle } from '../api/modules/article';
 import { ElMessage } from 'element-plus';
-import { ThumbsUp as LikeIcon } from '@element-plus/icons-vue'; // Example icon for like
+import { Plus } from '@element-plus/icons-vue'; // Icon for like action
 
 const route = useRoute();
 const router = useRouter(); // Added

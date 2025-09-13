@@ -4,7 +4,7 @@
       <template #header>
         <div class="card-header">
           <h2>我的文章</h2>
-          <el-button type="primary" @click="goToWriteArticle" :icon="PlusIcon">发布新文章</el-button> <!-- Added icon -->
+          <el-button type="primary" @click="goToWriteArticle"><el-icon><PlusIcon /></el-icon>发布新文章</el-button> <!-- Create new article -->
         </div>
       </template>
       <div v-if="loading" class="loading-state">
@@ -25,8 +25,8 @@
         <el-table-column prop="exposureCount" label="阅读数" width="100" sortable />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="scope">
-            <el-button size="small" @click="editArticle(scope.row.id)" :icon="EditIcon">编辑</el-button>
-            <el-button size="small" type="danger" @click="confirmDelete(scope.row.id)" :icon="DeleteIcon">删除</el-button>
+            <el-button size="small" @click="editArticle(scope.row.id)"><el-icon><EditIcon /></el-icon>编辑</el-button>
+            <el-button size="small" type="danger" @click="confirmDelete(scope.row.id)"><el-icon><DeleteIcon /></el-icon>删除</el-button>
           </template>
         </el-table-column>
       </el-table>

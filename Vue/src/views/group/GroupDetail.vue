@@ -6,7 +6,7 @@
       </template>
       <template #extra v-if="isOwner">
         <div class="page-header-extra">
-          <el-button type="danger" @click="confirmDisbandGroup" :icon="Delete" plain>解散群组</el-button>
+          <el-button type="danger" @click="confirmDisbandGroup" plain><el-icon><Delete /></el-icon>解散群组</el-button>
         </div>
       </template>
     </el-page-header>
@@ -24,13 +24,13 @@
           <el-descriptions-item label="群简介">{{ group.description || '暂无简介' }}</el-descriptions-item>
         </el-descriptions>
         <div class="actions-bar top-actions" v-if="isOwner || isAdmin">
-             <el-button type="primary" @click="openEditGroupDialog" :icon="Edit">编辑群信息</el-button>
+             <el-button type="primary" @click="openEditGroupDialog"><el-icon><Edit /></el-icon>编辑群信息</el-button>
         </div>
       </el-tab-pane>
 
       <el-tab-pane :label="`成员 (${members.length})`" name="members">
         <div class="actions-bar">
-          <el-button v-if="isOwner || isAdmin" type="success" @click="openInviteDialog" :icon="UserPlus">邀请成员</el-button>
+          <el-button v-if="isOwner || isAdmin" type="success" @click="openInviteDialog"><el-icon><Plus /></el-icon>邀请成员</el-button>
         </div>
         <el-table :data="members" style="width: 100%" class="members-table" empty-text="暂无成员">
           <el-table-column label="头像" width="80">
@@ -64,8 +64,8 @@
     </el-tabs>
 
     <div class="actions-bar bottom-actions">
-        <el-button type="primary" @click="navigateToGroupChat(group.groupId, group.groupName)" :icon="ChatDotRound">进入群聊</el-button>
-        <el-button type="warning" @click="confirmLeaveGroup" v-if="!isOwner" :icon="Remove" plain>退出群组</el-button>
+        <el-button type="primary" @click="navigateToGroupChat(group.groupId, group.groupName)"><el-icon><Search /></el-icon>进入群聊</el-button>
+        <el-button type="warning" @click="confirmLeaveGroup" v-if="!isOwner" plain><el-icon><Remove /></el-icon>退出群组</el-button>
     </div>
 
     <el-dialog v-model="editGroupDialogVisible" title="编辑群信息" width="500px">
@@ -126,8 +126,9 @@ import api from '@/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
-import { Edit, User as UserIcon, Delete, UserPlus, ArrowLeft, ChatDotRound, Remove} from '@element-plus/icons-vue';
-import defaultAvatar from '@/assets/logo.png';
+import { Edit, User as UserIcon, Delete, Plus, ArrowLeft, Search, Remove} from '@element-plus/icons-vue';
+// 使用在线默认头像，避免文件缺失问题
+const defaultAvatar = 'https://via.placeholder.com/40x40/cccccc/666666?text=用户';
 
 const route = useRoute();
 const router = useRouter();

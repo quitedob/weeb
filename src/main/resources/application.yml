@@ -1,17 +1,67 @@
 spring:
   profiles:
     active: dev # Default to dev environment
+    # 可用的配置文件：dev, prod
+    # 生产环境启动命令：java -jar app.jar --spring.profiles.active=prod
+
+  # MySQL数据库配置（开发环境）
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:weeb}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+    hikari:
+      pool-name: WeebDevHikariPool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # MyBatis-Plus配置
+  mybatis-plus:
+    mapper-locations: classpath*:/Mapper/*.xml
+    type-aliases-package: com.web.model
+    configuration:
+      map-underscore-to-camel-case: true
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+  # Redis配置（已启用）
+  # Redis服务已启动，监听端口：6379
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      database: 0
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+  # Elasticsearch配置（已启用）
+  # Elasticsearch服务已启动，监听地址：172.18.48.1:9200 (HTTPS)
   elasticsearch:
-    uris: http://localhost:9200
-    connection-timeout: 5000ms
+    enabled: true  # 启用Elasticsearch功能
+    uris: https://172.18.48.1:9200  # ES实际监听地址（HTTPS）
+    connection-timeout: 10000ms
     socket-timeout: 60000ms
-    username: ${ES_USERNAME:}
-    password: ${ES_PASSWORD:}
-    rest:
-      client:
-        http-client:
-          max-conn-per-route: 20
-          max-conn-total: 100
+    username: elastic  # ES 9.x默认用户名
+    password: ${ES_PASSWORD:}  # 需要设置密码
+    restclient:
+      ssl:
+        bundle: es-pem  # 使用SSL Bundle配置
+
+  # SSL配置（用于Elasticsearch HTTPS连接）
+  ssl:
+    bundle:
+      pem:
+        es-pem:
+          # ES的CA证书路径（需要将http_ca.crt放到此路径）
+          truststore:
+            certificate: classpath:es/http_ca.crt
 
 # Keep existing WEEB specific configurations if they are environment agnostic
 # or move them to dev/prod specific files if they differ.
@@ -38,3 +88,8 @@ aliyun:
     accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID:YOUR_ACCESS_KEY_ID_REPLACE_ME}
     accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:YOUR_ACCESS_KEY_SECRET_REPLACE_ME}
     bucketName: ${ALIYUN_OSS_BUCKET_NAME:your-bucket-name-replace-me}
+
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET:mySecretKey123456789012345678901234567890} # JWT签名密钥
+  expiration: ${JWT_EXPIRATION:86400000} # JWT令牌有效期，默认为24小时（毫秒）

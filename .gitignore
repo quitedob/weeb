@@ -31,6 +31,10 @@ data_utils/face_tracking/3DMM/*
 data_utils/face_parsing/79999_iter.pth
 .DS_Store
 .idea/
+.mvn/
+.idea/
+node_modules/
+vue/node_modules/
 .ipynb_checkpoints/
 .env              
 .env.*            
@@ -44,7 +48,7 @@ chroma_db/
 test_chroma_db/
 *.db
 *.sqlite
-mem0_db/          
+mem0_db/
 fishtts_cloned_voices/
 uploads/
 test_uploads/
@@ -55,6 +59,12 @@ livetalking.log
 temp/
 tmp/
 .tmp/
+
+# Elasticsearch SSL证书（安全敏感）
+src/main/resources/es/http_ca.crt
+src/main/resources/es/*.crt
+src/main/resources/es/*.pem
+src/main/resources/es/*.key
 
 
 

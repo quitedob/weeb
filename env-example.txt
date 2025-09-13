@@ -1,0 +1,36 @@
+# WEEB 环境变量配置示例
+# 复制此文件内容并创建 .env 文件，填写实际值
+
+# 数据库配置
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DATABASE=weeb
+MYSQL_USERNAME=root
+MYSQL_PASSWORD=your_mysql_password
+
+# JWT配置
+JWT_SECRET=your_jwt_secret_key_here
+JWT_EXPIRATION=86400000
+
+# Elasticsearch配置
+ES_USERNAME=elastic
+ES_PASSWORD=your_elasticsearch_password
+
+# Elasticsearch证书路径（可选）
+ES_CERT_PATH=src/main/resources/es/http_ca.crt
+
+# 阿里云OSS配置（如果使用）
+ALIYUN_OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
+ALIYUN_OSS_ACCESS_KEY_ID=your_access_key_id
+ALIYUN_OSS_ACCESS_KEY_SECRET=your_access_key_secret
+ALIYUN_OSS_BUCKET_NAME=your_bucket_name
+
+# 豆包AI配置
+DOUBAO_API_KEY=your_doubao_api_key
+DOUBAO_MODEL=your_doubao_model
+
+# 调试模式
+DEBUG=false
+
+# WEEB特有配置
+WEEB_PASSWORD=sun55@kong

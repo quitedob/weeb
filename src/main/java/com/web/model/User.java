@@ -40,6 +40,7 @@ public class User implements Serializable {
     // 新增字段：用户类型、头像、徽章信息、最后登录时间
     private String type;          // 用户类型
     private String avatar;        // 用户头像
+    private String nickname;      // 用户昵称
     private String badge;         // 用户徽章信息
     private Date loginTime;       // 最后一次登录时间
 
@@ -56,8 +57,8 @@ public class User implements Serializable {
     public User(Long id, String username, String password, int sex, String phoneNumber, String userEmail,
                 Long fansCount, String uniqueArticleLink, String uniqueVideoLink, Long totalLikes,
                 Long totalFavorites, Long totalSponsorship, Long totalArticleExposure, Long websiteCoins,
-                Date registrationDate, String ipOwnership, String type, String avatar, String badge, Date loginTime,
-                String bio, Integer onlineStatus) { // Added new params
+                Date registrationDate, String ipOwnership, String type, String avatar, String nickname, String badge, Date loginTime,
+                String bio, Integer onlineStatus) {
         this.id = id;                               // 设置用户ID
         this.username = username;                   // 设置用户名
         this.password = password;                   // 设置密码
@@ -76,6 +77,7 @@ public class User implements Serializable {
         this.ipOwnership = ipOwnership;             // 设置IP归属地
         this.type = type;                           // 设置用户类型
         this.avatar = avatar;                       // 设置用户头像
+        this.nickname = nickname;                   // 设置用户昵称
         this.badge = badge;                         // 设置用户徽章信息
         this.loginTime = loginTime;                 // 设置最后一次登录时间
         this.bio = bio;                             // 设置个人简介
@@ -230,6 +232,14 @@ public class User implements Serializable {
         this.avatar = avatar; // 设置用户头像
     }
 
+    public String getNickname() {
+        return nickname; // 返回用户昵称
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname; // 设置用户昵称
+    }
+
     public String getBadge() {
         return badge; // 返回用户徽章信息
     }
@@ -283,6 +293,7 @@ public class User implements Serializable {
                 ", ipOwnership='" + ipOwnership + '\'' +
                 ", type='" + type + '\'' +
                 ", avatar='" + avatar + '\'' +
+                ", nickname='" + nickname + '\'' +
                 ", badge='" + badge + '\'' +
                 ", loginTime=" + loginTime +
                 ", bio='" + bio + '\'' +
@@ -314,6 +325,7 @@ public class User implements Serializable {
                 Objects.equals(ipOwnership, user.ipOwnership) &&
                 Objects.equals(type, user.type) &&
                 Objects.equals(avatar, user.avatar) &&
+                Objects.equals(nickname, user.nickname) &&
                 Objects.equals(badge, user.badge) &&
                 Objects.equals(loginTime, user.loginTime) &&
                 Objects.equals(bio, user.bio) &&       // Added bio
@@ -327,6 +339,6 @@ public class User implements Serializable {
                 fansCount, uniqueArticleLink, uniqueVideoLink,
                 totalLikes, totalFavorites, totalSponsorship,
                 totalArticleExposure, websiteCoins, registrationDate, ipOwnership,
-                type, avatar, badge, loginTime, bio, onlineStatus); // Added bio and onlineStatus
+                type, avatar, nickname, badge, loginTime, bio, onlineStatus); // Added bio, onlineStatus and nickname
     }
 }

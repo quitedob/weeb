@@ -6,7 +6,7 @@
         <div class="avatar-section">
           <div class="avatar-wrapper">
             <img 
-              :src="userInfo.avatar || '/public/badge/default-avatar.png'" 
+              :src="userInfo.avatar || 'https://via.placeholder.com/100x100/cccccc/666666?text=用户'" 
               :alt="userInfo.username"
               class="user-avatar"
               @error="handleAvatarError"
@@ -253,7 +253,7 @@ const viewProfile = () => {
 }
 
 const handleAvatarError = (e) => {
-  e.target.src = '/public/badge/default-avatar.png'
+  e.target.src = 'https://via.placeholder.com/100x100/cccccc/666666?text=用户'
 }
 
 const formatGender = (sex) => {

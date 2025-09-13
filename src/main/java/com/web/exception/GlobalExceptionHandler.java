@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
      * 处理参数验证异常（@Valid）
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Object>> handleValidationException(MethodArgumentNotValidException e, WebRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationException(MethodArgumentNotValidException e, WebRequest request) {
         Map<String, String> errors = new HashMap<>();
         e.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
@@ -61,7 +61,7 @@ public class GlobalExceptionHandler {
 
         log.warn("参数验证失败 eventId={}, path={}, errors={}", eventId, path, errors);
 
-        ApiResponse<Object> response = ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR,
+        ApiResponse<Map<String, String>> response = ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR,
                 "参数验证失败", errors)
                 .withPath(path);
 
@@ -72,7 +72,7 @@ public class GlobalExceptionHandler {
      * 处理绑定异常
      */
     @ExceptionHandler(BindException.class)
-    public ResponseEntity<ApiResponse<Object>> handleBindException(BindException e, WebRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleBindException(BindException e, WebRequest request) {
         Map<String, String> errors = new HashMap<>();
         e.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
@@ -85,7 +85,7 @@ public class GlobalExceptionHandler {
 
         log.warn("数据绑定失败 eventId={}, path={}, errors={}", eventId, path, errors);
 
-        ApiResponse<Object> response = ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR,
+        ApiResponse<Map<String, String>> response = ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR,
                 "数据绑定失败", errors)
                 .withPath(path);
 
@@ -96,7 +96,7 @@ public class GlobalExceptionHandler {
      * 处理约束违反异常
      */
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ApiResponse<Object>> handleConstraintViolationException(ConstraintViolationException e, WebRequest request) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleConstraintViolationException(ConstraintViolationException e, WebRequest request) {
         Set<ConstraintViolation<?>> violations = e.getConstraintViolations();
         Map<String, String> errors = new HashMap<>();
 
@@ -111,7 +111,7 @@ public class GlobalExceptionHandler {
 
         log.warn("约束验证失败 eventId={}, path={}, errors={}", eventId, path, errors);
 
-        ApiResponse<Object> response = ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR,
+        ApiResponse<Map<String, String>> response = ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR,
                 "约束验证失败", errors)
                 .withPath(path);
 

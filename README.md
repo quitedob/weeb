@@ -1,431 +1,477 @@
-# Weeb 项目说明
+# WEEB 现代化即时通信与内容管理系统
 
-本项目为基于 Spring Boot 3 + MyBatis(Plus) + Redis + Elasticsearch 的即时通信与内容系统，前端基于 Vue 3 + Vite。本文档汇总后端 API、请求参数、SQL 表结构（依据 src/main/resources/Mapper 与 src/main/java/com/web/model）、前端目录与启动方法，以及部署与环境变量说明。
+🚀 **一键启动，自动初始化数据库** | 💬 **实时聊天，群组协作** | 📝 **文章发布，智能搜索**
 
-## 目录
-- 项目概述
-- 快速开始
-- 后端概览
-- 前端（Vue）说明
-- 环境变量与配置
-- API 一览（分模块）
-- 主要数据表结构（DDL 参考）
-- 部署指南
-- 安全、认证与跨域
-- 常见问题（FAQ）
-- 贡献指南
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Vue](https://img.shields.io/badge/Vue-3.0-brightgreen.svg)](https://vuejs.org/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0+-blue.svg)](https://www.mysql.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+## ✨ 核心特性
+
+- 🚀 **高性能架构**: Spring Boot 3 + MySQL + Redis缓存
+- 💬 **实时通信**: WebSocket实现实时消息推送
+- 🔍 **智能搜索**: Elasticsearch全文搜索（已启用）
+- 📁 **文件管理**: 多文件上传与云存储集成
+- 🔐 **安全认证**: JWT令牌认证
+- 🎨 **现代化UI**: Vue 3 + Element Plus构建
+- 🏗️ **自动初始化**: 一键启动，自动创建数据库和表结构
+- 🐳 **容器化部署**: Docker支持
+
+## 📋 目录
+
+- [项目概述](#项目概述)
+- [快速开始](#快速开始)
+- [核心功能](#核心功能)
+- [技术栈](#技术栈)
+- [环境要求](#环境要求)
+- [项目结构](#项目结构)
+- [API文档](#api文档)
+- [部署指南](#部署指南)
+- [常见问题](#常见问题)
+- [贡献指南](#贡献指南)
 
 ---
 
 ## 项目概述
 
-Weeb 是一个现代化的即时通信与内容管理系统，集成了聊天、群组、文章发布、文件共享等功能。
+WEEB 是一个现代化的即时通信与内容管理系统，专为团队协作和内容创作而设计。系统集成了实时聊天、群组管理、文章发布、文件共享等核心功能，提供完整的企业级解决方案。
 
-### 核心特性
-- 🚀 **高性能**: 基于Spring Boot 3 + Caffeine缓存 + Redis集群
-- 💬 **实时通信**: WebSocket + Redis Pub/Sub实现实时消息推送
-- 🔍 **智能搜索**: Elasticsearch提供全文搜索功能
-- 📁 **文件管理**: 支持多文件上传、头像管理、云存储集成
-- 🔐 **安全认证**: JWT + OAuth2.0（Google/Microsoft）第三方登录
-- 🎨 **现代化UI**: Vue 3 + Element Plus构建的美观界面
-- 🐳 **容器化部署**: Docker + Docker Compose一键部署
+### 核心功能
+- 👥 **用户管理**: 注册登录、个人资料管理
+- 💬 **实时聊天**: 私聊、群聊、消息推送
+- 👥 **群组协作**: 创建群组、成员管理、权限控制
+- 📝 **内容创作**: 文章发布、编辑、点赞收藏
+- 🔍 **智能搜索**: 全文搜索、消息检索
+- 📁 **文件管理**: 多文件上传、云存储
+- 🔔 **通知系统**: 实时通知、消息提醒
+- 📊 **数据统计**: 用户数据、文章统计
 
-### 技术栈
-- **后端**: Spring Boot 3.5.x, MyBatis-Plus, Redis, Elasticsearch
-- **前端**: Vue 3, Vite, Pinia, Axios, Element Plus
-- **数据库**: MySQL 8.0
-- **缓存**: Redis + Caffeine本地缓存
-- **搜索**: Elasticsearch 8.x
-- **存储**: 阿里云OSS
-- **AI**: 豆包AI集成
+### 技术特色
+- 🏗️ **自动初始化**: 一键启动，自动创建数据库和表结构
+- 🔧 **环境隔离**: 开发/生产环境配置分离
+- 🚀 **高性能**: Spring Boot 3 + MySQL优化
+- 🔒 **安全可靠**: JWT认证、权限控制
+- 📱 **响应式**: 现代化前端界面
 
 ---
 
 ## 快速开始
 
-### 环境要求
-- JDK 17+
-- MySQL 8.0+
-- Redis 7.0+
-- Elasticsearch 8.x
-- Node.js 16+
+### 🚀 一键启动（推荐）
 
-### 使用Docker快速启动（推荐）
+项目支持**一键启动**，自动检查环境并初始化数据库：
+
 ```bash
-# 克隆项目
-git clone https://github.com/your-repo/weeb.git
-cd weeb
+# Linux/Mac
+./start.sh
 
-# 使用部署脚本（推荐）
-./deploy.sh start
+# Windows
+start.bat
 
-# 或直接使用docker-compose
-docker-compose up -d
-
-# 查看启动状态
-docker-compose ps
-
-# 查看服务日志
-./deploy.sh logs
+# 生产环境启动
+./start.sh prod    # Linux/Mac
+start.bat prod     # Windows
 ```
 
-### 手动启动
+启动脚本会自动：
+- ✅ 检查 Java 和 Maven 环境
+- 🔍 检查 MySQL 连接
+- 🔨 编译项目
+- 🏗️ 自动创建数据库（如果不存在）
+- 📊 创建所有数据表
+- 🚀 启动 Spring Boot 应用
+
+### 📋 环境要求
+
+| 组件 | 版本要求 | 说明 |
+|------|----------|------|
+| JDK | 17+ | Java 运行环境 |
+| MySQL | 8.0+ | 数据库（自动初始化） |
+| Maven | 3.6+ | 项目构建工具 |
+| Node.js | 16+ | 前端开发环境 |
+| Redis | 7.0+ | 缓存服务（可选） |
+| Elasticsearch | 8.x | 搜索服务（可选） |
+
+### 🛠️ 手动配置
+
+如果需要手动配置，请按照以下步骤：
+
+1. **启动 MySQL 服务**
+   ```bash
+   # 确保 MySQL 服务正在运行
+   sudo systemctl start mysql  # Linux
+   # 或 Windows 服务管理器启动 MySQL
+   ```
+
+2. **可选：设置环境变量**
 ```bash
-# 1. 启动依赖服务
-# MySQL
-# Redis
-# Elasticsearch
+   # 自定义数据库配置
+   export MYSQL_HOST=localhost
+   export MYSQL_PORT=3306
+   export MYSQL_DATABASE=weeb
+   export MYSQL_USERNAME=root
+   export MYSQL_PASSWORD=your_password
+   ```
 
-# 2. 配置环境变量
-cp config-example.properties src/main/resources/application-dev.properties
-# 编辑配置文件，设置数据库等信息
+3. **启动后端服务**
+   ```bash
+   # 开发环境
+   mvn spring-boot:run
 
-# 3. 启动后端
-./mvnw spring-boot:run
+   # 生产环境
+   mvn spring-boot:run -Dspring-boot.run.profiles=prod
+   ```
 
-# 4. 启动前端
+4. **启动前端服务**
+   ```bash
 cd Vue
 npm install
 npm run dev
 ```
 
----
+### 🌐 访问应用
 
-## 后端概览
-- 框架: Spring Boot 3.5.x
-- 模块: 
-  - 鉴权与用户: AuthController, UserController
-  - 聊天与消息: MessageController, ChatListController
-  - 群组: GroupController
-  - 联系人(好友): ContactController
-  - 文件/视频信令: FileController
-  - 通知: NotificationController
-  - 文章中心: ArticleCenterController
-  - 搜索: SearchController（Elasticsearch）
-- 数据访问: MyBatis / MyBatis-Plus，XML 位于 src/main/resources/Mapper，实体位于 src/main/java/com/web/model
-- 实时: WebSocket + Redis Pub/Sub（通过 RedisSubscriber 转发）
-- 搜索: Spring Data Elasticsearch（MessageDocument 与 MessageSearchRepository）
+- **后端 API**: http://localhost:8080
+- **前端界面**: http://localhost:5173
+- **H2 控制台** (开发环境): http://localhost:8080/h2-console
 
-## 环境变量与启动
-- Java: 17+
-- 依赖服务: MySQL、Redis、Elasticsearch
-- 应用配置（环境变量优先）:
-  - 数据库（dev 示例见 application-dev.yml）
-    - DEV_DB_PASSWORD
-  - Redis
-    - REDIS_PASSWORD（如有）
-  - Elasticsearch
-    - ES_USERNAME, ES_PASSWORD, spring.elasticsearch.uris
-  - 业务配置 weeb.*
-    - WEEB_PASSWORD（群聊密码等）
-  - JWT
-    - JWT_SECRET_KEY（dev）/ PROD_JWT_SECRET_KEY（prod）
-  - CORS（prod）
-    - ALLOWED_ORIGINS（逗号分隔域名）
-- 启动
-  - 后端: mvn -DskipTests spring-boot:run
-  - 前端: 见下文“前端（Vue）说明”
+### 📝 默认账号
+
+系统启动后会自动创建测试账号：
+- **管理员**: admin / admin123
+- **普通用户**: user1 / user123
+
+> 💡 **提示**: 如果启动过程中遇到数据库连接问题，请确保 MySQL 服务正在运行，并且数据库连接参数正确。
 
 ---
 
-## API 一览（后端）
-以下仅列主要接口，详见对应 Controller 源码。
+## 核心功能
 
-### 认证与用户（AuthController, UserController）
-- POST /register
-  - body: { username, password, gender, phone, email }
-  - resp: { success, message }
-- POST /login
-  - body: { username, password }
-  - resp: { success, token }
-- POST /logout
-  - header: Authorization: Bearer <token>
-  - resp: "登出成功"
-- GET /user（基础信息）
-  - header: Authorization
-  - resp: { id, username }
-- GET /user/info（详细信息 by token）
-  - header: Authorization
-  - resp(data): { username, userEmail, phoneNumber, sex }
-- PUT /user/info（更新 by token）
-  - header: Authorization
-  - body: { username?, userEmail?, phoneNumber?, sex? }
-- GET /list, GET /list/map, GET /online/web（管理/查询）
-- GET /findByUsername?username=, GET /findByUserID?userID=（开放查询）
+### 👥 用户系统
+- 用户注册登录（JWT认证）
+- 个人资料管理
+- 在线状态管理
 
-- 用户中心（UserController，需登录，@Userid 注入）
-  - GET /api/user/info
-  - POST /api/user/update  body: UpdateUserVo
+### 💬 聊天系统
+- 实时私聊和群聊
+- 消息推送通知
+- 文件和图片分享
+- 消息搜索和历史记录
 
-### 消息与会话（MessageController, ChatListController）
-- 根路径: /api/v1/message
-  - POST /send  body: Message
-  - POST /record  body: { targetId, index, num }
-  - POST /recall  body: { msgId }
-  - POST /react  body: ReactionVo { messageId, emoji }
-- 会话: /api/v1/chat-list
-  - GET /list/private?userId=
-  - GET /group?userId=
-  - POST /create?userId=&targetId=
-  - POST /read?userId=&targetId=
-  - POST /delete?userId=&chatListId=
+### 👥 群组协作
+- 创建和管理群组
+- 成员邀请和权限管理
+- 群组公告和设置
 
-### 群组（GroupController，/api/group）
-- POST /create  body: GroupCreateVo
-- DELETE /{groupId}  解散
-- DELETE /quit/{groupId}  退群
-- POST /{groupId}/invite  body: GroupInviteVo
-- POST /{groupId}/kick  body: GroupKickVo
-- GET /my-list  当前用户加入的群
-- GET /{groupId}  群详情
-- GET /members/{groupId}  成员
-- PUT /{groupId}  更新群信息  body: Group
+### 📝 内容管理
+- 文章发布和编辑
+- 点赞收藏功能
+- 内容搜索和分类
 
-### 联系人/好友（ContactController，/api/contact）
-- POST /apply  body: ContactApplyVo { friendId, remarks }
-- POST /accept/{contactId}
-- POST /decline/{contactId}
-- POST /block/{contactId}
-- GET /list?status=ACCEPTED|PENDING  返回 List<UserDto>
-- GET /list/pending
+### 🔍 搜索功能
+- 消息全文搜索
+- 用户和群组搜索
+- 内容标签搜索
 
-### 文件/视频信令（FileController，/api/v1/file）
-- POST /offer  body: OfferVo
-- POST /answer  body: AnswerVo
-- POST /candidate  body: CandidateVo
-- POST /cancel  body: CancelVo
-- POST /invite  body: InviteVo
-- POST /accept  body: AcceptVo
-
-### 通知（NotificationController，/api/notifications）
-- POST /test（开发测试）
-- GET /  分页: page=1&size=10
-- GET /unread-count
-- POST /read-all
-- POST /{id}/read
-- DELETE /read
-
-### 文章中心（ArticleCenterController，/articles）
-- GET /{id}
-- GET /userinform?userId=（聚合统计）
-- GET /userinform-by-username?username=（含注册天数）
-- POST /{id}/like
-- POST /subscribe?targetUserId=
-- PUT /{id}  body: Article
-- POST /{id}/addcoin?amount=
-- POST /{id}/read
-- POST /new  body: Article
-- POST /userinform?userId=（用户全部文章统计）
-- POST /myarticles?userId=（用户文章列表）
-- GET /getall?page=&pageSize=（分页文章列表）
-- DELETE /{id}（RESTful 删除）
-
-### 搜索（SearchController，/api/search）
-- GET /messages?q=keyword&page=0&size=10
-  - resp: { success, data: { list: MessageDocument[], total } }
+### 🔔 通知系统
+- 实时消息通知
+- 系统公告提醒
+- 个人消息推送
 
 ---
 
-## 主要数据表结构（参考）
-以下依据 Model 与 Mapper 汇总，生产以真实 DDL 为准。
+## 技术栈
 
-### 表 auth（用户）
-- id BIGINT PK
-- username VARCHAR
-- password VARCHAR
-- sex INT
-- phone_number VARCHAR
-- user_email VARCHAR
-- fans_count BIGINT
-- unique_article_link VARCHAR
-- unique_video_link VARCHAR
-- total_likes BIGINT
-- total_favorites BIGINT
-- total_sponsorship BIGINT
-- total_article_exposure BIGINT
-- website_coins BIGINT
-- registration_date DATETIME
-- ip_ownership VARCHAR
-- type VARCHAR
-- avatar VARCHAR
-- badge VARCHAR
-- login_time DATETIME
-- bio TEXT
-- online_status INT
+### 后端技术
+- **框架**: Spring Boot 3.5.4
+- **数据库**: MySQL 8.0+ (自动初始化)
+- **ORM**: MyBatis-Plus 3.5.3
+- **认证**: JWT (JSON Web Token)
+- **缓存**: Redis 7.0+ (可选)
+- **搜索**: Elasticsearch 8.x (可选)
+- **实时通信**: WebSocket + STOMP
 
-### 表 message（消息）
-- id BIGINT PK
-- sender_id BIGINT
-- chat_id BIGINT
-- content JSON/TEXT（JacksonTypeHandler 序列化）
-- message_type INT
-- read_status INT
-- is_recalled INT
-- user_ip VARCHAR
-- source VARCHAR
-- is_show_time INT
-- created_at TIMESTAMP
-- updated_at TIMESTAMP
-- reply_to_message_id BIGINT
+### 前端技术
+- **框架**: Vue 3.0 + Composition API
+- **构建工具**: Vite 5.x
+- **状态管理**: Pinia 2.x
+- **UI组件**: Element Plus
+- **HTTP客户端**: Axios
+- **路由**: Vue Router 4.x
 
-### 表 chat_list（会话列表）
-- id VARCHAR(255) PK
-- user_id BIGINT
-- target_id BIGINT
-- target_info TEXT NOT NULL
-- unread_count INT DEFAULT 0
-- last_message TEXT
-- type VARCHAR(255)
-- create_time TIMESTAMP(3) NOT NULL
-- update_time TIMESTAMP(3) NOT NULL
-- group_id BIGINT
+### 开发工具
+- **构建**: Maven 3.6+
+- **JDK**: Java 17+
+- **Node.js**: 16+
+- **包管理**: npm/yarn
 
-### 表 group（群组）
-- id BIGINT PK AUTO_INCREMENT
-- group_name VARCHAR
-- owner_id BIGINT
-- group_avatar_url VARCHAR
-- create_time DATETIME
+## 项目结构
 
-### 表 group_member（群成员）
-- id BIGINT PK AUTO_INCREMENT
-- group_id BIGINT
-- user_id BIGINT
-- role INT（OWNER、ADMIN、MEMBER 对应码）
-- join_time DATETIME
-- update_time DATETIME
-
-### 表 contact（联系人关系）
-- id BIGINT PK AUTO_INCREMENT
-- user_id BIGINT
-- friend_id BIGINT
-- status INT（PENDING/ACCEPTED/REJECTED/BLOCKED）
-- remarks VARCHAR
-- create_time DATETIME
-- update_time DATETIME
-
-### 表 notifications（通知）
-- id BIGINT PK AUTO_INCREMENT
-- recipient_id BIGINT
-- actor_id BIGINT
-- type VARCHAR
-- entity_type VARCHAR
-- entity_id BIGINT
-- is_read TINYINT(1)
-- created_at DATETIME
-
-### 表 articles（文章）
-- article_id BIGINT PK
-- user_id BIGINT
-- article_title VARCHAR
-- article_content TEXT
-- likes_count INT
-- favorites_count INT
-- sponsors_count DOUBLE
-- exposure_count BIGINT
-- created_at DATETIME
-- updated_at DATETIME
-
-### 表 message_reaction（消息反应）
-- id BIGINT PK AUTO_INCREMENT
-- message_id BIGINT
-- user_id BIGINT
-- reaction_type VARCHAR
-- create_time DATETIME
-
-### 表 file_transfer（文件/视频信令）
-- id BIGINT PK AUTO_INCREMENT
-- initiator_id BIGINT
-- target_id BIGINT
-- offer_sdp TEXT
-- answer_sdp TEXT
-- candidate TEXT
-- status INT（0=INVITE,1=OFFERED,2=ANSWERED...）
-- created_at DATETIME
-- updated_at DATETIME
-
-### Elasticsearch 索引：message
-- id: Long（消息ID）
-- fromId: Long（发送者）
-- chatListId: Long（会话ID）
-- content: Text（中文分词需 IK 插件）
-- sendTime: Date
+```
+weeb/
+├── src/main/java/com/web/
+│   ├── config/           # 配置类
+│   │   └── DatabaseInitializer.java  # 数据库自动初始化
+│   ├── controller/       # REST控制器
+│   ├── model/           # 数据模型
+│   ├── mapper/          # MyBatis Mapper接口
+│   ├── service/         # 业务逻辑层
+│   └── util/            # 工具类
+├── src/main/resources/
+│   ├── sql/             # 数据库初始化脚本
+│   │   ├── init_database.sql      # 完整初始化脚本
+│   │   └── init_*.sql            # 单独表初始化脚本
+│   ├── application.yml            # 主配置文件
+│   ├── application-prod.yml       # 生产环境配置
+│   └── Mapper/                    # MyBatis XML映射文件
+├── Vue/                # 前端Vue项目
+├── start.sh            # Linux/Mac启动脚本
+├── start.bat           # Windows启动脚本
+└── README.md           # 项目文档
+```
 
 ---
 
-## 前端（Vue）说明
-- 技术栈: Vue 3 + Vite + Pinia + Axios + Element Plus
-- 目录结构（Vue/）
-  - src/router/index.js：路由（聊天、联系人、文章、群组、设置、搜索、通知、登录注册等）
-  - src/api/axiosInstance.js：Axios 实例，自动附加 Authorization: Bearer <token>，统一错误处理
-  - src/api/modules/*.js：API 模块（auth、user、group、article、notification、search）
-  - 其他视图与组件：views/、article/、layout/、stores/ 等
-- 启动
-  - 安装依赖：cd Vue && npm i
-  - 启动：npm run dev
-  - 开发代理：在 vite.config.js 中将 /user、/test 代理到后端 http://localhost:8080
-  - Axios baseURL：http://localhost:8080（如需通过 Vite 代理，改为 /api 并调整代理规则）
+## API 文档
 
-## 安全、认证与跨域
-- 认证：JWT（JwtAuthenticationFilter），前端通过 Pinia/LocalStorage 携带 token
-- 鉴权：SecurityConfig 配置路径放行与认证；其余路径默认需要认证
-- CORS：CorsConfig 按 profile 生效，dev 放开、prod 通过 ALLOWED_ORIGINS 控制
-- 敏感配置：通过环境变量提供，避免明文硬编码
+### 🔐 认证接口
+- `POST /auth/register` - 用户注册
+- `POST /auth/login` - 用户登录
+- `POST /auth/logout` - 用户登出
+- `GET /auth/user` - 获取用户信息
 
-## 常见问题（FAQ）
-- 文章删除改为 RESTful
-  - 后端：DELETE /articles/{id}；前端已同步 request.delete('/articles/${id}')
-- 搜索接口
-  - 已接入 Spring Data Elasticsearch：GET /api/search/messages?q=...
-- WebSocket 通知 TODO 已完成
-  - Group/Contact 通过 Redis Pub/Sub 转发，避免循环依赖
-- 运行失败排查
-  - 确保 ES/Redis/MySQL 配置正确；首次运行缺表时请根据上述表结构初始化
+### 👥 用户管理
+- `GET /api/user/info` - 获取用户详细信息
+- `PUT /api/user/info` - 更新用户信息
+- `GET /api/user/list` - 获取用户列表
+
+### 💬 聊天接口
+- `POST /api/message/send` - 发送消息
+- `GET /api/message/record` - 获取消息记录
+- `POST /api/message/recall` - 撤回消息
+
+### 👥 群组管理
+- `POST /api/group/create` - 创建群组
+- `GET /api/group/my-list` - 获取我的群组
+- `POST /api/group/{id}/invite` - 邀请成员
+- `DELETE /api/group/{id}` - 解散群组
+
+### 📝 文章管理
+- `POST /api/article/new` - 发布文章
+- `GET /api/article/getall` - 获取文章列表
+- `PUT /api/article/{id}` - 更新文章
+- `DELETE /api/article/{id}` - 删除文章
+
+### 🔍 搜索接口
+- `GET /api/search/messages` - 搜索消息
+- `GET /api/search/users` - 搜索用户
+
+### 🔔 通知接口
+- `GET /api/notifications` - 获取通知列表
+- `POST /api/notifications/read-all` - 标记所有通知为已读
+
+> 📖 **详细API文档**: 请查看各个Controller类的注释，或使用Swagger UI (如果配置了) 查看完整的API文档。
+
+---
+
+## 数据库结构
+
+项目使用 **MySQL 8.0+** 数据库，包含以下主要数据表：
+
+### 核心数据表
+- **user** - 用户信息表
+- **article** - 文章内容表
+- **message** - 聊天消息表
+- **group_info** - 群组信息表
+- **group_member** - 群组成员表
+- **notification** - 系统通知表
+- **chat_list** - 聊天会话列表
+
+### 数据库特性
+- 🔄 **自动初始化**: 应用启动时自动创建数据库和表结构
+- 📜 **完整SQL脚本**: 提供完整的数据库初始化脚本
+- 🔧 **环境隔离**: 支持开发和生产环境配置
+- 📊 **索引优化**: 为常用查询字段添加适当索引
+
+> 📄 **详细表结构**: 请查看 `src/main/resources/sql/init_database.sql` 文件中的完整DDL定义。
+
+---
+
+## 前端技术栈
+
+### 技术架构
+- **框架**: Vue 3.0 + Composition API
+- **构建工具**: Vite 5.x
+- **状态管理**: Pinia 2.x
+- **UI组件库**: Element Plus
+- **HTTP客户端**: Axios
+- **路由管理**: Vue Router 4.x
+
+### 项目结构 (Vue/)
+```
+Vue/
+├── src/
+│   ├── api/              # API接口封装
+│   │   ├── axiosInstance.js    # Axios实例配置
+│   │   └── modules/           # API模块
+│   ├── router/           # 路由配置
+│   ├── stores/           # Pinia状态管理
+│   ├── views/            # 页面组件
+│   └── components/       # 公共组件
+├── public/               # 静态资源
+└── package.json          # 项目依赖
+```
+
+### 开发启动
+```bash
+cd Vue
+npm install
+npm run dev
+```
+
+### 主要功能模块
+- 🔐 用户认证 (登录/注册/登出)
+- 💬 实时聊天 (私聊/群聊)
+- 👥 群组管理 (创建/加入/管理)
+- 📝 文章系统 (发布/编辑/浏览)
+- 🔍 智能搜索 (消息/用户/内容)
+- 🔔 通知中心 (消息提醒/系统通知)
+
+## 安全与认证
+
+### 认证机制
+- **JWT认证**: 使用JSON Web Token进行身份验证
+- **Token存储**: 前端通过Pinia状态管理和LocalStorage持久化存储
+- **自动刷新**: 支持Token自动刷新机制
+
+### 安全配置
+- **密码加密**: BCrypt算法对用户密码进行加密存储
+- **请求过滤**: JwtAuthenticationFilter拦截和验证请求
+- **权限控制**: 基于角色的访问控制(RBAC)
+- **CORS配置**: 开发环境完全开放，生产环境限制域名访问
+
+### 敏感信息保护
+- **环境变量**: 所有敏感配置通过环境变量提供
+- **配置隔离**: 开发/生产环境配置分离
+- **密钥管理**: JWT密钥通过环境变量配置
+
+---
+
+## 常见问题
+
+### 🚀 启动相关
+**Q: 启动时提示数据库连接失败？**
+A: 确保MySQL服务正在运行，检查application.yml中的数据库配置是否正确。
+
+**Q: 如何使用一键启动脚本？**
+A: 运行 `./start.sh` (Linux/Mac) 或 `start.bat` (Windows)，脚本会自动检查环境并启动应用。
+
+**Q: 启动后访问不到应用？**
+A: 检查端口8080是否被占用，确认防火墙设置。
+
+### 🗄️ 数据库相关
+**Q: 如何手动创建数据库？**
+A: 运行 `mysql -u root -p < src/main/resources/sql/init_database.sql`
+
+**Q: 数据库表结构在哪里查看？**
+A: 查看 `src/main/resources/sql/init_database.sql` 文件。
+
+**Q: 如何修改数据库配置？**
+A: 通过环境变量或修改application.yml文件。
+
+### 🔐 认证相关
+**Q: 登录后提示Token无效？**
+A: 检查JWT_SECRET配置，确认前端正确发送Authorization头。
+
+**Q: 如何重置管理员密码？**
+A: 直接在数据库中修改user表的password字段（使用BCrypt加密）。
+
+### 📱 前端相关
+**Q: 前端启动失败？**
+A: 确保Node.js版本为16+，运行 `npm install` 安装依赖。
+
+**Q: 前后端联调问题？**
+A: 检查CORS配置，确保后端允许前端域名访问。
+
+### 🐛 其他问题
+**Q: 日志在哪里查看？**
+A: 开发环境输出到控制台，生产环境保存在logs/weeb-prod.log。
+
+**Q: 如何开启调试模式？**
+A: 设置环境变量 `DEBUG=true` 或在IDE中启用调试模式。
+
+**Q: Elasticsearch搜索功能状态？**
+A: 已配置并启用。Elasticsearch 9.1.3正在172.18.48.1:9200，Redis 3.2.100正在6379端口。
+
+**Q: 如何配置Elasticsearch连接？**
+A: 1. 先运行连接测试：`test-es-connection.bat` (Windows) 或 `./test-es-connection.sh` (Linux/Mac)
+2. 选择以下方案之一：
+   - 方案A（推荐）：获取ES的http_ca.crt证书，配置HTTPS连接
+   - 方案B（临时）：修改ES配置禁用TLS，使用HTTP连接
+   详见 `src/main/resources/es/README.md`
+
+**Q: 如何使用搜索功能？**
+A: 使用API `/api/search/messages?q=关键词` 进行消息搜索，支持中文分词。
+
+**Q: 如果搜索服务停止会怎样？**
+A: 不会影响核心聊天功能，应用会继续正常运行，只是搜索功能暂时不可用。
 
 ---
 
 ## 部署指南
 
-### Docker 部署
+### 🚀 快速部署（推荐）
+
+1. **克隆项目**
 ```bash
-# 1. 克隆项目
-git clone https://github.com/your-repo/weeb.git
+git clone <repository-url>
 cd weeb
+```
 
-# 2. 配置环境变量
-cp .env.example .env
-# 编辑 .env 文件，设置必要的配置
+2. **配置环境变量**
+```bash
+# 复制环境变量配置模板
+cp env-example.txt .env
 
-# 3. 启动服务
+# 编辑 .env 文件，设置你的实际值
+# 特别注意：设置 ES_PASSWORD 为你的Elasticsearch密码
+```
+
+4. **一键启动**
+```bash
+# Linux/Mac
+./start.sh prod
+
+# Windows
+start.bat prod
+```
+
+### 🐳 Docker 部署
+
+```bash
+# 使用Docker Compose
 docker-compose up -d
 
-# 4. 查看日志
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
 docker-compose logs -f weeb-app
-
-# 5. 停止服务
-docker-compose down
 ```
 
-### 传统部署
+### 📦 JAR包部署
+
 ```bash
-# 1. 构建后端
-./mvnw clean package -DskipTests
+# 构建项目
+mvn clean package -DskipTests
 
-# 2. 运行 JAR 文件
-java -jar target/weeb-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+# 运行JAR包
+java -jar target/weeb-*.jar --spring.profiles.active=prod
 ```
 
-### 生产环境配置
-```bash
-# 设置环境变量
-export MYSQL_ROOT_PASSWORD=your_db_password
-export REDIS_PASSWORD=your_redis_password
-export JWT_SECRET_KEY=your_jwt_secret
-export GOOGLE_CLIENT_ID=your_google_client_id
-export MICROSOFT_CLIENT_ID=your_microsoft_client_id
-```
+### 🌐 Nginx 配置
 
-### Nginx 配置示例
 ```nginx
 server {
     listen 80;
@@ -447,7 +493,7 @@ server {
     }
 
     # WebSocket代理
-    location /ws {
+    location /ws/ {
         proxy_pass http://localhost:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -458,64 +504,54 @@ server {
 
 ---
 
-## 安全、认证与跨域
-- 认证：JWT（JwtAuthenticationFilter），前端通过 Pinia/LocalStorage 携带 token
-- 鉴权：SecurityConfig 配置路径放行与认证；其余路径默认需要认证
-- CORS：CorsConfig 按 profile 生效，dev 放开、prod 通过 ALLOWED_ORIGINS 控制
-- 敏感配置：通过环境变量提供，避免明文硬编码
-- OAuth2.0：支持Google和Microsoft第三方登录
-
----
-
-## 常见问题（FAQ）
-- 文章删除改为 RESTful
-  - 后端：DELETE /articles/{id}；前端已同步 request.delete('/articles/${id}')
-- 搜索接口
-  - 已接入 Spring Data Elasticsearch：GET /api/search/messages?q=...
-- WebSocket 通知 TODO 已完成
-  - Group/Contact 通过 Redis Pub/Sub 转发，避免循环依赖
-- 运行失败排查
-  - 确保 ES/Redis/MySQL 配置正确；首次运行缺表时请根据上述表结构初始化
-- OAuth2登录配置
-  - 需要在Google/Microsoft开发者控制台创建应用并获取client_id和client_secret
-- 文件上传失败
-  - 检查阿里云OSS配置是否正确，bucket权限是否开放
-
----
-
 ## 贡献指南
 
 ### 开发流程
-1. Fork 项目
-2. 创建功能分支：`git checkout -b feature/AmazingFeature`
-3. 提交更改：`git commit -m 'Add some AmazingFeature'`
-4. 推送到分支：`git push origin feature/AmazingFeature`
-5. 创建 Pull Request
+1. **Fork 项目** 到你的GitHub账户
+2. **创建功能分支**：`git checkout -b feature/AmazingFeature`
+3. **提交更改**：`git commit -m 'Add some AmazingFeature'`
+4. **推送分支**：`git push origin feature/AmazingFeature`
+5. **创建 Pull Request**
 
 ### 代码规范
-- 后端：遵循阿里巴巴Java开发规范
-- 前端：使用ESLint + Prettier格式化代码
-- 提交信息：使用清晰的英文描述，格式为 `type(scope): description`
+- **后端**: 遵循阿里巴巴Java开发规范
+- **前端**: 使用ESLint + Prettier格式化代码
+- **提交信息**: 使用清晰的英文描述，格式为 `type(scope): description`
 
-### 测试
+### 测试规范
 ```bash
-# 后端测试
-./mvnw test
+# 后端单元测试
+mvn test
 
 # 前端测试
 cd Vue && npm run test
 
-# E2E测试
+# 端到端测试
 cd Vue && npm run test:e2e
 ```
 
-### 文档更新
-- API变更时请同步更新本文档
-- 新功能请添加相应的使用说明
-- 配置变更请更新部署指南
+### 文档维护
+- 🔄 API变更时同步更新本文档
+- ✨ 新功能添加详细使用说明
+- ⚙️ 配置变更更新部署指南
+- 🐛 问题修复更新FAQ部分
 
 ---
 
-> 本 README 基于代码库 src/ 与 Vue/ 当前实现汇总，如有接口新增/调整，请同步更新本文档。
-> 项目维护者：Weeb Team
-> 最后更新时间：2024年
+## 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+---
+
+## 联系我们
+
+- 📧 **邮箱**: your-email@example.com
+- 🐛 **问题反馈**: [GitHub Issues](https://github.com/your-repo/weeb/issues)
+- 📖 **项目文档**: [Wiki](https://github.com/your-repo/weeb/wiki)
+
+---
+
+> **WEEB Team** ❤️ 为现代化即时通信与内容管理系统而努力
+>
+> 最后更新时间：2025年1月

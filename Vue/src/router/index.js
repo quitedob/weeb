@@ -1,10 +1,11 @@
 // Vue/src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router';
+import { useAuthStore } from '../stores/authStore';
 import Layout from '../layout/Layout.vue';
 import ChatWindow from '../views/chat/ChatWindow.vue';
-import ContactPage from '../views/contact/ContactPage.vue';
-import SettingPage from '../views/setting/SettingPage.vue';
-import SearchPage from '../views/search/SearchPage.vue';
+import ContactPage from '../contact/ContactPage.vue';
+import SettingPage from '../views/Settings.vue';
+import SearchPage from '../search/SearchPage.vue';
 import Login from '../views/Login.vue';
 import Register from '../views/Register.vue';
 import Forget from '../views/Forget.vue';
