@@ -275,9 +275,6 @@ npm run dev
 - **包管理**: npm/yarn
 
 ## 项目结构
-
-```
-
 weeb/
 ├── src/main/java/com/web/          # 后端主包
 │   ├── config/                     # 配置类
@@ -298,9 +295,6 @@ weeb/
 ├── start.sh                       # Linux/Mac启动脚本
 ├── start.bat                      # Windows启动脚本
 └── README.md                      # 项目文档
-
-```
-
 ---
 
 ## API 文档
@@ -379,9 +373,6 @@ weeb/
 - **路由管理**: Vue Router 4.x
 
 ### 项目结构 (Vue/)
-
-```
-
 Vue/
 ├── src/                         # 源代码目录
 │   ├── api/                     # API接口封装
@@ -394,17 +385,15 @@ Vue/
 ├── public/                      # 静态资源
 └── package.json                 # 项目依赖
 
-```
-
 ### 开发启动
 
-```bash
+---
 
 cd Vue
 npm install
 npm run dev
 
-```
+---
 
 ### 主要功能模块
 
