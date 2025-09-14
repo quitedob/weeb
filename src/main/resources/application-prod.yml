@@ -1,0 +1,100 @@
+spring:
+  profiles:
+    active: prod
+
+  # MySQL生产环境配置（安全加固）
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?useSSL=true&requireSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=false&useServerPrepStmts=true&cachePrepStmts=true&rewriteBatchedStatements=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQL_USERNAME}  # 生产环境必须设置
+    password: ${MYSQL_PASSWORD}  # 生产环境必须设置
+    hikari:
+      pool-name: WeebProdHikariPool
+      minimum-idle: 10  # 最小空闲连接数
+      maximum-pool-size: 50  # 最大连接数
+      connection-timeout: 30000  # 连接超时时间（毫秒）
+      idle-timeout: 600000  # 空闲连接超时时间（毫秒）
+      max-lifetime: 1800000  # 连接最大生命周期（毫秒）
+      validation-timeout: 5000  # 验证超时时间（毫秒）
+      leak-detection-threshold: 60000  # 泄露检测阈值（毫秒）
+      connection-test-query: SELECT 1  # 连接测试查询
+      auto-commit: true  # 自动提交
+      read-only: false  # 非只读模式
+      register-mbeans: true  # 注册MBeans用于监控
+
+  # MyBatis-Plus生产环境配置
+  mybatis-plus:
+    mapper-locations: classpath*:/Mapper/*.xml
+    type-aliases-package: com.web.model
+    configuration:
+      map-underscore-to-camel-case: true
+      cache-enabled: true
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    global-config:
+      db-config:
+        logic-delete-field: deleted  # 全局逻辑删除字段名
+        logic-delete-value: 1 # 逻辑已删除值(默认为 1)
+        logic-not-delete-value: 0 # 逻辑未删除值(默认为 0)
+
+# 日志配置
+logging:
+  level:
+    com.web: INFO
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/weeb-prod.log
+    max-size: 100MB
+    max-history: 30
+
+# 服务器配置
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+
+# JWT生产环境配置
+jwt:
+  secret: ${JWT_SECRET:ERROR_JWT_SECRET_NOT_SET}  # 生产环境必须设置强密钥，不允许使用默认值
+  expiration: ${JWT_EXPIRATION:3600000}  # 生产环境默认1小时
+
+# 生产环境安全配置验证
+weeb:
+  password: ${WEEB_PASSWORD}  # 生产环境必须设置群聊密码
+  limit: 1000  # 生产环境提高在线人数限制
+  name: 233
+  expires: 30  # 生产环境延长数据过期时间（天）
+  doubao:
+    api-key: ${DOUBAO_API_KEY}  # 生产环境必须设置API密钥
+    count-limit: 10  # 生产环境提高次数限制
+    length-limit: 100  # 生产环境提高内容长度限制
+    model: ${DOUBAO_MODEL:ep-20241231132608-lbm7g}
+
+# 阿里云OSS生产环境配置
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT}  # 生产环境必须设置
+    accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID}  # 生产环境必须设置
+    accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}  # 生产环境必须设置
+    bucketName: ${ALIYUN_OSS_BUCKET_NAME}  # 生产环境必须设置
+
+# 生产环境日志配置
+logging:
+  level:
+    com.web: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/weeb-prod.log
+    max-size: 100MB
+    max-history: 30

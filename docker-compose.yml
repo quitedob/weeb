@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: weeb-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: weeb
+      MYSQL_USER: ${MYSQL_USER:-weeb_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-weeb_pass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - weeb-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: weeb-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-weeb_redis}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - weeb-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      timeout: 20s
+      retries: 10
+
+  # Elasticsearch搜索
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: weeb-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - weeb-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      timeout: 30s
+      retries: 10
+
+  # WEEB应用
+  weeb-app:
+    build: .
+    container_name: weeb-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # 数据库配置
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/weeb?useSSL=false&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:-weeb_user}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-weeb_pass}
+      # Redis配置
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD:-weeb_redis}
+      # Elasticsearch配置
+      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+      # JWT配置
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-weeb_jwt_secret_key}
+      # 应用配置
+      - SPRING_PROFILES_ACTIVE=prod
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - weeb-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      timeout: 30s
+      retries: 10
+      interval: 30s
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+networks:
+  weeb-network:
+    driver: bridge
+

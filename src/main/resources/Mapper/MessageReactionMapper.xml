@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.web.mapper.MessageReactionMapper">
+
+    <resultMap id="MessageReactionResultMap" type="com.web.model.MessageReaction">
+        <id column="id" property="id" />
+        <result column="message_id" property="messageId" />
+        <result column="user_id" property="userId" />
+        <result column="reaction_type" property="reactionType" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+
+    <select id="selectByMessageId" parameterType="java.lang.Long" resultMap="MessageReactionResultMap">
+        SELECT *
+        FROM `message_reaction`
+        WHERE `message_id` = #{messageId}
+        ORDER BY `create_time` ASC
+    </select>
+
+    <select id="selectByMessageIdAndUserId" resultMap="MessageReactionResultMap">
+        SELECT *
+        FROM `message_reaction`
+        WHERE `message_id` = #{messageId} AND `user_id` = #{userId}
+        LIMIT 1
+    </select>
+
+    <delete id="deleteByMessageIdAndUserId">
+        DELETE FROM `message_reaction`
+        WHERE `message_id` = #{messageId} AND `user_id` = #{userId}
+    </delete>
+
+    <select id="countByMessageId" parameterType="java.lang.Long" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM `message_reaction`
+        WHERE `message_id` = #{messageId}
+    </select>
+
+</mapper> 

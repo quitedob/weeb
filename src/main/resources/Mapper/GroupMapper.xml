@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.GroupMapper">
+
+    <select id="findGroupsByUserId" resultType="com.web.model.Group" parameterType="java.lang.Integer">
+        SELECT g.* FROM `group` g
+        JOIN group_member gm ON g.id = gm.group_id
+        WHERE gm.user_id = #{userId}
+    </select>
+
+</mapper>
