@@ -1,0 +1,98 @@
+spring:
+  profiles:
+    active: dev # Default to dev environment
+    # 可用的配置文件：dev, prod
+    # 生产环境启动命令：java -jar app.jar --spring.profiles.active=prod
+
+  # MySQL数据库配置（开发环境）
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:weeb}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useServerPrepStmts=true&cachePrepStmts=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQL_USERNAME:root}  # 开发环境默认用户名
+    password: ${MYSQL_PASSWORD:root}  # 开发环境默认密码（生产环境必须修改）
+    hikari:
+      pool-name: WeebDevHikariPool
+      minimum-idle: 5  # 最小空闲连接数
+      maximum-pool-size: 20  # 最大连接数
+      connection-timeout: 30000  # 连接超时时间（毫秒）
+      idle-timeout: 600000  # 空闲连接超时时间（毫秒）
+      max-lifetime: 1800000  # 连接最大生命周期（毫秒）
+      validation-timeout: 5000  # 验证超时时间（毫秒）
+      leak-detection-threshold: 60000  # 泄露检测阈值（毫秒）
+      connection-test-query: SELECT 1  # 连接测试查询
+
+  # MyBatis-Plus配置
+  mybatis-plus:
+    mapper-locations: classpath*:/Mapper/*.xml
+    type-aliases-package: com.web.model
+    configuration:
+      map-underscore-to-camel-case: true
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+  # Redis配置（已启用）
+  # Redis服务已启动，监听端口：6379
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      database: 0
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+  # Elasticsearch配置（已启用）
+  # Elasticsearch服务已启动，监听地址：172.18.48.1:9200 (HTTPS)
+  elasticsearch:
+    enabled: true  # 启用Elasticsearch功能
+    uris: https://172.18.48.1:9200  # ES实际监听地址（HTTPS）
+    connection-timeout: 10000ms
+    socket-timeout: 60000ms
+    username: elastic  # ES 9.x默认用户名
+    password: ${ES_PASSWORD:}  # 需要设置密码
+    restclient:
+      ssl:
+        bundle: es-pem  # 使用SSL Bundle配置
+
+  # SSL配置（用于Elasticsearch HTTPS连接）
+  ssl:
+    bundle:
+      pem:
+        es-pem:
+          # ES的CA证书路径（需要将http_ca.crt放到此路径）
+          truststore:
+            certificate: classpath:es/http_ca.crt
+
+# Keep existing WEEB specific configurations if they are environment agnostic
+# or move them to dev/prod specific files if they differ.
+# For now, I will assume they are environment agnostic and keep them here.
+# If the original application.yml had other spring top-level keys like 'server',
+# 'mybatis', 'jwt', 'logging', 'mybatis-plus', they should be moved to
+# application-dev.yml and application-prod.yml as appropriate.
+
+weeb:
+  password: ${WEEB_PASSWORD:sun55@kong} # 群聊密码
+  limit: 100 # 在线人数限制
+  name: 233 # 群聊名称
+  expires: 7 # 数据过期时间（天）
+  doubao: # 豆包
+    api-key: ${DOUBAO_API_KEY:apikey}
+    count-limit: 5 # 次数限制,0-不限制
+    length-limit: 50 # 内容长度限制,0-不限制
+    model: ${DOUBAO_MODEL:ep-20241231132608-lbm7g}
+
+# 阿里云OSS配置
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-hangzhou.aliyuncs.com}
+    accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID:YOUR_ACCESS_KEY_ID_REPLACE_ME}
+    accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:YOUR_ACCESS_KEY_SECRET_REPLACE_ME}
+    bucketName: ${ALIYUN_OSS_BUCKET_NAME:your-bucket-name-replace-me}
+
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET:mySecretKey123456789012345678901234567890} # JWT签名密钥
+  expiration: ${JWT_EXPIRATION:86400000} # JWT令牌有效期，默认为24小时（毫秒）
