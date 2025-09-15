@@ -75,8 +75,9 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message> impl
     @Resource
     private SensitiveWordBs sensitiveWordBs;
 
-    @Resource
-    private AiChatService aiChatService;
+    // AI聊天服务已移除，不再依赖DoubaoAiService
+    // @Resource
+    // private AiChatService aiChatService;
 
     @Resource // or @Autowired
     private MessageReactionMapper messageReactionMapper; // Assuming this will be created

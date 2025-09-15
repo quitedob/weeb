@@ -73,7 +73,7 @@ public class MessageRateLimitAspect {
         Long currentMessages = redisTemplate.execute(
             new DefaultRedisScript<>(luaScript, Long.class),
             java.util.Collections.singletonList(rateLimitKey),
-            MAX_MESSAGES.toString(),
+            String.valueOf(MAX_MESSAGES),
             String.valueOf(TIME_WINDOW_MINUTES * 60) // 转换为秒
         );
 

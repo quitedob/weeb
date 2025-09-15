@@ -33,8 +33,9 @@ public class AiChatService {
     @Lazy
     private MessageService messageService;
 
-    @Resource
-    private DoubaoAiService doubaoAiService;
+    // 豆包AI服务已移除，不再依赖
+    // @Resource
+    // private DoubaoAiService doubaoAiService;
 
     /**
      * 发送机器人回复
@@ -59,8 +60,8 @@ public class AiChatService {
         JSONConfig config = new JSONConfig().setIgnoreNullValue(true);
         atUser.setContent(JSONUtil.toJsonStr(user, config));
 
-        // 获取 AI 回复
-        String aiReply = doubaoAiService.ask(userId, content); // 修正为传递 Long 类型的 userId
+        // AI服务已禁用，返回固定回复
+        String aiReply = "AI聊天功能暂时不可用，请稍后再试~"; // 固定回复
         TextMessageContent msgText = new TextMessageContent();
         msgText.setContentType(TextContentType.TEXT.getCode());
         msgText.setContent(aiReply);

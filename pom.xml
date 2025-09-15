@@ -51,6 +51,18 @@
 			<artifactId>spring-boot-starter-data-elasticsearch</artifactId>
 		</dependency>
 
+		<!-- Elasticsearch Java Client 和 Rest Client 指定版本 -->
+		<dependency>
+			<groupId>co.elastic.clients</groupId>
+			<artifactId>elasticsearch-java</artifactId>
+			<version>8.18.6</version>
+		</dependency>
+		<dependency>
+			<groupId>org.elasticsearch.client</groupId>
+			<artifactId>elasticsearch-rest-client</artifactId>
+			<version>8.18.6</version>
+		</dependency>
+
 		<!-- MySQL 连接器 -->
 		<dependency>
 			<groupId>com.mysql</groupId>
@@ -151,7 +163,7 @@
 		<dependency>
 			<groupId>com.baomidou</groupId>
 			<artifactId>mybatis-plus-boot-starter</artifactId>
-			<version>3.5.3</version>
+			<version>3.5.8</version>
 		</dependency>
 
 		<!-- Caffeine Cache -->

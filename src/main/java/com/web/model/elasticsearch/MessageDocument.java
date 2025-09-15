@@ -19,7 +19,7 @@ import java.util.Date; // Using java.util.Date as specified
 @ConditionalOnProperty(
     value = "elasticsearch.enabled",
     havingValue = "true",
-    matchIfMissing = false
+    matchIfMissing = true
 )
 public class MessageDocument {
 
