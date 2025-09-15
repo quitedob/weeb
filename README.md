@@ -21,16 +21,19 @@
 
 ## 📋 目录
 
+- [核心特性](#核心特性)
+- [安全配置](#安全配置)
 - [项目概述](#项目概述)
 - [快速开始](#快速开始)
-- [安全配置](#安全配置)
 - [核心功能](#核心功能)
 - [技术栈](#技术栈)
-- [环境要求](#环境要求)
 - [项目结构](#项目结构)
-- [API文档](#api文档)
-- [部署指南](#部署指南)
+- [API文档](#api-文档)
+- [数据库结构](#数据库结构)
+- [前端技术栈](#前端技术栈)
+- [安全与认证](#安全与认证)
 - [常见问题](#常见问题)
+- [部署指南](#部署指南)
 - [贡献指南](#贡献指南)
 
 ---
@@ -125,29 +128,9 @@ WEEB 是一个现代化的即时通信与内容管理系统，专为团队协作
 
 ## 快速开始
 
-### 🚀 一键启动（推荐）
+### 🚀 启动项目
 
-项目支持**一键启动**，自动检查环境并初始化数据库：
-
-```bash
-# Linux/Mac
-./start.sh
-
-# Windows
-start.bat
-
-# 生产环境启动
-./start.sh prod    # Linux/Mac
-start.bat prod     # Windows
-```
-
-启动脚本会自动：
-- ✅ 检查 Java 和 Maven 环境
-- 🔍 检查 MySQL 连接
-- 🔨 编译项目
-- 🏗️ 自动创建数据库（如果不存在）
-- 📊 创建所有数据表
-- 🚀 启动 Spring Boot 应用
+项目支持手动启动，请按照以下步骤操作：
 
 ### 📋 环境要求
 
@@ -172,7 +155,7 @@ start.bat prod     # Windows
    ```
 
 2. **可选：设置环境变量**
-```bash
+   ```bash
    # 自定义数据库配置
    export MYSQL_HOST=localhost
    export MYSQL_PORT=3306
@@ -192,10 +175,10 @@ start.bat prod     # Windows
 
 4. **启动前端服务**
    ```bash
-cd Vue
-npm install
-npm run dev
-```
+   cd Vue
+   npm install
+   npm run dev
+   ```
 
 ### 🌐 访问应用
 
@@ -277,63 +260,203 @@ npm run dev
 ## 项目结构
 weeb/
 ├── src/main/java/com/web/          # 后端主包
-│   ├── config/                     # 配置类
-│   │   └── DatabaseInitializer.java # 数据库自动初始化
-│   ├── controller/                 # REST控制器
-│   ├── model/                      # 数据模型
-│   ├── mapper/                     # MyBatis Mapper接口
-│   ├── service/                    # 业务逻辑层
-│   └── util/                       # 工具类
+│   ├── annotation/                 # 自定义注解 (6个)
+│   │   ├── CommandInfo.java       # 命令信息注解
+│   │   ├── UrlFree.java           # URL免登录注解
+│   │   ├── UrlLimit.java          # URL限流注解
+│   │   ├── UrlResource.java       # URL资源注解
+│   │   ├── Userid.java            # 用户ID注解
+│   │   └── UserIp.java            # 用户IP注解
+│   ├── aop/                        # 面向切面编程 (2个)
+│   │   ├── MessageRateLimitAspect.java # 消息限流切面
+│   │   └── UrlLimitAspect.java     # URL限流切面
+│   ├── common/                     # 公共类 (1个)
+│   │   └── ApiResponse.java       # 统一API响应格式
+│   ├── Config/                     # 配置类 (12个)
+│   │   ├── AsyncConfig.java       # 异步配置
+│   │   ├── CacheConfig.java       # 缓存配置
+│   │   ├── CorsConfig.java        # CORS跨域配置
+│   │   ├── DatabaseInitializer.java # 数据库自动初始化
+│   │   ├── ElasticsearchConfig.java # Elasticsearch配置
+│   │   ├── MybatisHandler.java    # MyBatis处理器
+│   │   ├── RedisConfig.java       # Redis配置
+│   │   ├── SecurityConfig.java    # 安全配置
+│   │   ├── SensitiveWordConfig.java # 敏感词配置
+│   │   ├── UserInfoArgumentResolver.java # 用户信息参数解析器
+│   │   ├── WebMvcConfig.java      # Web MVC配置
+│   │   └── WeebConfig.java        # 应用主配置
+│   ├── constant/                   # 常量类 (12个)
+│   │   ├── BadgeType.java         # 徽章类型
+│   │   ├── ChatListType.java      # 聊天列表类型
+│   │   ├── ContactStatus.java     # 联系人状态
+│   │   ├── GroupRole.java         # 群组角色
+│   │   ├── LimitKeyType.java      # 限流键类型
+│   │   ├── MessageSource.java     # 消息来源
+│   │   ├── MessageType.java       # 消息类型
+│   │   ├── NotifyType.java        # 通知类型
+│   │   ├── TextContentType.java   # 文本内容类型
+│   │   ├── UserOnlineStatus.java  # 用户在线状态
+│   │   ├── UserType.java          # 用户类型
+│   │   └── WsContentType.java     # WebSocket内容类型
+│   ├── Controller/                 # REST控制器 (11个)
+│   │   ├── ArticleCenterController.java # 文章中心控制器
+│   │   ├── AuthController.java    # 认证控制器
+│   │   ├── ChatListController.java # 聊天列表控制器
+│   │   ├── ContactController.java # 联系人控制器
+│   │   ├── FileController.java    # 文件控制器
+│   │   ├── GroupController.java   # 群组控制器
+│   │   ├── MessageController.java # 消息控制器
+│   │   ├── NotificationController.java # 通知控制器
+│   │   ├── SearchController.java  # 搜索控制器
+│   │   ├── UploadController.java  # 上传控制器
+│   │   └── UserController.java    # 用户控制器
+│   ├── WeebApplication.java       # Spring Boot主启动类
+│   ├── dto/                        # 数据传输对象 (4个)
+│   │   ├── NotifyDto.java         # 通知DTO
+│   │   ├── RedisBroadcastMsg.java # Redis广播消息
+│   │   ├── UrlLimitStats.java     # URL限流统计
+│   │   └── UserDto.java           # 用户DTO
+│   ├── exception/                  # 异常处理 (2个)
+│   │   ├── GlobalExceptionHandler.java # 全局异常处理器
+│   │   └── WeebException.java     # 自定义异常
+│   ├── filter/                     # 过滤器 (1个)
+│   │   └── JwtAuthenticationFilter.java # JWT认证过滤器
+│   ├── mapper/                     # MyBatis Mapper接口 (12个)
+│   │   ├── ArticleMapper.java     # 文章Mapper
+│   │   ├── AuthMapper.java        # 认证Mapper
+│   │   ├── ChatListMapper.java    # 聊天列表Mapper
+│   │   ├── ContactMapper.java     # 联系人Mapper
+│   │   ├── FileMapper.java        # 文件Mapper
+│   │   ├── GroupMapper.java       # 群组Mapper
+│   │   ├── GroupMemberMapper.java # 群组成员Mapper
+│   │   ├── MessageMapper.java     # 消息Mapper
+│   │   ├── MessageReactionMapper.java # 消息反应Mapper
+│   │   ├── NotificationMapper.java # 通知Mapper
+│   │   ├── Select.java            # 选择接口
+│   │   └── UserMapper.java        # 用户Mapper
+│   ├── model/                      # 数据模型 (11个)
+│   │   ├── Article.java           # 文章模型
+│   │   ├── ChatList.java          # 聊天列表模型
+│   │   ├── Contact.java           # 联系人模型
+│   │   ├── elasticsearch/         # Elasticsearch文档
+│   │   │   └── MessageDocument.java # 消息文档
+│   │   ├── FileTransfer.java      # 文件传输模型
+│   │   ├── Group.java             # 群组模型
+│   │   ├── GroupMember.java       # 群组成员模型
+│   │   ├── Message.java           # 消息模型
+│   │   ├── MessageReaction.java   # 消息反应模型
+│   │   ├── Notification.java      # 通知模型
+│   │   └── User.java              # 用户模型
+│   ├── repository/                 # 数据仓库层 (1个)
+│   │   └── MessageSearchRepository.java # 消息搜索仓库
+│   ├── runner/                     # 应用启动器 (1个)
+│   │   └── UrlPassRunner.java     # URL通行启动器
+│   ├── schedule/                   # 定时任务 (1个)
+│   │   └── ExpiredClearTask.java  # 过期清理任务
+│   ├── service/                    # 业务逻辑层 (23个)
+│   │   ├── AiChatService.java     # AI聊天服务
+│   │   ├── ArticleService.java    # 文章服务
+│   │   ├── AuthService.java       # 认证服务
+│   │   ├── ChatListService.java   # 聊天列表服务
+│   │   ├── ContactService.java    # 联系人服务
+│   │   ├── DoubaoAiService.java   # 豆包AI服务
+│   │   ├── FileService.java       # 文件服务
+│   │   ├── GroupService.java      # 群组服务
+│   │   ├── Impl/                  # 服务实现类 (10个)
+│   │   ├── MessageService.java    # 消息服务
+│   │   ├── NotificationService.java # 通知服务
+│   │   ├── RedisSubscriber.java   # Redis订阅者
+│   │   ├── StorageService.java    # 存储服务
+│   │   └── WebSocketService.java  # WebSocket服务
+│   ├── ssh/                        # SSH终端交互 (6个)
+│   │   ├── CommandManager.java    # 命令管理器
+│   │   ├── commands/              # 命令实现 (3个)
+│   │   ├── CustomCommand.java     # 自定义命令
+│   │   └── InteractionConnect.java # 交互连接
+│   ├── util/                       # 工具类 (6个)
+│   │   ├── CacheUtil.java         # 缓存工具
+│   │   ├── IpUtil.java            # IP工具
+│   │   ├── JwtUtil.java           # JWT工具
+│   │   ├── ResultUtil.java        # 结果工具
+│   │   ├── SecurityUtil.java      # 安全工具
+│   │   └── UrlPermitUtil.java     # URL权限工具
+│   └── vo/                         # 视图对象 (28个)
+│       ├── chatList/               # 聊天列表VO (3个)
+│       ├── contact/                # 联系人VO (1个)
+│       ├── file/                   # 文件VO (6个)
+│       ├── group/                  # 群组VO (3个)
+│       ├── login/                  # 登录VO (2个)
+│       ├── message/                # 消息VO (5个)
+│       ├── user/                   # 用户VO (2个)
+│       └── video/                  # 视频VO (6个)
 ├── src/main/resources/             # 资源文件
-│   ├── sql/                        # 数据库初始化脚本
-│   │   ├── init_database.sql       # 完整初始化脚本
-│   │   └── init_*.sql              # 单独表初始化脚本
 │   ├── application.yml             # 主配置文件
-│   ├── application-prod.yml        # 生产环境配置
-│   └── Mapper/                     # MyBatis XML映射文件
+│   ├── es/                         # Elasticsearch配置
+│   │   └── README.md               # ES配置说明
+│   ├── Mapper/                     # MyBatis XML映射文件 (8个)
+│   │   ├── ArticleMapper.xml       # 文章Mapper映射
+│   │   ├── AuthMapper.xml          # 认证Mapper映射
+│   │   ├── ChatListMapper.xml      # 聊天列表Mapper映射
+│   │   ├── FileMapper.xml          # 文件Mapper映射
+│   │   ├── GroupMapper.xml         # 群组Mapper映射
+│   │   ├── MessageMapper.xml       # 消息Mapper映射
+│   │   ├── MessageReactionMapper.xml # 消息反应Mapper映射
+│   │   └── NotificationMapper.xml  # 通知Mapper映射
+│   └── sql/                        # 数据库初始化脚本 (6个)
+│       ├── init_article_table.sql  # 文章表初始化
+│       ├── init_database.sql       # 完整数据库初始化
+│       ├── init_group_table.sql    # 群组表初始化
+│       ├── init_message_table.sql  # 消息表初始化
+│       ├── init_notification_table.sql # 通知表初始化
+│       └── init_user_table.sql     # 用户表初始化
 ├── Vue/                           # 前端Vue项目
-├── start.sh                       # Linux/Mac启动脚本
-├── start.bat                      # Windows启动脚本
+├── mvnw                           # Maven Wrapper (Linux/Mac)
+├── mvnw.cmd                       # Maven Wrapper (Windows)
+├── pom.xml                        # Maven项目配置
+├── package.json                   # Node.js项目配置
+├── package-lock.json              # Node.js依赖锁定
 └── README.md                      # 项目文档
 ---
 
 ## API 文档
 
 ### 🔐 认证接口
-- `POST /auth/register` - 用户注册
-- `POST /auth/login` - 用户登录
-- `POST /auth/logout` - 用户登出
-- `GET /auth/user` - 获取用户信息
-
-### 👥 用户管理
-- `GET /api/user/info` - 获取用户详细信息
-- `PUT /api/user/info` - 更新用户信息
-- `GET /api/user/list` - 获取用户列表
+- `POST /register` - 用户注册
+- `POST /login` - 用户登录
+- `POST /logout` - 用户登出
+- `GET /user` - 获取用户信息
+- `GET /user/info` - 获取用户详细信息
+- `PUT /user/info` - 更新用户信息
+- `GET /list` - 获取用户列表
 
 ### 💬 聊天接口
-- `POST /api/message/send` - 发送消息
-- `GET /api/message/record` - 获取消息记录
-- `POST /api/message/recall` - 撤回消息
+- `POST /send` - 发送消息
+- `POST /record` - 获取消息记录
+- `POST /recall` - 撤回消息
 
 ### 👥 群组管理
-- `POST /api/group/create` - 创建群组
-- `GET /api/group/my-list` - 获取我的群组
-- `POST /api/group/{id}/invite` - 邀请成员
-- `DELETE /api/group/{id}` - 解散群组
+- `POST /create` - 创建群组
+- `GET /my-list` - 获取我的群组
+- `POST /{id}/invite` - 邀请成员
+- `DELETE /{id}` - 解散群组
 
 ### 📝 文章管理
-- `POST /api/article/new` - 发布文章
-- `GET /api/article/getall` - 获取文章列表
-- `PUT /api/article/{id}` - 更新文章
-- `DELETE /api/article/{id}` - 删除文章
+- `POST /new` - 发布文章
+- `GET /getall` - 获取文章列表
+- `PUT /{id}` - 更新文章
+- `DELETE /{id}` - 删除文章
 
 ### 🔍 搜索接口
-- `GET /api/search/messages` - 搜索消息
-- `GET /api/search/users` - 搜索用户
+- `GET /messages` - 搜索消息
+- `GET /users` - 搜索用户
 
 ### 🔔 通知接口
-- `GET /api/notifications` - 获取通知列表
-- `POST /api/notifications/read-all` - 标记所有通知为已读
+- `GET /notifications` - 获取通知列表
+- `POST /notifications/read-all` - 标记所有通知为已读
+
+### 📁 文件管理
+- 文件上传、下载和管理相关接口
+- 支持多文件上传和云存储集成
 
 > 📖 **详细API文档**: 请查看各个Controller类的注释，或使用Swagger UI (如果配置了) 查看完整的API文档。
 
@@ -372,18 +495,79 @@ weeb/
 - **HTTP客户端**: Axios
 - **路由管理**: Vue Router 4.x
 
-### 项目结构 (Vue/)
+### 前端项目结构 (Vue/)
 Vue/
 ├── src/                         # 源代码目录
 │   ├── api/                     # API接口封装
 │   │   ├── axiosInstance.js     # Axios实例配置
-│   │   └── modules/             # API模块
+│   │   ├── index.js             # API统一导出
+│   │   └── modules/             # API模块 (6个)
+│   │       ├── article.js       # 文章API
+│   │       ├── auth.js          # 认证API
+│   │       ├── group.js         # 群组API
+│   │       ├── notification.js  # 通知API
+│   │       ├── search.js        # 搜索API
+│   │       └── user.js          # 用户API
+│   ├── article/                 # 文章相关页面 (5个)
+│   │   ├── ArticleEdit.vue      # 文章编辑
+│   │   ├── ArticleMain.vue      # 文章主页
+│   │   ├── ArticleManage.vue    # 文章管理
+│   │   ├── ArticleRead.vue      # 文章阅读
+│   │   └── ArticleWrite.vue     # 文章写作
+│   ├── assets/                  # 静态资源
+│   │   ├── apple-style.css      # Apple风格样式
+│   │   └── main.css             # 主样式文件
+│   ├── auth/                    # 认证相关页面 (6个)
+│   │   ├── HelpCenter.vue       # 帮助中心
+│   │   ├── Login.vue            # 登录页面
+│   │   ├── logout.vue           # 登出页面
+│   │   ├── Register.vue         # 注册页面
+│   │   ├── UserInform.vue       # 用户信息
+│   │   └── usermain.vue         # 用户主页
+│   ├── Chat/                    # 聊天相关页面 (1个)
+│   │   └── ChatPage.vue         # 聊天页面
+│   ├── contact/                 # 联系人页面 (1个)
+│   │   └── ContactPage.vue      # 联系人页面
+│   ├── group/                   # 群组页面 (1个)
+│   │   └── GroupPage.vue        # 群组页面
+│   ├── layout/                  # 布局组件
+│   │   ├── AsideMenu.vue        # 侧边菜单
+│   │   ├── components/          # 布局子组件
+│   │   │   └── NotificationBell.vue # 通知铃铛
+│   │   └── Layout.vue           # 主布局
+│   ├── main.js                  # Vue应用入口
 │   ├── router/                  # 路由配置
-│   ├── stores/                  # Pinia状态管理
-│   ├── views/                   # 页面组件
-│   └── components/              # 公共组件
+│   │   └── index.js             # 路由定义
+│   ├── search/                  # 搜索页面 (1个)
+│   │   └── SearchPage.vue       # 搜索页面
+│   ├── stores/                  # Pinia状态管理 (3个)
+│   │   ├── authStore.js         # 认证状态
+│   │   ├── chatStore.js         # 聊天状态
+│   │   └── notificationStore.js # 通知状态
+│   ├── value/                   # 值组件 (2个)
+│   ├── video/                   # 视频组件 (1个)
+│   │   └── Video.vue            # 视频播放器
+│   └── views/                   # 视图页面 (12个)
+│       ├── chat/                # 聊天视图
+│       │   └── ChatWindow.vue   # 聊天窗口
+│       ├── FileTransfer.vue     # 文件传输
+│       ├── Forget.vue           # 忘记密码
+│       ├── group/               # 群组视图
+│       │   └── GroupDetail.vue  # 群组详情
+│       ├── Groups.vue           # 群组列表
+│       ├── Login.vue            # 登录页面
+│       ├── NotFound.vue         # 404页面
+│       ├── NotificationListPage.vue # 通知列表
+│       ├── Register.vue         # 注册页面
+│       ├── Settings.vue         # 设置页面
+│       ├── TestNotificationPage.vue # 通知测试页面
+│       └── UserDetail.vue       # 用户详情
 ├── public/                      # 静态资源
-└── package.json                 # 项目依赖
+│   └── favicon.ico              # 网站图标
+├── package.json                 # 项目依赖配置
+├── package-lock.json            # 依赖锁定文件
+├── vite.config.js               # Vite构建配置
+└── jsconfig.json                # JavaScript配置
 
 ### 开发启动
 
@@ -652,7 +836,7 @@ cd Vue && npm run test:e2e
 
 ## 联系我们
 
-- 📧 **邮箱**: your-email@example.com
+- 📧 **邮箱**: [your-email@example.com](mailto:your-email@example.com)
 - 🐛 **问题反馈**: [GitHub Issues](https://github.com/your-repo/weeb/issues)
 - 📖 **项目文档**: [Wiki](https://github.com/your-repo/weeb/wiki)
 
