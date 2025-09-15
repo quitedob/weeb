@@ -11,6 +11,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 // import com.volcengine.ark.runtime.service.ArkService;
 // import okhttp3.ConnectionPool;
 // import okhttp3.Dispatcher;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,6 +28,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Service
 @Slf4j
+@ConditionalOnProperty(
+    value = "weeb.doubao.api-key",
+    matchIfMissing = false
+)
 public class DoubaoAiService {
 
     // private ArkService service;

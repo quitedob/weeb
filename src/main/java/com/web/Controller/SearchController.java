@@ -28,7 +28,7 @@ import java.util.stream.Collectors; // 流处理
 @ConditionalOnProperty(
     value = "elasticsearch.enabled",
     havingValue = "true",
-    matchIfMissing = false
+    matchIfMissing = true
 )
 public class SearchController {
 
