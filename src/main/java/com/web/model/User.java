@@ -1,5 +1,6 @@
 package com.web.model;
 
+import com.baomidou.mybatisplus.annotation.*;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
@@ -7,10 +8,12 @@ import java.util.Objects;
 /**
  * 用户实体类，表示数据库中的用户记录
  */
+@TableName("user")
 public class User implements Serializable {
     private static final long serialVersionUID = 1L; // 序列化 UID
 
     // 用户ID
+    @TableId(type = IdType.AUTO)
     private Long id;
     // 用户名
     private String username;
@@ -24,14 +27,8 @@ public class User implements Serializable {
     private String userEmail;
 
     // 新增字段
-    private Long fansCount = 0L;             // 粉丝数量
     private String uniqueArticleLink;        // 唯一标识文章链接
     private String uniqueVideoLink;          // 唯一标识视频链接
-    private Long totalLikes = 0L;            // 总点赞数
-    private Long totalFavorites = 0L;        // 总收藏数
-    private Long totalSponsorship = 0L;      // 总赞助数
-    private Long totalArticleExposure = 0L;  // 文章总曝光数
-    private Long websiteCoins = 0L;          // 网站金币
     private Date registrationDate = new Date(); // 注册日期
 
     // 新增字段：IP归属地
@@ -46,6 +43,10 @@ public class User implements Serializable {
 
     private String bio; // 个人简介
     private Integer onlineStatus; // 用户在线状态, stores code from UserOnlineStatus
+    
+    // 关联的统计数据（一对一关系）
+    @TableField(exist = false)
+    private UserStats userStats;
 
     // 无参构造函数
     public User() {
@@ -55,9 +56,8 @@ public class User implements Serializable {
 
     // 全参构造函数（包括新增字段）
     public User(Long id, String username, String password, int sex, String phoneNumber, String userEmail,
-                Long fansCount, String uniqueArticleLink, String uniqueVideoLink, Long totalLikes,
-                Long totalFavorites, Long totalSponsorship, Long totalArticleExposure, Long websiteCoins,
-                Date registrationDate, String ipOwnership, String type, String avatar, String nickname, String badge, Date loginTime,
+                String uniqueArticleLink, String uniqueVideoLink, Date registrationDate, String ipOwnership, 
+                String type, String avatar, String nickname, String badge, Date loginTime,
                 String bio, Integer onlineStatus) {
         this.id = id;                               // 设置用户ID
         this.username = username;                   // 设置用户名
@@ -65,14 +65,8 @@ public class User implements Serializable {
         this.sex = sex;                             // 设置性别
         this.phoneNumber = phoneNumber;             // 设置电话
         this.userEmail = userEmail;                 // 设置邮箱地址
-        this.fansCount = fansCount;                 // 设置粉丝数量
         this.uniqueArticleLink = uniqueArticleLink; // 设置唯一标识文章链接
         this.uniqueVideoLink = uniqueVideoLink;     // 设置唯一标识视频链接
-        this.totalLikes = totalLikes;               // 设置总点赞数
-        this.totalFavorites = totalFavorites;       // 设置总收藏数
-        this.totalSponsorship = totalSponsorship;   // 设置总赞助数
-        this.totalArticleExposure = totalArticleExposure; // 设置文章总曝光数
-        this.websiteCoins = websiteCoins;           // 设置网站金币
         this.registrationDate = registrationDate;   // 设置注册日期
         this.ipOwnership = ipOwnership;             // 设置IP归属地
         this.type = type;                           // 设置用户类型
@@ -134,13 +128,7 @@ public class User implements Serializable {
         this.userEmail = userEmail; // 设置邮箱地址
     }
 
-    public Long getFansCount() {
-        return fansCount; // 返回粉丝数量
-    }
 
-    public void setFansCount(Long fansCount) {
-        this.fansCount = fansCount; // 设置粉丝数量
-    }
 
     public String getUniqueArticleLink() {
         return uniqueArticleLink; // 返回唯一标识文章链接
@@ -158,45 +146,7 @@ public class User implements Serializable {
         this.uniqueVideoLink = uniqueVideoLink; // 设置唯一标识视频链接
     }
 
-    public Long getTotalLikes() {
-        return totalLikes; // 返回总点赞数
-    }
 
-    public void setTotalLikes(Long totalLikes) {
-        this.totalLikes = totalLikes; // 设置总点赞数
-    }
-
-    public Long getTotalFavorites() {
-        return totalFavorites; // 返回总收藏数
-    }
-
-    public void setTotalFavorites(Long totalFavorites) {
-        this.totalFavorites = totalFavorites; // 设置总收藏数
-    }
-
-    public Long getTotalSponsorship() {
-        return totalSponsorship; // 返回总赞助数
-    }
-
-    public void setTotalSponsorship(Long totalSponsorship) {
-        this.totalSponsorship = totalSponsorship; // 设置总赞助数
-    }
-
-    public Long getTotalArticleExposure() {
-        return totalArticleExposure; // 返回文章总曝光数
-    }
-
-    public void setTotalArticleExposure(Long totalArticleExposure) {
-        this.totalArticleExposure = totalArticleExposure; // 设置文章总曝光数
-    }
-
-    public Long getWebsiteCoins() {
-        return websiteCoins; // 返回网站金币
-    }
-
-    public void setWebsiteCoins(Long websiteCoins) {
-        this.websiteCoins = websiteCoins; // 设置网站金币
-    }
 
     public Date getRegistrationDate() {
         return registrationDate; // 返回注册日期
@@ -272,6 +222,14 @@ public class User implements Serializable {
         this.onlineStatus = onlineStatus;
     }
 
+    public UserStats getUserStats() {
+        return userStats;
+    }
+
+    public void setUserStats(UserStats userStats) {
+        this.userStats = userStats;
+    }
+
     // 重写 toString 方法
     @Override
     public String toString() {
@@ -281,14 +239,8 @@ public class User implements Serializable {
                 ", sex=" + sex +
                 ", phoneNumber='" + phoneNumber + '\'' +
                 ", userEmail='" + userEmail + '\'' +
-                ", fansCount=" + fansCount +
                 ", uniqueArticleLink='" + uniqueArticleLink + '\'' +
                 ", uniqueVideoLink='" + uniqueVideoLink + '\'' +
-                ", totalLikes=" + totalLikes +
-                ", totalFavorites=" + totalFavorites +
-                ", totalSponsorship=" + totalSponsorship +
-                ", totalArticleExposure=" + totalArticleExposure +
-                ", websiteCoins=" + websiteCoins +
                 ", registrationDate=" + registrationDate +
                 ", ipOwnership='" + ipOwnership + '\'' +
                 ", type='" + type + '\'' +
@@ -313,14 +265,8 @@ public class User implements Serializable {
                 Objects.equals(password, user.password) &&
                 Objects.equals(phoneNumber, user.phoneNumber) &&
                 Objects.equals(userEmail, user.userEmail) &&
-                Objects.equals(fansCount, user.fansCount) &&
                 Objects.equals(uniqueArticleLink, user.uniqueArticleLink) &&
                 Objects.equals(uniqueVideoLink, user.uniqueVideoLink) &&
-                Objects.equals(totalLikes, user.totalLikes) &&
-                Objects.equals(totalFavorites, user.totalFavorites) &&
-                Objects.equals(totalSponsorship, user.totalSponsorship) &&
-                Objects.equals(totalArticleExposure, user.totalArticleExposure) &&
-                Objects.equals(websiteCoins, user.websiteCoins) &&
                 Objects.equals(registrationDate, user.registrationDate) &&
                 Objects.equals(ipOwnership, user.ipOwnership) &&
                 Objects.equals(type, user.type) &&
@@ -328,17 +274,15 @@ public class User implements Serializable {
                 Objects.equals(nickname, user.nickname) &&
                 Objects.equals(badge, user.badge) &&
                 Objects.equals(loginTime, user.loginTime) &&
-                Objects.equals(bio, user.bio) &&       // Added bio
-                Objects.equals(onlineStatus, user.onlineStatus); // Added onlineStatus
+                Objects.equals(bio, user.bio) &&
+                Objects.equals(onlineStatus, user.onlineStatus);
     }
 
     // 重写 hashCode 方法
     @Override
     public int hashCode() {
         return Objects.hash(id, username, password, sex, phoneNumber, userEmail,
-                fansCount, uniqueArticleLink, uniqueVideoLink,
-                totalLikes, totalFavorites, totalSponsorship,
-                totalArticleExposure, websiteCoins, registrationDate, ipOwnership,
-                type, avatar, nickname, badge, loginTime, bio, onlineStatus); // Added bio, onlineStatus and nickname
+                uniqueArticleLink, uniqueVideoLink, registrationDate, ipOwnership,
+                type, avatar, nickname, badge, loginTime, bio, onlineStatus);
     }
 }

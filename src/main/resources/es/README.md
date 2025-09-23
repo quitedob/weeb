@@ -1,172 +1,134 @@
-# Elasticsearch SSL证书配置
+# Elasticsearch 配置指南
 
-## 🔐 获取Elasticsearch CA证书
+## 📋 当前配置状态
 
-由于Elasticsearch 9.x默认启用TLS，您需要配置SSL证书才能连接。
+应用已配置为使用 **HTTP 模式** 连接 Elasticsearch，无需 SSL 证书和认证。
 
-### 方法1：从Elasticsearch安装目录复制
+## 🔧 基本配置
 
-如果您的Elasticsearch安装在本地，请从以下位置复制CA证书：
+### 1. 禁用 Elasticsearch 安全认证
 
-```bash
-# Windows (IntelliJ IDEA集成的Elasticsearch)
-# 从Elasticsearch配置目录复制
-copy "D:\IntelliJ IDEA 2023.3.8\utils\elasticsearch-9.1.3\config\certs\http_ca.crt" "D:\java\weeb\src\main\resources\es\http_ca.crt"
-
-# Linux/Mac
-# cp /path/to/elasticsearch/config/certs/http_ca.crt src/main/resources/es/http_ca.crt
-```
-
-### 方法2：通过Elasticsearch API下载
-
-如果无法直接访问文件系统，可以通过API下载：
-
-```bash
-# 下载CA证书
-curl -X GET "https://localhost:9200/_ssl/certificates" \
-  -H "Authorization: Basic <base64编码的用户名:密码>" \
-  --cacert /path/to/elasticsearch/config/certs/http_ca.crt \
-  -o ca_cert.pem
-```
-
-### 方法3：临时禁用TLS（开发环境）
-
-如果无法获取证书，可以临时禁用Elasticsearch的TLS：
-
-#### 步骤1：修改Elasticsearch配置
-编辑 `elasticsearch.yml`（通常在config目录下）：
+找到 Elasticsearch 配置文件 `elasticsearch.yml`，添加或修改以下配置：
 
 ```yaml
-# 临时禁用TLS（仅用于开发环境）
-xpack.security.http.ssl.enabled: false
-xpack.security.transport.ssl.enabled: false
+# 禁用安全认证（开发环境）
+xpack.security.enabled: false
 ```
 
-#### 步骤2：重启Elasticsearch
+### 2. 重启 Elasticsearch 服务
+
 ```bash
 # Windows
-elasticsearch.bat restart
+.\bin\elasticsearch.bat restart
 
 # Linux/Mac
 ./bin/elasticsearch -d
 ```
 
-#### 步骤3：修改应用配置
-将 `application.yml` 中的ES配置改为HTTP：
+### 3. 安装 IK 中文分词器（可选）
 
-```yaml
-elasticsearch:
-  enabled: true
-  uris: http://172.18.48.1:9200  # 改为HTTP
-  connection-timeout: 10000ms
-  socket-timeout: 60000ms
-  # 移除username, password, ssl配置
-```
-
-#### ⚠️ 安全警告
-**此方法仅适用于开发环境！**
-生产环境必须启用TLS和认证，否则会有严重的安全风险。
-
-### 方法4：使用环境变量配置证书路径
-
-如果证书在不同位置，可以使用环境变量：
+为了获得更好的中文搜索体验，建议安装 IK 分词器：
 
 ```bash
-# 设置证书路径
-ES_CERT_PATH=/path/to/your/http_ca.crt
+# 下载 IK 分词器（根据 ES 版本选择对应的版本）
+# Windows
+.\bin\elasticsearch-plugin.bat install https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v8.18.6/elasticsearch-analysis-ik-8.18.6.zip
+
+# Linux/Mac
+./bin/elasticsearch-plugin install https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v8.18.6/elasticsearch-analysis-ik-8.18.6.zip
+
+# 如果本地有插件文件
+# Windows
+.\bin\elasticsearch-plugin.bat install file:///D:/path/to/elasticsearch-analysis-ik-8.18.6.zip
+
+# Linux/Mac
+./bin/elasticsearch-plugin install file:///path/to/elasticsearch-analysis-ik-8.18.6.zip
 ```
 
-然后在`application.yml`中：
+## ✅ 验证配置
+
+### 测试 HTTP 连接
+```bash
+curl -X GET "http://localhost:9200/_cluster/health"
+```
+
+### 测试集群状态
+```bash
+curl -X GET "http://localhost:9200/_cat/nodes?v"
+```
+
+### 测试索引创建
+```bash
+curl -X PUT "http://localhost:9200/test-index" -H 'Content-Type: application/json' -d '{"mappings": {"properties": {"content": {"type": "text"}}}}'
+```
+
+### 应用启动测试
+应用启动后会显示以下日志：
+```
+INFO  Elasticsearch使用HTTP连接，无需SSL和认证
+INFO  数据库连接成功
+INFO  数据库表检查完成
+INFO  用户表创建成功
+INFO  文章表创建成功
+...
+INFO  Started WeebApplication in X.XXX seconds
+```
+
+## 📊 应用中的配置
+
+### Spring Boot 配置
+应用已配置在 `application.yml` 中：
 
 ```yaml
-ssl:
-  bundle:
-    pem:
-      es-pem:
-        truststore:
-          certificate: ${ES_CERT_PATH}
+spring:
+  elasticsearch:
+    uris: http://localhost:9200
+    enabled: true
 ```
 
-## 🔧 配置说明
+### Elasticsearch 文档模型
+消息文档使用标准文本字段：
 
-### 快速选择方案
-
-#### 方案A：使用HTTPS + SSL证书（推荐，安全）
-1. **获取证书**：复制 `http_ca.crt` 到 `src/main/resources/es/`
-2. **设置环境变量**：
-   ```bash
-   # Windows
-   set ES_PASSWORD=your_elasticsearch_password
-
-   # Linux/Mac
-   export ES_PASSWORD=your_elasticsearch_password
-   ```
-3. **使用当前配置**：无需修改，应用会自动使用HTTPS
-
-#### 方案B：使用HTTP连接（临时，开发环境）
-如果不想配置证书，修改 `application.yml`：
-
-```yaml
-elasticsearch:
-  enabled: true
-  uris: http://172.18.48.1:9200  # 改为HTTP
-  connection-timeout: 10000ms
-  socket-timeout: 60000ms
-  # 注释掉或删除以下配置
-  # username: elastic
-  # password: ${ES_PASSWORD:}
-  # restclient:
-  #   ssl:
-  #     bundle: es-pem
+```java
+@Field(type = FieldType.Text)
+private String content;
 ```
 
-### 验证连接
+## 🔍 搜索功能使用
 
-#### HTTPS连接测试：
+### API 接口
+- `GET /api/search/messages?q=关键词` - 搜索消息
+- `GET /api/search/users?q=用户名` - 搜索用户
+
+### 搜索示例
 ```bash
-curl -X GET "https://172.18.48.1:9200/_cluster/health" \
-  -u "elastic:$ES_PASSWORD" \
-  --cacert src/main/resources/es/http_ca.crt
+# 搜索包含"hello"的消息
+curl "http://localhost:8080/api/search/messages?q=hello"
+
+# 搜索用户
+curl "http://localhost:8080/api/search/users?q=张三"
 ```
 
-#### HTTP连接测试：
-```bash
-curl -X GET "http://172.18.48.1:9200/_cluster/health"
-```
+## ⚠️ 注意事项
 
-## ⚠️ 安全注意事项
+1. **开发环境安全**：当前配置禁用 ES 安全认证，仅适用于开发环境
+2. **生产环境**：生产环境必须启用 ES 安全认证
+3. **IK 分词器**：安装 IK 分词器后，重启 ES 服务生效
+4. **索引重建**：修改分词器配置后，可能需要重建索引
 
-1. **不要将证书提交到版本控制系统**
-   在`.gitignore`中添加：
-   ```
-   src/main/resources/es/http_ca.crt
-   ```
+## 🚀 故障排除
 
-2. **密码管理**
-   - 使用环境变量存储密码
-   - 不要在代码中硬编码密码
-   - 生产环境使用密钥管理服务
+### 连接超时
+- 检查 Elasticsearch 服务是否启动
+- 确认端口 9200 未被占用
+- 验证防火墙设置
 
-3. **证书更新**
-   - Elasticsearch重启时可能重新生成证书
-   - 证书变更后需要更新应用配置
+### 搜索无结果
+- 确认 IK 分词器已正确安装
+- 检查索引是否已创建
+- 验证文档是否已正确索引
 
-## 🔍 故障排除
-
-### 连接失败
-```
-javax.net.ssl.SSLHandshakeException: PKIX path building failed
-```
-**解决方案**: 检查证书路径和文件名是否正确
-
-### 认证失败
-```
-org.elasticsearch.ElasticsearchStatusException: Unable to authenticate user
-```
-**解决方案**: 检查用户名和密码是否正确
-
-### 证书验证失败
-```
-javax.net.ssl.SSLPeerUnverifiedException: Certificate for <localhost> doesn't match
-```
-**解决方案**: 检查证书中的主机名是否匹配
+### 性能问题
+- 监控 ES 内存和 CPU 使用情况
+- 根据需要调整 JVM 参数
+- 考虑使用集群模式

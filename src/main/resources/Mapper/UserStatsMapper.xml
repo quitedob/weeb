@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.web.mapper.UserStatsMapper">
+
+    <!-- 结果映射：用户统计数据 -->
+    <resultMap id="UserStatsResultMap" type="com.web.model.UserStats">
+        <id property="userId" column="user_id"/>
+        <result property="fansCount" column="fans_count"/>
+        <result property="totalLikes" column="total_likes"/>
+        <result property="totalFavorites" column="total_favorites"/>
+        <result property="totalSponsorship" column="total_sponsorship"/>
+        <result property="totalArticleExposure" column="total_article_exposure"/>
+        <result property="websiteCoins" column="website_coins"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 结果映射：用户完整信息 -->
+    <resultMap id="UserWithStatsResultMap" type="com.web.model.UserWithStats">
+        <association property="user" javaType="com.web.model.User">
+            <id property="id" column="id"/>
+            <result property="username" column="username"/>
+            <result property="password" column="password"/>
+            <result property="sex" column="sex"/>
+            <result property="phoneNumber" column="phone_number"/>
+            <result property="userEmail" column="user_email"/>
+            <result property="uniqueArticleLink" column="unique_article_link"/>
+            <result property="uniqueVideoLink" column="unique_video_link"/>
+            <result property="registrationDate" column="registration_date"/>
+            <result property="ipOwnership" column="ip_ownership"/>
+            <result property="type" column="type"/>
+            <result property="avatar" column="avatar"/>
+            <result property="nickname" column="nickname"/>
+            <result property="badge" column="badge"/>
+            <result property="loginTime" column="login_time"/>
+            <result property="bio" column="bio"/>
+            <result property="onlineStatus" column="online_status"/>
+        </association>
+        <association property="userStats" javaType="com.web.model.UserStats">
+            <id property="userId" column="user_id"/>
+            <result property="fansCount" column="fans_count"/>
+            <result property="totalLikes" column="total_likes"/>
+            <result property="totalFavorites" column="total_favorites"/>
+            <result property="totalSponsorship" column="total_sponsorship"/>
+            <result property="totalArticleExposure" column="total_article_exposure"/>
+            <result property="websiteCoins" column="website_coins"/>
+            <result property="createdAt" column="stats_created_at"/>
+            <result property="updatedAt" column="stats_updated_at"/>
+        </association>
+    </resultMap>
+
+    <!-- 根据用户ID获取统计数据 -->
+    <select id="selectByUserId" parameterType="long" resultMap="UserStatsResultMap">
+        SELECT user_id, fans_count, total_likes, total_favorites, 
+               total_sponsorship, total_article_exposure, website_coins,
+               created_at, updated_at
+        FROM user_stats 
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 插入用户统计数据 -->
+    <insert id="insertUserStats" parameterType="com.web.model.UserStats">
+        INSERT INTO user_stats (
+            user_id, fans_count, total_likes, total_favorites,
+            total_sponsorship, total_article_exposure, website_coins
+        ) VALUES (
+            #{userId}, #{fansCount}, #{totalLikes}, #{totalFavorites},
+            #{totalSponsorship}, #{totalArticleExposure}, #{websiteCoins}
+        )
+    </insert>
+
+    <!-- 更新用户统计数据 -->
+    <update id="updateUserStats" parameterType="com.web.model.UserStats">
+        UPDATE user_stats 
+        SET fans_count = #{fansCount},
+            total_likes = #{totalLikes},
+            total_favorites = #{totalFavorites},
+            total_sponsorship = #{totalSponsorship},
+            total_article_exposure = #{totalArticleExposure},
+            website_coins = #{websiteCoins},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 获取用户完整信息（JOIN查询） -->
+    <select id="selectUserWithStats" parameterType="long" resultMap="UserWithStatsResultMap">
+        SELECT u.id, u.username, u.password, u.sex, u.phone_number, u.user_email,
+               u.unique_article_link, u.unique_video_link, u.registration_date,
+               u.ip_ownership, u.type, u.avatar, u.nickname, u.badge, 
+               u.login_time, u.bio, u.online_status,
+               us.user_id, us.fans_count, us.total_likes, us.total_favorites,
+               us.total_sponsorship, us.total_article_exposure, us.website_coins,
+               us.created_at as stats_created_at, us.updated_at as stats_updated_at
+        FROM user u 
+        LEFT JOIN user_stats us ON u.id = us.user_id 
+        WHERE u.id = #{userId}
+    </select>
+
+    <!-- 批量获取用户统计数据 -->
+    <select id="selectByUserIds" resultMap="UserStatsResultMap">
+        SELECT user_id, fans_count, total_likes, total_favorites,
+               total_sponsorship, total_article_exposure, website_coins,
+               created_at, updated_at
+        FROM user_stats 
+        WHERE user_id IN
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+    </select>
+
+    <!-- 检查用户统计数据是否存在 -->
+    <select id="countByUserId" parameterType="long" resultType="int">
+        SELECT COUNT(*) 
+        FROM user_stats 
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 删除用户统计数据 -->
+    <delete id="deleteByUserId" parameterType="long">
+        DELETE FROM user_stats 
+        WHERE user_id = #{userId}
+    </delete>
+
+    <!-- 增加粉丝数 -->
+    <update id="incrementFansCount" parameterType="long">
+        UPDATE user_stats 
+        SET fans_count = fans_count + 1, 
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 减少粉丝数 -->
+    <update id="decrementFansCount" parameterType="long">
+        UPDATE user_stats 
+        SET fans_count = GREATEST(fans_count - 1, 0), 
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 增加点赞数 -->
+    <update id="incrementTotalLikes">
+        UPDATE user_stats 
+        SET total_likes = total_likes + #{count}, 
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 增加收藏数 -->
+    <update id="incrementTotalFavorites">
+        UPDATE user_stats 
+        SET total_favorites = total_favorites + #{count}, 
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 增加文章曝光数 -->
+    <update id="incrementArticleExposure">
+        UPDATE user_stats 
+        SET total_article_exposure = total_article_exposure + #{count}, 
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 增加网站金币 -->
+    <update id="addWebsiteCoins">
+        UPDATE user_stats 
+        SET website_coins = website_coins + #{coins}, 
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE user_id = #{userId}
+    </update>
+
+    <!-- 扣除网站金币（仅在余额足够时） -->
+    <update id="deductWebsiteCoins">
+        UPDATE user_stats 
+        SET website_coins = website_coins - #{coins}, 
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE user_id = #{userId} AND website_coins >= #{coins}
+    </update>
+
+    <!-- 增加赞助金额 -->
+    <update id="addSponsorship">
+        UPDATE user_stats 
+        SET total_sponsorship = total_sponsorship + #{amount}, 
+            updated_at = CURRENT_TIMESTAMP 
+        WHERE user_id = #{userId}
+    </update>
+
+</mapper>

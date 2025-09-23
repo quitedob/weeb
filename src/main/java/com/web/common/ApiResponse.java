@@ -84,6 +84,17 @@ public class ApiResponse<T> {
         public static final int GROUP_NOT_FOUND = 4001;
         public static final int GROUP_PERMISSION_DENIED = 4002;
         public static final int MESSAGE_SEND_FAILED = 4003;
+
+        // 文章相关错误码
+        public static final int ARTICLE_NOT_FOUND = 5001;
+        public static final int ARTICLE_ACCESS_DENIED = 5002;
+        public static final int ARTICLE_CREATE_FAILED = 5003;
+        public static final int ARTICLE_UPDATE_FAILED = 5004;
+        public static final int ARTICLE_DELETE_FAILED = 5005;
+        public static final int LIKE_OPERATION_FAILED = 5006;
+        public static final int SUBSCRIBE_OPERATION_FAILED = 5007;
+        public static final int COIN_OPERATION_FAILED = 5008;
+        public static final int READ_COUNT_UPDATE_FAILED = 5009;
     }
 
     /** 常用成功响应方法 */
@@ -128,6 +139,43 @@ public class ApiResponse<T> {
         return error(ErrorCode.SYSTEM_ERROR, message);
     }
 
+    /** 文章相关错误响应方法 */
+    public static <T> ApiResponse<T> articleNotFound(String message) {
+        return error(ErrorCode.ARTICLE_NOT_FOUND, message);
+    }
+
+    public static <T> ApiResponse<T> articleAccessDenied(String message) {
+        return error(ErrorCode.ARTICLE_ACCESS_DENIED, message);
+    }
+
+    public static <T> ApiResponse<T> articleCreateFailed(String message) {
+        return error(ErrorCode.ARTICLE_CREATE_FAILED, message);
+    }
+
+    public static <T> ApiResponse<T> articleUpdateFailed(String message) {
+        return error(ErrorCode.ARTICLE_UPDATE_FAILED, message);
+    }
+
+    public static <T> ApiResponse<T> articleDeleteFailed(String message) {
+        return error(ErrorCode.ARTICLE_DELETE_FAILED, message);
+    }
+
+    public static <T> ApiResponse<T> likeOperationFailed(String message) {
+        return error(ErrorCode.LIKE_OPERATION_FAILED, message);
+    }
+
+    public static <T> ApiResponse<T> subscribeOperationFailed(String message) {
+        return error(ErrorCode.SUBSCRIBE_OPERATION_FAILED, message);
+    }
+
+    public static <T> ApiResponse<T> coinOperationFailed(String message) {
+        return error(ErrorCode.COIN_OPERATION_FAILED, message);
+    }
+
+    public static <T> ApiResponse<T> readCountUpdateFailed(String message) {
+        return error(ErrorCode.READ_COUNT_UPDATE_FAILED, message);
+    }
+
     /** 设置请求路径（在Controller中调用） */
     public ApiResponse<T> withPath(String path) {
         this.path = path;
@@ -147,5 +195,78 @@ public class ApiResponse<T> {
     /** 检查是否为系统异常 */
     public boolean isSystemError() {
         return this.code < 0;
+    }
+
+    /** 响应构建器模式支持 */
+    public static class Builder<T> {
+        private int code;
+        private String message;
+        private T data;
+        private String path;
+
+        public Builder<T> code(int code) {
+            this.code = code;
+            return this;
+        }
+
+        public Builder<T> message(String message) {
+            this.message = message;
+            return this;
+        }
+
+        public Builder<T> data(T data) {
+            this.data = data;
+            return this;
+        }
+
+        public Builder<T> path(String path) {
+            this.path = path;
+            return this;
+        }
+
+        public ApiResponse<T> build() {
+            ApiResponse<T> response = new ApiResponse<>(code, message, data);
+            response.setPath(path);
+            return response;
+        }
+    }
+
+    /** 创建响应构建器 */
+    public static <T> Builder<T> builder() {
+        return new Builder<>();
+    }
+
+    /** 常用消息模板 */
+    public static final class Messages {
+        // 成功消息
+        public static final String SUCCESS = "操作成功";
+        public static final String CREATED = "创建成功";
+        public static final String UPDATED = "更新成功";
+        public static final String DELETED = "删除成功";
+
+        // 通用错误消息
+        public static final String PARAM_ERROR = "参数错误";
+        public static final String UNAUTHORIZED = "未授权访问";
+        public static final String FORBIDDEN = "禁止访问";
+        public static final String NOT_FOUND = "资源未找到";
+        public static final String SYSTEM_ERROR = "系统错误";
+
+        // 文章相关消息
+        public static final String ARTICLE_NOT_FOUND = "文章未找到";
+        public static final String ARTICLE_ACCESS_DENIED = "无权访问该文章";
+        public static final String ARTICLE_CREATE_SUCCESS = "文章创建成功";
+        public static final String ARTICLE_CREATE_FAILED = "文章创建失败";
+        public static final String ARTICLE_UPDATE_SUCCESS = "文章更新成功";
+        public static final String ARTICLE_UPDATE_FAILED = "文章更新失败";
+        public static final String ARTICLE_DELETE_SUCCESS = "文章删除成功";
+        public static final String ARTICLE_DELETE_FAILED = "文章删除失败";
+        public static final String LIKE_SUCCESS = "点赞成功";
+        public static final String LIKE_FAILED = "点赞失败";
+        public static final String SUBSCRIBE_SUCCESS = "订阅成功";
+        public static final String SUBSCRIBE_FAILED = "订阅失败";
+        public static final String COIN_ADD_SUCCESS = "金币添加成功";
+        public static final String COIN_ADD_FAILED = "金币添加失败";
+        public static final String READ_COUNT_UPDATE_SUCCESS = "阅读量更新成功";
+        public static final String READ_COUNT_UPDATE_FAILED = "阅读量更新失败";
     }
 }

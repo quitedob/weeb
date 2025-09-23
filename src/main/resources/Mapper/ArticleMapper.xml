@@ -102,15 +102,16 @@
         WHERE user_id = #{userId}
     </select>
 
-    <!-- 新增更新 auth 表的语句 -->
-    <update id="updateAuthArticleStats" parameterType="map">
-        UPDATE auth
+    <!-- 更新用户统计表的文章相关统计数据 -->
+    <update id="updateUserStatsArticleStats" parameterType="map">
+        UPDATE user_stats
         SET
             total_likes = #{total_likes},
             total_favorites = #{total_favorites},
             total_sponsorship = #{total_sponsorship},
-            total_article_exposure = #{total_exposure}
-        WHERE id = #{userId}
+            total_article_exposure = #{total_exposure},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = #{userId}
     </update>
     <update id="updateArticleContent" parameterType="map">
         UPDATE articles
@@ -132,9 +133,9 @@
         UPDATE articles SET exposure_count = exposure_count + 1 WHERE article_id = #{id}
     </update>
 
-    <!-- 根据 userId 汇总 articles 表中各项数据并更新 auth 表 -->
-    <update id="updateAuthTotals" parameterType="long">
-        UPDATE auth a
+    <!-- 根据 userId 汇总 articles 表中各项数据并更新 user_stats 表 -->
+    <update id="updateUserStatsTotals" parameterType="long">
+        UPDATE user_stats us
         JOIN (
             SELECT
                 user_id,
@@ -145,17 +146,18 @@
             FROM articles
             WHERE user_id = #{userId}
             GROUP BY user_id
-        ) AS stats ON a.id = stats.user_id
+        ) AS stats ON us.user_id = stats.user_id
         SET
-            a.total_likes = stats.total_likes,
-            a.total_favorites = stats.total_favorites,
-            a.total_sponsorship = stats.total_sponsorship,
-            a.total_article_exposure = stats.total_article_exposure
-        WHERE a.id = #{userId};
+            us.total_likes = stats.total_likes,
+            us.total_favorites = stats.total_favorites,
+            us.total_sponsorship = stats.total_sponsorship,
+            us.total_article_exposure = stats.total_article_exposure,
+            us.updated_at = CURRENT_TIMESTAMP
+        WHERE us.user_id = #{userId};
     </update>
 
-    <!-- 查询 auth 表中的用户信息 -->
-    <select id="selectUserInformation" parameterType="long" resultType="map">
+    <!-- 查询 user_stats 表中的用户统计信息 -->
+    <select id="selectUserStatsInformation" parameterType="long" resultType="map">
         SELECT
             fans_count,            -- 粉丝数
             total_likes,           -- 总点赞数
@@ -163,8 +165,8 @@
             total_sponsorship,     -- 总赞助数
             total_article_exposure,-- 总文章曝光数
             website_coins          -- 网站币
-        FROM auth
-        WHERE id = #{userId}
+        FROM user_stats
+        WHERE user_id = #{userId}
     </select>
 
 </mapper>

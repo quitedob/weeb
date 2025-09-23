@@ -183,7 +183,6 @@ onMounted(async () => {
 const loadChatList = async () => {
   loading.value = true
   try {
-    // 这里应该调用实际的API
     const response = await api.chat.getChatList()
     chatList.value = response.data || []
   } catch (error) {
@@ -207,9 +206,9 @@ const selectChat = async (chat) => {
 const loadMessages = async (chatId) => {
   messagesLoading.value = true
   try {
-    const response = await api.chat.getMessages(chatId)
+    const response = await api.chat.getChatMessages(chatId)
     messages.value = response.data || []
-    
+
     // 滚动到底部
     await nextTick()
     scrollToBottom()
@@ -227,17 +226,16 @@ const sendMessage = async () => {
 
   const messageData = {
     content: newMessage.value.trim(),
-    targetId: currentChat.value.id,
     type: 'TEXT'
   }
 
   try {
-    const response = await api.chat.sendMessage(messageData)
-    if (response.success) {
+    const response = await api.chat.sendMessage(currentChat.value.id, messageData)
+    if (response.code === 0 || response.success) {
       // 添加消息到列表
       messages.value.push(response.data)
       newMessage.value = ''
-      
+
       // 滚动到底部
       await nextTick()
       scrollToBottom()

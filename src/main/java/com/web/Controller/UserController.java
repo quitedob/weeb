@@ -3,7 +3,9 @@ package com.web.Controller;
 import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.model.User;
+import com.web.model.UserWithStats;
 import com.web.service.AuthService;
+import com.web.service.UserStatsService;
 import com.web.vo.user.UpdateUserVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,9 @@ public class UserController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private UserStatsService userStatsService;
 
     /**
      * 获取当前用户信息
@@ -72,5 +77,63 @@ public class UserController {
             updatedUser.setPassword(null);
         }
         return ResponseEntity.ok(ApiResponse.success(updatedUser));
+    }
+
+    /**
+     * 获取用户完整信息（包含统计数据）
+     * @param userId 当前用户ID
+     * @return 用户完整信息
+     */
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<UserWithStats>> getUserProfile(@Userid Long userId) {
+        UserWithStats userWithStats = authService.getUserWithStats(userId);
+        if (userWithStats != null && userWithStats.getUser() != null) {
+            userWithStats.getUser().setPassword(null); // 安全起见，不返回密码
+        }
+        return ResponseEntity.ok(ApiResponse.success(userWithStats));
+    }
+
+    /**
+     * 获取指定用户的完整信息（包含统计数据）
+     * @param userId 目标用户ID
+     * @return 用户完整信息
+     */
+    @GetMapping("/{userId}/profile")
+    public ResponseEntity<ApiResponse<UserWithStats>> getUserProfileById(@PathVariable Long userId) {
+        UserWithStats userWithStats = authService.getUserWithStats(userId);
+        if (userWithStats != null && userWithStats.getUser() != null) {
+            userWithStats.getUser().setPassword(null); // 安全起见，不返回密码
+        }
+        return ResponseEntity.ok(ApiResponse.success(userWithStats));
+    }
+
+    /**
+     * 增加用户粉丝数（用于关注操作）
+     * @param userId 目标用户ID
+     * @return 操作结果
+     */
+    @PostMapping("/{userId}/follow")
+    public ResponseEntity<ApiResponse<String>> followUser(@PathVariable Long userId) {
+        boolean success = userStatsService.incrementFansCount(userId);
+        if (success) {
+            return ResponseEntity.ok(ApiResponse.success("关注成功"));
+        } else {
+            return ResponseEntity.badRequest().body(ApiResponse.error("关注失败"));
+        }
+    }
+
+    /**
+     * 减少用户粉丝数（用于取消关注操作）
+     * @param userId 目标用户ID
+     * @return 操作结果
+     */
+    @PostMapping("/{userId}/unfollow")
+    public ResponseEntity<ApiResponse<String>> unfollowUser(@PathVariable Long userId) {
+        boolean success = userStatsService.decrementFansCount(userId);
+        if (success) {
+            return ResponseEntity.ok(ApiResponse.success("取消关注成功"));
+        } else {
+            return ResponseEntity.badRequest().body(ApiResponse.error("取消关注失败"));
+        }
     }
 }
