@@ -1,0 +1,13 @@
+Controller (控制器层) 
+作用：接收前端HTTP请求，验证基本参数，然后调用Service层处理业务。
+数据交换：通常使用VO (View Object) 或 DTO (Data Transfer Object) 对象来接收和返回JSON数据。例如，GroupController使用GroupCreateVo来接收创建群组的请求数据 。
+Service (业务逻辑接口) 
+作用：定义业务逻辑的契约。它只声明方法，不关心具体实现。这使得系统可以轻松地切换不同的实现（例如，从本地存储切换到云存储）。
+ServiceImpl (业务逻辑实现层) 
+作用：Service接口的具体实现。这里包含了核心的业务处理逻辑，它会调用一个或多个Mapper来与数据库交互，并处理事务。
+Mapper (数据访问接口) 
+作用：定义与数据库交互的方法，如增删改查。它是一个Java接口。
+Mapper.xml (SQL映射文件) 
+作用：Mapper接口中方法的SQL实现。MyBatis框架会将接口方法与XML中的SQL语句绑定起来。
+Database (数据库)
+作用：数据的最终存储地，在这里是MySQL。

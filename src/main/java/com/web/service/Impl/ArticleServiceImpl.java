@@ -1,4 +1,4 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
 import com.web.mapper.ArticleMapper;
 import com.web.model.Article;

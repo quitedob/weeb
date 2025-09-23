@@ -1,4 +1,4 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
 import com.web.mapper.FileMapper;
 import com.web.model.FileTransfer;

@@ -1,4 +1,4 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper; // Added for QueryWrapper usage in leaveGroup
 import com.web.constant.ChatListType;
