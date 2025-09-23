@@ -1,4 +1,4 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
 import cn.hutool.json.JSONUtil;
 import com.web.Config.RedisConfig;
