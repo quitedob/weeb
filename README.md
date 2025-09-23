@@ -147,6 +147,8 @@ WEEB 是一个现代化的即时通信与内容管理系统，专为团队协作
 
 如果需要手动配置，请按照以下步骤：
 
+**注意**：系统会自动创建测试账号，无需手动创建。
+
 1. **启动 MySQL 服务**
    ```bash
    # 确保 MySQL 服务正在运行
@@ -162,6 +164,9 @@ WEEB 是一个现代化的即时通信与内容管理系统，专为团队协作
    export MYSQL_DATABASE=weeb
    export MYSQL_USERNAME=root
    export MYSQL_PASSWORD=your_password
+
+   # Elasticsearch配置（可选，已默认配置为HTTP模式）
+   export ES_URIS=http://localhost:9200
    ```
 
 3. **启动后端服务**
@@ -188,11 +193,11 @@ WEEB 是一个现代化的即时通信与内容管理系统，专为团队协作
 
 ### 📝 默认账号
 
-系统启动后会自动创建测试账号：
+系统启动时会自动初始化数据库并创建测试账号：
 - **管理员**: admin / admin123
 - **普通用户**: user1 / user123
 
-> 💡 **提示**: 如果启动过程中遇到数据库连接问题，请确保 MySQL 服务正在运行，并且数据库连接参数正确。
+> 💡 **提示**: 数据库初始化脚本位于 `src/main/resources/sql/init_database.sql`，包含完整的表结构和测试数据。启动过程中如果遇到数据库连接问题，请确保 MySQL 服务正在运行。
 
 ---
 
@@ -686,20 +691,31 @@ A: 开发环境输出到控制台，生产环境保存在logs/weeb-prod.log。
 A: 设置环境变量 `DEBUG=true` 或在IDE中启用调试模式。
 
 **Q: Elasticsearch搜索功能状态？**
-A: 已配置并启用。Elasticsearch 9.1.3正在172.18.48.1:9200，Redis 3.2.100正在6379端口。
+A: 已配置并启用。Elasticsearch 8.x 正在 localhost:9200，Redis 3.2.100 正在 6379 端口。
 
 **Q: 如何配置Elasticsearch连接？**
-A: 1. 先运行连接测试：`test-es-connection.bat` (Windows) 或 `./test-es-connection.sh` (Linux/Mac)
-2. 选择以下方案之一：
+A: 应用已配置为使用 HTTP 连接模式，无需额外的安全配置。
 
-   - 方案A（推荐）：获取ES的http_ca.crt证书，配置HTTPS连接
+   1. **禁用 ES 安全认证**（重要）：
+      - 找到 Elasticsearch 配置文件 `elasticsearch.yml`
+      - 添加或修改以下配置：
+        ```yaml
+        xpack.security.enabled: false
+        ```
+      - 重启 Elasticsearch 服务
 
-   - 方案B（临时）：修改ES配置禁用TLS，使用HTTP连接
+   2. **安装 IK 中文分词器**（可选，用于中文搜索优化）：
+      - 下载 IK 分词器插件：https://github.com/medcl/elasticsearch-analysis-ik/releases
+      - 安装命令（Windows）：
+        ```bash
+        .\bin\elasticsearch-plugin.bat install file:///D:/path/to/elasticsearch-analysis-ik-8.18.6.zip
+        ```
+      - 重启 Elasticsearch 服务
 
    详见 `src/main/resources/es/README.md`
 
 **Q: 如何使用搜索功能？**
-A: 使用API `/api/search/messages?q=关键词` 进行消息搜索，支持中文分词。
+A: 使用API `/api/search/messages?q=关键词` 进行消息搜索。支持中文分词搜索。
 
 **Q: 如果搜索服务停止会怎样？**
 A: 不会影响核心聊天功能，应用会继续正常运行，只是搜索功能暂时不可用。
@@ -724,7 +740,7 @@ cd weeb
 cp env-example.txt .env
 
 # 编辑 .env 文件，设置你的实际值
-# 特别注意：设置 ES_PASSWORD 为你的Elasticsearch密码
+# 注意：Elasticsearch 已配置为 HTTP 模式，无需设置密码
 ```
 
 4. **一键启动**

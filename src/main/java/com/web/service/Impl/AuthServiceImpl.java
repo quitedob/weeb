@@ -8,6 +8,8 @@ import com.web.model.User;
 import com.web.service.AuthService;
 import com.web.service.ChatListService;
 import com.web.service.WebSocketService;
+import com.web.service.UserStatsService;
+import com.web.service.UserService;
 import com.web.util.CacheUtil;
 import com.web.util.JwtUtil;
 import com.web.mapper.UserMapper; // Import UserMapper
@@ -53,6 +55,12 @@ public class AuthServiceImpl implements AuthService {
     private UserMapper userMapper;
 
     @Autowired
+    private UserStatsService userStatsService;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
     private JwtUtil jwtUtil; // JWT 工具类，用于生成和解析 Token
 
     @Autowired
@@ -90,6 +98,9 @@ public class AuthServiceImpl implements AuthService {
         user.setType("user");
 
         authMapper.insertUser(user);
+        
+        // 为新用户创建统计数据记录
+        userStatsService.createStatsForUser(user.getId());
     }
     /**
      * 用户登录，返回JWT令牌
@@ -319,5 +330,11 @@ public class AuthServiceImpl implements AuthService {
 
         userMapper.updateById(user);
         return user;
+    }
+
+    @Override
+    public com.web.model.UserWithStats getUserWithStats(Long userId) {
+        // 使用新的UserService来获取用户完整信息，它使用JOIN查询
+        return userService.getUserProfile(userId);
     }
 }

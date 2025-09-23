@@ -33,10 +33,10 @@ public class MessageDocument {
     private Long chatListId; // Conversation/ChatList ID
 
     /**
-     * 消息内容，指定分词器以支持中文搜索
+     * 消息内容，使用标准分析器
      * 简化注释：消息内容
      */
-    @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_smart")
+    @Field(type = FieldType.Text)
     private String content; // Actual text content of the message
 
     @Field(type = FieldType.Date)

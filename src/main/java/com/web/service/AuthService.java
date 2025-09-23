@@ -110,4 +110,11 @@ public interface AuthService {
 
     User getUserById(Integer userId);
     User updateUser(Integer userId, com.web.vo.user.UpdateUserVo updateUserVo);
+
+    /**
+     * 获取用户完整信息（包含统计数据）
+     * @param userId 用户ID
+     * @return 用户完整信息
+     */
+    com.web.model.UserWithStats getUserWithStats(Long userId);
 }

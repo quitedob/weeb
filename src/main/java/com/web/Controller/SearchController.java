@@ -1,5 +1,6 @@
 package com.web.Controller;
 
+import com.web.common.ApiResponse;
 import com.web.model.elasticsearch.MessageDocument; // 引入ES文档模型
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired; // 注入
@@ -10,6 +11,7 @@ import org.springframework.data.elasticsearch.core.SearchHit; // 命中
 import org.springframework.data.elasticsearch.core.SearchHits; // 命中集合
 import org.springframework.data.elasticsearch.core.query.Criteria; // 条件
 import org.springframework.data.elasticsearch.core.query.CriteriaQuery; // 条件查询
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*; // 控制器注解
 
 import java.util.HashMap; // Map实现
@@ -43,8 +45,7 @@ public class SearchController {
      * @return data: { list, total }
      */
     @GetMapping("/messages")
-    @ResponseBody
-    public Map<String, Object> searchMessages(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchMessages(
             @RequestParam("q") String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -52,14 +53,11 @@ public class SearchController {
         // 检查Elasticsearch是否可用
         if (elasticsearchOperations == null) {
             log.warn("Elasticsearch is disabled, cannot perform message search");
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "搜索功能已禁用，请联系管理员启用Elasticsearch服务");
             Map<String, Object> data = new HashMap<>();
             data.put("list", java.util.Collections.emptyList());
             data.put("total", 0);
-            result.put("data", data);
-            return result;
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "搜索功能已禁用，请联系管理员启用Elasticsearch服务", data));
         }
 
         try {
@@ -76,20 +74,14 @@ public class SearchController {
             data.put("list", list); // 结果列表
             data.put("total", hits.getTotalHits()); // 总条数
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", true); // 成功标志
-            result.put("data", data); // 数据
-            return result; // 返回
+            return ResponseEntity.ok(ApiResponse.success(data)); // 返回
         } catch (Exception e) {
             log.error("搜索消息失败: {}", e.getMessage(), e);
-            Map<String, Object> result = new HashMap<>();
-            result.put("success", false);
-            result.put("message", "搜索服务暂时不可用");
             Map<String, Object> data = new HashMap<>();
             data.put("list", java.util.Collections.emptyList());
             data.put("total", 0);
-            result.put("data", data);
-            return result;
+            return ResponseEntity.status(500)
+                .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "搜索服务暂时不可用", data));
         }
     }
 
@@ -97,17 +89,12 @@ public class SearchController {
      * 占位：搜索群组（待完善为真实实现）
      */
     @GetMapping("/group")
-    @ResponseBody
-    public Map<String, Object> searchGroups(@RequestParam("keyword") String keyword,
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchGroups(@RequestParam("keyword") String keyword,
                                             @RequestParam(defaultValue = "0") int page,
                                             @RequestParam(defaultValue = "10") int size) {
         Map<String, Object> data = new HashMap<>();
         data.put("list", java.util.Collections.emptyList());
         data.put("total", 0);
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", true);
-        result.put("data", data);
-        result.put("message", "占位实现：待后端完成群组搜索逻辑");
-        return result;
+        return ResponseEntity.ok(ApiResponse.success("占位实现：待后端完成群组搜索逻辑", data));
     }
 }

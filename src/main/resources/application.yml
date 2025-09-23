@@ -44,14 +44,11 @@ spring:
           min-idle: 0
           max-wait: -1ms
 
-  # Elasticsearch配置（强制使用HTTPS + SSL证书）
+  # Elasticsearch配置（HTTP模式，无需认证）
   elasticsearch:
-    uris: https://localhost:9200
-    username: elastic
-    password: "123456"
-    restclient:
-      ssl:
-        bundle: es-pem-bundle
+    uris: http://localhost:9200
+    enabled: true
+
 
 weeb:
   password: sun55@kong # 群聊密码
@@ -60,14 +57,6 @@ weeb:
   expires: 7 # 数据过期时间（天）
   upload:
     base-path: uploads # 本地文件上传基础路径
-
-  # SSL Bundle配置（强制使用SSL证书）
-  ssl:
-    bundle:
-      pem:
-        es-pem-bundle:
-          truststore:
-            certificate: classpath:es/http_ca.crt
 
   # 可选：临时关闭 Reactive ES 自动装配，纯用阻塞式客户端即可
   autoconfigure:

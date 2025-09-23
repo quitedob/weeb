@@ -78,4 +78,11 @@ public interface AuthMapper {
 
     // 更新用户的基本信息（username, userEmail, phoneNumber, sex）
     int updateAuth(User user);
+
+    /**
+     * 根据用户ID删除用户
+     * @param userId 用户ID
+     * @return 受影响行数
+     */
+    int deleteByUserId(@Param("userId") Long userId);
 }

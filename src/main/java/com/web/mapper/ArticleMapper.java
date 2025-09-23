@@ -78,11 +78,11 @@ public interface ArticleMapper {
     int increaseReadCount(@Param("id") Long id);
 
     /**
-     * 获取用户相关信息（例如粉丝数、点赞总数等）
+     * 获取用户统计信息（例如粉丝数、点赞总数等）
      * @param userId 用户 ID
-     * @return 包含用户信息的 Map
+     * @return 包含用户统计信息的 Map
      */
-    Map<String, Object> selectUserInformation(@Param("userId") Long userId);
+    Map<String, Object> selectUserStatsInformation(@Param("userId") Long userId);
 
     /**
      * 获取指定用户 ID 文章聚合统计数据（如：总点赞、总收藏、总曝光等）
@@ -92,11 +92,11 @@ public interface ArticleMapper {
     Map<String, Object> selectAggregatedStatsByUserId(@Param("userId") Long userId);
 
     /**
-     * 更新 auth 表中的文章统计数据
+     * 更新 user_stats 表中的文章统计数据
      * @param stats 统计信息 Map
      * @return 影响的行数
      */
-    int updateAuthArticleStats(Map<String, Object> stats);
+    int updateUserStatsArticleStats(Map<String, Object> stats);
 
     /**
      * 根据用户 ID 获取该用户的所有文章
@@ -113,12 +113,12 @@ public interface ArticleMapper {
     int deleteArticleById(@Param("id") Long id);
 
     /**
-     * 更新指定用户的 auth 表的文章统计数据
-     * 根据该用户在 articles 表中的所有文章累加的 likes_count, favorites_count, sponsors_count, exposure_count 来更新 auth 表
+     * 更新指定用户的 user_stats 表的文章统计数据
+     * 根据该用户在 articles 表中的所有文章累加的 likes_count, favorites_count, sponsors_count, exposure_count 来更新 user_stats 表
      * @param userId 用户 ID
      * @return 影响的行数
      */
-    int updateAuthTotals(@Param("userId") Long userId);
+    int updateUserStatsTotals(@Param("userId") Long userId);
 
     /**
      * 分页获取所有文章
