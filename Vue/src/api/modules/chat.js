@@ -1,7 +1,7 @@
 // /Vue/src/api/modules/chat.js
 // 简短描述：聊天相关后端接口封装
 
-import instance from '../axiosInstance';
+import { instance } from '../axiosInstance';
 
 // 获取会话列表
 export function getChatList(params) {

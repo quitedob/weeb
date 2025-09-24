@@ -142,3 +142,6 @@ instance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// 默认导出 axios 实例
+export default instance;

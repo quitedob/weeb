@@ -8,6 +8,12 @@ export default {
     return instance.get('/api/group/my-list');
   },
 
+  // getUserOwnedGroups gets groups where user is owner
+  getUserOwnedGroups() {
+    // 后端真实路径为 /api/group/owned
+    return instance.get('/api/group/owned');
+  },
+
   // createGroup was used in Groups.vue. Backend GroupController @PostMapping("/create")
   // The user's api/index.js example for createGroup was instance.post('/group/create', data)
   // However, GroupController's @RequestMapping is /api/group, and create is @PostMapping("/create")
@@ -71,6 +77,11 @@ export default {
   // This implies GroupController should have a @DeleteMapping("/{groupId}")
   disbandGroup(groupId) {
     return instance.delete(`/api/group/${groupId}`);
+  },
+
+  // applyToJoinGroup - new functionality for applying to join a group
+  applyToJoinGroup(data) {
+    return instance.post('/api/group/apply', data);
   }
 
   // searchGroups is handled by search.js module as per user's overall api/index.js structure.

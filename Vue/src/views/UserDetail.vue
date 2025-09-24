@@ -1,542 +1,513 @@
 <template>
   <div class="user-detail-container">
-    <div class="user-detail-card apple-card">
-      <!-- 用户头像和基本信息 -->
-      <div class="user-header">
-        <div class="avatar-section">
-          <div class="avatar-wrapper">
-            <img 
-              :src="userInfo.avatar || 'https://via.placeholder.com/100x100/cccccc/666666?text=用户'" 
-              :alt="userInfo.username"
-              class="user-avatar"
-              @error="handleAvatarError"
-            />
-            <div class="online-status" :class="{ online: isOnline }"></div>
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-container">
+      <el-skeleton :rows="8" animated />
+    </div>
+
+    <!-- 错误状态 -->
+    <div v-else-if="error" class="error-container">
+      <el-alert :title="error" type="error" :closable="false">
+        <template #default>
+          <p>{{ error }}</p>
+          <el-button @click="loadUserData" type="primary" size="small">重试</el-button>
+        </template>
+      </el-alert>
+    </div>
+
+    <!-- 用户信息 -->
+    <div v-else-if="userProfile" class="user-profile">
+      <!-- 用户基本信息卡片 -->
+      <el-card class="user-info-card">
+        <div class="user-header">
+          <div class="avatar-section">
+            <el-avatar 
+              :size="120" 
+              :src="userProfile.user?.avatar" 
+              :alt="userProfile.user?.username"
+            >
+              <img src="https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png" />
+            </el-avatar>
           </div>
+          
+          <div class="user-basic-info">
+            <h2 class="username">{{ userProfile.user?.username || '未知用户' }}</h2>
+            <p class="nickname" v-if="userProfile.user?.nickname">
+              {{ userProfile.user.nickname }}
+            </p>
+            <p class="bio" v-if="userProfile.user?.bio">
+              {{ userProfile.user.bio }}
+            </p>
+            <div class="user-meta">
+              <el-tag v-if="userProfile.user?.type" :type="getUserTypeTagType(userProfile.user.type)">
+                {{ getUserTypeText(userProfile.user.type) }}
+              </el-tag>
+              <span class="join-date" v-if="userProfile.user?.registrationDate">
+                加入时间：{{ formatDate(userProfile.user.registrationDate) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="user-actions" v-if="!isCurrentUser">
+            <el-button 
+              type="primary" 
+              @click="toggleFollow"
+              :loading="followLoading"
+            >
+              {{ isFollowing ? '取消关注' : '关注' }}
+            </el-button>
+            <el-button @click="sendMessage">发消息</el-button>
+          </div>
+        </div>
+      </el-card>
+
+      <!-- 用户统计信息 -->
+      <el-card class="stats-card" v-if="userProfile.userStats">
+        <template #header>
+          <span>用户统计</span>
+        </template>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-number">{{ userProfile.userStats.fansCount || 0 }}</div>
+            <div class="stat-label">粉丝</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ userProfile.userStats.totalLikes || 0 }}</div>
+            <div class="stat-label">获赞</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ userProfile.userStats.totalFavorites || 0 }}</div>
+            <div class="stat-label">收藏</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ userProfile.userStats.totalArticleExposure || 0 }}</div>
+            <div class="stat-label">阅读</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ userProfile.userStats.websiteCoins || 0 }}</div>
+            <div class="stat-label">金币</div>
+          </div>
+        </div>
+      </el-card>
+
+      <!-- 用户文章列表 -->
+      <el-card class="articles-card">
+        <template #header>
+          <div class="card-header">
+            <span>发布的文章</span>
+            <el-button @click="refreshArticles" :loading="articlesLoading" size="small">
+              刷新
+            </el-button>
+          </div>
+        </template>
+        
+        <div v-if="articlesLoading" class="articles-loading">
+          <el-skeleton :rows="3" animated />
         </div>
         
-        <div class="user-info">
-          <h1 class="username">{{ userInfo.username || '加载中...' }}</h1>
-          <p class="user-id">ID: {{ userId }}</p>
-          <div class="user-badges" v-if="userInfo.badges && userInfo.badges.length">
-            <span 
-              v-for="badge in userInfo.badges" 
-              :key="badge.id"
-              class="badge"
-              :class="badge.type"
-            >
-              {{ badge.name }}
-            </span>
-          </div>
+        <div v-else-if="articles.length === 0" class="no-articles">
+          <el-empty description="暂无发布的文章" />
         </div>
-      </div>
-
-      <!-- 用户详细信息 -->
-      <div class="user-details">
-        <div class="detail-section">
-          <h3 class="section-title">基本信息</h3>
-          <div class="detail-grid">
-            <div class="detail-item">
-              <span class="label">用户名</span>
-              <span class="value">{{ userInfo.username || '未知' }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">邮箱</span>
-              <span class="value">{{ userInfo.userEmail || '未设置' }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">手机号</span>
-              <span class="value">{{ userInfo.phoneNumber || '未设置' }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">性别</span>
-              <span class="value">{{ formatGender(userInfo.sex) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">注册时间</span>
-              <span class="value">{{ formatDate(userInfo.registrationDate) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">用户类型</span>
-              <span class="value">{{ formatUserType(userInfo.type) }}</span>
+        
+        <div v-else class="articles-list">
+          <div 
+            v-for="article in articles" 
+            :key="article.id" 
+            class="article-item"
+            @click="viewArticle(article.id)"
+          >
+            <h4 class="article-title">{{ article.articleTitle }}</h4>
+            <div class="article-meta">
+              <span class="article-stats">
+                <el-icon><View /></el-icon>
+                {{ article.exposureCount || 0 }}
+              </span>
+              <span class="article-stats">
+                <el-icon><Star /></el-icon>
+                {{ article.likesCount || 0 }}
+              </span>
+              <span class="article-date">
+                {{ formatDate(article.updatedAt || article.createdAt) }}
+              </span>
             </div>
           </div>
         </div>
-
-        <!-- 操作按钮 -->
-        <div class="action-section">
-          <h3 class="section-title">操作</h3>
-          <div class="action-buttons">
-            <button 
-              class="apple-button apple-button-primary"
-              @click="startChat"
-              :disabled="!canChat"
-            >
-              <span class="button-icon">💬</span>
-              发送消息
-            </button>
-            
-            <button 
-              class="apple-button apple-button-secondary"
-              @click="addContact"
-              :disabled="isContact || isCurrentUser"
-            >
-              <span class="button-icon">👥</span>
-              {{ isContact ? '已是联系人' : '添加联系人' }}
-            </button>
-            
-            <button 
-              v-if="!isCurrentUser"
-              class="apple-button apple-button-outline"
-              @click="viewProfile"
-            >
-              <span class="button-icon">👁️</span>
-              查看资料
-            </button>
-          </div>
-        </div>
-
-        <!-- 统计信息 -->
-        <div class="stats-section" v-if="userStats">
-          <h3 class="section-title">统计信息</h3>
-          <div class="stats-grid">
-            <div class="stat-item">
-              <div class="stat-number">{{ userStats.messageCount || 0 }}</div>
-              <div class="stat-label">消息数</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-number">{{ userStats.onlineTime || 0 }}</div>
-              <div class="stat-label">在线时长(小时)</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-number">{{ userStats.lastSeen || '未知' }}</div>
-              <div class="stat-label">最后在线</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading-overlay">
-      <div class="apple-loading"></div>
-      <p>加载中...</p>
-    </div>
-
-    <!-- 错误提示 -->
-    <div v-if="error" class="error-message apple-slide-in">
-      <div class="error-icon">⚠️</div>
-      <span>{{ error }}</span>
+      </el-card>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/authStore'
-import { ElMessage } from 'element-plus'
-import api from '@/api'
+import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/authStore';
+import { ElMessage } from 'element-plus';
+import { View, Star } from '@element-plus/icons-vue';
+import userApi from '@/api/modules/user';
+import { getArticlesByUserId } from '@/api/modules/article';
 
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
 
-// 响应式数据
-const loading = ref(true)
-const error = ref('')
-const userInfo = ref({})
-const userStats = ref(null)
-const isOnline = ref(false)
-const isContact = ref(false)
+const loading = ref(true);
+const error = ref('');
+const userProfile = ref(null);
+const articles = ref([]);
+const articlesLoading = ref(false);
+const followLoading = ref(false);
+const isFollowing = ref(false);
 
-// 计算属性
-const userId = computed(() => route.params.userId)
-const isCurrentUser = computed(() => userId.value == authStore.currentUser?.id)
+// 获取路由参数中的用户ID
+const userId = computed(() => route.params.userId);
 
-const canChat = computed(() => {
-  return !isCurrentUser.value && userInfo.value.id
-})
+// 判断是否是当前用户
+const isCurrentUser = computed(() => {
+  return authStore.currentUser && 
+         authStore.currentUser.id && 
+         authStore.currentUser.id.toString() === userId.value;
+});
 
-// 方法
-const fetchUserInfo = async () => {
+// 加载用户数据
+const loadUserData = async () => {
+  if (!userId.value) {
+    error.value = '用户ID无效';
+    loading.value = false;
+    return;
+  }
+
+  loading.value = true;
+  error.value = '';
+
   try {
-    loading.value = true
-    error.value = ''
-    
-    // 获取用户基本信息
-    const response = await api.user.getUserInfoById(userId.value)
-    if (response.code === 0 && response.data) {
-      userInfo.value = response.data
-    } else {
-      throw new Error(response.message || '获取用户信息失败')
-    }
-    
-    // 获取用户统计信息
-    try {
-      const statsResponse = await api.user.getUserStats(userId.value)
-      if (statsResponse.code === 0) {
-        userStats.value = statsResponse.data
+    // 获取用户完整信息（包含统计数据）
+    const response = await userApi.getUserInfoById(userId.value);
+    if (response.code === 200 && response.data) {
+      userProfile.value = response.data;
+      // 如果返回的是User对象而不是UserWithStats，需要适配
+      if (!userProfile.value.user && userProfile.value.username) {
+        userProfile.value = {
+          user: response.data,
+          userStats: null
+        };
       }
-    } catch (e) {
-      console.warn('获取用户统计信息失败:', e)
-    }
-    
-    // 检查是否在线
-    checkOnlineStatus()
-    
-    // 检查是否已是联系人
-    checkContactStatus()
-    
-  } catch (err) {
-    console.error('获取用户信息失败:', err)
-    error.value = err.message || '获取用户信息失败'
-    ElMessage.error(error.value)
-  } finally {
-    loading.value = false
-  }
-}
-
-const checkOnlineStatus = async () => {
-  try {
-    const onlineUsers = await api.auth.getOnlineUsers()
-    if (onlineUsers.code === 0 && onlineUsers.data) {
-      isOnline.value = onlineUsers.data.includes(userId.value.toString())
-    }
-  } catch (e) {
-    console.warn('检查在线状态失败:', e)
-  }
-}
-
-const checkContactStatus = async () => {
-  try {
-    const contacts = await api.contact.getContacts()
-    if (contacts.code === 0 && contacts.data) {
-      isContact.value = contacts.data.some(contact => contact.id == userId.value)
-    }
-  } catch (e) {
-    console.warn('检查联系人状态失败:', e)
-  }
-}
-
-const startChat = () => {
-  if (!canChat.value) return
-  
-  router.push({
-    name: 'SpecificChat',
-    params: { type: 'private', id: userId.value }
-  })
-}
-
-const addContact = async () => {
-  try {
-    const response = await api.contact.apply({
-      friendId: userId.value,
-      remarks: `来自用户详情页的申请`
-    })
-    
-    if (response.code === 0) {
-      ElMessage.success('好友申请已发送')
-      isContact.value = true
     } else {
-      throw new Error(response.message || '发送申请失败')
+      error.value = response.message || '获取用户信息失败';
     }
   } catch (err) {
-    console.error('发送好友申请失败:', err)
-    ElMessage.error(err.message || '发送申请失败')
+    console.error('获取用户信息失败:', err);
+    error.value = '获取用户信息失败，请稍后重试';
+  } finally {
+    loading.value = false;
   }
-}
 
-const viewProfile = () => {
-  // 可以跳转到更详细的资料页面
-  ElMessage.info('功能开发中...')
-}
-
-const handleAvatarError = (e) => {
-  e.target.src = 'https://via.placeholder.com/100x100/cccccc/666666?text=用户'
-}
-
-const formatGender = (sex) => {
-  if (sex === 1) return '男'
-  if (sex === 0) return '女'
-  return '未知'
-}
-
-const formatUserType = (type) => {
-  const typeMap = {
-    'user': '普通用户',
-    'admin': '管理员',
-    'vip': 'VIP用户'
+  // 加载用户文章
+  if (!error.value) {
+    loadUserArticles();
   }
-  return typeMap[type] || type || '未知'
-}
+};
 
-const formatDate = (date) => {
-  if (!date) return '未知'
-  return new Date(date).toLocaleDateString('zh-CN')
-}
+// 加载用户文章
+const loadUserArticles = async () => {
+  articlesLoading.value = true;
+  try {
+    const response = await getArticlesByUserId(userId.value);
+    if (response.code === 200 && response.data) {
+      articles.value = Array.isArray(response.data) ? response.data : [];
+    } else {
+      console.warn('获取用户文章失败:', response.message);
+      articles.value = [];
+    }
+  } catch (err) {
+    console.error('获取用户文章失败:', err);
+    articles.value = [];
+  } finally {
+    articlesLoading.value = false;
+  }
+};
 
-// 生命周期
+// 刷新文章列表
+const refreshArticles = () => {
+  loadUserArticles();
+};
+
+// 查看文章
+const viewArticle = (articleId) => {
+  router.push({ name: 'ArticleRead', params: { articleId } });
+};
+
+// 切换关注状态
+const toggleFollow = async () => {
+  if (!authStore.currentUser) {
+    ElMessage.warning('请先登录');
+    router.push('/login');
+    return;
+  }
+
+  followLoading.value = true;
+  try {
+    const endpoint = isFollowing.value ? 'unfollow' : 'follow';
+    const response = await fetch(`/api/user/${userId.value}/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authStore.accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const result = await response.json();
+    if (result.code === 200) {
+      isFollowing.value = !isFollowing.value;
+      ElMessage.success(result.message || (isFollowing.value ? '关注成功' : '取消关注成功'));
+      // 更新粉丝数
+      if (userProfile.value.userStats) {
+        userProfile.value.userStats.fansCount += isFollowing.value ? 1 : -1;
+      }
+    } else {
+      ElMessage.error(result.message || '操作失败');
+    }
+  } catch (err) {
+    console.error('关注操作失败:', err);
+    ElMessage.error('操作失败，请稍后重试');
+  } finally {
+    followLoading.value = false;
+  }
+};
+
+// 发送消息
+const sendMessage = () => {
+  if (!authStore.currentUser) {
+    ElMessage.warning('请先登录');
+    router.push('/login');
+    return;
+  }
+  
+  // 跳转到聊天页面
+  router.push({ 
+    name: 'ChatPage', 
+    query: { userId: userId.value } 
+  });
+};
+
+// 获取用户类型标签类型
+const getUserTypeTagType = (type) => {
+  switch (type?.toUpperCase()) {
+    case 'ADMIN':
+      return 'danger';
+    case 'VIP':
+      return 'warning';
+    default:
+      return 'info';
+  }
+};
+
+// 获取用户类型文本
+const getUserTypeText = (type) => {
+  switch (type?.toUpperCase()) {
+    case 'ADMIN':
+      return '管理员';
+    case 'VIP':
+      return 'VIP用户';
+    default:
+      return '普通用户';
+  }
+};
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('zh-CN');
+};
+
 onMounted(() => {
-  if (userId.value) {
-    fetchUserInfo()
-  } else {
-    error.value = '用户ID无效'
-    loading.value = false
-  }
-})
+  loadUserData();
+});
 </script>
 
 <style scoped>
 .user-detail-container {
-  min-height: 100vh;
-  padding: var(--apple-spacing-lg);
-  background: linear-gradient(135deg, var(--apple-blue) 0%, var(--apple-purple) 100%);
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.user-detail-card {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: var(--apple-spacing-xl);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--apple-border-radius-lg);
+.loading-container, .error-container {
+  padding: 40px;
+}
+
+.user-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.user-info-card {
+  margin-bottom: 20px;
 }
 
 .user-header {
   display: flex;
-  align-items: center;
-  gap: var(--apple-spacing-xl);
-  margin-bottom: var(--apple-spacing-xl);
-  padding-bottom: var(--apple-spacing-lg);
-  border-bottom: 1px solid var(--apple-border-color);
+  gap: 30px;
+  align-items: flex-start;
 }
 
 .avatar-section {
-  position: relative;
+  flex-shrink: 0;
 }
 
-.avatar-wrapper {
-  position: relative;
-  width: 120px;
-  height: 120px;
-}
-
-.user-avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid var(--apple-white);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.online-status {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--apple-gray);
-  border: 3px solid var(--apple-white);
-  transition: all 0.3s ease;
-}
-
-.online-status.online {
-  background: var(--apple-green);
-  box-shadow: 0 0 10px var(--apple-green);
-}
-
-.user-info {
+.user-basic-info {
   flex: 1;
 }
 
 .username {
-  font-size: var(--apple-font-title);
-  font-weight: 700;
-  color: var(--apple-text-primary);
-  margin: 0 0 var(--apple-spacing-sm) 0;
+  margin: 0 0 10px 0;
+  color: #303133;
+  font-size: 28px;
+  font-weight: 600;
 }
 
-.user-id {
-  font-size: var(--apple-font-md);
-  color: var(--apple-text-secondary);
-  margin: 0 0 var(--apple-spacing-md) 0;
+.nickname {
+  margin: 0 0 10px 0;
+  color: #606266;
+  font-size: 16px;
 }
 
-.user-badges {
+.bio {
+  margin: 0 0 15px 0;
+  color: #909399;
+  line-height: 1.6;
+}
+
+.user-meta {
   display: flex;
-  gap: var(--apple-spacing-sm);
+  align-items: center;
+  gap: 15px;
   flex-wrap: wrap;
 }
 
-.badge {
-  padding: var(--apple-spacing-xs) var(--apple-spacing-sm);
-  border-radius: var(--apple-border-radius-sm);
-  font-size: var(--apple-font-sm);
-  font-weight: 500;
-  color: var(--apple-white);
-  background: var(--apple-blue);
+.join-date {
+  color: #909399;
+  font-size: 14px;
 }
 
-.badge.crown {
-  background: var(--apple-yellow);
-  color: var(--apple-text-primary);
-}
-
-.badge.diamond {
-  background: linear-gradient(45deg, var(--apple-blue), var(--apple-purple));
-}
-
-.user-details {
+.user-actions {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--apple-spacing-xl);
+  gap: 10px;
 }
 
-.detail-section {
-  background: var(--apple-background-secondary);
-  padding: var(--apple-spacing-lg);
-  border-radius: var(--apple-border-radius-md);
-}
-
-.section-title {
-  font-size: var(--apple-font-lg);
-  font-weight: 600;
-  color: var(--apple-text-primary);
-  margin: 0 0 var(--apple-spacing-md) 0;
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: var(--apple-spacing-md);
-}
-
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--apple-spacing-sm) 0;
-  border-bottom: 1px solid var(--apple-border-color);
-}
-
-.detail-item:last-child {
-  border-bottom: none;
-}
-
-.label {
-  font-weight: 500;
-  color: var(--apple-text-secondary);
-}
-
-.value {
-  color: var(--apple-text-primary);
-  text-align: right;
-}
-
-.action-section {
-  background: var(--apple-background-secondary);
-  padding: var(--apple-spacing-lg);
-  border-radius: var(--apple-border-radius-md);
-}
-
-.action-buttons {
-  display: flex;
-  gap: var(--apple-spacing-md);
-  flex-wrap: wrap;
-}
-
-.button-icon {
-  margin-right: var(--apple-spacing-xs);
-}
-
-.stats-section {
-  background: var(--apple-background-secondary);
-  padding: var(--apple-spacing-lg);
-  border-radius: var(--apple-border-radius-md);
+.stats-card {
+  margin-bottom: 20px;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--apple-spacing-lg);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 20px;
+  text-align: center;
 }
 
 .stat-item {
-  text-align: center;
-  padding: var(--apple-spacing-md);
-  background: var(--apple-white);
-  border-radius: var(--apple-border-radius-sm);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 15px;
+  border-radius: 8px;
+  background: #f8f9fa;
 }
 
 .stat-number {
-  font-size: var(--apple-font-title);
-  font-weight: 700;
-  color: var(--apple-blue);
-  margin-bottom: var(--apple-spacing-xs);
+  font-size: 24px;
+  font-weight: 600;
+  color: #409eff;
+  margin-bottom: 5px;
 }
 
 .stat-label {
-  font-size: var(--apple-font-sm);
-  color: var(--apple-text-secondary);
+  color: #909399;
+  font-size: 14px;
 }
 
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
+.articles-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.articles-loading {
+  padding: 20px;
+}
+
+.no-articles {
+  padding: 40px;
+}
+
+.articles-list {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  gap: 15px;
 }
 
-.error-message {
-  position: fixed;
-  top: var(--apple-spacing-lg);
-  right: var(--apple-spacing-lg);
-  background: var(--apple-red);
-  color: var(--apple-white);
-  padding: var(--apple-spacing-md);
-  border-radius: var(--apple-border-radius-md);
+.article-item {
+  padding: 15px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.article-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+}
+
+.article-title {
+  margin: 0 0 10px 0;
+  color: #303133;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.article-meta {
   display: flex;
   align-items: center;
-  gap: var(--apple-spacing-sm);
-  z-index: 1000;
+  gap: 15px;
+  color: #909399;
+  font-size: 14px;
 }
 
-.error-icon {
-  font-size: var(--apple-font-lg);
+.article-stats {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
+.article-date {
+  margin-left: auto;
+}
+
+/* 响应式设计 */
 @media (max-width: 768px) {
   .user-detail-container {
-    padding: var(--apple-spacing-md);
+    padding: 10px;
   }
   
   .user-header {
     flex-direction: column;
     text-align: center;
+    gap: 20px;
   }
   
-  .action-buttons {
-    flex-direction: column;
-  }
-  
-  .detail-grid {
-    grid-template-columns: 1fr;
+  .user-actions {
+    flex-direction: row;
+    justify-content: center;
   }
   
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .article-meta {
+    flex-wrap: wrap;
   }
 }
 </style>
