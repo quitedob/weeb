@@ -19,6 +19,10 @@ import ArticleMain from '../article/ArticleMain.vue';
 import ArticleRead from '../article/ArticleRead.vue';
 import ArticleWrite from '../article/ArticleWrite.vue';
 import ArticleManage from '../article/ArticleManage.vue';
+import ArticleEdit from '../article/ArticleEdit.vue';
+
+// Import group components
+import GroupPage from '../group/GroupPage.vue';
 
 // Import notification component
 import NotificationListPage from '../views/NotificationListPage.vue';
@@ -39,8 +43,10 @@ const routes = [
       { path: '/article/read/:articleId', name: 'ArticleRead', component: ArticleRead, props: true, meta: { title: '文章详情', requiresAuth: true } },
       { path: '/article/write', name: 'ArticleWrite', component: ArticleWrite, meta: { title: '发布文章', requiresAuth: true } },
       { path: '/article/manage', name: 'ArticleManage', component: ArticleManage, meta: { title: '管理文章', requiresAuth: true } },
+      { path: '/article/edit/:articleId', name: 'ArticleEdit', component: ArticleEdit, props: true, meta: { title: '编辑文章', requiresAuth: true } },
       // Existing Group and Settings routes
       { path: '/groups', name: 'Groups', component: GroupsPage, meta: { title: '群组', requiresAuth: true } },
+      { path: '/groups/manage', name: 'GroupManage', component: GroupPage, meta: { title: '群组管理', requiresAuth: true } },
       { path: '/group/:groupId', name: 'GroupDetail', component: GroupDetail, props: true, meta: { title: '群组详情', requiresAuth: true } },
       { path: '/setting', name: 'Setting', component: SettingPage, meta: { title: '设置', requiresAuth: true } },
       { path: '/search', name: 'Search', component: SearchPage, meta: { title: '搜索', requiresAuth: true } },

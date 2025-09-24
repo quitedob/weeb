@@ -109,9 +109,7 @@ const readArticle = (id) => {
 };
 
 const editArticle = (id) => {
-  // For now, navigate to read, actual edit page can be implemented later
-  router.push({ name: 'ArticleRead', params: { articleId: id } });
-  ElMessage.info('编辑功能待实现，暂时跳转到阅读页面。');
+  router.push({ name: 'ArticleEdit', params: { articleId: id } });
 };
 
 const confirmDelete = (id) => {

@@ -5,20 +5,26 @@ export default {
   /**
    * Search for public groups.
    * @param {string} keyword - The search keyword.
+   * @param {number} page - Page number (default: 0)
+   * @param {number} size - Page size (default: 10)
    * @returns {Promise} Axios promise
    */
-  searchGroups(keyword) {
-    // 后端暂未实现，先调用占位路径，后续后端实现 /api/search/group
-    return instance.get('/api/search/group', { params: { keyword } });
+  searchGroups(keyword, page = 0, size = 10) {
+    return instance.get('/api/search/group', { 
+      params: { keyword, page, size } 
+    });
   },
 
   /**
-   * Search for users (e.g., for inviting to a group).
+   * Search for users.
    * @param {string} keyword - The search keyword.
+   * @param {number} page - Page number (default: 0)
+   * @param {number} size - Page size (default: 10)
    * @returns {Promise} Axios promise
    */
-  searchUsers(keyword) {
-    // 与消息搜索保持一致的 /api 前缀
-    return instance.get('/api/search/users', { params: { keyword } });
+  searchUsers(keyword, page = 0, size = 10) {
+    return instance.get('/api/search/users', { 
+      params: { keyword, page, size } 
+    });
   }
 };

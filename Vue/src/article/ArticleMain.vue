@@ -3,6 +3,7 @@
     <div class="actions">
       <el-button type="primary" @click="goToWriteArticle">发布文章</el-button>
       <el-button @click="goToManageArticles">管理我的文章</el-button>
+      <el-button type="info" @click="refreshArticles">刷新列表</el-button>
     </div>
     <el-card class="article-list-card">
       <template #header>
@@ -75,6 +76,11 @@ onMounted(fetchArticles);
 
 const handlePageChange = (newPage) => {
   pagination.page = newPage;
+  fetchArticles();
+};
+
+const refreshArticles = () => {
+  pagination.page = 1;
   fetchArticles();
 };
 

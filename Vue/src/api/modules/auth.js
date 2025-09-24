@@ -19,12 +19,12 @@ export default {
   
   // 获取用户信息 - 修复路径匹配
   getUserInfo() {
-    return instance.get('/api/user/info');
+    return instance.get('/user/info');
   },
 
   // 更新用户信息
   updateUserInfo(data) {
-    return instance.put('/api/user/info', data);
+    return instance.put('/user/info', data);
   },
   
   // 获取验证码

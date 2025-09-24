@@ -75,3 +75,18 @@ export const getUserInformation = (userId) => {
 export const getUserInfoByUsername = (username) => {
     return request.get(`/articles/userinform-by-username?username=${username}`);
 };
+
+// 默认导出所有API方法
+export default {
+    getAllArticles,
+    getArticleById,
+    createArticle,
+    updateArticle,
+    deleteArticle,
+    getArticlesByUserId,
+    likeArticle,
+    increaseReadCount,
+    addCoinToArticle,
+    getUserInformation,
+    getUserInfoByUsername
+};

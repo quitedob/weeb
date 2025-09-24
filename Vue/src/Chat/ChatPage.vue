@@ -531,7 +531,7 @@ async function getOnlineUsers() {
 
 /**
  * 获取聊天记录接口
- * 调用后端 /api/v1/message/record 接口获取当前聊天对象的消息记录
+ * 调用后端 /api/messages/record 接口获取当前聊天对象的消息记录
  */
 async function fetchChatRecord() {
   try {
@@ -540,10 +540,10 @@ async function fetchChatRecord() {
       index: 0,
       num: 50
     }
-  const res = await instance.post('/api/v1/message/record', payload)
-  if (res.code === 0) {
-    msgRecord.value = res.data || []
-  }
+    const res = await instance.post('/api/messages/record', payload)
+    if (res.code === 0) {
+      msgRecord.value = res.data || []
+    }
   } catch (error) {
     console.error("获取聊天记录出错:", error)
   }
@@ -551,25 +551,27 @@ async function fetchChatRecord() {
 
 /**
  * 发送消息接口
- * 使用 axios 发送 POST 请求至后端 /api/v1/message/send 接口，
- * 请求体中封装 msgContent（已转换为 JSON 格式的消息数组）及 msgType。
+ * 使用 axios 发送 POST 请求至后端 /api/messages/send 接口，
+ * 请求体中封装消息内容及类型。
  * 后端返回成功后，将返回的消息对象添加到消息记录中。
  */
 async function handlerSubmitMsg() {
   if (!msgContent.value.trim()) return
   isSendLoading.value = true
   try {
-    // 构造请求体，将输入的文本内容封装为 JSON 格式
-    const payload = {
-      msgContent: JSON.stringify([{ type: "text", content: msgContent.value }]),
-      msgType: "text"
+    // 构造消息对象
+    const messageData = {
+      receiverId: targetId.value === '1' ? null : targetId.value,
+      groupId: targetId.value === '1' ? 1 : null,
+      content: msgContent.value,
+      messageType: 1  // 文本消息
     }
-  const response = await instance.post('/api/v1/message/send', payload)
-  if (response.code === 0 && response.data) {
-    msgRecord.value.push(response.data)
-  } else {
-    alert(response.message || "发送消息失败！")
-  }
+    const response = await instance.post('/api/messages/send', messageData)
+    if (response.code === 0 && response.data) {
+      msgRecord.value.push(response.data)
+    } else {
+      alert(response.message || "发送消息失败！")
+    }
   } catch (error) {
     console.error("发送消息出错:", error)
     alert("发送消息出错，请稍后再试！")
@@ -582,20 +584,20 @@ async function handlerSubmitMsg() {
 
 /**
  * 撤回消息接口
- * 调用后端 /api/v1/message/recall 接口撤回指定消息
+ * 调用后端 /api/messages/recall 接口撤回指定消息
  */
 async function recallMessage(msgId) {
   try {
     const payload = { msgId: msgId }
-  const res = await instance.post('/api/v1/message/recall', payload)
-  if (res.code === 0 && res.data) {
-    const updatedMsg = res.data
+    const res = await instance.post('/api/messages/recall', payload)
+    if (res.code === 0 && res.data) {
+      const updatedMsg = res.data
       const idx = msgRecord.value.findIndex(m => m.id === msgId)
       if (idx !== -1) {
         msgRecord.value[idx] = updatedMsg
       }
     } else {
-    alert(res.message || "撤回消息失败")
+      alert(res.message || "撤回消息失败")
     }
   } catch (error) {
     console.error("撤回消息出错:", error)

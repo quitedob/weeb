@@ -2,9 +2,14 @@
   <div class="groups-container">
     <div class="page-header">
       <h1>我的群组</h1>
-      <el-button type="primary" @click="openCreateGroupDialog">
-        <el-icon><Plus /></el-icon> 创建群组
-      </el-button>
+      <div class="header-actions">
+        <el-button @click="goToGroupManage">
+          <el-icon><Setting /></el-icon> 管理群组
+        </el-button>
+        <el-button type="primary" @click="openCreateGroupDialog">
+          <el-icon><Plus /></el-icon> 创建群组
+        </el-button>
+      </div>
     </div>
 
     <el-tabs v-model="activeTab" class="group-tabs">
@@ -109,7 +114,7 @@ import { ref, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api';
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
-import { Plus, Search } from '@element-plus/icons-vue';
+import { Plus, Search, Setting } from '@element-plus/icons-vue';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore'; // Added
 
@@ -194,6 +199,10 @@ const searchPublicGroups = async () => {
 
 const openCreateGroupDialog = () => {
   createGroupDialogVisible.value = true;
+};
+
+const goToGroupManage = () => {
+  router.push({ name: 'GroupManage' });
 };
 
 const resetCreateGroupForm = () => {
@@ -308,6 +317,11 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .page-header h1 {
