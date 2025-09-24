@@ -3,8 +3,9 @@ package com.web.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.web.model.Contact;
 import org.apache.ibatis.annotations.Mapper;
-// No custom methods defined in this initial step.
-// ServiceImpl will use QueryWrapper or custom methods can be added here later if needed.
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 /**
  * 联系人（好友）关系 Mapper 接口
@@ -12,21 +13,53 @@ import org.apache.ibatis.annotations.Mapper;
  */
 @Mapper
 public interface ContactMapper extends BaseMapper<Contact> {
-    // Example of potential custom methods (can be added later):
-    /*
-    default Contact findExistingContact(Long userId, Long friendId) {
-        return selectOne(new QueryWrapper<Contact>()
-            .and(wrapper -> wrapper.eq("user_id", userId).eq("friend_id", friendId))
-            .or(wrapper -> wrapper.eq("user_id", friendId).eq("friend_id", userId))
-        );
-    }
 
-    default Contact findPendingContactByIdAndReceiver(Long contactId, Long receiverId) {
-        return selectOne(new QueryWrapper<Contact>()
-            .eq("id", contactId)
-            .eq("friend_id", receiverId) // The one who needs to accept
-            .eq("status", com.web.constant.ContactStatus.PENDING.getCode())
-        );
-    }
-    */
+    /**
+     * 检查是否存在联系人关系
+     * @param userId 用户ID
+     * @param friendId 好友ID
+     * @return 是否存在联系人关系
+     */
+    boolean isContactExists(@Param("userId") Long userId, @Param("friendId") Long friendId);
+
+    /**
+     * 创建联系人申请记录
+     * @param fromUserId 申请人ID
+     * @param toUserId 被申请人ID
+     * @param remarks 申请备注
+     * @return 受影响行数
+     */
+    int createContactApply(@Param("fromUserId") Long fromUserId, @Param("toUserId") Long toUserId, @Param("remarks") String remarks);
+
+    /**
+     * 检查联系人记录是否属于指定用户
+     * @param contactId 联系人记录ID
+     * @param userId 用户ID
+     * @return 是否属于该用户
+     */
+    boolean isContactBelongsToUser(@Param("contactId") Long contactId, @Param("userId") Long userId);
+
+    /**
+     * 更新联系人状态
+     * @param contactId 联系人记录ID
+     * @param status 新的状态代码
+     * @return 受影响行数
+     */
+    int updateContactStatus(@Param("contactId") Long contactId, @Param("status") int status);
+
+    /**
+     * 根据用户和状态查询联系人列表
+     * @param userId 用户ID
+     * @param status 联系人状态代码
+     * @return 联系人列表
+     */
+    List<com.web.dto.UserDto> selectContactsByUserAndStatus(@Param("userId") Long userId, @Param("status") int status);
+
+    /**
+     * 根据用户和状态查询联系人ID列表
+     * @param userId 用户ID
+     * @param status 联系人状态代码
+     * @return 联系人ID列表
+     */
+    List<Long> selectContactUserIdsByUserAndStatus(@Param("userId") Long userId, @Param("status") int status);
 }

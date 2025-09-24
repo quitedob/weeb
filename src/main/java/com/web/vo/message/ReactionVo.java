@@ -16,5 +16,9 @@ public class ReactionVo {
 
     @NotNull
     @Size(min = 1, max = 10) // Emoji通常是一个或几个字符
-    private String emoji; // Emoji内容
+    private String reactionType; // 反应类型 (emoji内容)
+    
+    @NotNull
+    @Size(min = 1, max = 10)
+    private String action; // 操作类型: "add" 或 "remove"
 }

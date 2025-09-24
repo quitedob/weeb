@@ -1,0 +1,52 @@
+# WEEB 开发环境配置示例
+# 注意：这个配置解决了 "Unknown database 'weeb'" 的问题
+
+spring:
+  profiles:
+    active: dev
+  
+  datasource:
+    # 方案一：直接连接到 weeb 数据库（DatabaseInitializer 会自动创建）
+    url: jdbc:mysql://localhost:3306/weeb?useUnicode=true&characterEncoding=utf8mb4&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    
+    # 连接池配置
+    hikari:
+      # 重要：设置初始化失败时的处理
+      initialization-fail-timeout: -1  # 允许初始化失败，DatabaseInitializer 会处理
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      
+  # JPA 配置
+  jpa:
+    hibernate:
+      ddl-auto: validate  # 不让 Hibernate 自动创建表，由 DatabaseInitializer 处理
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+
+# 日志配置
+logging:
+  level:
+    com.web.Config.DatabaseInitializer: DEBUG  # 显示详细的初始化日志
+    com.zaxxer.hikari: WARN  # 减少连接池日志
+    org.springframework.jdbc: WARN
+
+---
+# 如果上面的配置仍然有问题，可以使用这个备用方案：
+# 先连接到 mysql 系统库，让 DatabaseInitializer 创建 weeb 数据库后再切换
+
+# spring:
+#   datasource:
+#     # 备用方案：先连接到 mysql 系统库
+#     url: jdbc:mysql://localhost:3306/mysql?useUnicode=true&characterEncoding=utf8mb4&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+#     username: root
+#     password: 123456
+#     driver-class-name: com.mysql.cj.jdbc.Driver

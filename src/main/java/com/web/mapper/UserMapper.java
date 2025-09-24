@@ -125,4 +125,22 @@ public interface UserMapper extends BaseMapper<User> {
      * @return 是否存在
      */
     boolean existsByEmail(@Param("email") String email);
+
+    /**
+     * 搜索用户（分页）
+     * @param keyword 搜索关键词（用户名或昵称）
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @return 用户列表
+     */
+    List<User> searchUsers(@Param("keyword") String keyword, 
+                          @Param("offset") int offset, 
+                          @Param("limit") int limit);
+
+    /**
+     * 统计搜索用户的总数
+     * @param keyword 搜索关键词
+     * @return 总数
+     */
+    long countSearchUsers(@Param("keyword") String keyword);
 }

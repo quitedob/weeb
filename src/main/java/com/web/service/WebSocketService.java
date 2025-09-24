@@ -262,7 +262,7 @@ public class WebSocketService {
 
         String messageBodyJson = JSONUtil.toJsonStr(notifyDto); // Serialize NotifyDto to JSON string for messageBody
 
-        List<Long> contactFriendIds = contactService.getContactUserIds(userId, ContactStatus.ACCEPTED);
+        List<Long> contactFriendIds = contactService.getContactUserIds(userId, com.web.constant.ContactStatus.ACCEPTED);
 
         if (contactFriendIds != null && !contactFriendIds.isEmpty()) {
             log.info("Publishing status change of user {} to Redis for contacts: {}", userId, contactFriendIds);

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.UserFollowMapper">
+
+    <select id="findFollowRelation" resultType="com.web.model.UserFollow">
+        SELECT * FROM user_follow 
+        WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
+        LIMIT 1
+    </select>
+
+    <select id="getFollowingList" resultType="map">
+        SELECT 
+            u.id,
+            u.username,
+            u.nickname,
+            u.avatar,
+            uf.created_at as follow_time
+        FROM user_follow uf
+        LEFT JOIN user u ON uf.followee_id = u.id
+        WHERE uf.follower_id = #{followerId}
+        ORDER BY uf.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="getFollowersList" resultType="map">
+        SELECT 
+            u.id,
+            u.username,
+            u.nickname,
+            u.avatar,
+            uf.created_at as follow_time
+        FROM user_follow uf
+        LEFT JOIN user u ON uf.follower_id = u.id
+        WHERE uf.followee_id = #{followeeId}
+        ORDER BY uf.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="getFollowingCount" resultType="int">
+        SELECT COUNT(*) FROM user_follow WHERE follower_id = #{followerId}
+    </select>
+
+    <select id="getFollowersCount" resultType="int">
+        SELECT COUNT(*) FROM user_follow WHERE followee_id = #{followeeId}
+    </select>
+
+    <delete id="deleteFollowRelation">
+        DELETE FROM user_follow 
+        WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
+    </delete>
+
+</mapper>

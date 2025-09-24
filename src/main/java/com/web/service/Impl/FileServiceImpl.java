@@ -4,67 +4,101 @@ import com.web.mapper.FileMapper;
 import com.web.model.FileTransfer;
 import com.web.service.FileService;
 import com.web.vo.file.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.annotation.Resource;
 import java.util.Date;
 
+/**
+ * 文件服务实现类
+ * 处理WebRTC文件传输相关的业务逻辑
+ */
 @Service
+@Transactional
 public class FileServiceImpl implements FileService {
 
-    @Resource
+    @Autowired
     private FileMapper fileMapper;
 
     @Override
-    public boolean offer(String userId, OfferVo offerVo) {
-        // 假设这里拿到 fileTransferId 或者 targetId
-        Long transferId = offerVo.getTransferId();
-        String offerSdp = offerVo.getSdp();
-        // 更新DB
-        int updated = fileMapper.updateOffer(transferId, offerSdp, new Date());
-        return updated > 0;
-    }
-
-    @Override
-    public boolean answer(String userId, AnswerVo answerVo) {
-        Long transferId = answerVo.getTransferId();
-        String answerSdp = answerVo.getSdp();
-        int updated = fileMapper.updateAnswer(transferId, answerSdp, new Date());
-        return updated > 0;
-    }
-
-    @Override
-    public boolean candidate(String userId, CandidateVo candidateVo) {
-        Long transferId = candidateVo.getTransferId();
-        String candidate_ = candidateVo.getCandidate_();
-        int updated = fileMapper.updateCandidate(transferId, candidate_, new Date());
-        return updated > 0;
-    }
-
-    @Override
-    public boolean cancel(String userId, CancelVo cancelVo) {
-        // 简单处理：将记录删除或更新状态
-        Long transferId = cancelVo.getTransferId();
-        int updated = fileMapper.cancelTransfer(transferId, new Date());
-        return updated > 0;
-    }
-
-    @Override
     public boolean invite(String userId, InviteVo inviteVo) {
-        // 新增一条 record
-        FileTransfer record = new FileTransfer();
-        record.setInitiatorId(Long.valueOf(userId));       // 发起者
-        record.setTargetId(inviteVo.getTargetId());        // 接收者
-        record.setStatus(0);                               // 0=INVITE
-        fileMapper.insertFileTransfer(record);
-        return record.getId() != null && record.getId() > 0;
+        try {
+            // 创建文件传输邀请记录
+            FileTransfer fileTransfer = new FileTransfer();
+            fileTransfer.setInitiatorId(Long.parseLong(userId));
+            fileTransfer.setTargetId(inviteVo.getTargetId());
+            // 注意：根据FileTransfer实际字段设置文件信息
+            // fileTransfer.setFileName(inviteVo.getFileName());
+            // fileTransfer.setFileSize(inviteVo.getFileSize());
+            fileTransfer.setStatus(1); // 使用Integer状态码
+            fileTransfer.setCreatedAt(new Date());
+            fileTransfer.setUpdatedAt(new Date());
+            
+            int result = fileMapper.insertFileTransfer(fileTransfer);
+            return result > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
     public boolean accept(String userId, AcceptVo acceptVo) {
-        // 更新状态
-        Long transferId = acceptVo.getTransferId();
-        int updated = fileMapper.acceptTransfer(transferId, new Date());
-        return updated > 0;
+        try {
+            // 接受文件传输邀请
+            Date now = new Date();
+            int result = fileMapper.acceptTransfer(acceptVo.getTransferId(), now);
+            return result > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean offer(String userId, OfferVo offerVo) {
+        try {
+            // 更新offer信息
+            Date now = new Date();
+            int result = fileMapper.updateOffer(offerVo.getTransferId(), offerVo.getSdp(), now);
+            return result > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean answer(String userId, AnswerVo answerVo) {
+        try {
+            // 更新answer信息
+            Date now = new Date();
+            int result = fileMapper.updateAnswer(answerVo.getTransferId(), answerVo.getSdp(), now);
+            return result > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean candidate(String userId, CandidateVo candidateVo) {
+        try {
+            // 更新candidate信息
+            Date now = new Date();
+            int result = fileMapper.updateCandidate(candidateVo.getTransferId(), candidateVo.getCandidate_(), now);
+            return result > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean cancel(String userId, CancelVo cancelVo) {
+        try {
+            // 取消文件传输
+            Date now = new Date();
+            int result = fileMapper.cancelTransfer(cancelVo.getTransferId(), now);
+            return result > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

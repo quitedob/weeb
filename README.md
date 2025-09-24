@@ -130,7 +130,27 @@ WEEB 是一个现代化的即时通信与内容管理系统，专为团队协作
 
 ### 🚀 启动项目
 
-项目支持手动启动，请按照以下步骤操作：
+项目支持**自动数据库初始化**，启动时会自动检查并创建数据库和表结构，无需手动配置：
+
+#### 🤖 自动初始化（推荐）
+
+项目内置 `DatabaseInitializer` 组件，启动时自动执行：
+- ✅ 检查并创建 `weeb` 数据库
+- ✅ 检查并创建所有必要的表结构
+- ✅ 设置外键约束和索引优化
+- ✅ 插入初始管理员账号和测试数据
+
+只需启动应用即可：
+
+```bash
+mvn spring-boot:run
+```
+
+> 📖 **详细说明**: 查看 [DatabaseInitializer 使用指南](DATABASE_INITIALIZER_GUIDE.md)
+
+#### 🛠️ 手动配置（可选）
+
+如果需要手动配置，请按照以下步骤操作：
 
 ### 📋 环境要求
 
@@ -624,24 +644,30 @@ npm run dev
 ### 🚀 启动相关
 
 **Q: 启动时提示数据库连接失败？**
-A: 确保MySQL服务正在运行，检查application.yml中的数据库配置是否正确。
+A: 确保MySQL服务正在运行，检查数据库连接配置。DatabaseInitializer会自动创建数据库，但需要MySQL服务可用。
 
-**Q: 如何使用一键启动脚本？**
-A: 运行 `./start.sh` (Linux/Mac) 或 `start.bat` (Windows)，脚本会自动检查环境并启动应用。
+**Q: 数据库初始化失败怎么办？**
+A: 检查MySQL用户是否有CREATE DATABASE权限，确认字符集支持utf8mb4。查看启动日志获取详细错误信息。
+
+**Q: 如何跳过自动数据库初始化？**
+A: 设置环境变量 `spring.profiles.active=prod` 或 `spring.profiles.active=production`，生产环境会跳过自动初始化。
 
 **Q: 启动后访问不到应用？**
-A: 检查端口8080是否被占用，确认防火墙设置。
+A: 检查端口8080是否被占用，确认防火墙设置。数据库初始化成功后应用才会完全启动。
 
 ### 🗄️ 数据库相关
 
-**Q: 如何手动创建数据库？**
-A: 运行 `mysql -u root -p < src/main/resources/sql/init_database.sql`
+**Q: DatabaseInitializer 如何工作？**
+A: 应用启动时自动检查数据库和表是否存在，不存在则创建。只在非生产环境执行，确保安全。
+
+**Q: 如何查看数据库初始化日志？**
+A: 启动应用时查看控制台输出，包含详细的创建过程和结果报告。
 
 **Q: 数据库表结构在哪里查看？**
-A: 查看 `src/main/resources/sql/init_database.sql` 文件。
+A: 查看 `DatabaseInitializer.java` 中的建表SQL，或使用 `src/main/resources/sql/` 目录下的脚本。
 
 **Q: 如何修改数据库配置？**
-A: 通过环境变量或修改application.yml文件。
+A: 通过环境变量或修改application.yml文件。DatabaseInitializer会使用相同的配置。
 
 ### 🔐 认证相关
 

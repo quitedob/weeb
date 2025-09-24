@@ -1,13 +1,42 @@
-Controller (控制器层) 
-作用：接收前端HTTP请求，验证基本参数，然后调用Service层处理业务。
-数据交换：通常使用VO (View Object) 或 DTO (Data Transfer Object) 对象来接收和返回JSON数据。例如，GroupController使用GroupCreateVo来接收创建群组的请求数据 。
-Service (业务逻辑接口) 
-作用：定义业务逻辑的契约。它只声明方法，不关心具体实现。这使得系统可以轻松地切换不同的实现（例如，从本地存储切换到云存储）。
-ServiceImpl (业务逻辑实现层) 
-作用：Service接口的具体实现。这里包含了核心的业务处理逻辑，它会调用一个或多个Mapper来与数据库交互，并处理事务。
-Mapper (数据访问接口) 
-作用：定义与数据库交互的方法，如增删改查。它是一个Java接口。
-Mapper.xml (SQL映射文件) 
-作用：Mapper接口中方法的SQL实现。MyBatis框架会将接口方法与XML中的SQL语句绑定起来。
-Database (数据库)
-作用：数据的最终存储地，在这里是MySQL。
+1.  概述.
+    本项目是一个前后端分离的现代化Web应用. 前端采用Vue 3技术栈, 后端采用Java Spring Boot. 项目的核心设计理念是分层清晰, 职责单一, 接口标准化, 高内聚低耦合. 所有开发人员必须严格遵守本规范, 以确保项目的设计初衷不被偏离. 本项目使用MySQL作为数据库, 并集成MyBatis-Plus作为持久层框架以简化数据访问操作.
+2.  后端架构规范.
+后端遵循经典的多层架构模型, 数据流向为, Controller -> Service -> Mapper -> Database.
+2.1 Controller (控制器层).
+作用, 作为API的直接入口, 负责接收前端HTTP请求, 对请求参数进行基础校验, 如@Valid注解, 然后调用Service层处理具体的业务逻辑. Controller层严禁编写复杂的业务逻辑.
+数据交换, 接收请求, 必须使用VO (View Object)对象, 位于com.web.vo包下, 来封装和接收请求体, @RequestBody. 这能有效隔离API层和业务层的数据结构. 返回响应, 所有接口的返回类型必须是ResponseEntity<ApiResponse<T>>. 统一使用com.web.common.ApiResponse类进行包装, 以确保前端能收到标准化的JSON结构.
+2.2 Service (业务逻辑层).
+结构, 采用接口(Service) + 实现(ServiceImpl)的设计模式. Service接口位于com.web.service包, 定义业务逻辑的契约. ServiceImpl实现位于com.web.service.impl包, 是核心业务逻辑的所在地, 可以调用一个或多个Mapper与数据库交互.
+事务管理, 所有复杂的数据库操作, 涉及多张表的读写, 必须在ServiceImpl的方法上使用@Transactional注解, 以保证数据的一致性.
+请注意, Service层与数据库操作的匹配至关重要. ServiceImpl中的方法逻辑必须与Mapper接口定义的操作完全对应. 一个常见的错误是Service层的方法在处理复杂逻辑时, 未能正确调用相应的Mapper方法, 或者错误地处理了事务, 导致数据不一致. 开发时务必确保业务逻辑与底层数据操作的同步和准确性. 另一个严重问题是方法签名不匹配. 如果修改了ServiceImpl中的方法签名, 如参数类型或数量, 必须立即同步更新其对应的Service接口. 否则, 依赖注入和AOP代理将失败, 导致应用无法启动或在运行时抛出错误.
+2.3 Mapper (数据访问层).
+结构, 采用接口(Mapper) + XML的方式. Mapper接口位于com.web.mapper包, 定义与数据库直接交互的方法, 继承自MyBatis-Plus的BaseMapper<T>. Mapper.xml, SQL映射文件, 位于resources/Mapper/目录, 存放Mapper接口中方法的具体SQL实现.
+规范, 简单的单表CRUD操作, 应直接利用MyBatis-Plus提供的BaseMapper方法, 无需在XML中编写. 对于复杂的, 多表连接的查询, 应在.xml文件中编写SQL.
+请注意, Mapper接口的方法签名必须与XML中的SQL语句严格对应. 方法名必须与XML中statement的id一致. 使用@Param注解时, 如@Param("userId") Long userId, XML中必须使用#{userId}来引用, 任何不匹配都会导致MyBatis在运行时抛出绑定异常.
+2.4 Model与VO.
+作用, com.web.model包下的实体类, 如User和Article, 使用@TableName注解, 与MySQL数据库表结构一一对应. 它们是数据的持久化表示. com.web.vo包下的视图对象, 如GroupCreateVo, 专门用于Controller层接收前端请求的数据. 这种分离可以防止数据库内部结构暴露给外部API.
+关键设计, User和UserStats表的分离设计是为了核心性能. User表存储低频更新的核心信息, 如用户名, 密码. UserStats表存储高频更新的统计信息, 如粉丝数, 点赞数. 此设计旨在避免高并发下对用户表的写锁竞争.
+2.5 异常处理.
+业务异常, 所有可预知的业务逻辑错误应抛出自定义的WeebException.
+全局处理, GlobalExceptionHandler会统一捕获所有异常, 并以标准化的ApiResponse格式返回给前端, 确保前端错误处理逻辑的一致性.
+3.  前端架构规范.
+前端是一个基于Vue 3和Vite构建的单页应用.
+3.1 API通信.
+核心, 所有与后端的HTTP通信必须通过src/api/axiosInstance.js中封装的axios实例.
+拦截器, 该实例已配置请求和响应拦截器. 请求拦截器自动从authStore或localStorage中获取JWT并添加到Authorization请求头. 响应拦截器自动解析后端返回的ApiResponse格式, 处理业务错误和Token失效.
+模块化, 新的API请求应根据其业务领域, 添加到src/api/modules/目录下的对应模块文件中.
+3.2 状态管理.
+核心, 全局状态管理必须使用Pinia.
+authStore, 用户的登录状态, accessToken和currentUser信息统一由src/stores/authStore.js管理.
+新模块, 对于新的功能模块, 应在src/stores/目录下创建独立的Store文件.
+3.3 UI与样式.
+UI组件库, 项目统一使用Element Plus.
+全局样式, 项目的视觉主题由src/assets/apple-style.css中的CSS变量定义. 开发新组件时必须使用这些预定义的变量.
+3.4 路由.
+定义, 所有页面路由均在src/router/index.js中统一定义.
+布局, 需要认证才能访问的页面, 应作为Layout.vue的子路由.
+路由守卫, 对于需要登录才能访问的页面, 必须在路由元信息中添加meta, { requiresAuth, true }, 守卫会自动处理未登录用户的重定向.
+4.  数据库规范.
+技术选型, 项目的持久化存储使用MySQL.
+开发环境, DatabaseInitializer.java会在非生产环境下自动检查并创建数据库和所有表结构.
+核心设计, 再次强调, user表和user_stats表的分离是为了提升高并发性能的关键设计. 在开发涉及用户统计数据的功能时, 务必操作user_stats表.

@@ -12,6 +12,9 @@ public class GroupCreateVo {
     @Size(min = 1, max = 20)
     private String groupName; // 群名称
 
+    @Size(max = 100)
+    private String groupDescription; // 群描述
+
     @Size(max = 50) // 初始成员可选
     private List<Long> initialMemberIds; // 初始成员ID列表 (Changed to Long)
 }

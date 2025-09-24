@@ -8,12 +8,14 @@ import com.web.util.SecurityUtil;
 import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
 import com.web.vo.group.GroupKickVo;
+import com.web.vo.group.GroupApplyVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 群组管理控制器
@@ -103,6 +105,21 @@ public class GroupController {
     }
 
     /**
+     * 获取用户作为群主的群组列表
+     * @param userId 用户ID
+     * @return 用户作为群主的群组列表
+     */
+    @GetMapping("/owned")
+    public ResponseEntity<ApiResponse<List<Group>>> getUserOwnedGroups(@Userid Long userId) {
+        List<Group> groups = groupService.getUserJoinedGroups(userId);
+        // 筛选出用户作为群主的群组
+        List<Group> ownedGroups = groups.stream()
+            .filter(group -> group.getOwnerId().equals(userId))
+            .toList();
+        return ResponseEntity.ok(ApiResponse.success(ownedGroups));
+    }
+
+    /**
      * 获取群组详情
      * @param groupId 群组ID
      * @return 群组详情
@@ -115,10 +132,10 @@ public class GroupController {
     /**
      * 获取群组成员列表
      * @param groupId 群组ID
-     * @return 群组成员列表
+     * @return 群组成员列表（包含用户详细信息）
      */
     @GetMapping("/members/{groupId}")
-    public ResponseEntity<ApiResponse<List<Object>>> getGroupMembers(@PathVariable Long groupId) {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getGroupMembers(@PathVariable Long groupId) {
         return ResponseEntity.ok(ApiResponse.success(groupService.getGroupMembers(groupId)));
     }
 
@@ -135,5 +152,18 @@ public class GroupController {
                                                         @Userid Long userId) {
         groupService.updateGroup(groupId, groupData, userId);
         return ResponseEntity.ok(ApiResponse.success("群组信息已更新"));
+    }
+
+    /**
+     * 申请加入群组
+     * @param applyVo 申请信息
+     * @param userId 申请者ID
+     * @return 操作结果
+     */
+    @PostMapping("/apply")
+    public ResponseEntity<ApiResponse<String>> applyToJoinGroup(@RequestBody @Valid GroupApplyVo applyVo, 
+                                                              @Userid Long userId) {
+        groupService.applyToJoinGroup(applyVo, userId);
+        return ResponseEntity.ok(ApiResponse.success("申请加入成功"));
     }
 }

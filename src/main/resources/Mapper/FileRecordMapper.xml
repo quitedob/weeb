@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.FileRecordMapper">
+
+    <select id="findByHash" resultType="com.web.model.FileRecord">
+        SELECT * FROM file_record WHERE file_hash = #{fileHash} LIMIT 1
+    </select>
+
+    <select id="getUserFiles" resultType="map">
+        SELECT 
+            id,
+            file_name,
+            stored_name,
+            file_size,
+            mime_type,
+            is_public,
+            created_at
+        FROM file_record 
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="getUserFileCount" resultType="int">
+        SELECT COUNT(*) FROM file_record WHERE user_id = #{userId}
+    </select>
+
+</mapper>
