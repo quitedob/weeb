@@ -5,7 +5,9 @@ import com.web.model.Group; // Assuming Group model will be created
 import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
 import com.web.vo.group.GroupKickVo;
+import com.web.vo.group.GroupApplyVo;
 import java.util.List;
+import java.util.Map;
 
 public interface GroupService extends IService<Group> {
     Group createGroup(GroupCreateVo createVo, Long userId); // Return type Group, userId as Long
@@ -51,7 +53,7 @@ public interface GroupService extends IService<Group> {
      * @param userId 用户ID
      * @return 群组列表
      */
-    List<Group> getGroupsByUserId(Integer userId);
+    List<Group> getGroupsByUserId(Long userId);
 
     /**
      * 获取用户加入的群组列表
@@ -70,9 +72,9 @@ public interface GroupService extends IService<Group> {
     /**
      * 获取群组成员列表
      * @param groupId 群组ID
-     * @return 群组成员列表
+     * @return 群组成员列表（包含用户详细信息）
      */
-    List<Object> getGroupMembers(Long groupId);
+    List<Map<String, Object>> getGroupMembers(Long groupId);
 
     /**
      * 更新群组信息
@@ -81,4 +83,11 @@ public interface GroupService extends IService<Group> {
      * @param userId 操作者ID
      */
     void updateGroup(Long groupId, Group groupData, Long userId);
+
+    /**
+     * 申请加入群组
+     * @param applyVo 申请信息
+     * @param userId 申请者ID
+     */
+    void applyToJoinGroup(GroupApplyVo applyVo, Long userId);
 }

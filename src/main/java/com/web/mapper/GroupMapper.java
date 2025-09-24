@@ -19,5 +19,5 @@ public interface GroupMapper extends BaseMapper<Group> {
      * @param userId 用户ID
      * @return 群组列表
      */
-    List<Group> findGroupsByUserId(Integer userId); // Added
+    List<Group> findGroupsByUserId(Long userId); // 修改为Long类型以匹配数据库BIGINT
 }

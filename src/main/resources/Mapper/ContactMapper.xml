@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.ContactMapper">
+
+    <!-- 检查是否存在联系人关系 -->
+    <select id="isContactExists" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM contact
+        WHERE (user_id = #{userId} AND friend_id = #{friendId})
+           OR (user_id = #{friendId} AND friend_id = #{userId})
+    </select>
+
+    <!-- 创建联系人申请记录 -->
+    <insert id="createContactApply">
+        INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time)
+        VALUES (#{fromUserId}, #{toUserId}, 0, #{remarks}, NOW(), NOW())
+    </insert>
+
+    <!-- 检查联系人记录是否属于指定用户 -->
+    <select id="isContactBelongsToUser" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM contact
+        WHERE id = #{contactId}
+          AND (user_id = #{userId} OR friend_id = #{userId})
+    </select>
+
+    <!-- 更新联系人状态 -->
+    <update id="updateContactStatus">
+        UPDATE contact
+        SET status = #{status}, update_time = NOW()
+        WHERE id = #{contactId}
+    </update>
+
+    <!-- 根据用户和状态查询联系人列表 -->
+    <select id="selectContactsByUserAndStatus" resultType="com.web.dto.UserDto">
+        SELECT u.id, u.username, u.avatar, c.create_time as contactTime
+        FROM contact c
+        LEFT JOIN user u ON (c.user_id = u.id OR c.friend_id = u.id)
+        WHERE (c.user_id = #{userId} OR c.friend_id = #{userId})
+          AND c.status = #{status}
+          AND u.id != #{userId}
+        ORDER BY c.create_time DESC
+    </select>
+
+    <!-- 根据用户和状态查询联系人ID列表 -->
+    <select id="selectContactUserIdsByUserAndStatus" resultType="java.lang.Long">
+        SELECT DISTINCT
+            CASE
+                WHEN user_id = #{userId} THEN friend_id
+                WHEN friend_id = #{userId} THEN user_id
+            END as contact_user_id
+        FROM contact
+        WHERE (user_id = #{userId} OR friend_id = #{userId})
+          AND status = #{status}
+    </select>
+
+</mapper>

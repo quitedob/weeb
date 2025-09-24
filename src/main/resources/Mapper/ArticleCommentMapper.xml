@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.ArticleCommentMapper">
+
+    <select id="getCommentsWithUserInfo" resultType="map">
+        SELECT 
+            ac.id,
+            ac.article_id,
+            ac.user_id,
+            ac.content,
+            ac.parent_id,
+            ac.created_at,
+            ac.updated_at,
+            u.username,
+            u.nickname,
+            u.avatar
+        FROM article_comment ac
+        LEFT JOIN user u ON ac.user_id = u.id
+        WHERE ac.article_id = #{articleId}
+        ORDER BY ac.created_at ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="getCommentCount" resultType="int">
+        SELECT COUNT(*) FROM article_comment WHERE article_id = #{articleId}
+    </select>
+
+</mapper>

@@ -34,9 +34,14 @@ public class CorsConfig {
             }
             configuration.setAllowedOrigins(Arrays.asList(origins));
         } else {
-            // 开发环境：使用通配符，但禁用credentials（避免浏览器警告）
-            configuration.setAllowedOriginPatterns(Arrays.asList("*"));
-            configuration.setAllowCredentials(false); // 开发环境禁用credentials以避免与*冲突
+            // 开发环境：允许本地开发端口，启用credentials以支持Authorization头
+            configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:5173",
+                "http://localhost:5174", 
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:5174"
+            ));
+            configuration.setAllowCredentials(true); // 开发环境启用credentials以支持JWT
         }
 
         // 允许的HTTP方法

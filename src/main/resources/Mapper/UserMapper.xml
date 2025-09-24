@@ -283,4 +283,32 @@
         SELECT COUNT(*) > 0 FROM user WHERE user_email = #{email}
     </select>
 
+    <!-- 搜索用户（分页） -->
+    <select id="searchUsers" resultMap="UserResultMap">
+        SELECT id, username, sex, phone_number, user_email,
+               unique_article_link, unique_video_link, registration_date,
+               ip_ownership, type, avatar, nickname, badge, 
+               login_time, bio, online_status
+        FROM user 
+        WHERE (username LIKE CONCAT('%', #{keyword}, '%') 
+               OR nickname LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY 
+            CASE 
+                WHEN username = #{keyword} THEN 1
+                WHEN nickname = #{keyword} THEN 2
+                WHEN username LIKE CONCAT(#{keyword}, '%') THEN 3
+                WHEN nickname LIKE CONCAT(#{keyword}, '%') THEN 4
+                ELSE 5
+            END,
+            id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计搜索用户的总数 -->
+    <select id="countSearchUsers" parameterType="string" resultType="long">
+        SELECT COUNT(*) FROM user 
+        WHERE (username LIKE CONCAT('%', #{keyword}, '%') 
+               OR nickname LIKE CONCAT('%', #{keyword}, '%'))
+    </select>
+
 </mapper>
