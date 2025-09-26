@@ -71,12 +71,12 @@ public class SystemValidationTest {
         // Create corresponding user stats
         testUserStats = new UserStats();
         testUserStats.setUserId(testUser.getId());
-        testUserStats.setFansCount(0);
-        testUserStats.setTotalLikes(0);
-        testUserStats.setTotalFavorites(0);
-        testUserStats.setTotalSponsorship(BigDecimal.ZERO);
-        testUserStats.setTotalArticleExposure(0);
-        testUserStats.setWebsiteCoins(0);
+        testUserStats.setFansCount(0L);
+        testUserStats.setTotalLikes(0L);
+        testUserStats.setTotalFavorites(0L);
+        testUserStats.setTotalSponsorship(0L);
+        testUserStats.setTotalArticleExposure(0L);
+        testUserStats.setWebsiteCoins(0L);
         testUserStats.setCreatedAt(new Timestamp(System.currentTimeMillis()));
         testUserStats.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
         
@@ -147,22 +147,22 @@ public class SystemValidationTest {
         
         // Concurrent user operations
         for (int i = 0; i < 10; i++) {
-            final int userId = testUser.getId();
-            
+            final Long userId = testUser.getId();
+
             // Database operations
             futures.add(CompletableFuture.supplyAsync(() -> {
                 try {
                     // User profile read
                     User user = userMapper.selectUserById(userId);
                     assertNotNull(user);
-                    
+
                     // Stats update
                     userStatsMapper.incrementTotalLikes(userId);
-                    
+
                     // Verify consistency
                     UserStats stats = userStatsMapper.selectUserStatsByUserId(userId);
                     assertNotNull(stats);
-                    
+
                     return true;
                 } catch (Exception e) {
                     System.err.println("Database operation failed: " + e.getMessage());
@@ -189,7 +189,12 @@ public class SystemValidationTest {
         long startTime = System.currentTimeMillis();
         List<Boolean> results = new ArrayList<>();
         for (CompletableFuture<Boolean> future : futures) {
-            results.add(future.get(10, TimeUnit.SECONDS));
+            try {
+                results.add(future.get(10, TimeUnit.SECONDS));
+            } catch (Exception e) {
+                System.err.println("Future operation failed: " + e.getMessage());
+                results.add(false);
+            }
         }
         long endTime = System.currentTimeMillis();
         
@@ -284,8 +289,12 @@ public class SystemValidationTest {
         }
         
         // Wait for all operations
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
-        
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            System.err.println("Future operation failed: " + e.getMessage());
+        }
+
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
         

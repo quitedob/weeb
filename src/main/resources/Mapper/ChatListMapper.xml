@@ -118,4 +118,79 @@
         WHERE id = #{chatListId}         <!-- 根据聊天记录ID匹配 -->
         AND user_id = #{userId}        <!-- 根据用户ID匹配 -->
     </delete>
+
+    <!-- 9. 根据用户ID获取所有聊天列表 -->
+    <select id="selectChatListByUserId" resultType="com.web.model.ChatList">
+        SELECT
+        id,
+        user_id,
+        target_id,
+        target_info,
+        type,
+        unread_count,
+        last_message,
+        update_time,
+        create_time
+        FROM chat_list
+        WHERE user_id = #{userId}
+        ORDER BY update_time DESC
+    </select>
+
+    <!-- 10. 根据用户ID和目标用户ID查询聊天记录 -->
+    <select id="selectChatListByUserAndTarget" resultType="com.web.model.ChatList">
+        SELECT
+        id,
+        user_id,
+        target_id,
+        target_info,
+        type,
+        unread_count,
+        last_message,
+        update_time,
+        create_time
+        FROM chat_list
+        WHERE user_id = #{userId}
+        AND target_id = #{targetId}
+        LIMIT 1
+    </select>
+
+    <!-- 11. 根据ID查询聊天记录 -->
+    <select id="selectChatListById" resultType="com.web.model.ChatList">
+        SELECT
+        id,
+        user_id,
+        target_id,
+        target_info,
+        type,
+        unread_count,
+        last_message,
+        update_time,
+        create_time
+        FROM chat_list
+        WHERE id = #{chatId}
+        LIMIT 1
+    </select>
+
+    <!-- 12. 根据聊天ID重置未读消息数 -->
+    <update id="resetUnreadCountByChatId" parameterType="map">
+        UPDATE chat_list
+        SET unread_count = 0
+        WHERE id = #{chatId}
+    </update>
+
+    <!-- 13. 更新聊天记录的最后消息和未读数 -->
+    <update id="updateLastMessageAndUnreadCount" parameterType="map">
+        UPDATE chat_list
+        SET
+            last_message = #{lastMessage},
+            unread_count = unread_count + 1,
+            update_time = CURRENT_TIMESTAMP(3)
+        WHERE id = #{chatId}
+    </update>
+
+    <!-- 14. 根据聊天ID删除聊天记录 -->
+    <delete id="deleteChatList" parameterType="map">
+        DELETE FROM chat_list
+        WHERE id = #{chatId}
+    </delete>
 </mapper>

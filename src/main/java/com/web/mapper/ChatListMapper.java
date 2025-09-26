@@ -72,4 +72,48 @@ public interface ChatListMapper extends BaseMapper<ChatList> {
      * @return 受影响的行数
      */
     int deleteChatRecord(@Param("userId") Long userId, @Param("chatListId") Long chatListId);
+
+    /**
+     * 根据用户ID获取所有聊天列表
+     * @param userId 用户ID
+     * @return 聊天列表
+     */
+    List<ChatList> selectChatListByUserId(@Param("userId") Long userId);
+
+    /**
+     * 根据用户ID和目标用户ID查询聊天记录
+     * @param userId 用户ID
+     * @param targetId 目标用户ID
+     * @return 聊天记录
+     */
+    ChatList selectChatListByUserAndTarget(@Param("userId") Long userId, @Param("targetId") Long targetId);
+
+    /**
+     * 根据ID查询聊天记录
+     * @param chatId 聊天ID
+     * @return 聊天记录
+     */
+    ChatList selectChatListById(@Param("chatId") Long chatId);
+
+    /**
+     * 根据聊天ID重置未读消息数
+     * @param chatId 聊天ID
+     * @return 受影响的行数
+     */
+    int resetUnreadCountByChatId(@Param("chatId") Long chatId);
+
+    /**
+     * 更新聊天记录的最后消息和未读数
+     * @param chatId 聊天ID
+     * @param lastMessage 最后消息内容
+     * @return 受影响的行数
+     */
+    int updateLastMessageAndUnreadCount(@Param("chatId") Long chatId, @Param("lastMessage") String lastMessage);
+
+    /**
+     * 根据聊天ID删除聊天记录
+     * @param chatId 聊天ID
+     * @return 受影响的行数
+     */
+    int deleteChatList(@Param("chatId") Long chatId);
 }

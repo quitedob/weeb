@@ -1,32 +1,78 @@
-// /Vue/src/api/modules/chat.js
-// 简短描述：聊天相关后端接口封装
+import axiosInstance from '../axiosInstance';
 
-import { instance } from '../axiosInstance';
+/**
+ * 聊天API模块
+ * 与后端ChatController接口对齐
+ */
 
 // 获取会话列表
-export function getChatList(params) {
-  return instance.get('/api/chats', { params });
+export function getChatList() {
+  return axiosInstance.get('/api/v1/chats');
 }
 
 // 创建新会话
-export function createChat(data) {
-  return instance.post('/api/chats', data);
+export function createChat(targetId) {
+  return axiosInstance.post('/api/v1/chats', { targetId });
 }
 
 // 获取会话消息
-export function getChatMessages(chatId, params) {
-  return instance.get(`/api/chats/${chatId}/messages`, { params });
+export function getChatMessages(chatId, page = 1, size = 20) {
+  return axiosInstance.get(`/api/v1/chats/${chatId}/messages`, {
+    params: { page, size }
+  });
 }
 
 // 发送消息
-export function sendMessage(chatId, data) {
-  return instance.post(`/api/chats/${chatId}/messages`, data);
+export function sendMessage(chatId, messageData) {
+  return axiosInstance.post(`/api/v1/chats/${chatId}/messages`, messageData);
+}
+
+// 标记消息为已读
+export function markAsRead(chatId) {
+  return axiosInstance.post(`/api/v1/chats/${chatId}/read`);
+}
+
+// 删除聊天会话
+export function deleteChat(chatId) {
+  return axiosInstance.delete(`/api/v1/chats/${chatId}`);
+}
+
+// 对消息添加反应
+export function addReaction(messageId, reactionType) {
+  return axiosInstance.post(`/api/v1/chats/messages/${messageId}/react`, null, {
+    params: { reactionType }
+  });
+}
+
+// 兼容旧接口的方法（可以逐步迁移）
+export function getPrivateChatList(userId) {
+  return axiosInstance.get('/api/v1/chat-list/list/private', {
+    params: { userId }
+  });
+}
+
+export function createPrivateChat(userId, targetId) {
+  return axiosInstance.post('/api/v1/chat-list/create', null, {
+    params: { userId, targetId }
+  });
+}
+
+export function getGroupChat(userId) {
+  return axiosInstance.get('/api/v1/chat-list/group', {
+    params: { userId }
+  });
 }
 
 export default {
   getChatList,
   createChat,
   getChatMessages,
-  sendMessage
+  sendMessage,
+  markAsRead,
+  deleteChat,
+  addReaction,
+  getPrivateChatList,
+  createPrivateChat,
+  getGroupChat
 };
 

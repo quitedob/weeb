@@ -136,4 +136,18 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
         int result = chatListMapper.deleteChatRecord(userId, chatListId);
         return result > 0;
     }
+
+    @Override
+    public List<ChatList> getAllChatList(Long userId) {
+        // 获取用户的所有私聊记录
+        List<ChatList> privateChats = chatListMapper.selectByUserIdAndType(userId, 0);
+
+        // 获取用户的群聊记录
+        ChatList groupChat = chatListMapper.selectOneByUserIdAndType(userId, 1);
+        if (groupChat != null) {
+            privateChats.add(groupChat);
+        }
+
+        return privateChats;
+    }
 }

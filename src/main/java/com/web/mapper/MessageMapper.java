@@ -87,4 +87,20 @@ public interface MessageMapper extends BaseMapper<Message> {
      * @return 受影响行数
      */
     int handleReaction(@Param("reactionVo") com.web.vo.message.ReactionVo reactionVo, @Param("userId") Long userId);
+
+    /**
+     * 根据聊天ID查询最后一条消息
+     * @param chatId 聊天ID
+     * @return 最后一条消息
+     */
+    Message selectLastMessageByChatId(@Param("chatId") Long chatId);
+
+    /**
+     * 根据聊天ID分页查询消息
+     * @param chatId 聊天ID
+     * @param offset 偏移量
+     * @param size 每页大小
+     * @return 消息列表
+     */
+    List<Message> selectMessagesByChatId(@Param("chatId") Long chatId, @Param("offset") int offset, @Param("size") int size);
 }

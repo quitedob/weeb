@@ -95,8 +95,8 @@
     <update id="handleReaction">
         UPDATE message SET
             content = JSON_SET(
-                content, 
-                '$.reactions', 
+                content,
+                '$.reactions',
                 JSON_ARRAY_APPEND(
                     COALESCE(JSON_EXTRACT(content, '$.reactions'), JSON_ARRAY()),
                     '$',
@@ -106,5 +106,23 @@
             updated_at = NOW()
         WHERE id = #{reactionVo.messageId}
     </update>
+
+    <!-- 根据聊天ID查询最后一条消息 -->
+    <select id="selectLastMessageByChatId" parameterType="map" resultMap="MessageResultMap">
+        SELECT *
+        FROM message
+        WHERE chat_id = #{chatId}
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <!-- 根据聊天ID分页查询消息 -->
+    <select id="selectMessagesByChatId" parameterType="map" resultMap="MessageResultMap">
+        SELECT *
+        FROM message
+        WHERE chat_id = #{chatId}
+        ORDER BY created_at ASC
+        LIMIT #{offset}, #{size}
+    </select>
 
 </mapper>
