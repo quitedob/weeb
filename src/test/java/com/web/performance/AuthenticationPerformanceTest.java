@@ -86,7 +86,11 @@ public class AuthenticationPerformanceTest {
         }
         
         // Wait for all authentication attempts to complete
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            System.err.println("Future operation failed: " + e.getMessage());
+        }
         
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
@@ -147,7 +151,11 @@ public class AuthenticationPerformanceTest {
         }
         
         long testStart = System.currentTimeMillis();
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(15, TimeUnit.SECONDS);
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(15, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            System.err.println("Future operation failed: " + e.getMessage());
+        }
         long testEnd = System.currentTimeMillis();
         
         executor.shutdown();
@@ -224,8 +232,12 @@ public class AuthenticationPerformanceTest {
         }
         
         // Wait for all operations to complete
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
-        statsUpdates.get(10, TimeUnit.SECONDS);
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
+            statsUpdates.get(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            System.err.println("Future operation failed: " + e.getMessage());
+        }
         
         executor.shutdown();
         

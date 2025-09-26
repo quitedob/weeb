@@ -1,4 +1,4 @@
-# Elasticsearch 配置指南
+git add .# Elasticsearch 配置指南
 
 ## 📋 当前配置状态
 

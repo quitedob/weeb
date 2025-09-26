@@ -43,7 +43,13 @@ public class User implements Serializable {
 
     private String bio; // 个人简介
     private Integer onlineStatus; // 用户在线状态, stores code from UserOnlineStatus
-    
+
+    // 创建时间和更新时间
+    @TableField(fill = FieldFill.INSERT)
+    private Date createdAt; // 创建时间
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Date updatedAt; // 更新时间
+
     // 关联的统计数据（一对一关系）
     @TableField(exist = false)
     private UserStats userStats;
@@ -222,6 +228,26 @@ public class User implements Serializable {
         this.onlineStatus = onlineStatus;
     }
 
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createdAt = createTime;
+    }
+
+    public Date getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Date updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     public UserStats getUserStats() {
         return userStats;
     }
@@ -250,6 +276,8 @@ public class User implements Serializable {
                 ", loginTime=" + loginTime +
                 ", bio='" + bio + '\'' +
                 ", onlineStatus=" + onlineStatus +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
                 '}';
     }
 
@@ -275,7 +303,9 @@ public class User implements Serializable {
                 Objects.equals(badge, user.badge) &&
                 Objects.equals(loginTime, user.loginTime) &&
                 Objects.equals(bio, user.bio) &&
-                Objects.equals(onlineStatus, user.onlineStatus);
+                Objects.equals(onlineStatus, user.onlineStatus) &&
+                Objects.equals(createdAt, user.createdAt) &&
+                Objects.equals(updatedAt, user.updatedAt);
     }
 
     // 重写 hashCode 方法
@@ -283,6 +313,7 @@ public class User implements Serializable {
     public int hashCode() {
         return Objects.hash(id, username, password, sex, phoneNumber, userEmail,
                 uniqueArticleLink, uniqueVideoLink, registrationDate, ipOwnership,
-                type, avatar, nickname, badge, loginTime, bio, onlineStatus);
+                type, avatar, nickname, badge, loginTime, bio, onlineStatus,
+                createdAt, updatedAt);
     }
 }

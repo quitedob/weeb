@@ -25,8 +25,9 @@ public class DatabaseInitializerTest {
         // 测试核心表是否存在
         String[] tables = {
             "user", "user_stats", "article", "`group`", "group_member",
-            "contact", "chat_list", "message", "message_reaction", 
-            "notifications", "file_transfer"
+            "contact", "chat_list", "message", "message_reaction",
+            "notifications", "file_transfer", "article_comment",
+            "file_record", "user_follow", "file_share"
         };
 
         for (String table : tables) {

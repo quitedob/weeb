@@ -71,4 +71,12 @@ public interface ChatListService extends IService<ChatList> {
      * @return 返回删除结果
      */
     boolean deleteChatRecord(Long userId, Long chatListId);
+
+    /**
+     * 获取用户的所有聊天列表（私聊和群聊）
+     *
+     * @param userId 用户ID
+     * @return 返回该用户的所有聊天列表
+     */
+    List<ChatList> getAllChatList(Long userId);
 }

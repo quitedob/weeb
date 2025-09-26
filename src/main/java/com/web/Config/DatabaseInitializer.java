@@ -285,6 +285,11 @@ public class DatabaseInitializer implements CommandLineRunner {
             createUserFollowTable();
         }
 
+        // 15. 文件分享表（依赖 file_record 表）
+        if (!tableExists("file_share")) {
+            createFileShareTable();
+        }
+
         log.info("数据库表检查完成");
     }
 
@@ -802,7 +807,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_created_at` (`created_at`),
                 CONSTRAINT `fk_follow_follower` FOREIGN KEY (`follower_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `fk_follow_followee` FOREIGN KEY (`followee_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='用户关注关系表'
             """;
 
@@ -812,6 +817,46 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建用户关注表失败", e);
             throw new RuntimeException("创建用户关注表失败", e);
+        }
+    }
+
+    private void createFileShareTable() {
+        log.info("创建文件分享表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `file_share` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '分享记录ID',
+                `file_id` BIGINT NOT NULL COMMENT '文件记录ID',
+                `sharer_id` BIGINT NOT NULL COMMENT '分享者用户ID',
+                `shared_to_user_id` BIGINT COMMENT '被分享者用户ID（可为空，表示公开分享）',
+                `share_token` VARCHAR(255) NOT NULL COMMENT '分享链接token',
+                `permission` VARCHAR(50) NOT NULL COMMENT '分享权限：READ, DOWNLOAD',
+                `expires_at` DATETIME COMMENT '过期时间（可为空，表示永不过期）',
+                `status` VARCHAR(50) DEFAULT 'ACTIVE' COMMENT '分享状态：ACTIVE, EXPIRED, REVOKED',
+                `access_count` BIGINT DEFAULT 0 COMMENT '访问次数',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_share_token` (`share_token`),
+                KEY `idx_file_id` (`file_id`),
+                KEY `idx_sharer_id` (`sharer_id`),
+                KEY `idx_shared_to_user_id` (`shared_to_user_id`),
+                KEY `idx_status` (`status`),
+                KEY `idx_expires_at` (`expires_at`),
+                KEY `idx_created_at` (`created_at`),
+                CONSTRAINT `fk_file_share_file` FOREIGN KEY (`file_id`) REFERENCES `file_record` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_file_share_sharer` FOREIGN KEY (`sharer_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_file_share_shared_to` FOREIGN KEY (`shared_to_user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='文件分享记录表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 文件分享表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建文件分享表失败", e);
+            throw new RuntimeException("创建文件分享表失败", e);
         }
     }
 }

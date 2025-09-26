@@ -143,4 +143,25 @@ public interface UserMapper extends BaseMapper<User> {
      * @return 总数
      */
     long countSearchUsers(@Param("keyword") String keyword);
+
+    /**
+     * 根据用户ID查找用户（兼容测试用）
+     * @param userId 用户ID
+     * @return 用户信息
+     */
+    User selectUserById(@Param("userId") Long userId);
+
+    /**
+     * 根据用户名查找用户（兼容测试用）
+     * @param username 用户名
+     * @return 用户信息
+     */
+    User selectUserByUsername(@Param("username") String username);
+
+    /**
+     * 插入用户（兼容测试用）
+     * @param user 用户对象
+     * @return 影响行数
+     */
+    int insertUser(User user);
 }

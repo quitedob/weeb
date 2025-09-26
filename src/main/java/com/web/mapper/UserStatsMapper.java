@@ -57,12 +57,26 @@ public interface UserStatsMapper extends BaseMapper<UserStats> {
     int incrementTotalLikes(@Param("userId") Long userId, @Param("count") Long count);
 
     /**
+     * 增加点赞数（兼容测试用，单个用户ID重载）
+     * @param userId 用户ID
+     * @return 影响行数
+     */
+    int incrementTotalLikes(@Param("userId") Long userId);
+
+    /**
      * 增加收藏数
      * @param userId 用户ID
      * @param count 增加的数量
      * @return 影响行数
      */
     int incrementTotalFavorites(@Param("userId") Long userId, @Param("count") Long count);
+
+    /**
+     * 增加收藏数（兼容测试用，单个用户ID重载）
+     * @param userId 用户ID
+     * @return 影响行数
+     */
+    int incrementTotalFavorites(@Param("userId") Long userId);
 
     /**
      * 增加文章曝光数
@@ -123,4 +137,11 @@ public interface UserStatsMapper extends BaseMapper<UserStats> {
      * @return 记录数量
      */
     int countByUserId(@Param("userId") Long userId);
+
+    /**
+     * 根据用户ID查找用户统计数据（兼容测试用）
+     * @param userId 用户ID
+     * @return 用户统计数据
+     */
+    UserStats selectUserStatsByUserId(@Param("userId") Long userId);
 }

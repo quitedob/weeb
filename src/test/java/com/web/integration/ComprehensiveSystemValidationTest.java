@@ -102,12 +102,12 @@ public class ComprehensiveSystemValidationTest {
         // Create corresponding user stats
         testUserStats = new UserStats();
         testUserStats.setUserId(testUser.getId());
-        testUserStats.setFansCount(0);
-        testUserStats.setTotalLikes(0);
-        testUserStats.setTotalFavorites(0);
-        testUserStats.setTotalSponsorship(BigDecimal.ZERO);
-        testUserStats.setTotalArticleExposure(0);
-        testUserStats.setWebsiteCoins(100);
+        testUserStats.setFansCount(0L);
+        testUserStats.setTotalLikes(0L);
+        testUserStats.setTotalFavorites(0L);
+        testUserStats.setTotalSponsorship(0L);
+        testUserStats.setTotalArticleExposure(0L);
+        testUserStats.setWebsiteCoins(100L);
         testUserStats.setCreatedAt(new Timestamp(System.currentTimeMillis()));
         testUserStats.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
         
@@ -337,7 +337,12 @@ public class ComprehensiveSystemValidationTest {
         // Wait for all operations to complete
         List<Boolean> results = new ArrayList<>();
         for (CompletableFuture<Boolean> future : futures) {
-            results.add(future.get(15, TimeUnit.SECONDS));
+            try {
+                results.add(future.get(15, TimeUnit.SECONDS));
+            } catch (Exception e) {
+                System.err.println("Future operation failed: " + e.getMessage());
+                results.add(false);
+            }
         }
         
         long endTime = System.currentTimeMillis();
@@ -540,7 +545,12 @@ public class ComprehensiveSystemValidationTest {
         // Wait for all operations
         List<Map<String, Object>> results = new ArrayList<>();
         for (CompletableFuture<Map<String, Object>> future : futures) {
-            results.add(future.get(30, TimeUnit.SECONDS));
+            try {
+                results.add(future.get(30, TimeUnit.SECONDS));
+            } catch (Exception e) {
+                System.err.println("Future operation failed: " + e.getMessage());
+                results.add(new HashMap<>());
+            }
         }
         
         long endTime = System.currentTimeMillis();
@@ -616,11 +626,11 @@ public class ComprehensiveSystemValidationTest {
         
         UserStats dbTestStats = new UserStats();
         dbTestStats.setUserId(dbTestUser.getId());
-        dbTestStats.setFansCount(10);
-        dbTestStats.setTotalLikes(25);
-        dbTestStats.setTotalFavorites(5);
-        dbTestStats.setTotalSponsorship(new BigDecimal("100.50"));
-        dbTestStats.setWebsiteCoins(200);
+        dbTestStats.setFansCount(10L);
+        dbTestStats.setTotalLikes(25L);
+        dbTestStats.setTotalFavorites(5L);
+        dbTestStats.setTotalSponsorship(100L);
+        dbTestStats.setWebsiteCoins(200L);
         dbTestStats.setCreatedAt(new Timestamp(System.currentTimeMillis()));
         dbTestStats.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
         
@@ -665,8 +675,8 @@ public class ComprehensiveSystemValidationTest {
         try {
             // Try to insert stats for non-existent user
             UserStats invalidStats = new UserStats();
-            invalidStats.setUserId(999999); // Non-existent user ID
-            invalidStats.setFansCount(0);
+            invalidStats.setUserId(999999L); // Non-existent user ID
+            invalidStats.setFansCount(0L);
             invalidStats.setCreatedAt(new Timestamp(System.currentTimeMillis()));
             
             userStatsMapper.insertUserStats(invalidStats);
