@@ -9,6 +9,7 @@ import com.web.service.ChatService;
 import com.web.vo.chat.ChatCreateVo;
 import com.web.vo.chat.ChatMessageVo;
 import com.web.vo.chat.ChatMessagesVo;
+import com.web.vo.message.TextMessageContent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -96,7 +97,12 @@ public class ChatController {
         Message message = new Message();
         message.setSenderId(userId);
         message.setChatId(chatId);
-        message.setContent(chatMessageVo.getContent());
+
+        // Convert Object content to TextMessageContent
+        TextMessageContent textContent = new TextMessageContent();
+        textContent.setContent((String) chatMessageVo.getContent());
+        message.setContent(textContent);
+
         message.setMessageType(chatMessageVo.getMessageType() != null ? chatMessageVo.getMessageType() : 1);
 
         Message result = chatService.sendMessage(userId, message);

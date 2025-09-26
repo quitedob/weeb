@@ -6,6 +6,8 @@ import com.web.model.User;
 import com.web.service.AuthService;
 import com.web.util.ResultUtil;
 import com.web.common.ApiResponse;
+import com.web.vo.auth.LoginVo;
+import com.web.vo.user.UpdateUserVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,7 @@ import java.util.Random;
  * 如果项目启动时扫描不到该包，请在主应用类中使用 @ComponentScan(basePackages = {"com.web.Controller", ...})
  */
 @RestController
+@RequestMapping("/api")
 public class AuthController {
 
     @Autowired
@@ -62,14 +65,14 @@ public class AuthController {
 
     /**
      * 用户登录接口
-     * @param user 前端传入的用户信息（包括用户名和密码）
+     * @param loginVo 前端传入的登录信息VO
      * @return 返回登录结果（成功则带有 token，失败则返回错误信息）
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Map<String, String>>> login(@RequestBody User user) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> login(@RequestBody @Valid LoginVo loginVo) {
         try {
             // 调用服务进行登录，并获取JWT令牌
-            String token = authService.login(user.getUsername(), user.getPassword());
+            String token = authService.login(loginVo.getUsername(), loginVo.getPassword());
             // 返回包含令牌的响应
             Map<String, String> data = new HashMap<>();
             data.put("token", token);
@@ -238,17 +241,19 @@ public class AuthController {
     /**
      * 更新用户信息（只更新允许更新的字段）
      * @param userid 从请求头中获取的 userid（示例，非 JWT 令牌，此接口与下面不冲突）
-     * @param updateUser 前端传入的更新用户信息
+     * @param updateVo 前端传入的更新用户信息VO
      * @return 更新结果（成功或失败）
      */
     @UrlLimit
     @PostMapping("/update")
     public ResponseEntity<ApiResponse<String>> updateUser(@RequestHeader("userid") String userid,
-                                                         @RequestBody @Valid User updateUser) {
+                                                         @RequestBody @Valid UpdateUserVo updateVo) {
         User userToUpdate = new User();
         userToUpdate.setId(Long.parseLong(userid));
-        userToUpdate.setUsername(updateUser.getUsername());
-        userToUpdate.setAvatar(updateUser.getAvatar());
+        userToUpdate.setUsername(updateVo.getUsername());
+        userToUpdate.setAvatar(updateVo.getAvatar());
+        userToUpdate.setNickname(updateVo.getNickname());
+        userToUpdate.setBio(updateVo.getBio());
         boolean result = authService.updateUser(userToUpdate);
         if (result) {
             return ResponseEntity.ok(ApiResponse.success("更新成功"));
@@ -296,15 +301,25 @@ public class AuthController {
      */
     @PutMapping("/user/info")
     public ResponseEntity<ApiResponse<String>> updateUserInfoByToken(@RequestHeader("Authorization") String authorizationHeader,
-                                                                   @RequestBody User userInfo) {
+                                                                   @RequestBody @Valid UpdateUserVo updateVo) {
         try {
             String token = extractToken(authorizationHeader);
             Long userId = jwtUtil.getUserIdFromToken(token);
             if (userId == null) {
                 return ResponseEntity.badRequest().body(ApiResponse.error(1, "用户不存在"));
             }
-            // 强制使用当前用户的 ID，防止客户端恶意修改
-            userInfo.setId(userId);
+            
+            // 将VO转换为User实体
+            User userInfo = new User();
+            userInfo.setId(userId); // 强制使用当前用户的 ID，防止客户端恶意修改
+            userInfo.setUsername(updateVo.getUsername());
+            userInfo.setUserEmail(updateVo.getUserEmail());
+            userInfo.setPhoneNumber(updateVo.getPhoneNumber());
+            userInfo.setSex(updateVo.getSex());
+            userInfo.setNickname(updateVo.getNickname());
+            userInfo.setBio(updateVo.getBio());
+            userInfo.setAvatar(updateVo.getAvatar());
+            
             authService.updateAuth(userInfo);
             return ResponseEntity.ok(ApiResponse.success("更新用户信息成功"));
         } catch (RuntimeException e) {

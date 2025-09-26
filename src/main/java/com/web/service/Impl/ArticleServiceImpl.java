@@ -91,8 +91,8 @@ public class ArticleServiceImpl implements ArticleService {
         int totalCount = articleMapper.countAllArticles();
         
         Map<String, Object> result = new HashMap<>();
-        result.put("articles", articles);
-        result.put("totalCount", totalCount);
+        result.put("list", articles);  // 改为 list 以匹配前端期望
+        result.put("total", totalCount);  // 改为 total 以匹配前端期望
         result.put("currentPage", page);
         result.put("pageSize", pageSize);
         result.put("totalPages", (int) Math.ceil((double) totalCount / pageSize));
@@ -133,6 +133,11 @@ public class ArticleServiceImpl implements ArticleService {
         // 设置创建时间
         article.setCreatedAt(LocalDateTime.now());
         article.setUpdatedAt(LocalDateTime.now());
+        
+        // 初始化status字段：如果未设置，默认为草稿状态
+        if (article.getStatus() == null) {
+            article.setStatus(0); // 0: 草稿, 1: 已发布
+        }
         
         // 初始化统计字段
         if (article.getLikesCount() == null) {

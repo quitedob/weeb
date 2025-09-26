@@ -22,11 +22,11 @@ public class FileServiceImpl implements FileService {
     private FileMapper fileMapper;
 
     @Override
-    public boolean invite(String userId, InviteVo inviteVo) {
+    public boolean invite(Long userId, InviteVo inviteVo) {
         try {
             // 创建文件传输邀请记录
             FileTransfer fileTransfer = new FileTransfer();
-            fileTransfer.setInitiatorId(Long.parseLong(userId));
+            fileTransfer.setInitiatorId(userId);
             fileTransfer.setTargetId(inviteVo.getTargetId());
             // 注意：根据FileTransfer实际字段设置文件信息
             // fileTransfer.setFileName(inviteVo.getFileName());
@@ -43,7 +43,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public boolean accept(String userId, AcceptVo acceptVo) {
+    public boolean accept(Long userId, AcceptVo acceptVo) {
         try {
             // 接受文件传输邀请
             Date now = new Date();
@@ -55,7 +55,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public boolean offer(String userId, OfferVo offerVo) {
+    public boolean offer(Long userId, OfferVo offerVo) {
         try {
             // 更新offer信息
             Date now = new Date();
@@ -67,7 +67,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public boolean answer(String userId, AnswerVo answerVo) {
+    public boolean answer(Long userId, AnswerVo answerVo) {
         try {
             // 更新answer信息
             Date now = new Date();
@@ -79,7 +79,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public boolean candidate(String userId, CandidateVo candidateVo) {
+    public boolean candidate(Long userId, CandidateVo candidateVo) {
         try {
             // 更新candidate信息
             Date now = new Date();
@@ -91,7 +91,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public boolean cancel(String userId, CancelVo cancelVo) {
+    public boolean cancel(Long userId, CancelVo cancelVo) {
         try {
             // 取消文件传输
             Date now = new Date();

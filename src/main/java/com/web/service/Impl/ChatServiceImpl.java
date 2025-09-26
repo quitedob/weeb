@@ -32,7 +32,7 @@ public class ChatServiceImpl implements ChatService {
 
         // 为每个聊天会话获取最后一条消息
         for (ChatList chatList : chatLists) {
-            Message lastMessage = messageMapper.selectLastMessageByChatId(chatList.getId());
+            Message lastMessage = messageMapper.selectLastMessageByChatId(Long.valueOf(chatList.getId()));
             chatList.setLastMessage(lastMessage != null ? lastMessage.getContent().toString() : "");
         }
 

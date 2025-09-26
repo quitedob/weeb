@@ -6,12 +6,15 @@ import com.web.model.Article;
 import com.web.model.User;
 import com.web.service.AuthService;
 import com.web.service.ArticleService;
+import com.web.vo.article.ArticleCreateVo;
+import com.web.vo.article.ArticleUpdateVo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;  // 注意导入
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.Date;
 import java.util.List;
@@ -19,7 +22,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @RestController
-@RequestMapping("/articles")
+@RequestMapping("/api/articles")
 public class ArticleCenterController {
 
     private final ArticleService articleService;
@@ -169,14 +172,21 @@ public class ArticleCenterController {
     /**
      * 修改文章内容和标题，并更新最后更新时间
      * 请求示例：PUT /articles/123
-     * 请求体：{ "articleTitle": "...", "articleLink": "...", ... }
+     * 请求体：ArticleUpdateVo
      */
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> editArticle(
             @PathVariable Long id,
-            @RequestBody Article article,
+            @RequestBody @Valid ArticleUpdateVo updateVo,
             @Userid Long authenticatedUserId) {
         try {
+            // 将VO转换为Article实体
+            Article article = new Article();
+            article.setArticleTitle(updateVo.getArticleTitle());
+            article.setArticleContent(updateVo.getArticleContent());
+            article.setArticleLink(updateVo.getArticleLink());
+            article.setStatus(updateVo.getStatus());
+            
             // 安全验证：确保用户只能编辑自己的文章
             boolean updated = articleService.editArticle(id, article, authenticatedUserId);
             if (!updated) {
@@ -236,13 +246,21 @@ public class ArticleCenterController {
     /**
      * 创建新文章
      * 请求示例：POST /articles/new
-     * 请求体：Article 对象 JSON 格式
+     * 请求体：ArticleCreateVo 对象 JSON 格式
      */
     @PostMapping("/new")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> createArticle(@RequestBody Article article, @Userid Long authenticatedUserId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createArticle(
+            @RequestBody @Valid ArticleCreateVo createVo, 
+            @Userid Long authenticatedUserId) {
         try {
-            // 安全验证：强制使用认证用户ID，忽略请求体中的userId
-            article.setUserId(authenticatedUserId);
+            // 将VO转换为Article实体
+            Article article = new Article();
+            article.setUserId(authenticatedUserId); // 安全验证：强制使用认证用户ID
+            article.setArticleTitle(createVo.getArticleTitle());
+            article.setArticleContent(createVo.getArticleContent());
+            article.setArticleLink(createVo.getArticleLink());
+            article.setStatus(createVo.getStatus());
+            
             int result = articleService.createArticle(article);
             if (result <= 0) {
                 return ResponseEntity.badRequest()

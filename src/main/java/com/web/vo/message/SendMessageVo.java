@@ -1,18 +1,30 @@
 package com.web.vo.message;
 
-import com.web.constant.MessageType;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import jakarta.validation.constraints.NotBlank;
-
+/**
+ * 发送消息请求VO
+ */
 @Data
 public class SendMessageVo {
-    @NotBlank(message = "目标用户不能为空~")
-    private String targetId;
-    private String source;
-    private String type = MessageType.Text;
-    @NotBlank(message = "消息内容不能为空~")
-    private String msgContent;
-    private String referenceMsgId;
-    private String userIp;
+    
+    @NotNull(message = "目标用户ID不能为空")
+    private Long targetId;
+    
+    @NotNull(message = "消息类型不能为空")
+    private Integer messageType;
+    
+    @NotNull(message = "消息内容不能为空")
+    private Object content;
+    
+    /**
+     * 群组ID（群聊时使用）
+     */
+    private Long groupId;
+    
+    /**
+     * 是否显示时间
+     */
+    private Boolean showTime = false;
 }

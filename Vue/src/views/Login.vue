@@ -113,8 +113,9 @@ const handleLogin = async () => {
       password: loginForm.password
     })
 
-    // 后端现在返回 ApiResponse 格式: { code: 0, message: "success", data: { token: "..." } }
-    if (response.code === 0 && response.data && response.data.token) {
+    // 后端返回 ApiResponse 格式: { code: 0, message: "success", data: { token: "..." } }
+    // 响应拦截器已经处理了业务逻辑，这里直接检查 response.data.token
+    if (response && response.data && response.data.token) {
       // 保存token
       const token = response.data.token
       authStore.setToken(token)
@@ -128,7 +129,7 @@ const handleLogin = async () => {
       const redirectPath = route.query.redirect || '/'
       router.push(redirectPath)
     } else {
-      error.value = response.message || '登录失败'
+      error.value = response?.message || '登录失败'
     }
   } catch (err) {
     console.error('登录错误:', err)

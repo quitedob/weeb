@@ -122,7 +122,20 @@ instance.interceptors.response.use(
             router.push('/login');
             break;
           case 403:
-            message = '禁止访问';
+            message = '禁止访问，请重新登录';
+            // 403 Forbidden 通常也表示认证失败，执行与401相同的处理
+            try {
+              const authStore = useAuthStore();
+              if (authStore.logout) {
+                authStore.logout();
+              }
+            } catch (e) {
+              console.warn('useAuthStore not available for 403 cleanup:', e);
+              // 回退到手动清理 localStorage
+              localStorage.removeItem('jwt_token');
+              localStorage.removeItem('currentUser');
+            }
+            router.push('/login');
             break;
           case 404:
             message = '请求资源未找到';

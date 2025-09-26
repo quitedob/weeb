@@ -11,7 +11,7 @@ export default {
     onMounted(async () => {
       try {
         // 获取存储的令牌
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('jwt_token');
 
         // 如果存在令牌，则发送登出请求到后端
         if (token) {
@@ -20,8 +20,9 @@ export default {
       } catch (error) {
         console.error("登出请求失败", error);
       } finally {
-        // 无论成功与否，都清除本地令牌
-        localStorage.removeItem('token');
+        // 无论成功与否，都清除本地存储
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('currentUser');
         // 重定向到登录页面
         router.push('/login');
       }

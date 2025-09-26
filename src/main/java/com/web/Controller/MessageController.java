@@ -5,6 +5,7 @@ import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.model.Message;
 import com.web.service.MessageService;
+import com.web.vo.message.SendMessageVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -37,9 +38,16 @@ public class MessageController {
     @UrlLimit // 使用默认的请求频率限制
     @PostMapping("/send") // 将该方法映射到 POST 请求 /send 上
     public ResponseEntity<ApiResponse<Message>> send(@Userid Long userId,             // 通过 @Userid 注解获取当前用户ID
-                                                    @RequestBody @Valid Message messageBody) { // 从请求体中获取并校验 Message 对象
-        // 设置发送者ID到消息对象中
-        messageBody.setSenderId(userId);
+                                                    @RequestBody @Valid SendMessageVo messageVo) { // 从请求体中获取并校验 SendMessageVo 对象
+        
+        // 将VO转换为Message实体
+        Message messageBody = new Message();
+        messageBody.setSenderId(userId); // 设置发送者ID
+        messageBody.setTargetId(messageVo.getTargetId());
+        messageBody.setMessageType(messageVo.getMessageType());
+        messageBody.setContent(messageVo.getContent());
+        messageBody.setGroupId(messageVo.getGroupId());
+        messageBody.setShowTime(messageVo.getShowTime());
 
         // 如果消息类型为空，则设置默认消息类型为文本类型
         if (messageBody.getMessageType() == null) {

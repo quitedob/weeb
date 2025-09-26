@@ -11,12 +11,17 @@
         </div>
       </template>
       <div class="article-content">
-        <p>文章内容链接 (用于演示):</p>
-        <!-- It's safer to use a regular <a> tag for external links if articleLink is an absolute URL -->
-        <!-- If it's an internal route, <router-link> would be appropriate -->
-        <a :href="article.articleLink" target="_blank" rel="noopener noreferrer">{{ article.articleLink }}</a>
-        <!-- Placeholder for actual article content if not just a link -->
-        <!-- <div v-html="article.content"></div> -->
+        <!-- 显示文章内容 -->
+        <div v-if="article.articleContent" class="article-body" v-html="formatContent(article.articleContent)"></div>
+        <div v-else class="no-content">
+          <p>暂无文章内容</p>
+        </div>
+        
+        <!-- 如果有外部链接，显示链接 -->
+        <div v-if="article.articleLink" class="article-link">
+          <p>相关链接:</p>
+          <a :href="article.articleLink" target="_blank" rel="noopener noreferrer">{{ article.articleLink }}</a>
+        </div>
       </div>
        <div class="article-actions">
         <el-button type="primary" @click="like"><el-icon><Plus /></el-icon>点赞</el-button> <!-- Like button with icon -->
@@ -53,12 +58,27 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 };
 
+// Helper function to format article content (simple markdown-like formatting)
+const formatContent = (content) => {
+  if (!content) return '';
+  
+  // 简单的格式化：换行转换为<br>，支持基本的markdown语法
+  return content
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **粗体**
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *斜体*
+    .replace(/`(.*?)`/g, '<code>$1</code>')            // `代码`
+    .replace(/#{3}\s+(.*)/g, '<h3>$1</h3>')            // ### 三级标题
+    .replace(/#{2}\s+(.*)/g, '<h2>$1</h2>')            // ## 二级标题
+    .replace(/#{1}\s+(.*)/g, '<h1>$1</h1>');           // # 一级标题
+};
+
 const fetchArticle = async () => {
   loading.value = true;
   article.value = null; // Reset article on fetch
   try {
     const response = await getArticleById(articleId);
-    if (response.code === 200 && response.data) {
+    if (response && response.data) {
       article.value = response.data;
       // Increase read count only if article is successfully fetched
       await increaseReadCount(articleId);
@@ -82,7 +102,7 @@ const like = async () => {
     if (!article.value) return;
     try {
         const response = await likeArticle(articleId); // API returns {code, message, data (can be new like count or updated article)}
-        if (response.code === 200) {
+        if (response) {
             ElMessage.success('点赞成功！');
             // To update like count:
             // 1. Re-fetch article (fetchArticle()) - simplest but full refresh
@@ -138,11 +158,79 @@ onMounted(() => {
   font-size: 1rem; /* Standard text size */
   line-height: 1.7; /* Improved readability */
 }
-.article-content a { /* Style for the article link */
+.article-body {
+  line-height: 1.8;
+  color: #303133;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.article-body h1, .article-body h2, .article-body h3 {
+  margin: 20px 0 10px 0;
+  color: #303133;
+}
+
+.article-body h1 {
+  font-size: 1.5em;
+  border-bottom: 2px solid #409EFF;
+  padding-bottom: 5px;
+}
+
+.article-body h2 {
+  font-size: 1.3em;
+  border-bottom: 1px solid #DCDFE6;
+  padding-bottom: 3px;
+}
+
+.article-body h3 {
+  font-size: 1.1em;
+}
+
+.article-body strong {
+  font-weight: 600;
+  color: #303133;
+}
+
+.article-body em {
+  font-style: italic;
+  color: #606266;
+}
+
+.article-body code {
+  background-color: #f5f5f5;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  color: #e96900;
+}
+
+.no-content {
+  text-align: center;
+  color: #909399;
+  padding: 40px 0;
+  font-style: italic;
+}
+
+.article-link {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #EBEEF5;
+}
+
+.article-link p {
+  margin-bottom: 10px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.article-link a {
   color: #409EFF;
   text-decoration: none;
+  word-break: break-all;
 }
-.article-content a:hover {
+
+.article-link a:hover {
   text-decoration: underline;
 }
 .article-actions {

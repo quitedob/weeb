@@ -10,6 +10,11 @@ import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
+/**
+ * @deprecated 此Controller已废弃，请使用 ChatController 替代
+ * 所有聊天相关功能已统一到 ChatController 中
+ */
+@Deprecated
 @RestController
 @RequestMapping("/api/v1/chat-list")
 public class ChatListController {
