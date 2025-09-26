@@ -12,30 +12,30 @@ public interface FileService {
     /**
      * 发起offer
      */
-    boolean offer(String userId, OfferVo offerVo);
+    boolean offer(Long userId, OfferVo offerVo);
 
     /**
      * 发起answer
      */
-    boolean answer(String userId, AnswerVo answerVo);
+    boolean answer(Long userId, AnswerVo answerVo);
 
     /**
      * 发送candidate
      */
-    boolean candidate(String userId, CandidateVo candidateVo);
+    boolean candidate(Long userId, CandidateVo candidateVo);
 
     /**
      * 取消或挂断
      */
-    boolean cancel(String userId, CancelVo cancelVo);
+    boolean cancel(Long userId, CancelVo cancelVo);
 
     /**
      * 邀请
      */
-    boolean invite(String userId, InviteVo inviteVo);
+    boolean invite(Long userId, InviteVo inviteVo);
 
     /**
      * 同意
      */
-    boolean accept(String userId, AcceptVo acceptVo);
+    boolean accept(Long userId, AcceptVo acceptVo);
 }

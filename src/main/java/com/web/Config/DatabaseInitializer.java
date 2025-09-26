@@ -226,7 +226,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         }
 
         // 3. 文章表（依赖 user 表）
-        if (!tableExists("article")) {
+        if (!tableExists("articles")) {
             createArticleTable();
         }
 
@@ -517,11 +517,12 @@ public class DatabaseInitializer implements CommandLineRunner {
         log.info("创建文章表...");
 
         String sql = """
-            CREATE TABLE IF NOT EXISTS `article` (
-                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '文章ID',
+            CREATE TABLE IF NOT EXISTS `articles` (
+                `article_id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '文章ID',
                 `user_id` BIGINT NOT NULL COMMENT '作者ID',
                 `article_title` VARCHAR(200) NOT NULL COMMENT '文章标题',
                 `article_content` LONGTEXT COMMENT '文章内容',
+                `article_link` VARCHAR(500) COMMENT '文章外部链接',
                 `likes_count` INT DEFAULT 0 COMMENT '点赞数',
                 `favorites_count` INT DEFAULT 0 COMMENT '收藏数',
                 `sponsors_count` DECIMAL(10,2) DEFAULT 0.00 COMMENT '赞助金额',
@@ -529,7 +530,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                 `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                 `status` TINYINT DEFAULT 1 COMMENT '状态：0草稿，1发布，2删除',
-                PRIMARY KEY (`id`),
+                PRIMARY KEY (`article_id`),
                 KEY `idx_user_id` (`user_id`),
                 KEY `idx_created_at` (`created_at`),
                 KEY `idx_status` (`status`),

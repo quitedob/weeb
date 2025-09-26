@@ -27,7 +27,7 @@ public class FileController {
      */
     @UrlLimit
     @PostMapping("/offer")
-    public ResponseEntity<ApiResponse<String>> offer(@Userid String userId, @RequestBody OfferVo offerVo) {
+    public ResponseEntity<ApiResponse<String>> offer(@Userid Long userId, @RequestBody OfferVo offerVo) {
         boolean result = fileService.offer(userId, offerVo);
         if (result) {
             return ResponseEntity.ok(ApiResponse.success("操作成功"));
@@ -41,7 +41,7 @@ public class FileController {
      */
     @UrlLimit
     @PostMapping("/answer")
-    public ResponseEntity<ApiResponse<String>> answer(@Userid String userId, @RequestBody AnswerVo answerVo) {
+    public ResponseEntity<ApiResponse<String>> answer(@Userid Long userId, @RequestBody AnswerVo answerVo) {
         boolean result = fileService.answer(userId, answerVo);
         if (result) {
             return ResponseEntity.ok(ApiResponse.success("操作成功"));
@@ -55,7 +55,7 @@ public class FileController {
      */
     @UrlLimit
     @PostMapping("/candidate")
-    public ResponseEntity<ApiResponse<String>> candidate(@Userid String userId, @RequestBody CandidateVo candidateVo) {
+    public ResponseEntity<ApiResponse<String>> candidate(@Userid Long userId, @RequestBody CandidateVo candidateVo) {
         boolean result = fileService.candidate(userId, candidateVo);
         if (result) {
             return ResponseEntity.ok(ApiResponse.success("操作成功"));
@@ -69,7 +69,7 @@ public class FileController {
      */
     @UrlLimit
     @PostMapping("/cancel")
-    public ResponseEntity<ApiResponse<String>> cancel(@Userid String userId, @RequestBody CancelVo cancelVo) {
+    public ResponseEntity<ApiResponse<String>> cancel(@Userid Long userId, @RequestBody CancelVo cancelVo) {
         boolean result = fileService.cancel(userId, cancelVo);
         if (result) {
             return ResponseEntity.ok(ApiResponse.success("操作成功"));
@@ -83,7 +83,7 @@ public class FileController {
      */
     @UrlLimit
     @PostMapping("/invite")
-    public ResponseEntity<ApiResponse<String>> invite(@Userid String userId, @RequestBody InviteVo inviteVo) {
+    public ResponseEntity<ApiResponse<String>> invite(@Userid Long userId, @RequestBody InviteVo inviteVo) {
         boolean result = fileService.invite(userId, inviteVo);
         if (result) {
             return ResponseEntity.ok(ApiResponse.success("操作成功"));
@@ -97,7 +97,7 @@ public class FileController {
      */
     @UrlLimit
     @PostMapping("/accept")
-    public ResponseEntity<ApiResponse<String>> accept(@Userid String userId, @RequestBody AcceptVo acceptVo) {
+    public ResponseEntity<ApiResponse<String>> accept(@Userid Long userId, @RequestBody AcceptVo acceptVo) {
         boolean result = fileService.accept(userId, acceptVo);
         if (result) {
             return ResponseEntity.ok(ApiResponse.success("操作成功"));

@@ -14,7 +14,9 @@ public class Article implements Serializable {
     private Long id;
     private Long userId;
     private String articleTitle;
-    private String articleContent; // Renamed from articleLink
+    private String articleContent; // 文章内容
+    private String articleLink;    // 文章外部链接（可选）
+    private Integer status;        // 文章状态：0-草稿，1-已发布
     private Integer likesCount;
     private Integer favoritesCount; // Assuming this field exists or will be used
     private Double sponsorsCount;  // Assuming this field exists or will be used
@@ -30,13 +32,15 @@ public class Article implements Serializable {
     public Article() {}
 
     // Constructor with all fields (example provided by user)
-    public Article(Long id, Long userId, String articleTitle, String articleContent,
-                   Integer likesCount, Integer favoritesCount, Double sponsorsCount,
+    public Article(Long id, Long userId, String articleTitle, String articleContent, String articleLink,
+                   Integer status, Integer likesCount, Integer favoritesCount, Double sponsorsCount,
                    Long exposureCount, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
         this.articleTitle = articleTitle;
         this.articleContent = articleContent;
+        this.articleLink = articleLink;
+        this.status = status;
         this.likesCount = likesCount;
         this.favoritesCount = favoritesCount;
         this.sponsorsCount = sponsorsCount;
@@ -125,6 +129,22 @@ public class Article implements Serializable {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getArticleLink() {
+        return articleLink;
+    }
+
+    public void setArticleLink(String articleLink) {
+        this.articleLink = articleLink;
+    }
+
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
     }
 
 }

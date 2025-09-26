@@ -9,12 +9,13 @@
         <id property="id" column="article_id"/>
         <result property="userId" column="user_id"/>
         <result property="articleTitle" column="article_title"/>
-        <result property="articleContent" column="article_content"/> <!-- Changed property and column -->
+        <result property="articleContent" column="article_content"/>
+        <result property="articleLink" column="article_link"/>
+        <result property="status" column="status"/>
         <result property="likesCount" column="likes_count"/>
         <result property="favoritesCount" column="favorites_count"/>
         <result property="sponsorsCount" column="sponsors_count"/>
         <result property="exposureCount" column="exposure_count"/>
-
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -24,20 +25,23 @@
             article_id,
             user_id,
             article_title,
-            article_content,    <!-- Ensure this column is selected -->
+            article_content,
+            article_link,
+            status,
             likes_count,
             favorites_count,
             sponsors_count,
-            created_at,         <!-- Ensure this column is selected -->
+            created_at,
             updated_at,
             exposure_count
         FROM articles
+        WHERE status = 1        <!-- 只显示已发布的文章 -->
         ORDER BY updated_at DESC
         LIMIT #{offset}, #{pageSize}
     </select>
 
     <select id="countAllArticles" resultType="int">
-        SELECT COUNT(*) FROM articles
+        SELECT COUNT(*) FROM articles WHERE status = 1  <!-- 只统计已发布的文章 -->
     </select>
 
     <select id="selectArticleById" parameterType="long" resultMap="ArticleResultMap">
@@ -49,10 +53,13 @@
         VALUES (#{userId}, #{targetUserId})
     </insert>
 
-    <insert id="insertArticle" parameterType="com.web.model.Article" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO articles (user_id, article_title, article_content, likes_count, favorites_count,
-                              sponsors_count, exposure_count, created_at, updated_at)
-        VALUES (#{userId}, #{articleTitle}, #{articleContent}, 0, 0, 0, 0, NOW(), NOW())
+    <insert id="insertArticle" parameterType="com.web.model.Article" useGeneratedKeys="true" keyProperty="id" keyColumn="article_id">
+        INSERT INTO articles (user_id, article_title, article_content, article_link, status, 
+                              likes_count, favorites_count, sponsors_count, exposure_count, 
+                              created_at, updated_at)
+        VALUES (#{userId}, #{articleTitle}, #{articleContent}, #{articleLink}, #{status}, 
+                #{likesCount}, #{favoritesCount}, #{sponsorsCount}, #{exposureCount}, 
+                #{createdAt}, #{updatedAt})
     </insert>
 
 
@@ -117,6 +124,8 @@
         UPDATE articles
         SET article_title = #{article.articleTitle},
             article_content = #{article.articleContent},
+            article_link = #{article.articleLink},
+            status = #{article.status},
             updated_at = NOW()
         WHERE article_id = #{id}
     </update>

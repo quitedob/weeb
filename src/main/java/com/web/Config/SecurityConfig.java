@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -25,20 +24,13 @@ public class SecurityConfig {
     private final CorsConfigurationSource corsConfigurationSource;
     private final JwtUtil jwtUtil;
     private final AuthService authService;
+    private final PasswordEncoder passwordEncoder;
 
-    public SecurityConfig(CorsConfigurationSource corsConfigurationSource, JwtUtil jwtUtil, AuthService authService) {
+    public SecurityConfig(CorsConfigurationSource corsConfigurationSource, JwtUtil jwtUtil, AuthService authService, PasswordEncoder passwordEncoder) {
         this.corsConfigurationSource = corsConfigurationSource;
         this.jwtUtil = jwtUtil;
         this.authService = authService;
-    }
-
-    /**
-     * 密码编码器Bean
-     * 使用BCrypt算法进行密码加密
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -80,7 +72,7 @@ public class SecurityConfig {
                     .permitAll()
                 
                 // 用户管理接口
-                .requestMatchers("/api/user/profile/**", "/api/user/update/**")
+                .requestMatchers("/api/user/info", "/api/user/update", "/api/user/profile/**")
                     .hasAnyRole("USER", "ADMIN")
                 
                 // 群组管理接口
@@ -90,7 +82,7 @@ public class SecurityConfig {
                     .hasAnyRole("USER", "ADMIN")
                 
                 // 消息和聊天接口
-                .requestMatchers("/api/messages/**", "/api/chat/**")
+                .requestMatchers("/api/v1/message/**", "/api/v1/chats/**")
                     .hasAnyRole("USER", "ADMIN")
                 
                 // 搜索接口

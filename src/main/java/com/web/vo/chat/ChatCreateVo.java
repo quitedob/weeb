@@ -19,4 +19,3 @@ public class ChatCreateVo {
         this.targetId = targetId;
     }
 }
-

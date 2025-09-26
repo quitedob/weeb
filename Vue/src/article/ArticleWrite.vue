@@ -28,16 +28,41 @@
         </el-form-item>
 
         <el-form-item label="文章内容" prop="articleContent">
-          <el-input
-            v-model="form.articleContent"
-            type="textarea"
-            :rows="15"
-            placeholder="请输入文章内容..."
-            maxlength="10000"
-            show-word-limit
-            resize="vertical"
-          ></el-input>
-          <div class="form-help">支持Markdown格式，最多10000字符</div>
+          <div class="editor-container">
+            <div class="editor-toolbar">
+              <el-button-group size="small">
+                <el-button @click="insertMarkdown('**', '**')" title="粗体">
+                  <strong>B</strong>
+                </el-button>
+                <el-button @click="insertMarkdown('*', '*')" title="斜体">
+                  <em>I</em>
+                </el-button>
+                <el-button @click="insertMarkdown('`', '`')" title="代码">
+                  Code
+                </el-button>
+                <el-button @click="insertMarkdown('### ', '')" title="标题">
+                  H3
+                </el-button>
+                <el-button @click="insertMarkdown('\n- ', '')" title="列表">
+                  List
+                </el-button>
+              </el-button-group>
+              <el-button size="small" @click="previewArticle" type="info">预览</el-button>
+            </div>
+            <el-input
+              v-model="form.articleContent"
+              type="textarea"
+              :rows="15"
+              placeholder="请输入文章内容...支持Markdown格式"
+              maxlength="10000"
+              show-word-limit
+              resize="vertical"
+              class="content-editor"
+            ></el-input>
+          </div>
+          <div class="form-help">
+            支持Markdown格式：**粗体** *斜体* `代码` ### 标题 - 列表，最多10000字符
+          </div>
         </el-form-item>
 
         <el-form-item label="文章链接" prop="articleLink">
@@ -122,9 +147,21 @@ const rules = {
   ]
 };
 
-// 预览内容（简单的换行处理）
+// 预览内容（Markdown格式处理）
 const previewContent = computed(() => {
-  return form.articleContent.replace(/\n/g, '<br>');
+  if (!form.articleContent) return '';
+  
+  // 简单的Markdown渲染
+  return form.articleContent
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **粗体**
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *斜体*
+    .replace(/`(.*?)`/g, '<code>$1</code>')            // `代码`
+    .replace(/#{3}\s+(.*)/g, '<h3>$1</h3>')            // ### 三级标题
+    .replace(/#{2}\s+(.*)/g, '<h2>$1</h2>')            // ## 二级标题
+    .replace(/#{1}\s+(.*)/g, '<h1>$1</h1>')            // # 一级标题
+    .replace(/^- (.+)/gm, '<li>$1</li>')               // - 列表项
+    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');        // 包装列表
 });
 
 // 保存草稿
@@ -142,11 +179,11 @@ const saveDraft = async () => {
     };
     
     const response = await createArticle(articleData);
-    if (response.code === 200) {
+    if (response) {
       ElMessage.success('草稿保存成功');
       router.push({ name: 'ArticleManage' });
     } else {
-      ElMessage.error(response.message || '保存草稿失败');
+      ElMessage.error(response?.message || '保存草稿失败');
     }
   } catch (err) {
     console.error('保存草稿失败:', err);
@@ -189,11 +226,11 @@ const publishArticle = async () => {
       };
       
       const response = await createArticle(articleData);
-      if (response.code === 200) {
+      if (response) {
         ElMessage.success('文章发布成功！');
         router.push({ name: 'ArticleMain' });
       } else {
-        ElMessage.error(response.message || '发布失败');
+        ElMessage.error(response?.message || '发布失败');
       }
     } catch (err) {
       console.error('发布文章失败:', err);
@@ -213,6 +250,25 @@ const resetForm = () => {
   form.articleContent = '';
   form.articleLink = '';
   form.tags = '';
+};
+
+// 插入Markdown格式
+const insertMarkdown = (before, after) => {
+  const textarea = document.querySelector('.content-editor textarea');
+  if (!textarea) return;
+  
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selectedText = form.articleContent.substring(start, end);
+  
+  const newText = before + selectedText + after;
+  form.articleContent = form.articleContent.substring(0, start) + newText + form.articleContent.substring(end);
+  
+  // 重新设置光标位置
+  setTimeout(() => {
+    textarea.focus();
+    textarea.setSelectionRange(start + before.length, start + before.length + selectedText.length);
+  }, 0);
 };
 
 // 预览文章
@@ -293,6 +349,33 @@ window.addEventListener('beforeunload', (e) => {
   margin-top: 5px;
 }
 
+.editor-container {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.editor-toolbar {
+  background: #f5f7fa;
+  padding: 8px 12px;
+  border-bottom: 1px solid #ebeef5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.content-editor {
+  border: none !important;
+}
+
+.content-editor :deep(.el-textarea__inner) {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  line-height: 1.6;
+}
+
 .el-card {
   box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
 }
@@ -322,6 +405,56 @@ window.addEventListener('beforeunload', (e) => {
   color: #606266;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+.article-body h1, .article-body h2, .article-body h3 {
+  margin: 20px 0 10px 0;
+  color: #303133;
+}
+
+.article-body h1 {
+  font-size: 1.5em;
+  border-bottom: 2px solid #409EFF;
+  padding-bottom: 5px;
+}
+
+.article-body h2 {
+  font-size: 1.3em;
+  border-bottom: 1px solid #DCDFE6;
+  padding-bottom: 3px;
+}
+
+.article-body h3 {
+  font-size: 1.1em;
+}
+
+.article-body strong {
+  font-weight: 600;
+  color: #303133;
+}
+
+.article-body em {
+  font-style: italic;
+  color: #606266;
+}
+
+.article-body code {
+  background-color: #f5f5f5;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+  color: #e96900;
+}
+
+.article-body ul {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.article-body li {
+  margin: 5px 0;
+  list-style-type: disc;
 }
 
 /* 响应式设计 */

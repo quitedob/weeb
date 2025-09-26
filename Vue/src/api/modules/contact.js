@@ -10,7 +10,7 @@ export default {
 
   // 获取待处理的好友申请
   getPendingApplications() {
-    return instance.get('/api/contact/applications');
+    return instance.get('/api/contact/list/pending');
   },
 
   // 申请添加联系人
