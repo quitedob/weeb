@@ -1,183 +1,27 @@
-最致命的问题是「前后端对统一响应格式和状态码的理解不一致」，导致保存/发布/删除/分页等关键功能在前端判断成功/失败时会出错或表现异常。证据与修复在下。 
-
-文章相关的「发布/草稿/首页只显示已发布」的业务流在后端查询层没做好筛选（后端 getAllArticles 没有 status 筛选，页面会把草稿/未发布文章一并拉出或前端无法正确解析返回字段）。证据见后。 
-
-前端 API 路径前缀（/api）和资源路径（/articles/...）使用不一致、以及前端内部也不统一（部分检查 code===200、部分检查 code===0、还有 response.data.code===0），需要统一约定并修复。证据见下。 
-
-一、关键问题（按优先级排序）与证据
-问题 A — 响应格式 & 成功码不一致（高优先级，立刻修）
-
-后端统一响应类 ApiResponse 定义成功码为 0（0 = 成功）：
-ApiResponse.success(...) 返回 code = 0。
-
-前端却在很多地方检查 response.code === 200（HTTP 200），认为后端会返回 200 作为业务成功），例如文章首页 fetchArticles、通知 store、群组操作、解散/退出群组等处都用了 response.code === 200：
-
-Article 列表使用 if (response.code === 200 && response.data) { ... }。
-
-通知模块 if (response.data && response.data.code === 0)（又有地方是正确的检查），说明前端内部也不统一。
-
-Group 的一些操作检查 response.code === 200（错误示例）。
-
-axios 全局响应拦截器：在 axiosInstance 中拦截器会在业务码非 0 时 reject 并返回 res（ApiResponse 对象），但拦截层的行为与各组件的判断方式不一致：拦截器内部是把非 code===0 当成失败并 Promise.reject（或在某处返回 res），因此组件不应再去判断 code===200。（拦截器处返回 ApiResponse 对象/或 reject 的实现片段见）
-
-结论/影响：因为前端很多地方按 200 判断成功，真正后端返回 code=0 时（HTTP 状态码通常是 200，但业务体里 code = 0），部分组件会误判为失败或不处理返回数据，导致「发布/保存/删除/分页列表显示」等基础功能出现假失败或空白。必须统一到后端业务码 0=成功 的约定，前端全部按 code===0（或通过拦截器直接返回 data）来判断。
-
-问题 B — 文章列表 / 首页展示没有区分“已发布 vs 草稿”/缺少 status 筛选（高优先级）
-
-后端 ArticleServiceImpl.getAllArticles(page,pageSize) 的实现直接从 mapper 拉 getAllArticles(offset,pageSize) 并返回 articles 与 totalCount，没有接收或传递文章状态（published/draft）参数，也没有对“仅公开可见（published）”进行筛选。
-
-Controller GET /articles/getall 直接把服务返回的 map 包装返回，并且注释里曾提到“service 返回 { list, total }”，但实现实际是 { articles, totalCount, currentPage ...} —— 键名不统一，前端期待 data.list/data.total，后端返回 data.articles/data.totalCount，造成前端解析/赋值出错。参见：后端注释 vs 实际返回字段。
-
-前端 ArticleMain.vue 里 fetchArticles 注释形态写了“后端返回 { list: [], total: 0 }”，并按 response.data.list，response.data.total 使用，但后端实际返回 articles/totalCount：会导致首页列表为空或分页总数错误。
-结论/影响：
-
-首页会把草稿/未发布或者内部测试文章一起拉出来（如果 mapper SQL 未筛选），这对公开站点是严重问题。
-
-前端与后端的返回字段名不一致，会直接导致页面不显示数据或分页错误。
-
-问题 C — 前端 API 路径前缀不统一 (/api vs 无 /api)（中高优先级）
-
-auth.getUserInfo 使用 /api/user/info（有 /api 前缀）。
-article 模块使用 /articles/...（无 /api 前缀），例如 getAllArticles 为 /articles/getall，createArticle 为 /articles/new。
-
-chat 模块使用 /api/v1/chats（又是 /api/v1）。
-结论/影响：部署环境（或 nginx 反向代理）/后端统一路由前缀不一致会导致某些请求走错代理或出现 CORS/404。必须统一约定：要么后端所有控制器都挂 /api 前缀（推荐），要么把 axios baseURL 设为 /api 并把 article 等模块调用改为相对路径 /articles/... 下的 /api/articles/...（或让后端 article Controller 加 /api 前缀）。
-
-问题 D — 前端内部也存在不一致（拦截器返回值 vs 组件使用方式）
-
-axios 拦截器里：在成功的 response 处理里返回 res（ApiResponse 对象），但有些组件却在使用 response.data.code === 0，有些直接取 response.code，还有些直接判断 response.code === 200。这说明有些地方把 axios 返回当成 axios 原始响应（含 status、data 等），有些把拦截器的返回当作 res.data。示例参见拦截器返回与组件用法对比。
-
-结论/影响：需要统一：拦截器应当在成功时 return res.data（直接返回后端 ApiResponse），或在拦截器内部把非 0 的业务码转为 reject，使组件只处理 data，并在组件层统一判断 if (data.code === 0)。当前混杂会导致二义性 bug。
-
-问题 E — 文章编辑/发布/预览流程若干细节缺失（中优先级）
-
-后端 createArticle 会把 article.setUserId(authenticatedUserId) 强制写入并返回 id，这是好点，但没有对 status 做默认值初始化（create 代码段没有显式set status），如果前端在写作页面不传 status 就可能进入 null 状态，造成首页筛选混乱。
-
-后端没有专门的 publish 接口（有 updateArticle 但发布流程应该明确区分 “保存草稿/发布/撤稿”），getAllArticles 也没有提供 status 参数供前端分页过滤（见问题 B 证据）。
-结论/影响：功能体验上会缺少“保存草稿 → 继续编辑 → 发布 → 在首页可见”的标准工作流，以及发布权限 / 所见即所得预览流程。
-、 API 接口错误与前后端不匹配问题
-这是最严重的问题，直接导致了功能无法正常工作或存在隐患。
-
-登录接口响应体不匹配
-
-问题描述： 这是个致命错误。后端 AuthController 的登录接口返回的是一个标准 ApiResponse 对象，其结构为 { "code": 0, "data": { "token": "..." } }。而前端 axiosInstance.js 的响应拦截器中，处理登录成功的代码是 const token = response.data.token;，它期望的结构是 { "data": { "token": "..." } }。这导致前端永远拿不到 token，用户无法登录。
-
-
-后端代码: AuthController.java 
-
-
-前端代码: Login.vue 
-
-修改建议： 前端 Login.vue 的 handleLogin 方法中，获取 token 的代码应修改为 const token = response.data.data.token;。同时，authStore.js 中的登录逻辑也需要做同样修改。
-
-用户信息接口混乱且冗余
-
-问题描述： 获取用户信息的 API 极其混乱。AuthController、UserController、ArticleCenterController 中都有获取用户信息的接口。例如：/user/info、/user、/findByUserID、/articles/userinform 等。这违反了 RESTful 设计的单一职责原则，使得 API 难以维护和理解。
-
-
-后端代码: AuthController.java, UserController.java , 
-
-ArticleCenterController.java 
-
-修改建议： 立即重构。所有与用户（User）资源相关的操作都应统一归属到 UserController 下。删除 AuthController 和 ArticleCenterController 中重复的用户信息获取接口，由前端统一调用 UserController 的接口。
-
-聊天列表与聊天功能接口冗余
-
-
-问题描述： 项目中同时存在 ChatController 和 
-
-ChatListController 。从设计上看，
-
-ChatController 试图提供更统一的 API，但旧的 ChatListController 并未移除，并且前端 api/modules/chat.js  同时调用了两者的接口。这会造成功能重叠和维护困难。
-
-
-修改建议： 明确主次。应将 ChatListController 的功能全部合并到 ChatController 中，并废弃 ChatListController。前端也应统一调用 ChatController 的 API。
-
-数据类型不一致
-
-
-问题描述： 在 FileController.java  中，多个方法的 
-
-userId 参数类型为 String，而项目中绝大部分地方（包括数据库模型和业务逻辑）都将用户 ID 定义为 Long。这种不一致性是潜在的 Bug 源头。
-
-修改建议： 将 FileController.java 中所有 userId 参数的类型统一修改为 Long
-数据访问层职责不清
-
-问题描述： AuthMapper 和 UserMapper 的功能有大量重叠，都在处理 user 表的查询和更新。这使得数据访问逻辑分散，职责不明确。
-
-修改建议： 合并 AuthMapper 的功能到 UserMapper 中，所有对 user 表的操作都应由 UserMapper 负责。AuthService 应更专注于认证授权流程，而不是用户数据的直接管理，后者可以交给 UserService。
-
-API 设计未遵循规范
-
-
-问题描述： 多个 Controller 中的方法直接接收 Model 实体对象（如 MessageController 接收 Message 对象 ）。这会将数据库的内部结构直接暴露给前端，缺乏灵活性和安全性。
-
-修改建议： 全面推行 DTO (Data Transfer Object) 或 VO (View Object) 模式。Controller 层只接收和返回 DTO/VO 对象，由 Service 层负责 Model 与 DTO/VO 之间的转换。
-
-前端问题
-文章核心功能缺失：用户根本无法阅读文章！
-
-
-问题描述： 这是最不能容忍的设计缺陷。用户点击首页文章列表后，跳转到的 ArticleRead.vue  页面，
-
-仅仅是展示了一个文章的链接（articleLink），而不是文章的内容（articleContent）。用户必须再次点击链接跳转到站外才能阅读。这完全违背了做一个论坛的基本设想。你们实现了发布、修改、列表，却唯独忘了最重要的“阅读”功能。
-
-修改建议：
-
-后端 ArticleMapper 和 ArticleService 必须确保查询单个文章时返回 articleContent 字段。
-
-前端 ArticleRead.vue 必须将获取到的 article.articleContent 渲染到页面上。如果内容是 Markdown 格式，需要引入相应的渲染库（如 marked.js 或 mavon-editor 的预览组件）进行解析展示，而不是只显示一个链接。
-
-论坛首页体验极差
-
-
-问题描述： ArticleMain.vue  所谓的“文章首页”，居然是一个简单的 
-
-el-table 表格。这完全是后台管理系统的风格，毫无用户体验可言。哪个用户会用一个表格来看文章列表？
-
-修改建议： 重新设计这个页面。至少应该使用卡片式（Card）布局来展示每篇文章，卡片上应包含文章标题、作者、摘要、点赞/阅读数等关键信息，而不是一个冰冷的表格。
-
-文章发布功能过于简陋
-
-
-问题描述： ArticleWrite.vue  的文章内容输入框就是一个普通的 
-
-<textarea> 文本域。对于一个现代论坛或博客系统来说，这完全不够用。
-
-修改建议： 引入功能完善的 Markdown 编辑器 或 富文本编辑器（如 mavon-editor, v-md-editor, TinyMCE, CKEditor），提供实时预览、图片上传、代码高亮等基本创作功能。
-
-状态管理存在潜在问题
-
-
-问题描述： axiosInstance.js  的请求拦截器中，在 
-
-try-catch 中回退到 localStorage 来获取 token，这暗示了 Pinia 状态管理可能存在初始化时序问题。这是一个“治标不治本”的取巧方案，不是一个健壮的设计。
-
-修改建议： 梳理应用初始化流程，确保在执行任何需要认证的 API 请求之前，Pinia store 已经通过 localStorage 中的数据完成了初始化。
-
-三、 总结与修改建议
-总的来说，这个项目有一个看起来很全的架子，但核心的论坛功能体验几乎为零，并且存在严重的前后端 API 对接问题和安全隐患。
-
-请按以下优先级进行修改：
-
-P0 - 紧急修复：
-
-修复登录接口，确保前后端 token 数据结构匹配，让用户能正常登录。
-
-移除所有硬编码的密钥，改为通过环境变量注入。
-
-实现真正的文章阅读功能，在 ArticleRead.vue 中渲染 articleContent。
-
-P1 - 重要优化：
-
-重构混乱的 API，将所有用户相关的接口统一到 UserController。
-
-重新设计文章首页 (ArticleMain.vue)，用卡片列表替代表格，提升用户体验。
-
-为 ArticleWrite.vue 引入 Markdown 或富文本编辑器。
-
-P2 - 建议改进：
-
-全面推行 DTO/VO 模式，避免在 Controller 中直接使用 Model。
-
-梳理并统一 ChatController 和 ChatListController 的功能。
+修复后端架构, 创建统一的 ChatController, 将 MessageController 和 ChatListController 的所有功能逻辑迁移至其中, 然后将旧的 MessageController 和 ChatListController 标记为 @Deprecated 并计划移除.
+迁移用户管理端点, 将分散在 AuthController 和 ArticleCenterController 中的用户信息获取和更新功能 (如 /user/info, /update, /userinform-by-username) 全部整合到 UserController 中.
+限定 AuthController 的职责, 使其仅负责处理认证流程, 包括用户注册, 登录和令牌管理.
+重构并统一所有API端点以遵循RESTful规范.
+将文章创建接口从 POST /api/articles/new 修改为 POST /api/articles.
+将文章点赞接口从 POST /api/articles/{id}/like 修改为 POST /api/articles/{id}/likes.
+将消息发送接口从 POST /api/v1/message/send 迁移到新的 ChatController, 路径统一为 POST /api/v1/chats/{chatId}/messages.
+将获取聊天记录的接口从 POST /api/v1/message/record 修改为 GET /api/v1/chats/{chatId}/messages, 并支持分页参数.
+将消息撤回接口从 POST /api/v1/message/recall 修改为 DELETE /api/v1/messages/{messageId}.
+重构用户注册接口, 将其业务逻辑从 AuthController 迁移至 UserController, 端点为 POST /api/users, 并要求请求体使用强类型的 RegisterUserVo 替代当前的 Map<String, Object>.
+重构用户登录接口, 将 POST /api/login 修改为 POST /api/tokens, 语义上为创建一个新的认证令牌.
+重构获取当前用户信息接口, 将 GET /api/user/info 修改为 GET /api/users/me, 专门用于获取当前认证用户的数据.
+将群组创建接口从 POST /api/group/create 修改为 POST /api/groups.
+将邀请群成员接口从 POST /api/group/{groupId}/invite 修改为 POST /api/groups/{groupId}/members.
+整合后端服务层以保证数据一致性, 将 UserService, UserStatsService, 和 UserTransactionService 的逻辑合并, 确立 UserService 为用户数据操作的唯一入口, 并在其方法上使用 @Transactional 注解, 保证对 user 和 user_stats 两个表的操作在同一事务中完成.
+审查并修复 ArticleService 和 ArticleMapper 中所有与用户统计数据相关的操作, 确保点赞, 收藏等操作正确更新 user_stats 表, 而非 user 表中的旧统计字段.
+审查 ArticleCommentService, 在创建评论并触发通知时, 确保查询文章作者ID的逻辑能够正确地从 user 表和 user_stats 表关联查询数据.
+重构前端API客户端模块以匹配新的后端接口.
+修改 /src/api/modules/article.js 文件, 使其所有API请求指向重构后的 /api/articles 相关端点.
+修改 /src/api/modules/auth.js 和 /src/api/modules/user.js 文件, 使其API请求分别指向 /api/tokens 和 /api/users 相关端点.
+修改 /src/api/modules/chat.js 文件, 使其所有API请求指向新建的统一 ChatController 提供的 /api/v1/chats 相关端点.
+修改 /src/api/modules/group.js 文件, 使其所有API请求指向重构后的 /api/groups 相关端点.
+简化前端状态管理, 在重构API客户端后, 审查并优化位于 /src/stores/ 目录下的 Pinia store, 移除为适配碎片化API而编写的复杂数据拼接和状态组合逻辑.
+实现完整的文件共享功能, 完善 FileManagementController 和 FileManagementService, 增加生成安全共享链接, 设置访问权限 (如仅查看, 允许下载) 及分享给指定用户的后端接口.
+将通知系统升级为实时推送模式. 在 NotificationService 中, 当创建新通知时, 调用 RedisTemplate 将通知消息发布到指定频道. WebSocketService 中增加一个Redis订阅者 (RedisSubscriber), 监听该频道, 接收到消息后通过WebSocket连接将通知实时推送给对应的在线用户.
+统一并规范化后端错误处理. 审查项目中所有Controller的异常处理逻辑, 确保返回的 ApiResponse 对象的业务码严格使用在 ApiResponse.ErrorCode 中定义的常量, 避免在业务代码中硬编码错误码.
+更新项目文档, 修改 README.md 文件中的API文档部分, 使其与所有重构后的RESTful API端点, 请求方法, 和数据结构完全一致.
