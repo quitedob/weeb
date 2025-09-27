@@ -6,7 +6,7 @@ import com.web.model.User;
 import com.web.model.UserWithStats;
 import com.web.service.AuthService;
 import com.web.constant.UserOnlineStatus;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.web.util.JwtUtil;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,17 +23,19 @@ import java.util.concurrent.TimeUnit;
 @Transactional
 public class AuthServiceImpl implements AuthService {
 
-    @Autowired
-    private AuthMapper authMapper;
-    
-    @Autowired
-    private UserMapper userMapper;
+    private final AuthMapper authMapper;
+    private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final JwtUtil jwtUtil;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    public AuthServiceImpl(AuthMapper authMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, RedisTemplate<String, Object> redisTemplate, JwtUtil jwtUtil) {
+        this.authMapper = authMapper;
+        this.userMapper = userMapper;
+        this.passwordEncoder = passwordEncoder;
+        this.redisTemplate = redisTemplate;
+        this.jwtUtil = jwtUtil;
+    }
 
     private static final String ONLINE_USERS_KEY = "online_users";
     private static final String USER_TOKEN_PREFIX = "user_token:";
@@ -76,11 +78,11 @@ public class AuthServiceImpl implements AuthService {
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new RuntimeException("密码错误");
         }
-        
-        // 生成JWT令牌（这里简化为UUID）
-        String token = UUID.randomUUID().toString();
-        
-        // 将用户信息存储到Redis
+
+        // 生成真正的JWT令牌
+        String token = jwtUtil.generateToken(user.getId());
+
+        // 将用户信息存储到Redis（用于快速查询）
         redisTemplate.opsForValue().set(USER_TOKEN_PREFIX + token, user, TOKEN_EXPIRE_TIME, TimeUnit.SECONDS);
         
         // 更新登录时间
