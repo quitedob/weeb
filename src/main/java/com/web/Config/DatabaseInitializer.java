@@ -537,7 +537,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_likes_count` (`likes_count`),
                 KEY `idx_exposure_count` (`exposure_count`),
                 FULLTEXT KEY `ft_title_content` (`article_title`, `article_content`),
-                CONSTRAINT `fk_article_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+                CONSTRAINT `fk_articles_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
             COMMENT='文章内容表'
             """;
@@ -741,7 +741,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_user_id` (`user_id`),
                 KEY `idx_parent_id` (`parent_id`),
                 KEY `idx_created_at` (`created_at`),
-                CONSTRAINT `fk_comment_article` FOREIGN KEY (`article_id`) REFERENCES `article` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_comment_article` FOREIGN KEY (`article_id`) REFERENCES `articles` (`article_id`) ON DELETE CASCADE,
                 CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `fk_comment_parent` FOREIGN KEY (`parent_id`) REFERENCES `article_comment` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
