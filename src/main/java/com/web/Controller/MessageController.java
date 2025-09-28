@@ -6,6 +6,7 @@ import com.web.common.ApiResponse;
 import com.web.model.Message;
 import com.web.service.MessageService;
 import com.web.vo.message.SendMessageVo;
+import com.web.vo.message.TextMessageContent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,11 +44,29 @@ public class MessageController {
         // 将VO转换为Message实体
         Message messageBody = new Message();
         messageBody.setSenderId(userId); // 设置发送者ID
-        messageBody.setTargetId(messageVo.getTargetId());
         messageBody.setMessageType(messageVo.getMessageType());
-        messageBody.setContent(messageVo.getContent());
-        messageBody.setGroupId(messageVo.getGroupId());
-        messageBody.setShowTime(messageVo.getShowTime());
+
+        // 将SendMessageVo的content转换为TextMessageContent
+        TextMessageContent textContent = new TextMessageContent();
+        if (messageVo.getContent() instanceof String) {
+            textContent.setContent((String) messageVo.getContent());
+        } else {
+            // 如果不是字符串类型，转换为字符串
+            textContent.setContent(messageVo.getContent().toString());
+        }
+        messageBody.setContent(textContent);
+
+        // 根据消息类型设置chatId
+        if (messageVo.getMessageType() != null && messageVo.getMessageType() == 1) {
+            // 群组消息，使用groupId作为chatId
+            messageBody.setChatId(messageVo.getGroupId());
+        } else {
+            // 私聊消息，使用targetId作为chatId
+            messageBody.setChatId(messageVo.getTargetId());
+        }
+
+        // 设置是否显示时间
+        messageBody.setIsShowTime(messageVo.getShowTime() != null ? (messageVo.getShowTime() ? 1 : 0) : 0);
 
         // 如果消息类型为空，则设置默认消息类型为文本类型
         if (messageBody.getMessageType() == null) {
