@@ -297,7 +297,7 @@ weeb/
 │   │   └── UrlLimitAspect.java     # URL限流切面
 │   ├── common/                     # 公共类 (1个)
 │   │   └── ApiResponse.java       # 统一API响应格式
-│   ├── Config/                     # 配置类 (12个)
+│   ├── Config/                     # 配置类 (13个)
 │   │   ├── AsyncConfig.java       # 异步配置
 │   │   ├── CacheConfig.java       # 缓存配置
 │   │   ├── CorsConfig.java        # CORS跨域配置
@@ -305,6 +305,7 @@ weeb/
 │   │   ├── ElasticsearchConfig.java # Elasticsearch配置
 │   │   ├── MybatisHandler.java    # MyBatis处理器
 │   │   ├── RedisConfig.java       # Redis配置
+│   │   ├── SecurityBeansConfig.java # 安全Bean配置
 │   │   ├── SecurityConfig.java    # 安全配置
 │   │   ├── SensitiveWordConfig.java # 敏感词配置
 │   │   ├── UserInfoArgumentResolver.java # 用户信息参数解析器
@@ -323,10 +324,11 @@ weeb/
 │   │   ├── UserOnlineStatus.java  # 用户在线状态
 │   │   ├── UserType.java          # 用户类型
 │   │   └── WsContentType.java     # WebSocket内容类型
-│   ├── Controller/                 # REST控制器 (15个)
+│   ├── Controller/                 # REST控制器 (16个)
 │   │   ├── ArticleCenterController.java # 文章中心控制器
 │   │   ├── ArticleCommentController.java # 文章评论控制器
 │   │   ├── AuthController.java    # 认证控制器
+│   │   ├── ChatController.java    # 聊天控制器
 │   │   ├── ChatListController.java # 聊天列表控制器
 │   │   ├── ContactController.java # 联系人控制器
 │   │   ├── FileController.java    # 文件控制器
@@ -350,7 +352,7 @@ weeb/
 │   │   └── WeebException.java     # 自定义异常
 │   ├── filter/                     # 过滤器 (1个)
 │   │   └── JwtAuthenticationFilter.java # JWT认证过滤器
-│   ├── mapper/                     # MyBatis Mapper接口 (15个)
+│   ├── mapper/                     # MyBatis Mapper接口 (16个)
 │   ├── migration/                   # 数据库迁移 (3个)
 │   │   ├── DatabaseMigrationExecutor.java # 数据库迁移执行器
 │   │   ├── MigrationRunner.java      # 迁移运行器
@@ -362,6 +364,7 @@ weeb/
 │   │   ├── ContactMapper.java     # 联系人Mapper
 │   │   ├── FileMapper.java        # 文件Mapper
 │   │   ├── FileRecordMapper.java  # 文件记录Mapper
+│   │   ├── FileShareMapper.java   # 文件分享Mapper
 │   │   ├── GroupMapper.java       # 群组Mapper
 │   │   ├── GroupMemberMapper.java # 群组成员Mapper
 │   │   ├── MessageMapper.java     # 消息Mapper
@@ -422,7 +425,7 @@ weeb/
 │   │   ├── commands/              # 命令实现 (3个)
 │   │   ├── CustomCommand.java     # 自定义命令
 │   │   └── InteractionConnect.java # 交互连接
-│   ├── util/                       # 工具类 (9个)
+│   ├── util/                       # 工具类 (8个)
 │   │   ├── CacheUtil.java         # 缓存工具
 │   │   ├── DatabaseMigrationUtil.java # 数据库迁移工具
 │   │   ├── IpUtil.java            # IP工具
@@ -431,11 +434,15 @@ weeb/
 │   │   ├── SecurityUtil.java      # 安全工具
 │   │   ├── UrlPermitUtil.java     # URL权限工具
 │   │   └── UserStatsUtil.java     # 用户统计工具
-│   └── vo/                         # 视图对象 (32个)
+│   └── vo/                         # 视图对象 (38个)
+│       ├── article/                # 文章VO (2个)
+│       ├── auth/                   # 认证VO (1个)
+│       ├── chat/                   # 聊天VO (3个)
 │       ├── chatList/               # 聊天列表VO (3个)
+│       ├── comment/                # 评论VO (1个)
 │       ├── contact/                # 联系人VO (1个)
-│       ├── file/                   # 文件VO (6个)
-│       ├── group/                  # 群组VO (3个)
+│       ├── file/                   # 文件VO (8个)
+│       ├── group/                  # 群组VO (4个)
 │       ├── login/                  # 登录VO (2个)
 │       ├── message/                # 消息VO (5个)
 │       ├── user/                   # 用户VO (2个)
@@ -460,6 +467,22 @@ weeb/
 │   │   ├── UserMapper.xml          # 用户Mapper映射
 │   │   └── UserStatsMapper.xml     # 用户统计Mapper映射
 │   └── sql/                        # 数据库初始化脚本
+├── src/test/java/com/web/         # 测试代码
+│   ├── Config/                    # 测试配置 (1个)
+│   │   └── [测试配置文件]
+│   ├── integration/               # 集成测试 (8个)
+│   │   ├── ApiResponseConsistencyTest.java # API响应一致性测试
+│   │   ├── BasicFunctionalityTest.java # 基础功能测试
+│   │   ├── ComprehensiveSystemValidationTest.java # 系统综合验证测试
+│   │   ├── CoreFeaturesIntegrationTest.java # 核心功能集成测试
+│   │   ├── DatabaseSchemaIntegrationTest.java # 数据库架构集成测试
+│   │   ├── NewFeaturesIntegrationTest.java # 新功能集成测试
+│   │   ├── NotificationSystemValidationTest.java # 通知系统验证测试
+│   │   └── SystemValidationTest.java # 系统验证测试
+│   ├── mapper/                    # Mapper测试 (3个)
+│   │   └── [Mapper测试类]
+│   └── performance/               # 性能测试 (3个)
+│       └── [性能测试类]
 ├── Vue/                           # 前端Vue项目
 ├── mvnw                           # Maven Wrapper (Linux/Mac)
 ├── mvnw.cmd                       # Maven Wrapper (Windows)
