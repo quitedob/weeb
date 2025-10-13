@@ -85,6 +85,13 @@ public interface ArticleMapper {
     Map<String, Object> selectUserStatsInformation(@Param("userId") Long userId);
 
     /**
+     * 根据用户名获取用户的完整信息，包括基本信息和统计数据（JOIN查询，避免N+1问题）
+     * @param username 用户名
+     * @return 用户完整信息Map
+     */
+    Map<String, Object> selectUserCompleteInformationByUsername(@Param("username") String username);
+
+    /**
      * 获取指定用户 ID 文章聚合统计数据（如：总点赞、总收藏、总曝光等）
      * @param userId 用户 ID
      * @return 包含统计数据的 Map

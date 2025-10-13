@@ -44,25 +44,6 @@ export function addReaction(messageId, reactionType) {
   });
 }
 
-// 兼容旧接口的方法（可以逐步迁移）
-export function getPrivateChatList(userId) {
-  return axiosInstance.get('/api/v1/chat-list/list/private', {
-    params: { userId }
-  });
-}
-
-export function createPrivateChat(userId, targetId) {
-  return axiosInstance.post('/api/v1/chat-list/create', null, {
-    params: { userId, targetId }
-  });
-}
-
-export function getGroupChat(userId) {
-  return axiosInstance.get('/api/v1/chat-list/group', {
-    params: { userId }
-  });
-}
-
 export default {
   getChatList,
   createChat,
@@ -70,9 +51,6 @@ export default {
   sendMessage,
   markAsRead,
   deleteChat,
-  addReaction,
-  getPrivateChatList,
-  createPrivateChat,
-  getGroupChat
+  addReaction
 };
 

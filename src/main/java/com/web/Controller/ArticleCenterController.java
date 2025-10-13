@@ -60,47 +60,21 @@ public class ArticleCenterController {
     }
 
     /**
-     * 通过用户名获取用户信息，再调用原来的 getUserInformation(userId) 方法
-     * GET /articles/userinform-by-username?username=alice
-     */
-    /**
-     * 通过用户名获取用户信息，包括注册天数
+     * 通过用户名获取用户完整信息，包括注册天数（优化版本，避免N+1查询问题）
      * GET /articles/userinform-by-username?username=alice
      */
     @GetMapping("/userinform-by-username")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserInformationByUsername(
             @RequestParam String username) {
         try {
-            // 1. 通过用户名获取 User 对象
-            User user = authService.findDateByUsername(username);
-            if (user == null) {
+            // 使用优化后的方法，一次JOIN查询获取所有信息
+            Map<String, Object> userInfo = articleService.getUserCompleteInformationByUsername(username);
+            if (userInfo == null || userInfo.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.notFound("用户未找到"));
             }
 
-            // 2. 提取 userId 和 registrationDate
-            Long userId = user.getId();
-            Date registrationDate = user.getRegistrationDate();
-
-            // 3. 计算从 registrationDate 到现在经过的天数
-            long daysPassed = 0;
-            if (registrationDate != null) {
-                long diffInMillis = new Date().getTime() - registrationDate.getTime();
-                daysPassed = TimeUnit.DAYS.convert(diffInMillis, TimeUnit.MILLISECONDS);
-            }
-
-            // 4. 调用原本的方法获取用户详细信息
-            ResponseEntity<ApiResponse<Map<String, Object>>> response = getUserInformation(userId);
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null && response.getBody().isSuccess()) {
-                Map<String, Object> userInfo = response.getBody().getData();
-                if (userInfo != null) {
-                    // 将计算出的注册天数加入返回数据
-                    userInfo.put("registrationDays", daysPassed);
-                    userInfo.put("registrationDate", registrationDate);
-                }
-                return ResponseEntity.ok(ApiResponse.success(userInfo));
-            }
-            return response;
+            return ResponseEntity.ok(ApiResponse.success(userInfo));
         } catch (Exception e) {
             logger.error("通过用户名获取信息时出错, 用户名为 {}", username, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
