@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.web.mapper.ArticleCategoryMapper">
+
+    <resultMap id="ArticleCategoryResultMap" type="com.web.model.ArticleCategory">
+        <id property="id" column="id"/>
+        <result property="categoryName" column="category_name"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="getAllCategories" resultMap="ArticleCategoryResultMap">
+        SELECT
+            id,
+            category_name,
+            parent_id,
+            created_at
+        FROM article_category
+        ORDER BY parent_id ASC, id ASC
+    </select>
+
+    <select id="getCategoryById" parameterType="long" resultMap="ArticleCategoryResultMap">
+        SELECT
+            id,
+            category_name,
+            parent_id,
+            created_at
+        FROM article_category
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insertCategory" parameterType="com.web.model.ArticleCategory" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO article_category (category_name, parent_id, created_at)
+        VALUES (#{categoryName}, #{parentId}, NOW())
+    </insert>
+
+    <update id="updateCategory" parameterType="com.web.model.ArticleCategory">
+        UPDATE article_category
+        SET category_name = #{categoryName},
+            parent_id = #{parentId}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteCategory" parameterType="long">
+        DELETE FROM article_category WHERE id = #{id}
+    </delete>
+
+</mapper>

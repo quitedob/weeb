@@ -8,6 +8,7 @@
     <resultMap id="ArticleResultMap" type="com.web.model.Article">
         <id property="id" column="article_id"/>
         <result property="userId" column="user_id"/>
+        <result property="categoryId" column="category_id"/>
         <result property="articleTitle" column="article_title"/>
         <result property="articleContent" column="article_content"/>
         <result property="articleLink" column="article_link"/>
@@ -20,10 +21,36 @@
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
+    <select id="getRecommendedArticles" parameterType="map" resultMap="ArticleResultMap">
+        SELECT
+            article_id,
+            user_id,
+            category_id,
+            article_title,
+            article_content,
+            article_link,
+            status,
+            likes_count,
+            favorites_count,
+            sponsors_count,
+            created_at,
+            updated_at,
+            exposure_count,
+            <!-- 计算推荐分数：点赞数*0.3 + 阅读量*0.2 + 收藏数*0.3 + 发布时间新鲜度*0.2 -->
+            (likes_count * 0.3 + exposure_count * 0.2 + favorites_count * 0.3 + 
+             (TIMESTAMPDIFF(DAY, created_at, NOW()) < 7) * 10 * 0.2) AS recommend_score
+        FROM articles
+        WHERE status = 1        <!-- 只显示已发布的文章 -->
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)  <!-- 只推荐30天内的文章 -->
+        ORDER BY recommend_score DESC, created_at DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
     <select id="getAllArticles" parameterType="map" resultMap="ArticleResultMap">
         SELECT
             article_id,
             user_id,
+            category_id,
             article_title,
             article_content,
             article_link,
@@ -36,8 +63,108 @@
             exposure_count
         FROM articles
         WHERE status = 1        <!-- 只显示已发布的文章 -->
-        ORDER BY updated_at DESC
+        <choose>
+            <when test="sortBy == 'created_at'">
+                ORDER BY created_at ${sortOrder}
+            </when>
+            <when test="sortBy == 'exposure_count'">
+                ORDER BY exposure_count ${sortOrder}
+            </when>
+            <when test="sortBy == 'likes_count'">
+                ORDER BY likes_count ${sortOrder}
+            </when>
+            <when test="sortBy == 'favorites_count'">
+                ORDER BY favorites_count ${sortOrder}
+            </when>
+            <otherwise>
+                ORDER BY updated_at DESC
+            </otherwise>
+        </choose>
         LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="searchArticles" parameterType="map" resultMap="ArticleResultMap">
+        SELECT
+            article_id,
+            user_id,
+            category_id,
+            article_title,
+            article_content,
+            article_link,
+            status,
+            likes_count,
+            favorites_count,
+            sponsors_count,
+            created_at,
+            updated_at,
+            exposure_count
+        FROM articles
+        WHERE status = 1        <!-- 只显示已发布的文章 -->
+        AND (article_title LIKE CONCAT('%', #{query}, '%') OR article_content LIKE CONCAT('%', #{query}, '%'))
+        <choose>
+            <when test="sortBy == 'created_at'">
+                ORDER BY created_at ${sortOrder}
+            </when>
+            <when test="sortBy == 'exposure_count'">
+                ORDER BY exposure_count ${sortOrder}
+            </when>
+            <when test="sortBy == 'likes_count'">
+                ORDER BY likes_count ${sortOrder}
+            </when>
+            <when test="sortBy == 'favorites_count'">
+                ORDER BY favorites_count ${sortOrder}
+            </when>
+            <otherwise>
+                ORDER BY updated_at DESC
+            </otherwise>
+        </choose>
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 优化版本：使用全文索引搜索 -->
+    <select id="searchArticlesOptimized" parameterType="map" resultMap="ArticleResultMap">
+        SELECT
+            article_id,
+            user_id,
+            category_id,
+            article_title,
+            article_content,
+            article_link,
+            status,
+            likes_count,
+            favorites_count,
+            sponsors_count,
+            created_at,
+            updated_at,
+            exposure_count,
+            MATCH(article_title, article_content) AGAINST(#{query} IN BOOLEAN MODE) as relevance_score
+        FROM articles
+        WHERE status = 1        <!-- 只显示已发布的文章 -->
+        AND MATCH(article_title, article_content) AGAINST(#{query} IN BOOLEAN MODE)
+        <choose>
+            <when test="sortBy == 'created_at'">
+                ORDER BY created_at ${sortOrder}
+            </when>
+            <when test="sortBy == 'exposure_count'">
+                ORDER BY exposure_count ${sortOrder}
+            </when>
+            <when test="sortBy == 'likes_count'">
+                ORDER BY likes_count ${sortOrder}
+            </when>
+            <when test="sortBy == 'favorites_count'">
+                ORDER BY favorites_count ${sortOrder}
+            </when>
+            <otherwise>
+                ORDER BY relevance_score DESC, updated_at DESC
+            </otherwise>
+        </choose>
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countSearchResults" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM articles 
+        WHERE status = 1        <!-- 只显示已发布的文章 -->
+        AND (article_title LIKE CONCAT('%', #{query}, '%') OR article_content LIKE CONCAT('%', #{query}, '%'))
     </select>
 
     <select id="countAllArticles" resultType="int">
@@ -45,7 +172,22 @@
     </select>
 
     <select id="selectArticleById" parameterType="long" resultMap="ArticleResultMap">
-        SELECT * FROM articles WHERE article_id = #{id}
+        SELECT 
+            article_id, 
+            user_id, 
+            category_id,
+            article_title, 
+            article_content, 
+            article_link, 
+            status, 
+            likes_count, 
+            favorites_count, 
+            sponsors_count, 
+            created_at, 
+            updated_at, 
+            exposure_count 
+        FROM articles 
+        WHERE article_id = #{id}
     </select>
 
     <insert id="subscribeUser" parameterType="map">
@@ -54,10 +196,10 @@
     </insert>
 
     <insert id="insertArticle" parameterType="com.web.model.Article" useGeneratedKeys="true" keyProperty="id" keyColumn="article_id">
-        INSERT INTO articles (user_id, article_title, article_content, article_link, status, 
+        INSERT INTO articles (user_id, category_id, article_title, article_content, article_link, status, 
                               likes_count, favorites_count, sponsors_count, exposure_count, 
                               created_at, updated_at)
-        VALUES (#{userId}, #{articleTitle}, #{articleContent}, #{articleLink}, #{status}, 
+        VALUES (#{userId}, #{categoryId}, #{articleTitle}, #{articleContent}, #{articleLink}, #{status}, 
                 #{likesCount}, #{favoritesCount}, #{sponsorsCount}, #{exposureCount}, 
                 #{createdAt}, #{updatedAt})
     </insert>
@@ -65,13 +207,14 @@
 
     <update id="updateArticle" parameterType="com.web.model.Article">
         UPDATE articles
-        SET article_title = #{articleTitle},
-        article_link = #{articleLink},
-        likes_count = #{likesCount},
-        favorites_count = #{favoritesCount},
-        sponsors_count = #{sponsorsCount},
-        exposure_count = #{exposureCount},
-        updated_at = NOW()
+        SET category_id = #{categoryId},
+            article_title = #{articleTitle},
+            article_link = #{articleLink},
+            likes_count = #{likesCount},
+            favorites_count = #{favoritesCount},
+            sponsors_count = #{sponsorsCount},
+            exposure_count = #{exposureCount},
+            updated_at = NOW()
         WHERE article_id = #{id}
     </update>
     <delete id="deleteArticleById" parameterType="long">
@@ -210,5 +353,54 @@
         LEFT JOIN user_stats us ON u.id = us.user_id
         WHERE u.username = #{username}
     </select>
+
+    <!-- 收藏相关SQL -->
+    <insert id="insertFavorite" parameterType="map">
+        INSERT IGNORE INTO article_favorite (article_id, user_id, created_at)
+        VALUES (#{articleId}, #{userId}, NOW())
+    </insert>
+
+    <delete id="deleteFavorite" parameterType="map">
+        DELETE FROM article_favorite 
+        WHERE article_id = #{articleId} AND user_id = #{userId}
+    </delete>
+
+    <select id="countFavorite" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM article_favorite 
+        WHERE article_id = #{articleId} AND user_id = #{userId}
+    </select>
+
+    <select id="getUserFavoriteArticles" parameterType="map" resultMap="ArticleResultMap">
+        SELECT
+            a.article_id,
+            a.user_id,
+            a.article_title,
+            a.article_content,
+            a.article_link,
+            a.status,
+            a.likes_count,
+            a.favorites_count,
+            a.sponsors_count,
+            a.created_at,
+            a.updated_at,
+            a.exposure_count
+        FROM articles a
+        INNER JOIN article_favorite f ON a.article_id = f.article_id
+        WHERE f.user_id = #{userId}
+        ORDER BY f.created_at DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countUserFavoriteArticles" parameterType="long" resultType="int">
+        SELECT COUNT(*) FROM article_favorite WHERE user_id = #{userId}
+    </select>
+
+    <update id="increaseFavoriteCount" parameterType="long">
+        UPDATE articles SET favorites_count = favorites_count + 1 WHERE article_id = #{articleId}
+    </update>
+
+    <update id="decreaseFavoriteCount" parameterType="long">
+        UPDATE articles SET favorites_count = GREATEST(favorites_count - 1, 0) WHERE article_id = #{articleId}
+    </update>
 
 </mapper>

@@ -72,23 +72,25 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('jwt_token');
-  
+
   if (to.meta.requiresAuth) {
     if (!token) {
-      console.warn('Router Guard: Auth required, no token. Redirecting to login.');
       next({ name: 'Login', query: { redirect: to.fullPath } });
       return;
     }
-    
-    // 验证 token 有效性
+
     try {
       const authStore = useAuthStore();
-      await authStore.fetchUserInfo();
+      // **关键**：如果 currentUser 不存在，才去后端验证
+      if (!authStore.currentUser) {
+        await authStore.fetchUserInfo();
+      }
       next();
     } catch (error) {
-      // token 无效，清除并跳转登录
-      console.warn('Router Guard: Token invalid, clearing and redirecting to login.');
-      localStorage.removeItem('jwt_token');
+      // fetchUserInfo 失败会抛出错误，在这里捕获
+      console.warn('Router Guard: Token validation failed, redirecting to login.');
+      const authStore = useAuthStore();
+      authStore.logoutCleanup(); // 直接调用清理函数
       next({ name: 'Login', query: { redirect: to.fullPath } });
     }
   } else if ((to.name === 'Login' || to.name === 'Register') && token) {
@@ -96,7 +98,7 @@ router.beforeEach(async (to, from, next) => {
   } else {
     next();
   }
-  
+
   const projectTitle = 'Weeb';
   document.title = to.meta.title ? `${to.meta.title} - ${projectTitle}` : projectTitle;
 });

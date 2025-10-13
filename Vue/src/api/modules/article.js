@@ -90,6 +90,62 @@ export const getUserInfoByUsername = (username) => {
     return axiosInstance.get(`/api/articles/userinform-by-username?username=${username}`);
 };
 
+// 获取文章分类列表
+export const getCategories = () => {
+    return axiosInstance.get('/api/articles/categories');
+};
+
+// 获取推荐文章列表
+export const getRecommendedArticles = (page, pageSize) => {
+    return axiosInstance.get('/api/articles/recommended', { params: { page, pageSize } });
+};
+
+// 搜索文章
+export const searchArticles = (params) => {
+    // 参数包括: query, page, pageSize, sortBy, sortOrder
+    return axiosInstance.get('/api/articles/search', { params });
+};
+
+// 收藏文章
+export const favoriteArticle = (articleId) => {
+    return axiosInstance.post(`/api/articles/${articleId}/favorite`);
+};
+
+// 取消收藏文章
+export const unfavoriteArticle = (articleId) => {
+    return axiosInstance.delete(`/api/articles/${articleId}/favorite`);
+};
+
+// 检查文章收藏状态
+export const checkFavoriteStatus = (articleId) => {
+    return axiosInstance.get(`/api/articles/${articleId}/favorite/status`);
+};
+
+// 获取用户收藏的文章列表
+export const getUserFavoriteArticles = (page, pageSize) => {
+    return axiosInstance.get('/api/articles/favorites', { params: { page, pageSize } });
+};
+
+// 获取文章评论列表
+export const getArticleComments = (articleId) => {
+    return axiosInstance.get(`/api/articles/${articleId}/comments`);
+};
+
+// 添加文章评论
+export const addArticleComment = (articleId, commentData) => {
+    return axiosInstance.post(`/api/articles/${articleId}/comments`, commentData);
+};
+
+// 删除文章评论
+export const deleteArticleComment = (articleId, commentId) => {
+    return axiosInstance.delete(`/api/articles/${articleId}/comments/${commentId}`);
+};
+
+// 获取文章评论总数
+export const getArticleCommentCount = (articleId) => {
+    return axiosInstance.get(`/api/articles/${articleId}/comments/count`);
+};
+
 // 默认导出所有API方法
 export default {
     getAllArticles,
@@ -102,5 +158,16 @@ export default {
     increaseReadCount,
     addCoinToArticle,
     getUserInformation,
-    getUserInfoByUsername
+    getUserInfoByUsername,
+    getCategories,  // 添加获取分类API
+    getRecommendedArticles,  // 添加获取推荐文章API
+    searchArticles,  // 添加搜索文章API
+    favoriteArticle,  // 添加收藏文章API
+    unfavoriteArticle,  // 添加取消收藏API
+    checkFavoriteStatus,  // 添加检查收藏状态API
+    getUserFavoriteArticles,  // 添加获取用户收藏文章API
+    getArticleComments,  // 添加获取评论API
+    addArticleComment,  // 添加评论API
+    deleteArticleComment,  // 删除评论API
+    getArticleCommentCount  // 获取评论总数API
 };

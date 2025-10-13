@@ -1,7 +1,6 @@
 // File path: /Vue/src/stores/authStore.js
 import { defineStore } from 'pinia';
 import api from '@/api';
-import router from '@/router'; // For router.push if needed, though usually handled by interceptor/component
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -35,16 +34,17 @@ export const useAuthStore = defineStore('auth', {
     async fetchUserInfo() {
       if (!this.accessToken) return null;
       try {
-        const response = await api.auth.getUserInfo();
-        if (response.id && response.username) {
-          this.currentUser = response;
+        const response = await api.user.getUserInfo(); // 注意: 你的api/index.js中user模块才有getUserInfo
+        if (response.code === 0 && response.data) { // 后端返回的是 ApiResponse 格式
+          this.currentUser = response.data;
           localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
           return this.currentUser;
         }
         return null;
       } catch (error) {
         console.error('fetchUserInfo failed:', error);
-        return null;
+        // 抛出错误，让调用者（如路由守卫）知道验证失败
+        throw error;
       }
     },
     // Centralized method to clear local state and storage, called internally or by interceptor.
@@ -55,36 +55,27 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem('currentUser');
       console.log('AuthStore: State and localStorage cleared for logout.');
     },
-    // Action to be called by components or other parts of the app to initiate logout.
+    // **核心修改点**：这是供外部调用的登出动作
     async logout() {
-      try {
-        await api.auth.logout(); // Call backend logout
-      } catch (error) {
-        console.error("API logout call failed:", error);
-        // Still proceed with frontend cleanup even if backend call fails
-      }
+      // 1. 尽力通知后端，但不等待结果或处理它的失败
+      api.auth.logout().catch(error => {
+        // 后端登出失败是预料之中的（因为token已失效），静默处理即可
+        console.warn("API logout call failed (this is expected if token was invalid):", error.message);
+      });
+
+      // 2. 无论后端调用是否成功，立即无条件清理前端状态
       this.logoutCleanup();
-      // Navigation is typically handled by the component initiating logout or by global navigation guards
-      // based on auth state, rather than directly in the store's logout action after backend call.
-      // The interceptor in axiosInstance.js handles redirection for 401s.
-      // For manual logout, the component calling this action should handle redirection.
-      // router.push('/login').catch(err => console.error('Router push to login failed:', err));
     },
-    // Called by app initialization (e.g., in App.vue or main.js) to sync store with localStorage
     syncAuthStatus() {
       const token = localStorage.getItem('jwt_token');
       if (token) {
         this.accessToken = token;
-        if (!this.currentUser) { // If user data isn't in store, try to fetch it
+        if (!this.currentUser) {
           this.fetchUserInfo().catch(() => {
-            // If fetchUserInfo fails (e.g. token invalid), interceptor in axiosInstance.js
-            // should catch the 401 and trigger logout (which includes cleanup).
+            // 如果token无效，fetchUserInfo会失败，axios拦截器或路由守卫会处理登出
           });
         }
       } else {
-        // Ensure state is clean if no token is found.
-        // This might be redundant if components guard routes properly,
-        // but good for consistency.
         this.logoutCleanup();
       }
     },

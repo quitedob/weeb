@@ -26,14 +26,14 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Object.class);
+        // 使用新的构造函数方式创建序列化器，避免使用已弃用的setObjectMapper方法
         ObjectMapper om = new ObjectMapper();
         om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
         // om.enableDefaultTyping(ObjectMapper.DefaultTyping.NON_FINAL); // Deprecated
         om.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL); // Replacement for enableDefaultTyping
 
-        // 使用新的API设置ObjectMapper
-        jackson2JsonRedisSerializer.setObjectMapper(om);
+        // 直接使用带有ObjectMapper的构造函数
+        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(om, Object.class);
 
         StringRedisSerializer stringRedisSerializer = new StringRedisSerializer();
 

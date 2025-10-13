@@ -159,6 +159,7 @@ public class ArticleCenterController {
             article.setArticleTitle(updateVo.getArticleTitle());
             article.setArticleContent(updateVo.getArticleContent());
             article.setArticleLink(updateVo.getArticleLink());
+            article.setCategoryId(updateVo.getCategoryId());
             article.setStatus(updateVo.getStatus());
             
             // 安全验证：确保用户只能编辑自己的文章
@@ -233,6 +234,7 @@ public class ArticleCenterController {
             article.setArticleTitle(createVo.getArticleTitle());
             article.setArticleContent(createVo.getArticleContent());
             article.setArticleLink(createVo.getArticleLink());
+            article.setCategoryId(createVo.getCategoryId());
             article.setStatus(createVo.getStatus());
             
             int result = articleService.createArticle(article);
@@ -292,15 +294,147 @@ public class ArticleCenterController {
     }
 
     /**
-     * [修改] 获取articles表中所有文章的基本信息（支持分页）
-     * GET /articles/getall?page=1&pageSize=10
+     * 收藏文章
+     * POST /articles/{id}/favorite
+     */
+    @PostMapping("/{id}/favorite")
+    public ResponseEntity<ApiResponse<String>> favoriteArticle(@PathVariable Long id, @Userid Long authenticatedUserId) {
+        try {
+            boolean success = articleService.favoriteArticle(id, authenticatedUserId);
+            if (!success) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("收藏失败"));
+            }
+            return ResponseEntity.ok(ApiResponse.success("收藏成功"));
+        } catch (Exception e) {
+            logger.error("收藏文章失败，文章ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 取消收藏文章
+     * DELETE /articles/{id}/favorite
+     */
+    @DeleteMapping("/{id}/favorite")
+    public ResponseEntity<ApiResponse<String>> unfavoriteArticle(@PathVariable Long id, @Userid Long authenticatedUserId) {
+        try {
+            boolean success = articleService.unfavoriteArticle(id, authenticatedUserId);
+            if (!success) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("取消收藏失败"));
+            }
+            return ResponseEntity.ok(ApiResponse.success("取消收藏成功"));
+        } catch (Exception e) {
+            logger.error("取消收藏文章失败，文章ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 检查用户是否已收藏文章
+     * GET /articles/{id}/favorite/status
+     */
+    @GetMapping("/{id}/favorite/status")
+    public ResponseEntity<ApiResponse<Boolean>> checkFavoriteStatus(@PathVariable Long id, @Userid Long authenticatedUserId) {
+        try {
+            boolean isFavorited = articleService.isArticleFavoritedByUser(id, authenticatedUserId);
+            return ResponseEntity.ok(ApiResponse.success(isFavorited));
+        } catch (Exception e) {
+            logger.error("检查收藏状态失败，文章ID: {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 获取用户收藏的文章列表
+     * GET /articles/favorites?page=1&pageSize=10
+     */
+    @GetMapping("/favorites")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserFavoriteArticles(
+            @Userid Long authenticatedUserId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        try {
+            Map<String, Object> favoriteArticles = articleService.getUserFavoriteArticles(authenticatedUserId, page, pageSize);
+            return ResponseEntity.ok(ApiResponse.success(favoriteArticles));
+        } catch (Exception e) {
+            logger.error("获取用户收藏文章失败，用户ID: {}", authenticatedUserId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 获取文章分类列表
+     * GET /api/articles/categories
+     */
+    @GetMapping("/categories")
+    public ResponseEntity<ApiResponse<List<com.web.model.ArticleCategory>>> getCategories() {
+        try {
+            List<com.web.model.ArticleCategory> categories = articleService.getAllCategories();
+            return ResponseEntity.ok(ApiResponse.success(categories));
+        } catch (Exception e) {
+            logger.error("获取分类列表失败", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 获取推荐文章列表
+     * GET /articles/recommended?page=1&pageSize=10
+     */
+    @GetMapping("/recommended")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getRecommendedArticles(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        try {
+            Map<String, Object> recommendedArticles = articleService.getRecommendedArticles(page, pageSize);
+            return ResponseEntity.ok(ApiResponse.success(recommendedArticles));
+        } catch (Exception e) {
+            logger.error("获取推荐文章失败", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 搜索文章
+     * GET /articles/search?query=关键词&page=1&pageSize=10&sortBy=created_at&sortOrder=desc
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchArticles(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(defaultValue = "created_at") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
+        try {
+            Map<String, Object> searchResult = articleService.searchArticles(query, page, pageSize, sortBy, sortOrder);
+            return ResponseEntity.ok(ApiResponse.success(searchResult));
+        } catch (Exception e) {
+            logger.error("搜索文章失败，关键词: {}", query, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * [修改] 获取articles表中所有文章的基本信息（支持分页和排序）
+     * GET /articles/getall?page=1&pageSize=10&sortBy=created_at&sortOrder=desc
      */
     @GetMapping("/getall") // Changed from @PostMapping to @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAllArticles(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int pageSize) {
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(defaultValue = "created_at") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
         try {
-            Map<String, Object> articlesMap = articleService.getAllArticles(page, pageSize); // Calls new service method
+            Map<String, Object> articlesMap = articleService.getAllArticles(page, pageSize, sortBy, sortOrder); // Calls new service method
             // The service now returns a map like {"list": [...], "total": ...}
             // This map can be directly returned.
             return ResponseEntity.ok(ApiResponse.success(articlesMap));

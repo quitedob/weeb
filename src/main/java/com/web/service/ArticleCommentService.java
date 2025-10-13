@@ -1,36 +1,42 @@
 package com.web.service;
 
 import com.web.model.ArticleComment;
-import com.web.vo.comment.CommentCreateVo;
-
-import java.util.Map;
+import com.web.vo.article.ArticleCommentVo;
+import java.util.List;
 
 /**
  * 文章评论服务接口
  */
 public interface ArticleCommentService {
-    
+
     /**
-     * 创建评论
-     * @param commentVo 评论信息
-     * @param userId 评论者ID
-     * @return 创建的评论
+     * 获取文章评论列表
+     * @param articleId 文章ID
+     * @return 评论列表
      */
-    ArticleComment createComment(CommentCreateVo commentVo, Long userId);
-    
+    List<ArticleComment> getCommentsByArticleId(Long articleId);
+
+    /**
+     * 添加评论
+     * @param articleId 文章ID
+     * @param commentVo 评论内容
+     * @param userId 用户ID
+     * @return 评论ID
+     */
+    Long addComment(Long articleId, ArticleCommentVo commentVo, Long userId);
+
     /**
      * 删除评论
      * @param commentId 评论ID
      * @param userId 用户ID
+     * @return 是否删除成功
      */
-    void deleteComment(Long commentId, Long userId);
-    
+    boolean deleteComment(Long commentId, Long userId);
+
     /**
-     * 获取文章评论列表
+     * 获取评论总数
      * @param articleId 文章ID
-     * @param page 页码
-     * @param size 每页大小
-     * @return 评论列表和分页信息
+     * @return 评论总数
      */
-    Map<String, Object> getComments(Long articleId, int page, int size);
+    int getCommentCount(Long articleId);
 }

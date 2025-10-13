@@ -275,17 +275,37 @@ public class DatabaseInitializer implements CommandLineRunner {
             createArticleCommentTable();
         }
 
-        // 13. 文件记录表（依赖 user 表）
+        // 13. 文章收藏表（依赖 article 和 user 表）
+        if (!tableExists("article_favorite")) {
+            createArticleFavoriteTable();
+        }
+
+        // 14. 文章分类表
+        if (!tableExists("article_category")) {
+            createArticleCategoryTable();
+        }
+
+        // 15. 文章标签表
+        if (!tableExists("article_tag")) {
+            createArticleTagTable();
+        }
+
+        // 16. 文章与标签关联表
+        if (!tableExists("article_tag_relation")) {
+            createArticleTagRelationTable();
+        }
+
+        // 17. 文件记录表（依赖 user 表）
         if (!tableExists("file_record")) {
             createFileRecordTable();
         }
 
-        // 14. 用户关注表（依赖 user 表）
+        // 18. 用户关注表（依赖 user 表）
         if (!tableExists("user_follow")) {
             createUserFollowTable();
         }
 
-        // 15. 文件分享表（依赖 file_record 表）
+        // 19. 文件分享表（依赖 file_record 表）
         if (!tableExists("file_share")) {
             createFileShareTable();
         }
@@ -520,6 +540,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             CREATE TABLE IF NOT EXISTS `articles` (
                 `article_id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '文章ID',
                 `user_id` BIGINT NOT NULL COMMENT '作者ID',
+                `category_id` BIGINT COMMENT '分类ID',
                 `article_title` VARCHAR(200) NOT NULL COMMENT '文章标题',
                 `article_content` LONGTEXT COMMENT '文章内容',
                 `article_link` VARCHAR(500) COMMENT '文章外部链接',
@@ -532,12 +553,14 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `status` TINYINT DEFAULT 1 COMMENT '状态：0草稿，1发布，2删除',
                 PRIMARY KEY (`article_id`),
                 KEY `idx_user_id` (`user_id`),
+                KEY `idx_category_id` (`category_id`),
                 KEY `idx_created_at` (`created_at`),
                 KEY `idx_status` (`status`),
                 KEY `idx_likes_count` (`likes_count`),
                 KEY `idx_exposure_count` (`exposure_count`),
                 FULLTEXT KEY `ft_title_content` (`article_title`, `article_content`),
-                CONSTRAINT `fk_articles_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+                CONSTRAINT `fk_articles_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_articles_category` FOREIGN KEY (`category_id`) REFERENCES `article_category` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
             COMMENT='文章内容表'
             """;
@@ -697,30 +720,85 @@ public class DatabaseInitializer implements CommandLineRunner {
                 // 插入管理员用户
                 jdbcTemplate.update("""
                     INSERT INTO user (username, password, user_email, nickname, type, online_status)
-                    VALUES ('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 
-                            'admin@weeb.com', '系统管理员', 'ADMIN', 1)
+                    VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iKV6biekKXsE6X5w5R2fK5U2gO6', 'admin@example.com', '管理员', 'ADMIN', 0)
                     """);
-
-                // 获取管理员ID并创建统计数据
-                Long adminId = jdbcTemplate.queryForObject(
-                    "SELECT id FROM user WHERE username = 'admin'", Long.class);
                 
-                if (adminId != null) {
-                    jdbcTemplate.update("""
-                        INSERT INTO user_stats (user_id, fans_count, total_likes, total_favorites, 
-                                              total_sponsorship, total_article_exposure, website_coins)
-                        VALUES (?, 0, 0, 0, 0, 0, 1000)
-                        """, adminId);
-                }
-
-                log.info("✅ 管理员账号创建成功 (用户名: admin, 密码: password)");
-            } else {
-                log.info("管理员账号已存在，跳过创建");
+                log.info("✅ 管理员用户创建成功");
             }
-
+            
+            // 检查是否已有文章分类
+            Integer categoryCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM article_category", Integer.class);
+            
+            if (categoryCount == null || categoryCount == 0) {
+                // 插入默认文章分类
+                jdbcTemplate.update("""
+                    INSERT INTO article_category (category_name, parent_id) VALUES
+                    ('技术', NULL),
+                    ('生活', NULL),
+                    ('娱乐', NULL),
+                    ('体育', NULL),
+                    ('新闻', NULL),
+                    ('教育', NULL),
+                    ('前端开发', 1),
+                    ('后端开发', 1),
+                    ('移动开发', 1),
+                    ('数据库', 1),
+                    ('美食', 2),
+                    ('旅游', 2),
+                    ('健康', 2),
+                    ('电影', 3),
+                    ('音乐', 3),
+                    ('游戏', 3),
+                    ('足球', 4),
+                    ('篮球', 4),
+                    ('网球', 4),
+                    ('国内新闻', 5),
+                    ('国际新闻', 5),
+                    ('科技新闻', 5),
+                    ('编程教程', 6),
+                    ('语言学习', 6),
+                    ('职业发展', 6)
+                    """);
+                
+                log.info("✅ 默认文章分类创建成功");
+            }
+            
+            // 检查是否已有文章标签
+            Integer tagCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM article_tag", Integer.class);
+            
+            if (tagCount == null || tagCount == 0) {
+                // 插入默认文章标签
+                jdbcTemplate.update("""
+                    INSERT INTO article_tag (tag_name) VALUES
+                    ('Java'),
+                    ('Python'),
+                    ('JavaScript'),
+                    ('Vue'),
+                    ('React'),
+                    ('Spring Boot'),
+                    ('MySQL'),
+                    ('Redis'),
+                    ('Docker'),
+                    ('Linux'),
+                    ('算法'),
+                    ('数据结构'),
+                    ('设计模式'),
+                    ('前端'),
+                    ('后端'),
+                    ('全栈'),
+                    ('微服务'),
+                    ('分布式'),
+                    ('高并发')
+                    """);
+                
+                log.info("✅ 默认文章标签创建成功");
+            }
+            
         } catch (Exception e) {
-            log.error("❌ 插入初始数据失败", e);
-            // 不抛出异常，允许应用继续启动
+            log.error("插入初始数据失败", e);
+            throw new RuntimeException("插入初始数据失败", e);
         }
     }
 
@@ -754,6 +832,114 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建文章评论表失败", e);
             throw new RuntimeException("创建文章评论表失败", e);
+        }
+    }
+
+    private void createArticleFavoriteTable() {
+        log.info("创建文章收藏表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `article_favorite` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '收藏记录ID',
+                `user_id` BIGINT NOT NULL COMMENT '用户ID',
+                `article_id` BIGINT NOT NULL COMMENT '文章ID',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_user_article` (`user_id`, `article_id`),
+                KEY `idx_user_id` (`user_id`),
+                KEY `idx_article_id` (`article_id`),
+                KEY `idx_created_at` (`created_at`),
+                CONSTRAINT `fk_favorite_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_favorite_article` FOREIGN KEY (`article_id`) REFERENCES `articles` (`article_id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='文章收藏记录表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 文章收藏表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建文章收藏表失败", e);
+            throw new RuntimeException("创建文章收藏表失败", e);
+        }
+    }
+
+    private void createArticleCategoryTable() {
+        log.info("创建文章分类表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `article_category` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '分类ID',
+                `category_name` VARCHAR(100) NOT NULL COMMENT '分类名称',
+                `parent_id` BIGINT COMMENT '父分类ID',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_category_name` (`category_name`),
+                KEY `idx_parent_id` (`parent_id`),
+                KEY `idx_created_at` (`created_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='文章分类表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 文章分类表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建文章分类表失败", e);
+            throw new RuntimeException("创建文章分类表失败", e);
+        }
+    }
+
+    private void createArticleTagTable() {
+        log.info("创建文章标签表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `article_tag` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '标签ID',
+                `tag_name` VARCHAR(50) NOT NULL COMMENT '标签名称',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_tag_name` (`tag_name`),
+                KEY `idx_created_at` (`created_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='文章标签表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 文章标签表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建文章标签表失败", e);
+            throw new RuntimeException("创建文章标签表失败", e);
+        }
+    }
+
+    private void createArticleTagRelationTable() {
+        log.info("创建文章与标签关联表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `article_tag_relation` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '关联ID',
+                `article_id` BIGINT NOT NULL COMMENT '文章ID',
+                `tag_id` BIGINT NOT NULL COMMENT '标签ID',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_article_tag` (`article_id`, `tag_id`),
+                KEY `idx_article_id` (`article_id`),
+                KEY `idx_tag_id` (`tag_id`),
+                KEY `idx_created_at` (`created_at`),
+                CONSTRAINT `fk_tag_relation_article` FOREIGN KEY (`article_id`) REFERENCES `articles` (`article_id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_tag_relation_tag` FOREIGN KEY (`tag_id`) REFERENCES `article_tag` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='文章与标签关联表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 文章与标签关联表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建文章与标签关联表失败", e);
+            throw new RuntimeException("创建文章与标签关联表失败", e);
         }
     }
 

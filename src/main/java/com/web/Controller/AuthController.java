@@ -43,17 +43,59 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<String>> register(@RequestBody Map<String, Object> payload) {
         try {
+            // 参数验证
+            if (payload == null) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "请求参数不能为空"));
+            }
+            
+            String username = (String) payload.get("username");
+            String password = (String) payload.get("password");
+            String email = (String) payload.get("email");
+            
+            // 必填参数验证
+            if (username == null || username.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "用户名不能为空"));
+            }
+            if (password == null || password.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "密码不能为空"));
+            }
+            if (email == null || email.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "邮箱不能为空"));
+            }
+            
+            // 参数长度验证
+            if (username.length() < 3 || username.length() > 50) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "用户名长度必须在3-50个字符之间"));
+            }
+            if (password.length() < 6 || password.length() > 100) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "密码长度必须在6-100个字符之间"));
+            }
+            
+            // 邮箱格式验证
+            if (!email.matches("^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$")) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "邮箱格式不正确"));
+            }
+            
             // 手动映射前端传入的字段到 User 对象
             User user = new User();
-            user.setUsername((String) payload.get("username"));
-            user.setPassword((String) payload.get("password"));
+            user.setUsername(username.trim());
+            user.setPassword(password.trim());
+            user.setUserEmail(email.trim());
+            
             // 将 gender 转换为 sex：male -> 1, female -> 0
             String genderStr = (String) payload.get("gender");
             user.setSex("male".equalsIgnoreCase(genderStr) ? 1 : 0);
-            user.setPhoneNumber((String) payload.get("phone"));
-            user.setUserEmail((String) payload.get("email"));
+            
+            String phone = (String) payload.get("phone");
+            if (phone != null && !phone.trim().isEmpty()) {
+                // 手机号格式验证
+                if (!phone.matches("^1[3-9]\\d{9}$")) {
+                    return ResponseEntity.badRequest().body(ApiResponse.error(1, "手机号格式不正确"));
+                }
+                user.setPhoneNumber(phone.trim());
+            }
+            
             // 其它字段保持默认或由数据库默认值处理
-
             authService.register(user); // 调用服务进行注册
             System.out.println("Payload: " + payload);
 
@@ -145,14 +187,41 @@ public class AuthController {
         try {
             String username = (String) payload.get("username");
             String newPassword = (String) payload.get("newPassword");
-            if (username == null || newPassword == null) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "缺少必要参数"));
+            String confirmPassword = (String) payload.get("confirmPassword");
+            
+            // 参数验证
+            if (username == null || username.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "用户名不能为空"));
             }
-            User user = authService.findByUsername(username);
+            if (newPassword == null || newPassword.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "新密码不能为空"));
+            }
+            if (confirmPassword == null || confirmPassword.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "确认密码不能为空"));
+            }
+            
+            // 密码长度验证
+            if (newPassword.length() < 6 || newPassword.length() > 100) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "密码长度必须在6-100个字符之间"));
+            }
+            
+            // 密码一致性验证
+            if (!newPassword.equals(confirmPassword)) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "两次输入的密码不一致"));
+            }
+            
+            // 密码强度验证（至少包含字母和数字）
+            if (!newPassword.matches("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*?&]{6,}$")) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(1, "密码必须包含至少一个字母和一个数字"));
+            }
+            
+            User user = authService.findByUsername(username.trim());
             if (user == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(1, "用户不存在"));
             }
-            user.setPassword(newPassword);
+            
+            // 加密新密码
+            user.setPassword(newPassword.trim());
             authService.updateAuth(user);
             return ResponseEntity.ok(ApiResponse.success("密码已重置"));
         } catch (RuntimeException e) {
