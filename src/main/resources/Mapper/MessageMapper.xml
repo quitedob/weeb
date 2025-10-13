@@ -22,7 +22,20 @@
     </resultMap>
 
     <select id="getPreviousShowTimeMsg" parameterType="map" resultMap="MessageResultMap">
-        SELECT *
+        SELECT 
+            id,
+            sender_id,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
         FROM `message`
         WHERE (`sender_id` = #{userId} AND `chat_id` = #{targetId})
            OR (`sender_id` = #{targetId} AND `chat_id` = #{userId})
@@ -31,7 +44,20 @@
     </select>
 
     <select id="record" parameterType="map" resultMap="MessageResultMap">
-        SELECT *
+        SELECT 
+            id,
+            sender_id,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
         FROM `message`
         WHERE (`sender_id` = #{userId} AND `chat_id` = #{targetId})
            OR (`sender_id` = #{targetId} AND `chat_id` = #{userId})
@@ -42,7 +68,20 @@
 
     <!-- 根据用户ID查询消息（用于selectMessagesByUsers方法） -->
     <select id="selectMessagesByUsers" parameterType="map" resultMap="MessageResultMap">
-        SELECT *
+        SELECT 
+            id,
+            sender_id,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
         FROM `message`
         WHERE (`sender_id` = #{userId} AND `chat_id` = #{targetId})
            OR (`sender_id` = #{targetId} AND `chat_id` = #{userId})
@@ -76,7 +115,21 @@
 
     <!-- 根据消息ID查询消息 -->
     <select id="selectMessageById" parameterType="java.lang.Long" resultMap="MessageResultMap">
-        SELECT * FROM message WHERE id = #{msgId}
+        SELECT 
+            id,
+            sender_id,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM message WHERE id = #{msgId}
     </select>
 
     <!-- 标记消息为已撤回 -->
@@ -109,7 +162,20 @@
 
     <!-- 根据聊天ID查询最后一条消息 -->
     <select id="selectLastMessageByChatId" parameterType="map" resultMap="MessageResultMap">
-        SELECT *
+        SELECT 
+            id,
+            sender_id,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
         FROM message
         WHERE chat_id = #{chatId}
         ORDER BY created_at DESC
@@ -118,7 +184,20 @@
 
     <!-- 根据聊天ID分页查询消息 -->
     <select id="selectMessagesByChatId" parameterType="map" resultMap="MessageResultMap">
-        SELECT *
+        SELECT 
+            id,
+            sender_id,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
         FROM message
         WHERE chat_id = #{chatId}
         ORDER BY created_at ASC

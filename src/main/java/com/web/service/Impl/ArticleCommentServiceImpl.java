@@ -110,4 +110,79 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
         
         return result;
     }
+
+    @Override
+    public List<ArticleComment> getCommentsByArticleId(Long articleId) {
+        return commentMapper.getCommentsByArticleId(articleId);
+    }
+
+    @Override
+    public Long addComment(Long articleId, ArticleCommentVo commentVo, Long userId) {
+        // 验证文章是否存在
+        if (articleMapper.selectArticleById(articleId) == null) {
+            throw new WeebException("文章不存在");
+        }
+        
+        // 如果是回复评论，验证父评论是否存在
+        if (commentVo.getParentId() != null) {
+            if (commentMapper.selectById(commentVo.getParentId()) == null) {
+                throw new WeebException("父评论不存在");
+            }
+        }
+        
+        ArticleComment comment = new ArticleComment();
+        comment.setArticleId(articleId);
+        comment.setUserId(userId);
+        comment.setContent(commentVo.getContent());
+        comment.setParentId(commentVo.getParentId());
+        comment.setCreatedAt(java.time.LocalDateTime.now());
+        comment.setUpdatedAt(java.time.LocalDateTime.now());
+        
+        int result = commentMapper.insertComment(comment);
+        
+        if (result > 0) {
+            // 创建评论通知
+            try {
+                // 获取文章作者ID
+                Article article = articleMapper.selectArticleById(articleId);
+                if (article != null) {
+                    Long authorId = article.getUserId();
+                    if (!authorId.equals(userId)) { // 不给自己发通知
+                        notificationService.createCommentNotification(
+                            articleId, 
+                            comment.getId(), 
+                            userId, 
+                            authorId
+                        );
+                    }
+                }
+            } catch (Exception e) {
+                // 通知创建失败不影响评论创建
+                System.err.println("创建评论通知失败: " + e.getMessage());
+            }
+            return comment.getId();
+        }
+        
+        return null;
+    }
+
+    @Override
+    public boolean deleteComment(Long commentId, Long userId) {
+        ArticleComment comment = commentMapper.selectById(commentId);
+        if (comment == null) {
+            throw new WeebException("评论不存在");
+        }
+        
+        if (!comment.getUserId().equals(userId)) {
+            throw new WeebException("只能删除自己的评论");
+        }
+        
+        int result = commentMapper.deleteComment(commentId, userId);
+        return result > 0;
+    }
+
+    @Override
+    public int getCommentCount(Long articleId) {
+        return commentMapper.countCommentsByArticleId(articleId);
+    }
 }

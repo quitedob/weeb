@@ -14,14 +14,24 @@
     </resultMap>
 
     <select id="selectByMessageId" parameterType="java.lang.Long" resultMap="MessageReactionResultMap">
-        SELECT *
+        SELECT 
+            id,
+            message_id,
+            user_id,
+            reaction_type,
+            create_time
         FROM `message_reaction`
         WHERE `message_id` = #{messageId}
         ORDER BY `create_time` ASC
     </select>
 
     <select id="selectByMessageIdAndUserId" resultMap="MessageReactionResultMap">
-        SELECT *
+        SELECT 
+            id,
+            message_id,
+            user_id,
+            reaction_type,
+            create_time
         FROM `message_reaction`
         WHERE `message_id` = #{messageId} AND `user_id` = #{userId}
         LIMIT 1

@@ -3,7 +3,12 @@
 <mapper namespace="com.web.mapper.UserFollowMapper">
 
     <select id="findFollowRelation" resultType="com.web.model.UserFollow">
-        SELECT * FROM user_follow 
+        SELECT 
+            id,
+            follower_id,
+            followee_id,
+            created_at
+        FROM user_follow 
         WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
         LIMIT 1
     </select>
