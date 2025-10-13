@@ -17,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -178,10 +179,8 @@ public class BasicFunctionalityTest {
         
         // 测试评论功能
         assertDoesNotThrow(() -> {
-            Map<String, Object> comments = articleCommentService.getComments(1L, 1, 10);
+            List<com.web.model.ArticleComment> comments = articleCommentService.getCommentsByArticleId(1L);
             assertNotNull(comments);
-            assertTrue(comments.containsKey("comments"));
-            assertTrue(comments.containsKey("total"));
         });
     }
 }

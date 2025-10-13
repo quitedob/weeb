@@ -140,4 +140,104 @@ public interface ArticleMapper {
      * @return 文章总数
      */
     int countAllArticles();
+
+    /**
+     * 添加收藏记录
+     * @param articleId 文章ID
+     * @param userId 用户ID
+     * @return 影响的行数
+     */
+    int insertFavorite(@Param("articleId") Long articleId, @Param("userId") Long userId);
+
+    /**
+     * 删除收藏记录
+     * @param articleId 文章ID
+     * @param userId 用户ID
+     * @return 影响的行数
+     */
+    int deleteFavorite(@Param("articleId") Long articleId, @Param("userId") Long userId);
+
+    /**
+     * 检查用户是否已收藏文章
+     * @param articleId 文章ID
+     * @param userId 用户ID
+     * @return 收藏记录数
+     */
+    Integer countFavorite(@Param("articleId") Long articleId, @Param("userId") Long userId);
+
+    /**
+     * 获取用户收藏的文章列表
+     * @param userId 用户ID
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @return 收藏的文章列表
+     */
+    List<Article> getUserFavoriteArticles(@Param("userId") Long userId, @Param("offset") int offset, @Param("pageSize") int pageSize);
+
+    /**
+     * 统计用户收藏的文章数量
+     * @param userId 用户ID
+     * @return 收藏的文章数量
+     */
+    int countUserFavoriteArticles(@Param("userId") Long userId);
+
+    /**
+     * 增加文章收藏数
+     * @param articleId 文章ID
+     * @return 影响的行数
+     */
+    int increaseFavoriteCount(@Param("articleId") Long articleId);
+
+    /**
+     * 减少文章收藏数
+     * @param articleId 文章ID
+     * @return 影响的行数
+     */
+    int decreaseFavoriteCount(@Param("articleId") Long articleId);
+
+    /**
+     * 获取推荐文章列表（根据热度、发布时间等因素推荐）
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @return 推荐文章列表
+     */
+    List<Article> getRecommendedArticles(@Param("offset") int offset, @Param("pageSize") int pageSize);
+
+    /**
+     * 获取文章的标签列表
+     * @param articleId 文章ID
+     * @return 标签列表
+     */
+    List<Article> getArticleWithTags(@Param("articleId") Long articleId);
+
+    /**
+     * 获取所有文章信息（支持排序）
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @param sortBy 排序字段
+     * @param sortOrder 排序方向
+     * @return 文章列表
+     */
+    List<Article> getAllArticles(@Param("offset") int offset, @Param("pageSize") int pageSize, 
+                                @Param("sortBy") String sortBy, @Param("sortOrder") String sortOrder);
+
+    /**
+     * 搜索文章（支持排序）
+     * @param query 搜索关键词
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @param sortBy 排序字段
+     * @param sortOrder 排序方向
+     * @return 搜索结果列表
+     */
+    List<Article> searchArticles(@Param("query") String query, @Param("offset") int offset, 
+                                @Param("pageSize") int pageSize, @Param("sortBy") String sortBy, 
+                                @Param("sortOrder") String sortOrder);
+
+    /**
+     * 统计搜索结果数量
+     * @param query 搜索关键词
+     * @return 结果数量
+     */
+    int countSearchResults(@Param("query") String query);
 }

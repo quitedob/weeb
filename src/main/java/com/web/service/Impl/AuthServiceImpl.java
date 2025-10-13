@@ -58,8 +58,34 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void register(User user) {
+        // 参数验证
+        if (user == null) {
+            throw new RuntimeException("用户信息不能为空");
+        }
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+            throw new RuntimeException("用户名不能为空");
+        }
+        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
+            throw new RuntimeException("密码不能为空");
+        }
+        if (user.getUserEmail() == null || user.getUserEmail().trim().isEmpty()) {
+            throw new RuntimeException("邮箱不能为空");
+        }
+        
+        // 检查用户名是否已存在
+        User existingUser = authMapper.findByUsername(user.getUsername().trim());
+        if (existingUser != null) {
+            throw new RuntimeException("用户名已存在");
+        }
+        
+        // 检查邮箱是否已存在
+        Long existingEmailCount = authMapper.countByEmail(user.getUserEmail().trim());
+        if (existingEmailCount != null && existingEmailCount > 0) {
+            throw new RuntimeException("邮箱已被注册");
+        }
+        
         // 加密密码
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setPassword(passwordEncoder.encode(user.getPassword().trim()));
         // 设置注册时间
         user.setRegistrationDate(new Date());
         // 设置默认在线状态
@@ -70,12 +96,27 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String login(String username, String password) {
-        User user = authMapper.findByUsername(username);
+        // 参数验证
+        if (username == null || username.trim().isEmpty()) {
+            throw new RuntimeException("用户名不能为空");
+        }
+        if (password == null || password.trim().isEmpty()) {
+            throw new RuntimeException("密码不能为空");
+        }
+        
+        // 查找用户
+        User user = authMapper.findByUsername(username.trim());
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
         
-        if (!passwordEncoder.matches(password, user.getPassword())) {
+        // 检查用户状态
+        if (user.getStatus() != null && user.getStatus() == 0) {
+            throw new RuntimeException("用户账号已被禁用");
+        }
+        
+        // 验证密码
+        if (!passwordEncoder.matches(password.trim(), user.getPassword())) {
             throw new RuntimeException("密码错误");
         }
 

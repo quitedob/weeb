@@ -1,6 +1,7 @@
 package com.web.service;
 
 import com.web.model.Article;
+import com.web.model.ArticleCategory;
 
 import java.util.List;
 import java.util.Map;
@@ -70,9 +71,27 @@ public interface ArticleService {
 
 
     /**
-     * 获取所有文章的列表
+     * 获取所有文章列表（支持分页和排序）
+     *
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @param sortBy 排序字段
+     * @param sortOrder 排序方向（asc/desc）
+     * @return 包含文章列表和总数的Map
      */
-    Map<String, Object> getAllArticles(int page, int pageSize);
+    Map<String, Object> getAllArticles(int page, int pageSize, String sortBy, String sortOrder);
+
+    /**
+     * 搜索文章（支持分页和排序）
+     *
+     * @param query 搜索关键词
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @param sortBy 排序字段
+     * @param sortOrder 排序方向（asc/desc）
+     * @return 包含搜索结果和总数的Map
+     */
+    Map<String, Object> searchArticles(String query, int page, int pageSize, String sortBy, String sortOrder);
 
     /**
      * 为指定文章增加金币或赞助金额。
@@ -102,4 +121,56 @@ public interface ArticleService {
     Map<String, Object> getUserAllArticlesStats(Long userId);
 
     List<Article> getArticlesByUserId(Long userId);
+
+    /**
+     * 获取所有文章分类
+     * @return 分类列表
+     */
+    List<ArticleCategory> getAllCategories();
+
+    /**
+     * 收藏文章
+     *
+     * @param articleId 文章ID
+     * @param userId 用户ID
+     * @return 如果收藏成功返回 true，否则返回 false
+     */
+    boolean favoriteArticle(Long articleId, Long userId);
+
+    /**
+     * 取消收藏文章
+     *
+     * @param articleId 文章ID
+     * @param userId 用户ID
+     * @return 如果取消收藏成功返回 true，否则返回 false
+     */
+    boolean unfavoriteArticle(Long articleId, Long userId);
+
+    /**
+     * 检查用户是否已收藏文章
+     *
+     * @param articleId 文章ID
+     * @param userId 用户ID
+     * @return 如果已收藏返回 true，否则返回 false
+     */
+    boolean isArticleFavoritedByUser(Long articleId, Long userId);
+
+    /**
+     * 获取用户收藏的文章列表
+     *
+     * @param userId 用户ID
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @return 包含收藏文章列表和总数的Map
+     */
+    Map<String, Object> getUserFavoriteArticles(Long userId, int page, int pageSize);
+
+    /**
+     * 获取推荐文章列表
+     *
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @return 包含推荐文章列表和总数的Map
+     */
+    Map<String, Object> getRecommendedArticles(int page, int pageSize);
 }

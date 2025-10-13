@@ -21,6 +21,11 @@ public class ArticleCreateVo {
     @Size(max = 500, message = "文章链接不能超过500个字符")
     private String articleLink;
     
+    /**
+     * 文章分类ID
+     */
+    private Long categoryId;
+    
     @Size(max = 100, message = "标签不能超过100个字符")
     private String tags;
     

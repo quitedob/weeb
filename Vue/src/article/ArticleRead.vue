@@ -1,55 +1,188 @@
 <template>
   <div class="article-read-container" v-if="article">
-    <el-card>
+    <el-card class="article-card">
       <template #header>
-        <h1>{{ article.articleTitle }}</h1>
-        <div class="article-meta">
-          <span>作者ID: {{ article.userId }}</span>
-          <span>阅读: {{ article.exposureCount }}</span>
-          <span>点赞: {{ article.likesCount }}</span>
-          <span>更新于: {{ formatDate(article.updatedAt) }}</span> <!-- Added formatDate -->
+        <div class="article-header">
+          <h1 class="article-title">{{ article.articleTitle }}</h1>
+          <div class="article-meta">
+            <div class="meta-item">
+              <el-avatar :size="32" :src="article.userAvatar">
+                {{ article.userId ? 'U' + article.userId.toString().slice(-2) : 'U' }}
+              </el-avatar>
+              <span class="author">作者ID: {{ article.userId }}</span>
+            </div>
+            <div class="meta-stats">
+              <span class="stat-item">
+                <el-icon><View /></el-icon>
+                {{ article.exposureCount || 0 }}
+              </span>
+              <span class="stat-item">
+                <el-icon><Star /></el-icon>
+                {{ article.likesCount || 0 }}
+              </span>
+              <span class="stat-item">
+                <el-icon><Collection /></el-icon>
+                {{ article.favoritesCount || 0 }}
+              </span>
+            </div>
+            <div class="meta-time">
+              <el-icon><Clock /></el-icon>
+              {{ formatDate(article.updatedAt) }}
+            </div>
+          </div>
         </div>
       </template>
+      
       <div class="article-content">
         <!-- 显示文章内容 -->
         <div v-if="article.articleContent" class="article-body" v-html="formatContent(article.articleContent)"></div>
         <div v-else class="no-content">
-          <p>暂无文章内容</p>
+          <el-empty description="暂无文章内容" />
         </div>
         
         <!-- 如果有外部链接，显示链接 -->
         <div v-if="article.articleLink" class="article-link">
-          <p>相关链接:</p>
-          <a :href="article.articleLink" target="_blank" rel="noopener noreferrer">{{ article.articleLink }}</a>
+          <h3>相关链接</h3>
+          <el-link :href="article.articleLink" target="_blank" type="primary">
+            {{ article.articleLink }}
+            <el-icon><Link /></el-icon>
+          </el-link>
         </div>
       </div>
-       <div class="article-actions">
-        <el-button type="primary" @click="like"><el-icon><Plus /></el-icon>点赞</el-button> <!-- Like button with icon -->
+      
+      <div class="article-actions">
+        <el-button type="primary" @click="like" :loading="isLiking">
+          <el-icon><Plus /></el-icon>
+          点赞 ({{ article.likesCount || 0 }})
+        </el-button>
+        <el-button 
+          :type="isFavorited ? 'warning' : 'default'" 
+          @click="toggleFavorite"
+          :loading="isFavoriteLoading"
+        >
+          <el-icon><Star /></el-icon>
+          {{ isFavorited ? '已收藏' : '收藏' }} ({{ article.favoritesCount || 0 }})
+        </el-button>
+        <el-button @click="shareArticle">
+          <el-icon><Share /></el-icon>
+          分享
+        </el-button>
       </div>
     </el-card>
+    
+    <!-- 评论区域 -->
+    <el-card class="comments-card" v-if="showComments">
+      <template #header>
+        <div class="comments-header">
+          <h3>评论 ({{ commentCount }})</h3>
+          <el-button 
+            size="small" 
+            @click="toggleComments"
+            :icon="showComments ? ArrowUp : ArrowDown"
+          >
+            {{ showComments ? '收起评论' : '展开评论' }}
+          </el-button>
+        </div>
+      </template>
+      
+      <!-- 发表评论 -->
+      <div class="comment-form" v-if="authStore.currentUser">
+        <el-input
+          v-model="newComment"
+          type="textarea"
+          :rows="3"
+          placeholder="写下你的评论..."
+          maxlength="1000"
+          show-word-limit
+        ></el-input>
+        <div class="comment-actions">
+          <el-button type="primary" @click="submitComment" :loading="isSubmittingComment">
+            发表评论
+          </el-button>
+        </div>
+      </div>
+      <div v-else class="login-prompt">
+        <el-alert title="请先登录后再发表评论" type="info" :closable="false">
+          <el-button type="primary" size="small" @click="goToLogin">去登录</el-button>
+        </el-alert>
+      </div>
+      
+      <!-- 评论列表 -->
+      <div class="comments-list" v-loading="loadingComments">
+        <div v-if="comments.length === 0 && !loadingComments" class="no-comments">
+          <el-empty description="暂无评论，快来发表第一条评论吧！" />
+        </div>
+        <div v-else>
+          <div v-for="comment in comments" :key="comment.id" class="comment-item">
+            <div class="comment-header">
+              <el-avatar :src="comment.userAvatar" :size="40">
+                {{ comment.username ? comment.username.charAt(0).toUpperCase() : 'U' }}
+              </el-avatar>
+              <div class="comment-info">
+                <div class="comment-author">{{ comment.username || '匿名用户' }}</div>
+                <div class="comment-time">{{ formatDate(comment.createdAt) }}</div>
+              </div>
+              <div class="comment-delete" v-if="authStore.currentUser && authStore.currentUser.id === comment.userId">
+                <el-button type="danger" size="small" text @click="confirmDeleteComment(comment)">
+                  删除
+                </el-button>
+              </div>
+            </div>
+            <div class="comment-content">
+              {{ comment.content }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-card>
+    
+    <!-- 评论收起时的按钮 -->
+    <div class="comments-toggle" v-if="!showComments && commentCount > 0">
+      <el-button @click="toggleComments" :icon="ArrowDown" type="primary" plain>
+        查看评论 ({{ commentCount }})
+      </el-button>
+    </div>
   </div>
-  <div v-else-if="loading" class="loading-placeholder"> <!-- Added loading state -->
-    <p>正在加载文章...</p>
-    <!-- Optional: <el-skeleton :rows="5" animated /> -->
+  
+  <div v-else-if="loading" class="loading-placeholder">
+    <el-skeleton :rows="10" animated />
   </div>
-  <div v-else class="error-placeholder"> <!-- Added error/not found state -->
-    <p>加载文章失败或文章不存在。</p>
-    <el-button @click="goBack">返回</el-button>
+  
+  <div v-else class="error-placeholder">
+    <el-result icon="warning" title="文章不存在" sub-title="抱歉，您访问的文章不存在或已被删除">
+      <template #extra>
+        <el-button type="primary" @click="goBack">返回</el-button>
+      </template>
+    </el-result>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router'; // Added useRouter
-import { getArticleById, increaseReadCount, likeArticle } from '../api/modules/article';
-import { ElMessage } from 'element-plus';
-import { Plus } from '@element-plus/icons-vue'; // Icon for like action
+import { getArticleById, increaseReadCount, likeArticle, 
+         getArticleComments, addArticleComment, deleteArticleComment,
+         checkFavoriteStatus as checkFavoriteStatusApi, favoriteArticle, unfavoriteArticle } from '../api/modules/article';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { Plus, Star, View, Collection, Clock, Link, ArrowUp, ArrowDown, Share } from '@element-plus/icons-vue'; // Icon for like action
+import { useAuthStore } from '@/stores/authStore'; // Added useAuthStore
 
 const route = useRoute();
 const router = useRouter(); // Added
 const article = ref(null);
 const loading = ref(true); // Added loading state
 const articleId = route.params.articleId;
+const authStore = useAuthStore(); // Added authStore
+
+const newComment = ref(''); // Added for new comment input
+const isSubmittingComment = ref(false); // Added for comment submission loading
+const comments = ref([]); // Added for comments list
+const loadingComments = ref(false); // Added for comments loading state
+const commentCount = ref(0); // Added for comment count
+const isFavorited = ref(false); // Added for favorite status
+const isFavoriteLoading = ref(false); // Added for favorite loading state
+const showComments = ref(true); // Added for comments visibility
+const isLiking = ref(false); // Added for like loading state
 
 // Helper function to format date
 const formatDate = (dateString) => {
@@ -100,9 +233,10 @@ const fetchArticle = async () => {
 
 const like = async () => {
     if (!article.value) return;
+    isLiking.value = true;
     try {
         const response = await likeArticle(articleId); // API returns {code, message, data (can be new like count or updated article)}
-        if (response) {
+        if (response && response.code === 200) {
             ElMessage.success('点赞成功！');
             // To update like count:
             // 1. Re-fetch article (fetchArticle()) - simplest but full refresh
@@ -120,6 +254,8 @@ const like = async () => {
     } catch (error) {
         console.error('点赞失败:', error);
         ElMessage.error('点赞失败。');
+    } finally {
+        isLiking.value = false;
     }
 };
 
@@ -127,9 +263,143 @@ const goBack = () => { // Added goBack function
     router.go(-1);
 };
 
+const fetchComments = async () => {
+  loadingComments.value = true;
+  try {
+    const response = await getArticleComments(articleId);
+    if (response && response.data) {
+      comments.value = response.data;
+      commentCount.value = response.data.length;
+    } else {
+      ElMessage.error(response.message || '加载评论失败。');
+    }
+  } catch (error) {
+    console.error('获取评论失败:', error);
+    ElMessage.error('加载评论失败。');
+  } finally {
+    loadingComments.value = false;
+  }
+};
+
+const submitComment = async () => {
+  if (!newComment.value.trim()) {
+    ElMessage.warning('评论内容不能为空！');
+    return;
+  }
+  if (!authStore.currentUser) {
+    ElMessage.error('请先登录后再发表评论。');
+    return;
+  }
+
+  isSubmittingComment.value = true;
+  try {
+    const commentData = {
+      content: newComment.value.trim()
+    };
+    const response = await addArticleComment(articleId, commentData);
+    if (response && response.code === 200) {
+      ElMessage.success('评论发表成功！');
+      newComment.value = ''; // Clear input
+      await fetchComments(); // Refresh comments
+    } else {
+      ElMessage.error(response.message || '评论发表失败。');
+    }
+  } catch (error) {
+    console.error('发表评论失败:', error);
+    ElMessage.error('评论发表失败。');
+  } finally {
+    isSubmittingComment.value = false;
+  }
+};
+
+const confirmDeleteComment = async (comment) => {
+  ElMessageBox.confirm(`确定要删除这条评论吗？`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(async () => {
+    try {
+      const response = await deleteArticleComment(articleId, comment.id);
+      if (response && response.code === 200) {
+        ElMessage.success('评论删除成功！');
+        await fetchComments(); // Refresh comments
+      } else {
+        ElMessage.error(response.message || '评论删除失败。');
+      }
+    } catch (error) {
+      console.error('删除评论失败:', error);
+      ElMessage.error('评论删除失败。');
+    }
+  }).catch(() => {
+    // User cancelled
+  });
+};
+
+const goToLogin = () => {
+  router.push({ name: 'Login' });
+};
+
+// 检查收藏状态
+const checkFavoriteStatus = async () => {
+  if (!authStore.currentUser) {
+    return; // 用户未登录，不检查收藏状态
+  }
+  
+  try {
+    const response = await checkFavoriteStatusApi(articleId);
+    if (response && response.data !== undefined) {
+      isFavorited.value = response.data;
+    }
+  } catch (error) {
+    console.error('检查收藏状态失败:', error);
+  }
+};
+
+// 切换收藏状态
+const toggleFavorite = async () => {
+  if (!authStore.currentUser) {
+    ElMessage.warning('请先登录后再收藏文章');
+    return;
+  }
+  
+  isFavoriteLoading.value = true;
+  try {
+    let response;
+    if (isFavorited.value) {
+      // 取消收藏
+      response = await unfavoriteArticle(articleId);
+    } else {
+      // 收藏
+      response = await favoriteArticle(articleId);
+    }
+    
+    if (response && response.code === 200) {
+      isFavorited.value = !isFavorited.value;
+      ElMessage.success(isFavorited.value ? '收藏成功' : '取消收藏成功');
+    } else {
+      ElMessage.error(response.message || '操作失败');
+    }
+  } catch (error) {
+    console.error('收藏操作失败:', error);
+    ElMessage.error('操作失败，请稍后重试');
+  } finally {
+    isFavoriteLoading.value = false;
+  }
+};
+
+const toggleComments = () => {
+  showComments.value = !showComments.value;
+};
+
+const shareArticle = () => {
+  ElMessage.info('分享功能待实现');
+};
+
 onMounted(() => {
     if (articleId) {
         fetchArticle();
+        fetchComments(); // Fetch comments on mount
+        checkFavoriteStatus(); // Check favorite status on mount
     } else {
         ElMessage.error('无效的文章ID。');
         loading.value = false;
@@ -142,16 +412,48 @@ onMounted(() => {
 .article-read-container {
   padding: 20px;
 }
-.article-meta {
-  font-size: 0.85em; /* Slightly smaller */
-  color: #909399;
-  margin-top: 5px; /* Add some space from title */
-  display: flex; /* Better alignment for multiple items */
-  flex-wrap: wrap; /* Allow wrapping on small screens */
-  gap: 15px; /* Space between items */
+.article-card {
+  margin-bottom: 20px;
 }
-.article-meta span {
-  /* margin-right: 15px; */ /* Replaced by gap */
+.article-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.article-title {
+  margin-bottom: 10px;
+  color: #303133;
+}
+.article-meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 0.9em;
+  color: #606266;
+}
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.author {
+  font-weight: 500;
+  color: #409EFF;
+}
+.meta-stats {
+  display: flex;
+  gap: 15px;
+}
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.meta-time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 .article-content {
   margin-top: 20px;
@@ -218,21 +520,21 @@ onMounted(() => {
   border-top: 1px solid #EBEEF5;
 }
 
-.article-link p {
+.article-link h3 {
   margin-bottom: 10px;
-  color: #606266;
-  font-weight: 500;
+  color: #303133;
 }
 
-.article-link a {
-  color: #409EFF;
-  text-decoration: none;
-  word-break: break-all;
+.article-link .el-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.article-link a:hover {
-  text-decoration: underline;
+.article-link .el-link .el-icon {
+  font-size: 1em;
 }
+
 .article-actions {
     margin-top: 25px;
     border-top: 1px solid #ebeef5;
@@ -244,5 +546,92 @@ onMounted(() => {
   padding: 40px;
   text-align: center;
   color: #606266;
+}
+
+/* Comments Section Styles */
+.comments-card {
+  margin-top: 20px;
+  padding-top: 30px;
+  border-top: 1px solid #EBEEF5;
+}
+
+.comments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.comments-header h3 {
+  margin-bottom: 0; /* Remove default margin */
+  color: #303133;
+}
+
+.comment-form {
+  margin-bottom: 20px;
+}
+
+.comment-form .el-textarea {
+  margin-bottom: 10px;
+}
+
+.comment-form .el-button {
+  width: 100%;
+}
+
+.login-prompt {
+  margin-bottom: 20px;
+}
+
+.comments-list .el-empty {
+  padding: 40px 0;
+}
+
+.comment-item {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px dashed #EBEEF5;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.comment-header .el-avatar {
+  margin-right: 10px;
+}
+
+.comment-info {
+  flex-grow: 1;
+  margin-left: 10px;
+}
+
+.comment-author {
+  font-weight: 600;
+  color: #303133;
+}
+
+.comment-time {
+  font-size: 0.85em;
+  color: #909399;
+  margin-top: 3px;
+}
+
+.comment-delete {
+  margin-left: 15px;
+}
+
+.comment-content {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #606266;
+  word-break: break-all;
+}
+
+.comments-toggle {
+  margin-top: 20px;
+  text-align: center;
 }
 </style>

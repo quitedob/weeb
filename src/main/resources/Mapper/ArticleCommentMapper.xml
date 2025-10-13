@@ -1,27 +1,50 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
 <mapper namespace="com.web.mapper.ArticleCommentMapper">
 
-    <select id="getCommentsWithUserInfo" resultType="map">
-        SELECT 
-            ac.id,
-            ac.article_id,
-            ac.user_id,
-            ac.content,
-            ac.parent_id,
-            ac.created_at,
-            ac.updated_at,
+    <resultMap id="ArticleCommentResultMap" type="com.web.model.ArticleComment">
+        <id property="id" column="id"/>
+        <result property="articleId" column="article_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="content" column="content"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="username" column="username"/>
+        <result property="userAvatar" column="avatar"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="getCommentsByArticleId" parameterType="long" resultMap="ArticleCommentResultMap">
+        SELECT
+            c.id,
+            c.article_id,
+            c.user_id,
+            c.content,
+            c.parent_id,
+            c.created_at,
+            c.updated_at,
             u.username,
-            u.nickname,
             u.avatar
-        FROM article_comment ac
-        LEFT JOIN user u ON ac.user_id = u.id
-        WHERE ac.article_id = #{articleId}
-        ORDER BY ac.created_at ASC
-        LIMIT #{offset}, #{limit}
+        FROM article_comment c
+        LEFT JOIN user u ON c.user_id = u.id
+        WHERE c.article_id = #{articleId}
+        ORDER BY c.created_at ASC
     </select>
 
-    <select id="getCommentCount" resultType="int">
+    <insert id="insertComment" parameterType="com.web.model.ArticleComment" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO article_comment (article_id, user_id, content, parent_id, created_at, updated_at)
+        VALUES (#{articleId}, #{userId}, #{content}, #{parentId}, NOW(), NOW())
+    </insert>
+
+    <delete id="deleteComment" parameterType="map">
+        DELETE FROM article_comment 
+        WHERE id = #{id} AND user_id = #{userId}
+    </delete>
+
+    <select id="countCommentsByArticleId" parameterType="long" resultType="int">
         SELECT COUNT(*) FROM article_comment WHERE article_id = #{articleId}
     </select>
 

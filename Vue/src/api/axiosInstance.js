@@ -4,7 +4,7 @@
 
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
-import router from '../router';
+// 不再需要从这里导入 router
 import { useAuthStore } from '@/stores/authStore';
 
 // 使用环境变量配置 baseURL（Vite 环境）
@@ -74,18 +74,8 @@ instance.interceptors.response.use(
 
       // 处理认证失败（系统错误 code === -1 或未授权 code === 1002）
       if (res.code === -1 || res.code === 1002) {
-        try {
-          const authStore = useAuthStore();
-          if (authStore.logout) {
-            authStore.logout();
-          }
-        } catch (e) {
-          console.warn('useAuthStore not available in response interceptor for logout:', e);
-          // 回退到手动清理 localStorage
-          localStorage.removeItem('jwt_token');
-          localStorage.removeItem('currentUser');
-        }
-        router.push('/login');
+        // **核心修改点**：只清理状态，不跳转页面
+        useAuthStore().logout();
       }
       
       return Promise.reject(new Error(res.message || '请求失败'));
@@ -106,36 +96,14 @@ instance.interceptors.response.use(
       } else {
         switch (status) {
           case 401:
-            message = '未授权，请重新登录';
-            // 尝试清理 store/localStorage
-            try {
-              const authStore = useAuthStore();
-              if (authStore.logout) {
-                authStore.logout();
-              }
-            } catch (e) {
-              console.warn('useAuthStore not available for 401 cleanup:', e);
-              // 回退到手动清理 localStorage
-              localStorage.removeItem('jwt_token');
-              localStorage.removeItem('currentUser');
-            }
-            router.push('/login');
+            message = '认证失败，请重新登录';
+            // **核心修改点**：只清理状态，不跳转页面。路由守卫会处理跳转。
+            useAuthStore().logout(); // 调用logout，它现在不会导致循环
             break;
           case 403:
-            message = '禁止访问，请重新登录';
-            // 403 Forbidden 通常也表示认证失败，执行与401相同的处理
-            try {
-              const authStore = useAuthStore();
-              if (authStore.logout) {
-                authStore.logout();
-              }
-            } catch (e) {
-              console.warn('useAuthStore not available for 403 cleanup:', e);
-              // 回退到手动清理 localStorage
-              localStorage.removeItem('jwt_token');
-              localStorage.removeItem('currentUser');
-            }
-            router.push('/login');
+            message = '禁止访问';
+            // 403 Forbidden 也清理状态，但不跳转
+            useAuthStore().logout();
             break;
           case 404:
             message = '请求资源未找到';

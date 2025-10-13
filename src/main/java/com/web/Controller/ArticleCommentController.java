@@ -4,65 +4,106 @@ import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.model.ArticleComment;
 import com.web.service.ArticleCommentService;
-import com.web.vo.comment.CommentCreateVo;
+import com.web.vo.article.ArticleCommentVo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import jakarta.validation.Valid;
-import java.util.Map;
+
+import java.util.List;
 
 /**
  * 文章评论控制器
  */
 @RestController
-@RequestMapping("/api/comments")
+@RequestMapping("/api/articles/{articleId}/comments")
 public class ArticleCommentController {
 
+    private static final Logger logger = LoggerFactory.getLogger(ArticleCommentController.class);
+    
     @Autowired
-    private ArticleCommentService commentService;
+    private ArticleCommentService articleCommentService;
 
     /**
-     * 创建评论
-     * @param commentVo 评论信息
-     * @param userId 评论者ID
-     * @return 创建的评论
+     * 获取文章评论列表
+     * GET /api/articles/{articleId}/comments
+     */
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<ArticleComment>>> getComments(@PathVariable Long articleId) {
+        try {
+            List<ArticleComment> comments = articleCommentService.getCommentsByArticleId(articleId);
+            return ResponseEntity.ok(ApiResponse.success(comments));
+        } catch (Exception e) {
+            logger.error("获取文章评论失败，文章ID: {}", articleId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 添加评论
+     * POST /api/articles/{articleId}/comments
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<ArticleComment>> createComment(
-            @RequestBody @Valid CommentCreateVo commentVo,
+    public ResponseEntity<ApiResponse<Long>> addComment(
+            @PathVariable Long articleId,
+            @RequestBody @Valid ArticleCommentVo commentVo,
             @Userid Long userId) {
-        ArticleComment comment = commentService.createComment(commentVo, userId);
-        return ResponseEntity.ok(ApiResponse.success(comment));
+        try {
+            Long commentId = articleCommentService.addComment(articleId, commentVo, userId);
+            if (commentId != null) {
+                return ResponseEntity.ok(ApiResponse.success(commentId, "评论成功"));
+            } else {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("评论失败"));
+            }
+        } catch (Exception e) {
+            logger.error("添加评论失败，文章ID: {}, 用户ID: {}", articleId, userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
     }
 
     /**
      * 删除评论
-     * @param commentId 评论ID
-     * @param userId 用户ID
-     * @return 操作结果
+     * DELETE /api/articles/{articleId}/comments/{commentId}
      */
     @DeleteMapping("/{commentId}")
     public ResponseEntity<ApiResponse<String>> deleteComment(
+            @PathVariable Long articleId,
             @PathVariable Long commentId,
             @Userid Long userId) {
-        commentService.deleteComment(commentId, userId);
-        return ResponseEntity.ok(ApiResponse.success("评论已删除"));
+        try {
+            boolean success = articleCommentService.deleteComment(commentId, userId);
+            if (success) {
+                return ResponseEntity.ok(ApiResponse.success("评论删除成功"));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("评论不存在或无权删除"));
+            }
+        } catch (Exception e) {
+            logger.error("删除评论失败，评论ID: {}, 用户ID: {}", commentId, userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
     }
 
     /**
-     * 获取文章评论列表
-     * @param articleId 文章ID
-     * @param page 页码
-     * @param size 每页大小
-     * @return 评论列表
+     * 获取评论总数
+     * GET /api/articles/{articleId}/comments/count
      */
-    @GetMapping("/article/{articleId}")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getComments(
-            @PathVariable Long articleId,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Map<String, Object> comments = commentService.getComments(articleId, page, size);
-        return ResponseEntity.ok(ApiResponse.success(comments));
+    @GetMapping("/count")
+    public ResponseEntity<ApiResponse<Integer>> getCommentCount(@PathVariable Long articleId) {
+        try {
+            int count = articleCommentService.getCommentCount(articleId);
+            return ResponseEntity.ok(ApiResponse.success(count));
+        } catch (Exception e) {
+            logger.error("获取评论总数失败，文章ID: {}", articleId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
     }
 }

@@ -29,6 +29,24 @@ spring:
       map-underscore-to-camel-case: true
       log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
+  # 日志配置
+  logging:
+    level:
+      root: INFO
+      com.web: DEBUG
+      org.springframework.security: DEBUG
+      org.springframework.web: DEBUG
+      org.springframework.jdbc: DEBUG
+      org.springframework.transaction: DEBUG
+    pattern:
+      console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+      file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file:
+      name: logs/weeb.log
+      max-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+
   # Redis配置（已启用）
   # Redis服务已启动，监听端口：6379
   data:
@@ -69,5 +87,5 @@ weeb:
 
 # JWT配置
 jwt:
-  secret: "6nN}V5m9A=QwP^2zDgFj@2025#Strong#Key#RotateMe" # 强随机秘钥
+  secret: "6nNV5m9AQwP2zDgFj2025StrongKeyRotateMe" # 强随机秘钥，移除特殊字符
   expiration: 86400000 # JWT令牌有效期，默认为24小时（毫秒）

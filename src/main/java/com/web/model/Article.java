@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import java.io.Serializable;
 import java.time.LocalDateTime; // Import LocalDateTime
 import java.util.Objects; // Keep Objects if equals/hashCode are implemented
+import java.util.List;
 
 /**
  * 文章实体类，对应数据库中的文章记录
@@ -13,6 +14,7 @@ public class Article implements Serializable {
 
     private Long id;
     private Long userId;
+    private Long categoryId; // 新增分类ID
     private String articleTitle;
     private String articleContent; // 文章内容
     private String articleLink;    // 文章外部链接（可选）
@@ -21,6 +23,7 @@ public class Article implements Serializable {
     private Integer favoritesCount; // Assuming this field exists or will be used
     private Double sponsorsCount;  // Assuming this field exists or will be used
     private Long exposureCount;
+    private List<ArticleTag> tags; // 新增标签列表
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
@@ -32,11 +35,12 @@ public class Article implements Serializable {
     public Article() {}
 
     // Constructor with all fields (example provided by user)
-    public Article(Long id, Long userId, String articleTitle, String articleContent, String articleLink,
+    public Article(Long id, Long userId, Long categoryId, String articleTitle, String articleContent, String articleLink,
                    Integer status, Integer likesCount, Integer favoritesCount, Double sponsorsCount,
                    Long exposureCount, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.userId = userId;
+        this.categoryId = categoryId;
         this.articleTitle = articleTitle;
         this.articleContent = articleContent;
         this.articleLink = articleLink;
@@ -65,6 +69,14 @@ public class Article implements Serializable {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public Long getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Long categoryId) {
+        this.categoryId = categoryId;
     }
 
     public String getArticleTitle() {
@@ -145,6 +157,14 @@ public class Article implements Serializable {
 
     public void setStatus(Integer status) {
         this.status = status;
+    }
+
+    public List<ArticleTag> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<ArticleTag> tags) {
+        this.tags = tags;
     }
 
 }
