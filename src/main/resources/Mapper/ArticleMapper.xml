@@ -178,4 +178,37 @@
         WHERE user_id = #{userId}
     </select>
 
+    <!-- 根据用户名获取用户的完整信息（JOIN查询，避免N+1问题） -->
+    <select id="selectUserCompleteInformationByUsername" parameterType="string" resultType="map">
+        SELECT
+            u.id,
+            u.username,
+            u.user_email,
+            u.sex,
+            u.phone_number,
+            u.registration_date,
+            u.ip_ownership,
+            u.type,
+            u.avatar,
+            u.nickname,
+            u.badge,
+            u.login_time,
+            u.bio,
+            u.online_status,
+            u.created_at,
+            u.updated_at,
+            -- 计算注册天数
+            TIMESTAMPDIFF(DAY, u.registration_date, NOW()) as registration_days,
+            -- 统计数据
+            COALESCE(us.fans_count, 0) as fans_count,
+            COALESCE(us.total_likes, 0) as total_likes,
+            COALESCE(us.total_favorites, 0) as total_favorites,
+            COALESCE(us.total_sponsorship, 0) as total_sponsorship,
+            COALESCE(us.total_article_exposure, 0) as total_article_exposure,
+            COALESCE(us.website_coins, 0) as website_coins
+        FROM user u
+        LEFT JOIN user_stats us ON u.id = us.user_id
+        WHERE u.username = #{username}
+    </select>
+
 </mapper>

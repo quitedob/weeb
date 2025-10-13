@@ -34,6 +34,14 @@ public interface ArticleService {
     Map<String, Object> getUserInformation(Long userId);
 
     /**
+     * 根据用户名获取用户的完整信息，包括基本信息和统计数据，避免N+1查询问题。
+     *
+     * @param username 用户名
+     * @return 包含用户完整信息的 Map，包含注册天数等计算字段
+     */
+    Map<String, Object> getUserCompleteInformationByUsername(String username);
+
+    /**
      * 为指定文章增加点赞数。
      *
      * @param id 文章的唯一标识符

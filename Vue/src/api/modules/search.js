@@ -1,5 +1,5 @@
 // File path: /Vue/src/api/modules/search.js
-import { instance } from '../axiosInstance'; // Corrected import
+import axiosInstance from '../axiosInstance';
 
 export default {
   /**
@@ -10,8 +10,8 @@ export default {
    * @returns {Promise} Axios promise
    */
   searchGroups(keyword, page = 0, size = 10) {
-    return instance.get('/api/search/group', { 
-      params: { keyword, page, size } 
+    return axiosInstance.get('/api/search/group', {
+      params: { keyword, page, size }
     });
   },
 
@@ -23,8 +23,8 @@ export default {
    * @returns {Promise} Axios promise
    */
   searchUsers(keyword, page = 0, size = 10) {
-    return instance.get('/api/search/users', { 
-      params: { keyword, page, size } 
+    return axiosInstance.get('/api/search/users', {
+      params: { keyword, page, size }
     });
   }
 };

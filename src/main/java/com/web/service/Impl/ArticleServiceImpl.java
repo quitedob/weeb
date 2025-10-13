@@ -51,6 +51,11 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
+    public Map<String, Object> getUserCompleteInformationByUsername(String username) {
+        return articleMapper.selectUserCompleteInformationByUsername(username);
+    }
+
+    @Override
     public boolean likeArticle(Long id) {
         int result = articleMapper.increaseLikeCount(id);
         if (result > 0) {

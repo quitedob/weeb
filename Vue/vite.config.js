@@ -27,13 +27,8 @@ export default defineConfig(({ mode }) => {
      // host: '0.0.0.0', // 允许外部访问
       port: 5173, // 确保端口号正确
       proxy: {
-        '/user': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:8080', // 使用环境变量
-          changeOrigin: true,
-          secure: false,
-        },
-        '/test': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:8080', // 使用环境变量
+        '/api': { // 代理所有/api开头的请求
+          target: env.VITE_API_BASE_URL || 'http://localhost:8080',
           changeOrigin: true,
           secure: false,
         },
