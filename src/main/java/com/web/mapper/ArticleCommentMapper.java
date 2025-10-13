@@ -4,6 +4,7 @@ import com.web.model.ArticleComment;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 文章评论相关的数据库访问层接口
@@ -39,4 +40,38 @@ public interface ArticleCommentMapper {
      * @return 评论总数
      */
     int countCommentsByArticleId(@Param("articleId") Long articleId);
+    
+    /**
+     * 根据ID查询评论
+     * @param id 评论ID
+     * @return 评论信息
+     */
+    ArticleComment selectById(@Param("id") Long id);
+    
+    /**
+     * 获取评论及其用户信息
+     * @param articleId 文章ID
+     * @param offset 偏移量
+     * @param size 每页大小
+     * @return 评论列表
+     */
+    List<Map<String, Object>> getCommentsWithUserInfo(
+        @Param("articleId") Long articleId, 
+        @Param("offset") int offset, 
+        @Param("size") int size
+    );
+    
+    /**
+     * 获取评论总数
+     * @param articleId 文章ID
+     * @return 评论总数
+     */
+    int getCommentCount(@Param("articleId") Long articleId);
+    
+    /**
+     * 根据ID删除评论
+     * @param id 评论ID
+     * @return 影响的行数
+     */
+    int deleteById(@Param("id") Long id);
 }
