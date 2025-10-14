@@ -27,12 +27,25 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public Map<String, Object> searchGroups(String keyword, int page, int size) {
-        // 群组搜索的简化实现
-        // 实际需要在GroupMapper中添加搜索方法
+        // 参数验证
+        if (keyword == null || keyword.trim().isEmpty()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("list", List.of());
+            result.put("total", 0L);
+            return result;
+        }
+
+        // 计算偏移量
+        int offset = page * size;
+
+        // 使用专门的搜索方法进行数据库级别的分页查询
+        List<Group> groups = groupMapper.searchGroups(keyword.trim(), offset, size);
+        long total = groupMapper.countSearchGroups(keyword.trim());
+
         Map<String, Object> result = new HashMap<>();
-        result.put("list", List.of()); // 空列表，需要具体实现
-        result.put("total", 0);
-        
+        result.put("list", groups);
+        result.put("total", total);
+
         return result;
     }
 

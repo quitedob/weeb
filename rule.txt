@@ -1,36 +1,84 @@
 本项目是一个前后端分离的应用, 前端使用Vue 3, 后端使用Java Spring Boot.
 核心设计理念是分层清晰, 职责单一, 接口标准化, 高内聚低耦合.
 所有开发人员必须严格遵守本规范.
-项目使用MySQL数据库和MyBatis-Plus持久层框架.
-后端遵循多层架构模型, 数据流向为 Controller, Service, Mapper, Database.
-Controller层是API的入口, 负责接收HTTP请求, 使用@Valid注解校验参数, 并调用Service层.
-Controller层严禁编写复杂业务逻辑.
-接收请求必须使用位于com.web.vo包下的VO对象封装请求体.
-所有接口的返回类型必须是ResponseEntity<ApiResponse<T>>, 并使用com.web.common.ApiResponse类进行包装.
-Service层采用接口加实现的设计模式, 接口位于com.web.service包, 实现位于com.web.service.impl包.
-涉及多张表读写的复杂数据库操作, 必须在ServiceImpl的方法上使用@Transactional注解.
-ServiceImpl中的方法逻辑必须与Mapper接口的操作完全对应.
-修改ServiceImpl中的方法签名, 必须立即同步更新其对应的Service接口.
-Mapper层采用接口加XML的方式, Mapper接口位于com.web.mapper包, XML文件位于resources/Mapper目录.
-简单的单表CRUD操作应直接使用MyBatis-Plus提供的方法.
-复杂的多表查询应在XML文件中编写SQL.
-Mapper接口的方法名必须与XML中statement的id一致, @Param注解的参数名也必须与XML中的引用严格匹配.
-位于com.web.model包的实体类与数据库表一一对应.
-位于com.web.vo包的视图对象专门用于Controller层接收请求.
-User表和UserStats表的分离设计是为了避免高并发下的写锁竞争, User表存储低频更新信息, UserStats表存储高频更新的统计信息.
-业务逻辑错误应抛出自定义的WeebException.
-GlobalExceptionHandler会统一捕获异常并以标准化的ApiResponse格式返回给前端.
-前端所有HTTP通信必须通过src/api/axiosInstance.js中封装的axios实例.
-请求拦截器会自动添加JWT到请求头.
-响应拦截器会统一处理ApiResponse格式.
-新的API请求应根据业务领域添加到src/api/modules/目录下的对应模块中.
-全局状态管理必须使用Pinia.
-用户的认证信息由src/stores/authStore.js管理.
-新功能模块应在src/stores/目录下创建独立的Store文件.
-UI组件库统一使用Element Plus.
-全局样式必须使用src/assets/apple-style.css中定义的CSS变量.
-所有页面路由在src/router/index.js中定义.
-需要认证的页面应作为Layout.vue的子路由, 并在路由元信息中添加meta, { requiresAuth, true }.
-数据库使用MySQL.
-DatabaseInitializer.java会在非生产环境自动创建库和表.
-user表和user_stats表分离是关键性能设计, 开发涉及用户统计数据的功能时, 必须操作user_stats表.
+
+=== 端口配置规范 ===
+1. 后端API服务端口：8080 (application.yml中配置)
+2. WebSocket服务端口：8081 (application.yml中配置)
+3. 前端开发服务器默认端口：5173 (Vite默认)
+4. 严禁随意修改端口配置，如需修改必须更新所有相关文件
+5. 修改端口后必须同步更新axiosInstance.js中的API基础URL
+6. 端口冲突时优先处理占用端口的进程，而不是修改应用端口
+
+=== 后端开发规范 ===
+1. 项目使用MySQL 8.0+数据库和MyBatis-Plus持久层框架
+2. 后端遵循多层架构模型, 数据流向为 Controller, Service, Mapper, Database
+3. Controller层是API的入口, 负责接收HTTP请求, 使用@Valid注解校验参数, 并调用Service层
+4. Controller层严禁编写复杂业务逻辑, 所有接口返回ResponseEntity<ApiResponse<T>>
+5. 接收请求必须使用com.web.vo包下的VO对象封装请求体
+6. Service层采用接口加实现的设计模式, 接口位于com.web.service包, 实现位于com.web.service.impl包
+7. 涉及多张表读写的复杂数据库操作, 必须在ServiceImpl的方法上使用@Transactional注解
+8. 修改ServiceImpl中的方法签名, 必须立即同步更新其对应的Service接口
+9. Mapper层采用接口加XML的方式, Mapper接口位于com.web.mapper包, XML文件位于resources/Mapper目录
+10. Mapper接口的方法名必须与XML中statement的id一致, @Param注解的参数名必须与XML中的引用严格匹配
+
+=== 数据库规范 ===
+1. 位于com.web.model包的实体类与数据库表一一对应
+2. User表和UserStats表的分离设计是为了避免高并发下的写锁竞争
+3. User表存储低频更新信息, UserStats表存储高频更新的统计信息
+4. DatabaseInitializer.java会在非生产环境自动创建库和表
+5. user表和user_stats表分离是关键性能设计, 开发涉及用户统计数据的功能时, 必须操作user_stats表
+6. 业务逻辑错误应抛出自定义的WeebException
+7. GlobalExceptionHandler会统一捕获异常并以标准化的ApiResponse格式返回给前端
+
+=== 前端开发规范 ===
+1. 前端所有HTTP通信必须通过src/api/axiosInstance.js中封装的axios实例
+2. 请求拦截器会自动添加JWT到请求头, 响应拦截器统一处理ApiResponse格式
+3. 新的API请求应根据业务领域添加到src/api/modules/目录下的对应模块中
+4. 全局状态管理必须使用Pinia, 用户的认证信息由src/stores/authStore.js管理
+5. 新功能模块应在src/stores/目录下创建独立的Store文件
+6. UI组件库统一使用Element Plus, 全局样式使用src/assets/apple-style.css中定义的CSS变量
+7. 所有页面路由在src/router/index.js中定义, 需要认证的页面应添加meta, { requiresAuth: true }
+
+=== WebSocket开发规范 ===
+1. WebSocket连接使用chatStore.js管理, 连接地址: ws://localhost:8081/ws
+2. 消息格式必须标准化, 包含type、data、timestamp字段
+3. 实时消息同步通过WebSocket实现, HTTP作为备用方案
+4. 打字指示器和消息状态通过WebSocket实时传输
+5. WebSocket断线重连机制已在chatStore中实现, 不得随意修改
+
+=== 搜索功能规范 ===
+1. 消息搜索使用Elasticsearch, 通过SearchController提供API
+2. 搜索API路径必须以/api/search/开头
+3. 支持多类型搜索: messages、users、groups、articles、all
+4. 搜索结果必须包含list和total字段, 支持分页
+5. Elasticsearch不可用时, 搜索功能应优雅降级, 不影响核心功能
+
+=== 安全开发规范 ===
+1. 所有用户输入必须通过ValidationUtils验证
+2. SQL注入防护使用SqlInjectionUtils, 严禁直接拼接SQL
+3. 安全事件通过SecurityAuditUtils记录, 包括登录失败、异常操作等
+4. JWT Token管理通过authStore.js, 过期自动刷新
+5. 敏感信息必须使用环境变量配置, 不得硬编码
+
+=== 文档更新规范 ===
+1. 修改重要功能后必须同步更新README.md
+2. API接口变更必须更新文档中的接口列表
+3. 端口配置变更必须更新README.md中的访问应用部分
+4. 新增功能必须更新README.md中的核心功能部分
+5. 技术架构变更必须更新README.md中的技术栈部分
+
+=== 代码修改禁止事项 ===
+1. 严禁随意修改端口配置而不更新相关文件
+2. 严禁绕过安全验证和输入检查
+3. 严禁直接在Controller层编写复杂业务逻辑
+4. 严禁不使用事务进行多表操作
+5. 严禁不通过统一的API封装进行HTTP请求
+6. 严禁修改核心架构设计模式
+7. 严禁提交包含安全隐患的代码
+
+=== 违规处理 ===
+1. 违反核心架构规范的代码将被拒绝合并
+2. 不更新文档的功能将被要求补充文档
+3. 安全漏洞代码将被立即要求修复
+4. 多次违反规范的开发者将被移除提交权限

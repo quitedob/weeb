@@ -1,3 +1,6 @@
+server:
+  port: 8080
+
 spring:
   profiles:
     active: dev # Default to dev environment
@@ -108,3 +111,11 @@ weeb:
 jwt:
   secret: "6nNV5m9AQwP2zDgFj2025StrongKeyRotateMe" # 强随机秘钥，移除特殊字符
   expiration: 86400000 # JWT令牌有效期，默认为24小时（毫秒）
+
+# WebSocket配置
+websocket:
+  port: 8081 # WebSocket服务端口
+  path: /ws # WebSocket路径
+  max-connections: 1000 # 最大连接数
+  heartbeat-interval: 30 # 心跳间隔（秒）
+  idle-timeout: 90 # 空闲超时（秒）

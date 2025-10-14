@@ -1,15 +1,22 @@
 // File path: /Vue/src/stores/chatStore.js
 import { defineStore } from 'pinia';
+import { useAuthStore } from './authStore';
+import api from '@/api';
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
     activeChatSession: null, // Stores the currently active chat session object
                              // e.g., { id: 'group101', name: 'Tech Talk', type: 'GROUP', ... }
     chatMessages: {},        // Object to store messages per chatId: { chatId1: [msg1, msg2], chatId2: [...] }
-    // Potential future state:
-    // recentSessions: [],   // List of recent chat sessions for a chat list panel
-    // unreadCounts: {},     // Unread message counts per chatId: { chatId1: 2, chatId2: 0 }
-    // connectionStatus: 'disconnected', // WebSocket connection status
+    recentSessions: [],      // List of recent chat sessions for a chat list panel
+    unreadCounts: {},        // Unread message counts per chatId: { chatId1: 2, chatId2: 0 }
+    connectionStatus: 'disconnected', // WebSocket connection status: 'disconnected', 'connecting', 'connected', 'error'
+    websocket: null,         // WebSocket connection instance
+    reconnectAttempts: 0,    // Number of reconnection attempts
+    maxReconnectAttempts: 5, // Maximum reconnection attempts
+    heartbeatInterval: null, // Heartbeat interval
+    isTyping: {},            // Typing status per chatId: { chatId1: { userId1: true, userId2: false }, ... }
+    onlineUsers: new Set(),  // Set of online user IDs
   }),
   getters: {
     currentChatId: (state) => state.activeChatSession ? state.activeChatSession.id : null,
@@ -19,48 +26,383 @@ export const useChatStore = defineStore('chat', {
         return state.chatMessages[state.activeChatSession.id];
       }
       return [];
+    },
+    totalUnreadCount: (state) => {
+      return Object.values(state.unreadCounts).reduce((total, count) => total + count, 0);
+    },
+    isConnected: (state) => state.connectionStatus === 'connected',
+    isTypingInCurrentChat: (state) => {
+      if (!state.activeChatSession) return false;
+      const typingUsers = state.isTyping[state.activeChatSession.id];
+      return typingUsers && Object.keys(typingUsers).some(userId => typingUsers[userId]);
     }
   },
   actions: {
+    // WebSocket Connection Methods
+    connectWebSocket() {
+      const authStore = useAuthStore();
+      if (!authStore.token) {
+        console.warn('No auth token available for WebSocket connection');
+        return;
+      }
+
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        console.log('WebSocket already connected');
+        return;
+      }
+
+      this.connectionStatus = 'connecting';
+      const wsUrl = `ws://localhost:8081/ws`; // WebSocket server on port 8081
+
+      try {
+        this.websocket = new WebSocket(wsUrl);
+
+        this.websocket.onopen = () => {
+          console.log('WebSocket connected');
+          this.connectionStatus = 'connected';
+          this.reconnectAttempts = 0;
+
+          // Authenticate with WebSocket server
+          this.sendWebSocketMessage({
+            type: 'auth',
+            data: { token: authStore.token }
+          });
+
+          // Start heartbeat
+          this.startHeartbeat();
+        };
+
+        this.websocket.onmessage = (event) => {
+          this.handleWebSocketMessage(event);
+        };
+
+        this.websocket.onclose = (event) => {
+          console.log('WebSocket disconnected:', event);
+          this.connectionStatus = 'disconnected';
+          this.stopHeartbeat();
+
+          // Attempt to reconnect
+          if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            setTimeout(() => {
+              this.reconnectAttempts++;
+              console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+              this.connectWebSocket();
+            }, 3000 * this.reconnectAttempts);
+          }
+        };
+
+        this.websocket.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          this.connectionStatus = 'error';
+        };
+
+      } catch (error) {
+        console.error('Failed to create WebSocket connection:', error);
+        this.connectionStatus = 'error';
+      }
+    },
+
+    disconnectWebSocket() {
+      if (this.websocket) {
+        this.websocket.close();
+        this.websocket = null;
+      }
+      this.stopHeartbeat();
+      this.connectionStatus = 'disconnected';
+    },
+
+    sendWebSocketMessage(message) {
+      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        this.websocket.send(JSON.stringify(message));
+      } else {
+        console.warn('WebSocket not connected, message not sent:', message);
+      }
+    },
+
+    handleWebSocketMessage(event) {
+      try {
+        const message = JSON.parse(event.data);
+
+        switch (message.type) {
+          case 'auth_success':
+            console.log('WebSocket authentication successful');
+            break;
+
+          case 'chat_message':
+            this.handleIncomingChatMessage(message);
+            break;
+
+          case 'heartbeat_response':
+            // Heartbeat response handled automatically
+            break;
+
+          case 'error':
+            console.error('WebSocket error:', message.data);
+            break;
+
+          case 'status_change':
+            this.handleUserStatusChange(message);
+            break;
+
+          case 'message_sent':
+            console.log('Message sent confirmation:', message);
+            this.updateMessageStatus(message.data.messageId, 'sent');
+            break;
+
+          case 'message_delivered':
+            console.log('Message delivered confirmation:', message);
+            this.updateMessageStatus(message.data.messageId, 'delivered');
+            break;
+
+          case 'message_read':
+            console.log('Message read confirmation:', message);
+            this.updateMessageStatus(message.data.messageId, 'read');
+            break;
+
+          case 'typing':
+            this.handleTypingIndicator(message);
+            break;
+
+          default:
+            console.log('Unknown WebSocket message type:', message.type);
+        }
+      } catch (error) {
+        console.error('Failed to parse WebSocket message:', error);
+      }
+    },
+
+    handleIncomingChatMessage(message) {
+      const chatId = message.data.chatId || message.data.targetId;
+      const isFromMe = message.data.fromUserId === useAuthStore().currentUser?.id;
+
+      // Create standardized message object
+      const standardizedMessage = {
+        id: message.messageId || Date.now(),
+        fromId: message.data.fromUserId,
+        msgContent: message.data.content,
+        content: message.data.content,
+        isRecalled: 0,
+        messageType: message.data.messageType || 1,
+        chatType: message.data.chatType,
+        targetId: chatId,
+        chatId: chatId,
+        timestamp: message.data.timestamp || new Date(),
+        isFromMe: isFromMe,
+        msgType: message.data.messageType || 1
+      };
+
+      // Add message to chat
+      this.addMessage(chatId, standardizedMessage);
+
+      // Update unread counts if not from current user
+      if (!isFromMe && chatId !== this.currentChatId) {
+        this.incrementUnreadCount(chatId);
+      }
+
+      // Update recent sessions
+      this.updateRecentSession(chatId, {
+        content: message.data.content,
+        timestamp: message.data.timestamp || new Date(),
+        fromUserId: message.data.fromUserId,
+        messageType: message.data.messageType || 1
+      });
+    },
+
+    handleUserStatusChange(message) {
+      const { userId, status } = message.data;
+      if (status === 1) {
+        this.onlineUsers.add(userId);
+      } else {
+        this.onlineUsers.delete(userId);
+      }
+    },
+
+    startHeartbeat() {
+      this.stopHeartbeat();
+      this.heartbeatInterval = setInterval(() => {
+        this.sendWebSocketMessage({
+          type: 'heartbeat',
+          data: 'ping'
+        });
+      }, 30000); // Send heartbeat every 30 seconds
+    },
+
+    stopHeartbeat() {
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
+      }
+    },
+
+    // Chat Methods
     setActiveChat(session) {
-      // session should be an object like:
-      // { id: 'someId', name: 'Chat Name', type: 'USER'/'GROUP', avatar: 'url', ...otherInfo }
       this.activeChatSession = session;
-      // Optionally, mark messages as read or fetch messages when a chat is activated
-      // if (!this.chatMessages[session.id]) {
-      //   this.fetchMessagesForChat(session.id);
-      // }
+      // Mark messages as read when opening a chat
+      if (session && this.unreadCounts[session.id]) {
+        this.markAsRead(session.id);
+      }
       console.log('ChatStore: Active chat set to', session);
     },
+
     clearActiveChat() {
       this.activeChatSession = null;
     },
+
     addMessage(chatId, message) {
       if (!this.chatMessages[chatId]) {
         this.chatMessages[chatId] = [];
       }
       this.chatMessages[chatId].push(message);
-      // If this message is for the active chat, and user is viewing, mark as read implicitly.
-      // Otherwise, update unread count for this chatId.
     },
+
     setMessages(chatId, messages) {
       this.chatMessages[chatId] = messages;
+    },
+
+    async sendMessage(content, targetId, chatType = 'PRIVATE', messageType = 1) {
+      if (!content || !targetId) {
+        throw new Error('Content and targetId are required');
+      }
+
+      const message = {
+        type: 'chat',
+        data: {
+          content,
+          targetId,
+          chatType,
+          messageType,
+          chatId: targetId
+        }
+      };
+
+      this.sendWebSocketMessage(message);
+    },
+
+    async fetchMessagesForChat(chatId, page = 1, limit = 50) {
+      try {
+        const response = await api.message.getRecord({
+          targetId: chatId,
+          index: (page - 1) * limit,
+          num: limit
+        });
+
+        if (response.code === 200 && response.data) {
+          if (page === 1) {
+            this.setMessages(chatId, response.data);
+          } else {
+            // Append messages for pagination
+            const existingMessages = this.chatMessages[chatId] || [];
+            this.setMessages(chatId, [...response.data, ...existingMessages]);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to fetch messages for chat ${chatId}:`, error);
+        throw error;
+      }
+    },
+
+    async fetchRecentChats() {
+      try {
+        // This would need a corresponding API endpoint
+        // const response = await api.message.getRecentChats();
+        // if (response.code === 200 && response.data) {
+        //   this.recentSessions = response.data;
+        // }
+      } catch (error) {
+        console.error('Failed to fetch recent chats:', error);
+      }
+    },
+
+    updateRecentSession(chatId, lastMessage) {
+      const existingIndex = this.recentSessions.findIndex(session => session.id === chatId);
+      const sessionData = {
+        id: chatId,
+        lastMessage: lastMessage.content,
+        lastMessageTime: new Date(),
+        unreadCount: this.unreadCounts[chatId] || 0
+      };
+
+      if (existingIndex >= 0) {
+        // Update existing session and move to top
+        this.recentSessions.splice(existingIndex, 1);
+        this.recentSessions.unshift(sessionData);
+      } else {
+        // Add new session at top
+        this.recentSessions.unshift(sessionData);
+      }
+    },
+
+    incrementUnreadCount(chatId) {
+      this.unreadCounts[chatId] = (this.unreadCounts[chatId] || 0) + 1;
+    },
+
+    markAsRead(chatId) {
+      this.unreadCounts[chatId] = 0;
+    },
+
+    clearChatMessages(chatId) {
+      if (this.chatMessages[chatId]) {
+        delete this.chatMessages[chatId];
+      }
+    },
+
+    // Typing indicators
+    setTyping(chatId, userId, isTyping) {
+      if (!this.isTyping[chatId]) {
+        this.isTyping[chatId] = {};
+      }
+      this.isTyping[chatId][userId] = isTyping;
+    },
+
+    sendTypingIndicator(chatId, isTyping) {
+      this.sendWebSocketMessage({
+        type: 'typing',
+        data: {
+          chatId,
+          isTyping,
+          userId: useAuthStore().currentUser?.id,
+          timestamp: new Date()
+        }
+      });
+    },
+
+    // Handle typing indicator from WebSocket
+    handleTypingIndicator(message) {
+      const { chatId, isTyping, userId } = message.data;
+
+      // Update typing status for the specific chat
+      if (!this.isTyping[chatId]) {
+        this.isTyping[chatId] = {};
+      }
+
+      // Set or remove typing status for the user
+      if (isTyping) {
+        this.isTyping[chatId][userId] = true;
+
+        // Auto-remove typing indicator after 3 seconds
+        setTimeout(() => {
+          if (this.isTyping[chatId] && this.isTyping[chatId][userId]) {
+            this.isTyping[chatId][userId] = false;
+          }
+        }, 3000);
+      } else {
+        delete this.isTyping[chatId][userId];
+      }
+    },
+
+    // Update message status
+    updateMessageStatus(messageId, status) {
+      if (!messageId) return;
+
+      // Search for the message in all chat messages
+      Object.keys(this.chatMessages).forEach(chatId => {
+        const messages = this.chatMessages[chatId];
+        const messageIndex = messages.findIndex(msg => msg.id === messageId);
+
+        if (messageIndex !== -1) {
+          messages[messageIndex].status = status;
+        }
+      });
     }
-    // async fetchMessagesForChat(chatId) {
-    //   // Placeholder for fetching messages for a chat session
-    //   // try {
-    //   //   const response = await api.chat.getMessages({ chatId }); // Example
-    //   //   if (response.code === 200 && response.data) {
-    //   //     this.chatMessages[chatId] = response.data;
-    //   //   }
-    //   // } catch (error) {
-    //   //   console.error(`Failed to fetch messages for chat ${chatId}:`, error);
-    //   // }
-    // },
-    // clearChatMessages(chatId) {
-    //   if (this.chatMessages[chatId]) {
-    //     delete this.chatMessages[chatId];
-    //   }
-    // }
   },
 });

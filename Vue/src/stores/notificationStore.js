@@ -27,10 +27,10 @@ export const useNotificationStore = defineStore('notification', {
       this.isLoading = true;
       try {
         const response = await notificationApi.getNotifications(page, pageSize);
-        
-        if (response.code === 200 && response.data) {
+
+        if (response.code === 0 && response.data) {
           const data = response.data;
-          
+
           if (page === 1) {
             // 第一页，替换所有通知
             this.notifications = data.notifications || [];
@@ -38,16 +38,16 @@ export const useNotificationStore = defineStore('notification', {
             // 后续页，追加通知
             this.notifications.push(...(data.notifications || []));
           }
-          
+
           this.currentPage = page;
           this.totalPages = Math.ceil((data.total || 0) / pageSize);
           this.pageSize = pageSize;
           this.lastFetchTime = new Date();
         }
-        
+
         // 同时获取未读数量
         await this.fetchUnreadCount();
-        
+
       } catch (error) {
         console.error('获取通知列表失败:', error);
         throw error;
@@ -59,7 +59,7 @@ export const useNotificationStore = defineStore('notification', {
     async fetchUnreadCount() {
       try {
         const response = await notificationApi.getUnreadCount();
-        if (response.code === 200 && response.data) {
+        if (response.code === 0 && response.data) {
           this.unreadCount = response.data.unreadCount || 0;
         }
       } catch (error) {
@@ -70,7 +70,7 @@ export const useNotificationStore = defineStore('notification', {
     async markAsRead(notificationId) {
       try {
         const response = await notificationApi.markAsRead(notificationId);
-        if (response.code === 200) {
+        if (response.code === 0) {
           // 更新本地状态
           const notification = this.notifications.find(n => n.id === notificationId);
           if (notification && !notification.isRead) {
@@ -88,7 +88,7 @@ export const useNotificationStore = defineStore('notification', {
     async markAllAsRead() {
       try {
         const response = await notificationApi.markAllAsRead();
-        if (response.code === 200) {
+        if (response.code === 0) {
           // 更新本地状态
           this.notifications.forEach(notification => {
             notification.isRead = true;
@@ -105,10 +105,10 @@ export const useNotificationStore = defineStore('notification', {
     async deleteReadNotifications() {
       try {
         const response = await notificationApi.deleteReadNotifications();
-        if (response.code === 200) {
+        if (response.code === 0) {
           // 从本地状态中移除已读通知
           this.notifications = this.notifications.filter(notification => !notification.isRead);
-          
+
           // 重新计算分页信息
           const remainingCount = this.notifications.length;
           this.totalPages = Math.ceil(remainingCount / this.pageSize);
