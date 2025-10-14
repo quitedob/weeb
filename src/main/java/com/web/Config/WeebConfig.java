@@ -13,13 +13,7 @@ public class WeebConfig {
     private int limit;
     private String name;
     private int expires;
-    private AiConfig doubao;
 
-    @Data
-    public static class AiConfig {
-        private String apiKey;
-        private int countLimit;
-        private int lengthLimit;
-        private String model;
-    }
+    // AI配置已移除，因为AI功能已停用
+    // private AiConfig doubao;
 }

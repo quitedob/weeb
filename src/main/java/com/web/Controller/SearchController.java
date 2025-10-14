@@ -3,6 +3,7 @@ package com.web.Controller;
 import com.web.common.ApiResponse;
 import com.web.model.elasticsearch.MessageDocument; // 引入ES文档模型
 import com.web.service.SearchService; // 引入搜索服务
+import com.web.util.ValidationUtils; // 引入验证工具类
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired; // 注入
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -50,13 +51,68 @@ public class SearchController {
      * @param q 关键词
      * @param page 页码（从0开始）
      * @param size 每页数量
+     * @param startDate 开始日期 (可选)
+     * @param endDate 结束日期 (可选)
+     * @param messageTypes 消息类型列表 (可选)
+     * @param userIds 用户ID列表 (可选)
+     * @param groupIds 群组ID列表 (可选)
+     * @param sortBy 排序方式 (可选)
      * @return data: { list, total }
      */
     @GetMapping("/messages")
     public ResponseEntity<ApiResponse<Map<String, Object>>> searchMessages(
             @RequestParam("q") String q,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String messageTypes,
+            @RequestParam(required = false) String userIds,
+            @RequestParam(required = false) String groupIds,
+            @RequestParam(defaultValue = "relevance") String sortBy) {
+
+        // 验证搜索参数
+        if (!ValidationUtils.validateSearchKeyword(q)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "搜索关键词无效", data));
+        }
+
+        if (!ValidationUtils.validatePageParams(page, size, "消息搜索")) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "分页参数无效", data));
+        }
+
+        if (!ValidationUtils.validateDateRange(startDate, endDate)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "日期范围无效", data));
+        }
+
+        String[] allowedSortValues = {"relevance", "time_desc", "time_asc", "username_asc", "username_desc"};
+        if (!ValidationUtils.validateSortBy(sortBy, allowedSortValues)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "排序参数无效", data));
+        }
+
+        if (!ValidationUtils.validateIdList(userIds, "用户ID列表") ||
+            !ValidationUtils.validateIdList(groupIds, "群组ID列表")) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "ID列表参数无效", data));
+        }
 
         // 检查Elasticsearch是否可用
         if (elasticsearchOperations == null) {
@@ -69,8 +125,66 @@ public class SearchController {
         }
 
         try {
-            Criteria criteria = new Criteria("content").matches(q); // 构造条件匹配
-            CriteriaQuery query = new CriteriaQuery(criteria, PageRequest.of(page, size)); // 分页条件查询
+            // 构建基础条件：内容匹配
+            Criteria criteria = new Criteria("content").matches(q);
+
+            // 添加日期范围过滤
+            if (startDate != null && !startDate.isEmpty()) {
+                criteria = criteria.and(new Criteria("timestamp").greaterThanEqual(startDate));
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                criteria = criteria.and(new Criteria("timestamp").lessThanEqual(endDate));
+            }
+
+            // 添加消息类型过滤
+            if (messageTypes != null && !messageTypes.isEmpty()) {
+                String[] types = messageTypes.split(",");
+                criteria = criteria.and(new Criteria("messageType").in(types));
+            }
+
+            // 添加用户ID过滤
+            if (userIds != null && !userIds.isEmpty()) {
+                String[] users = userIds.split(",");
+                criteria = criteria.and(new Criteria("fromUserId").in(users));
+            }
+
+            // 添加群组ID过滤
+            if (groupIds != null && !groupIds.isEmpty()) {
+                String[] groups = groupIds.split(",");
+                criteria = criteria.and(new Criteria("targetId").in(groups));
+            }
+
+            // 构建分页查询
+            PageRequest pageRequest = PageRequest.of(page, size);
+
+            // 根据排序方式设置排序
+            switch (sortBy) {
+                case "time_desc":
+                    pageRequest = PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by(
+                            org.springframework.data.domain.Sort.Direction.DESC, "timestamp"));
+                    break;
+                case "time_asc":
+                    pageRequest = PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by(
+                            org.springframework.data.domain.Sort.Direction.ASC, "timestamp"));
+                    break;
+                case "username_asc":
+                    pageRequest = PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by(
+                            org.springframework.data.domain.Sort.Direction.ASC, "fromUsername"));
+                    break;
+                case "username_desc":
+                    pageRequest = PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by(
+                            org.springframework.data.domain.Sort.Direction.DESC, "fromUsername"));
+                    break;
+                default:
+                    // 相关度排序（默认）
+                    break;
+            }
+
+            CriteriaQuery query = new CriteriaQuery(criteria, pageRequest);
 
             SearchHits<MessageDocument> hits = elasticsearchOperations.search(query, MessageDocument.class); // 执行
 
@@ -98,16 +212,58 @@ public class SearchController {
      * @param keyword 搜索关键词
      * @param page 页码（从0开始）
      * @param size 每页数量
+     * @param startDate 开始日期 (可选)
+     * @param endDate 结束日期 (可选)
+     * @param sortBy 排序方式 (可选)
      * @return 搜索结果：{ list: 群组列表, total: 总数 }
      */
     @GetMapping("/group")
     public ResponseEntity<ApiResponse<Map<String, Object>>> searchGroups(@RequestParam("keyword") String keyword,
                                             @RequestParam(defaultValue = "0") int page,
-                                            @RequestParam(defaultValue = "10") int size) {
-        try {
-            log.info("搜索群组：keyword={}, page={}, size={}", keyword, page, size);
+                                            @RequestParam(defaultValue = "10") int size,
+                                            @RequestParam(required = false) String startDate,
+                                            @RequestParam(required = false) String endDate,
+                                            @RequestParam(defaultValue = "relevance") String sortBy) {
 
-            Map<String, Object> data = searchService.searchGroups(keyword, page, size);
+        // 验证搜索参数
+        if (!ValidationUtils.validateSearchKeyword(keyword)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "搜索关键词无效", data));
+        }
+
+        if (!ValidationUtils.validatePageParams(page, size, "群组搜索")) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "分页参数无效", data));
+        }
+
+        if (!ValidationUtils.validateDateRange(startDate, endDate)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "日期范围无效", data));
+        }
+
+        String[] allowedSortValues = {"relevance", "time_desc", "time_asc", "name_asc", "name_desc"};
+        if (!ValidationUtils.validateSortBy(sortBy, allowedSortValues)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "排序参数无效", data));
+        }
+
+        try {
+            log.info("搜索群组：keyword={}, page={}, size={}, startDate={}, endDate={}, sortBy={}",
+                keyword, page, size, startDate, endDate, sortBy);
+
+            Map<String, Object> data = searchService.searchGroupsWithFilters(keyword, page, size, startDate, endDate, sortBy);
 
             log.info("搜索群组完成：找到 {} 个群组", data.get("list") != null ? ((List<?>)data.get("list")).size() : 0);
 
@@ -128,16 +284,58 @@ public class SearchController {
      * @param keyword 搜索关键词
      * @param page 页码（从0开始）
      * @param size 每页数量
+     * @param startDate 开始日期 (可选)
+     * @param endDate 结束日期 (可选)
+     * @param sortBy 排序方式 (可选)
      * @return 搜索结果：{ list: 用户列表, total: 总数 }
      */
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<Map<String, Object>>> searchUsers(@RequestParam("keyword") String keyword,
                                             @RequestParam(defaultValue = "0") int page,
-                                            @RequestParam(defaultValue = "10") int size) {
-        try {
-            log.info("搜索用户：keyword={}, page={}, size={}", keyword, page, size);
+                                            @RequestParam(defaultValue = "10") int size,
+                                            @RequestParam(required = false) String startDate,
+                                            @RequestParam(required = false) String endDate,
+                                            @RequestParam(defaultValue = "relevance") String sortBy) {
 
-            Map<String, Object> data = searchService.searchUsers(keyword, page, size);
+        // 验证搜索参数
+        if (!ValidationUtils.validateSearchKeyword(keyword)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "搜索关键词无效", data));
+        }
+
+        if (!ValidationUtils.validatePageParams(page, size, "用户搜索")) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "分页参数无效", data));
+        }
+
+        if (!ValidationUtils.validateDateRange(startDate, endDate)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "日期范围无效", data));
+        }
+
+        String[] allowedSortValues = {"relevance", "time_desc", "time_asc", "name_asc", "name_desc"};
+        if (!ValidationUtils.validateSortBy(sortBy, allowedSortValues)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "排序参数无效", data));
+        }
+
+        try {
+            log.info("搜索用户：keyword={}, page={}, size={}, startDate={}, endDate={}, sortBy={}",
+                keyword, page, size, startDate, endDate, sortBy);
+
+            Map<String, Object> data = searchService.searchUsersWithFilters(keyword, page, size, startDate, endDate, sortBy);
 
             log.info("搜索用户完成：找到 {} 个用户", data.get("list") != null ? ((List<?>)data.get("list")).size() : 0);
 
@@ -158,7 +356,9 @@ public class SearchController {
      * @param query 搜索关键词
      * @param page 页码（从1开始）
      * @param pageSize 每页数量
-     * @param sortBy 排序字段 (created_at, updated_at, title)
+     * @param startDate 开始日期 (可选)
+     * @param endDate 结束日期 (可选)
+     * @param sortBy 排序字段 (created_at, updated_at, title, relevance)
      * @param sortOrder 排序方向 (asc, desc)
      * @return 搜索结果：{ list: 文章列表, total: 总数 }
      */
@@ -167,13 +367,59 @@ public class SearchController {
             @RequestParam("query") String query,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
             @RequestParam(defaultValue = "created_at") String sortBy,
             @RequestParam(defaultValue = "desc") String sortOrder) {
-        try {
-            log.info("搜索文章：query={}, page={}, pageSize={}, sortBy={}, sortOrder={}",
-                query, page, pageSize, sortBy, sortOrder);
 
-            Map<String, Object> data = articleService.searchArticles(query, page, pageSize, sortBy, sortOrder);
+        // 验证搜索参数
+        if (!ValidationUtils.validateSearchKeyword(query)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "搜索关键词无效", data));
+        }
+
+        if (!ValidationUtils.validatePageParams(page, pageSize, "文章搜索")) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "分页参数无效", data));
+        }
+
+        if (!ValidationUtils.validateDateRange(startDate, endDate)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "日期范围无效", data));
+        }
+
+        String[] allowedSortValues = {"created_at", "updated_at", "title", "relevance"};
+        if (!ValidationUtils.validateSortBy(sortBy, allowedSortValues)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "排序参数无效", data));
+        }
+
+        String[] allowedSortOrders = {"asc", "desc"};
+        if (!ValidationUtils.validateSortBy(sortOrder, allowedSortOrders)) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ApiResponse.ErrorCode.PARAM_ERROR, "排序方向无效", data));
+        }
+
+        try {
+            log.info("搜索文章：query={}, page={}, pageSize={}, startDate={}, endDate={}, sortBy={}, sortOrder={}",
+                query, page, pageSize, startDate, endDate, sortBy, sortOrder);
+
+            Map<String, Object> data = articleService.searchArticlesWithFilters(query, page, pageSize, startDate, endDate, sortBy, sortOrder);
 
             log.info("搜索文章完成：找到 {} 篇文章", data.get("list") != null ? ((List<?>)data.get("list")).size() : 0);
 

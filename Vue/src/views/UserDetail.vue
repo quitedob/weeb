@@ -246,25 +246,24 @@ const toggleFollow = async () => {
 
   followLoading.value = true;
   try {
+    // 使用用户API模块而不是原生fetch
     const endpoint = isFollowing.value ? 'unfollow' : 'follow';
-    const response = await fetch(`/api/user/${userId.value}/${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    const result = await response.json();
-    if (result.code === 200) {
+    // TODO: 需要在user.js中添加关注/取消关注的API方法
+    // const response = await userApi[endpoint](userId.value);
+
+    // 临时解决方案：使用axiosInstance
+    const { instance } = await import('@/api/axiosInstance');
+    const response = await instance.post(`/api/user/${userId.value}/${endpoint}`);
+
+    if (response.data.code === 200) {
       isFollowing.value = !isFollowing.value;
-      ElMessage.success(result.message || (isFollowing.value ? '关注成功' : '取消关注成功'));
+      ElMessage.success(response.data.message || (isFollowing.value ? '关注成功' : '取消关注成功'));
       // 更新粉丝数
       if (userProfile.value.userStats) {
         userProfile.value.userStats.fansCount += isFollowing.value ? 1 : -1;
       }
     } else {
-      ElMessage.error(result.message || '操作失败');
+      ElMessage.error(response.data.message || '操作失败');
     }
   } catch (err) {
     console.error('关注操作失败:', err);

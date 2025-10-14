@@ -206,14 +206,31 @@ public class ArticleServiceImpl implements ArticleService {
         int offset = (page - 1) * pageSize;
         List<Article> articles = articleMapper.searchArticles(query, offset, pageSize, sortBy, sortOrder);
         int totalCount = articleMapper.countSearchResults(query);
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("list", articles);
         result.put("total", totalCount);
         result.put("currentPage", page);
         result.put("pageSize", pageSize);
         result.put("totalPages", (int) Math.ceil((double) totalCount / pageSize));
-        
+
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> searchArticlesWithFilters(String query, int page, int pageSize, String startDate, String endDate, String sortBy, String sortOrder) {
+        int offset = (page - 1) * pageSize;
+        List<Article> articles = articleMapper.searchArticlesWithFilters(query, offset, pageSize, startDate, endDate, sortBy, sortOrder);
+        int totalCount = articleMapper.countSearchResultsWithFilters(query, startDate, endDate);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", articles);
+        result.put("total", totalCount);
+        result.put("currentPage", page);
+        result.put("pageSize", pageSize);
+        result.put("totalPages", (int) Math.ceil((double) totalCount / pageSize));
+
         return result;
     }
 

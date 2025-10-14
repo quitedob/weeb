@@ -146,17 +146,17 @@ export const useChatStore = defineStore('chat', {
 
           case 'message_sent':
             console.log('Message sent confirmation:', message);
-            this.updateMessageStatus(message.data.messageId, 'sent');
+            this.updateMessageStatus(message.data.messageId, 'sent', message.data.tempId);
             break;
 
           case 'message_delivered':
             console.log('Message delivered confirmation:', message);
-            this.updateMessageStatus(message.data.messageId, 'delivered');
+            this.updateMessageStatus(message.data.messageId, 'delivered', message.data.tempId);
             break;
 
           case 'message_read':
             console.log('Message read confirmation:', message);
-            this.updateMessageStatus(message.data.messageId, 'read');
+            this.updateMessageStatus(message.data.messageId, 'read', message.data.tempId);
             break;
 
           case 'typing':
@@ -175,12 +175,28 @@ export const useChatStore = defineStore('chat', {
       const chatId = message.data.chatId || message.data.targetId;
       const isFromMe = message.data.fromUserId === useAuthStore().currentUser?.id;
 
+      // Parse message content for file messages
+      let parsedContent = message.data.content;
+      let fileData = null;
+      let displayContent = message.data.content;
+
+      if (message.data.messageType === 2) {
+        // File message - parse JSON content
+        try {
+          fileData = JSON.parse(message.data.content);
+          displayContent = `[文件] ${fileData.fileName}`;
+        } catch (error) {
+          console.error('Failed to parse file message content:', error);
+          displayContent = '[文件消息]';
+        }
+      }
+
       // Create standardized message object
       const standardizedMessage = {
         id: message.messageId || Date.now(),
         fromId: message.data.fromUserId,
-        msgContent: message.data.content,
-        content: message.data.content,
+        msgContent: displayContent,
+        content: parsedContent,
         isRecalled: 0,
         messageType: message.data.messageType || 1,
         chatType: message.data.chatType,
@@ -188,7 +204,8 @@ export const useChatStore = defineStore('chat', {
         chatId: chatId,
         timestamp: message.data.timestamp || new Date(),
         isFromMe: isFromMe,
-        msgType: message.data.messageType || 1
+        msgType: message.data.messageType || 1,
+        fileData: fileData // Store parsed file data
       };
 
       // Add message to chat
@@ -201,7 +218,7 @@ export const useChatStore = defineStore('chat', {
 
       // Update recent sessions
       this.updateRecentSession(chatId, {
-        content: message.data.content,
+        content: displayContent,
         timestamp: message.data.timestamp || new Date(),
         fromUserId: message.data.fromUserId,
         messageType: message.data.messageType || 1
@@ -391,16 +408,34 @@ export const useChatStore = defineStore('chat', {
     },
 
     // Update message status
-    updateMessageStatus(messageId, status) {
-      if (!messageId) return;
+    updateMessageStatus(messageId, status, tempId = null) {
+      if (!messageId && !tempId) return;
 
       // Search for the message in all chat messages
       Object.keys(this.chatMessages).forEach(chatId => {
         const messages = this.chatMessages[chatId];
-        const messageIndex = messages.findIndex(msg => msg.id === messageId);
+        let messageIndex = -1;
+
+        // First try to find by temporary ID (for new messages)
+        if (tempId) {
+          messageIndex = messages.findIndex(msg => msg.tempId === tempId);
+        }
+
+        // If not found by tempId, try by real ID
+        if (messageIndex === -1 && messageId) {
+          messageIndex = messages.findIndex(msg => msg.id === messageId);
+        }
 
         if (messageIndex !== -1) {
           messages[messageIndex].status = status;
+          // Update real ID if available
+          if (messageId && !messages[messageIndex].id) {
+            messages[messageIndex].id = messageId;
+          }
+          // Remove temporary ID after successful association
+          if (tempId && messages[messageIndex].tempId === tempId) {
+            delete messages[messageIndex].tempId;
+          }
         }
       });
     }

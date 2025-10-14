@@ -124,166 +124,165 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: "App",
-  data() {
-    return {
-      // 导航栏选项
-      navItems: [
-        { name: "个人资料", view: "profile", icon: "fas fa-user" },
-        { name: "账号设置", view: "account", icon: "fas fa-cog" },
-        { name: "通用设置", view: "common", icon: "fas fa-sliders-h" },
-        { name: "消息设置", view: "message", icon: "fas fa-envelope" },
-        { name: "屏蔽管理", view: "block", icon: "fas fa-ban" },
-        { name: "标签管理", view: "tags", icon: "fas fa-tags" }
-      ],
-      // 当前视图
-      currentView: "profile",
-      // 个人资料数据
-      profile: {
-        username: "",
-        avatar: "https://via.placeholder.com/100"
-      },
-      // 单独定义的字段（与后端对应的更新字段）
-      email: "",
-      phone: "",
-      gender: "",
-      // 用于错误提示
-      genderError: "",
-      phoneError: "",
-      emailError: "",
-      countryCode: "+86"
-    };
-  },
-  mounted() {
-    this.checkLoginStatus();
-    this.fetchProfile();
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import { getUserInfo, updateUserInfo } from '@/api/modules/user'
 
-  },
-  methods: {
-    // 检查用户登录状态
-    checkLoginStatus() {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('尚未登录, 将跳转到登录页面');
-        this.$router.push('/login');
-        return;
-      }},
-    // 返回上一页
-    goBack() {
-      window.history.back();
-    },
-    // 切换视图
-    changeView(view) {
-      this.currentView = view;
-    },
-    // 通过后端接口获取当前用户信息，并填充到表单中
-    fetchProfile() {
-      // 假设 token 存在 localStorage 中
-      const token = localStorage.getItem("token");
-      if (!token) {
-        console.error("未登录，无法获取用户信息");
-        return;
-      }
-      fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/user/info`, {
-        method: "GET",
-        headers: {
-          "Authorization": "Bearer " + token,
-          "Content-Type": "application/json"
-        }
-      })
-          .then(res => res.json())
-          .then(data => {
-            if (data.code === 0 || data.code === 1 && data.msg === "获取用户信息成功") {
-              // 假设返回 data.data 包含 username, userEmail, phoneNumber, sex
-              const info = data.data;
-              this.profile.username = info.username || "";
-              this.email = info.userEmail || "";
-              this.phone = info.phoneNumber || "";
-              this.gender = info.sex === 1 ? "male" : "female";
-            } else {
-              console.error("获取用户信息失败：", data.msg);
-            }
-          })
-          .catch(err => {
-            console.error("请求用户信息出错：", err);
-          });
-    },
-    // 保存个人资料，只提交 username, userEmail, phoneNumber, sex
-    saveProfile() {
-      // 构造只包含更新字段的 payload
-      const payload = {
-        username: this.profile.username,
-        userEmail: this.email,
-        phoneNumber: this.phone,
-        sex: this.gender === "male" ? 1 : 0
-      };
-      // 假设 token 存储在 localStorage 中
-      const token = localStorage.getItem("token");
-      fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/user/info`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify(payload)
-      })
-          .then(res => res.json())
-          .then(data => {
-            if (data.code === 0) {
-              alert("更新成功！");
-            } else {
-              alert("更新失败：" + data.msg);
-            }
-          })
-          .catch(err => {
-            console.error("更新用户信息请求失败：", err);
-            alert("更新请求失败");
-          });
-    },
-    // 以下方法与头像上传、标签操作等保持不变
-    triggerUpload() {
-      this.$refs.fileInput.click();
-    },
-    uploadAvatar(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        this.profile.avatar = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    },
-    clearAvatar() {
-      this.profile.avatar = "https://via.placeholder.com/100";
-    },
-    setGender(value) {
-      this.gender = value;
-      this.genderError = "";
-    },
-    validatePhone() {
-      const phoneReg = /^\d{6,}$/;
-      if (!phoneReg.test(this.phone)) {
-        this.phoneError = "请输入正确的电话号码。";
-      } else {
-        this.phoneError = "";
-      }
-    },
-    validateEmail() {
-      if (this.email === "") {
-        this.emailError = "";
-        return;
-      }
-      const emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailReg.test(this.email)) {
-        this.emailError = "请输入正确的邮箱格式。";
-      } else {
-        this.emailError = "";
-      }
-    }
+const router = useRouter()
+const authStore = useAuthStore()
+
+// 导航栏选项
+const navItems = [
+  { name: "个人资料", view: "profile", icon: "fas fa-user" },
+  { name: "账号设置", view: "account", icon: "fas fa-cog" },
+  { name: "通用设置", view: "common", icon: "fas fa-sliders-h" },
+  { name: "消息设置", view: "message", icon: "fas fa-envelope" },
+  { name: "屏蔽管理", view: "block", icon: "fas fa-ban" },
+  { name: "标签管理", view: "tags", icon: "fas fa-tags" }
+]
+
+// 当前视图
+const currentView = ref("profile")
+
+// 从authStore获取用户信息作为响应式数据
+const userProfile = computed(() => authStore.currentUser)
+
+// 本地表单数据（基于authStore数据）
+const profile = ref({
+  username: "",
+  avatar: "https://via.placeholder.com/100"
+})
+
+// 单独定义的字段（与后端对应的更新字段）
+const email = ref("")
+const phone = ref("")
+const gender = ref("")
+const countryCode = ref("+86")
+
+// 用于错误提示
+const genderError = ref("")
+const phoneError = ref("")
+const emailError = ref("")
+
+// 检查用户登录状态
+const checkLoginStatus = () => {
+  if (!authStore.isAuthenticated) {
+    alert('尚未登录, 将跳转到登录页面')
+    router.push('/login')
+    return
   }
-};
+}
+
+// 返回上一页
+const goBack = () => {
+  window.history.back()
+}
+
+// 切换视图
+const changeView = (view) => {
+  currentView.value = view
+}
+
+// 通过后端接口获取当前用户信息，并填充到表单中
+const fetchProfile = async () => {
+  try {
+    const response = await getUserInfo()
+    if (response.code === 0 && response.data) {
+      const info = response.data
+      profile.value.username = info.username || ""
+      email.value = info.userEmail || ""
+      phone.value = info.phoneNumber || ""
+      gender.value = info.sex === 1 ? "male" : "female"
+
+      // 更新authStore中的用户信息
+      authStore.updateUserInfo(info)
+    } else {
+      console.error("获取用户信息失败：", response.message)
+    }
+  } catch (err) {
+    console.error("请求用户信息出错：", err)
+  }
+}
+
+// 保存个人资料，只提交 username, userEmail, phoneNumber, sex
+const saveProfile = async () => {
+  try {
+    const payload = {
+      username: profile.value.username,
+      userEmail: email.value,
+      phoneNumber: phone.value,
+      sex: gender.value === "male" ? 1 : 0
+    }
+
+    const response = await updateUserInfo(payload)
+    if (response.code === 0) {
+      alert("更新成功！")
+      // 更新authStore中的用户信息
+      authStore.updateUserInfo(payload)
+    } else {
+      alert("更新失败：" + response.message)
+    }
+  } catch (err) {
+    console.error("更新用户信息请求失败：", err)
+    alert("更新请求失败")
+  }
+}
+
+// 头像上传相关方法
+const fileInput = ref(null)
+
+const triggerUpload = () => {
+  fileInput.value?.click()
+}
+
+const uploadAvatar = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    profile.value.avatar = e.target.result
+  }
+  reader.readAsDataURL(file)
+}
+
+const clearAvatar = () => {
+  profile.value.avatar = "https://via.placeholder.com/100"
+}
+
+const setGender = (value) => {
+  gender.value = value
+  genderError.value = ""
+}
+
+const validatePhone = () => {
+  const phoneReg = /^\d{6,}$/
+  if (!phoneReg.test(phone.value)) {
+    phoneError.value = "请输入正确的电话号码。"
+  } else {
+    phoneError.value = ""
+  }
+}
+
+const validateEmail = () => {
+  if (email.value === "") {
+    emailError.value = ""
+    return
+  }
+  const emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailReg.test(email.value)) {
+    emailError.value = "请输入正确的邮箱格式。"
+  } else {
+    emailError.value = ""
+  }
+}
+
+// 生命周期钩子
+onMounted(() => {
+  checkLoginStatus()
+  fetchProfile()
+})
 </script>
 
 <style scoped>

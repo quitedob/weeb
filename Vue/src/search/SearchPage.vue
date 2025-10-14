@@ -18,6 +18,114 @@
           </el-button>
         </template>
       </el-input>
+
+      <!-- 高级搜索过滤器 -->
+      <div class="search-filters">
+        <el-collapse v-model="showAdvancedFilters">
+          <el-collapse-item title="高级筛选" name="advanced">
+            <div class="filter-container">
+              <!-- 日期范围选择 -->
+              <div class="filter-item">
+                <label class="filter-label">日期范围:</label>
+                <el-date-picker
+                  v-model="dateRange"
+                  type="daterange"
+                  range-separator="至"
+                  start-placeholder="开始日期"
+                  end-placeholder="结束日期"
+                  format="YYYY-MM-DD"
+                  value-format="YYYY-MM-DD"
+                  style="width: 100%;"
+                />
+              </div>
+
+              <!-- 消息类型筛选 -->
+              <div class="filter-item">
+                <label class="filter-label">消息类型:</label>
+                <el-select
+                  v-model="messageTypeFilter"
+                  multiple
+                  collapse-tags
+                  placeholder="选择消息类型"
+                  style="width: 100%;"
+                >
+                  <el-option label="文本消息" value="1" />
+                  <el-option label="文件消息" value="2" />
+                  <el-option label="图片消息" value="3" />
+                </el-select>
+              </div>
+
+              <!-- 用户筛选 -->
+              <div class="filter-item">
+                <label class="filter-label">发送用户:</label>
+                <el-select
+                  v-model="selectedUsers"
+                  multiple
+                  filterable
+                  remote
+                  reserve-keyword
+                  placeholder="搜索用户"
+                  :remote-method="searchUsersForFilter"
+                  :loading="loadingUsersForFilter"
+                  style="width: 100%;"
+                >
+                  <el-option
+                    v-for="user in userFilterOptions"
+                    :key="user.id"
+                    :label="user.username"
+                    :value="user.id"
+                  />
+                </el-select>
+              </div>
+
+              <!-- 群组筛选 -->
+              <div class="filter-item">
+                <label class="filter-label">群组:</label>
+                <el-select
+                  v-model="selectedGroups"
+                  multiple
+                  filterable
+                  remote
+                  reserve-keyword
+                  placeholder="搜索群组"
+                  :remote-method="searchGroupsForFilter"
+                  :loading="loadingGroupsForFilter"
+                  style="width: 100%;"
+                >
+                  <el-option
+                    v-for="group in groupFilterOptions"
+                    :key="group.id"
+                    :label="group.groupName"
+                    :value="group.id"
+                  />
+                </el-select>
+              </div>
+
+              <!-- 排序选项 -->
+              <div class="filter-item">
+                <label class="filter-label">排序方式:</label>
+                <el-select
+                  v-model="sortBy"
+                  placeholder="选择排序方式"
+                  style="width: 100%;"
+                >
+                  <el-option label="相关度" value="relevance" />
+                  <el-option label="时间（最新）" value="time_desc" />
+                  <el-option label="时间（最早）" value="time_asc" />
+                  <el-option label="用户名（A-Z）" value="username_asc" />
+                  <el-option label="用户名（Z-A）" value="username_desc" />
+                </el-select>
+              </div>
+
+              <!-- 操作按钮 -->
+              <div class="filter-actions">
+                <el-button @click="resetFilters" size="small">重置</el-button>
+                <el-button type="primary" @click="performSearch" :loading="searching" size="small">应用筛选</el-button>
+              </div>
+            </div>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
     </div>
 
     <el-tabs v-model="activeTab" class="search-tabs" v-if="hasSearched">
@@ -270,6 +378,20 @@ const loadingGroups = ref(false);
 const loadingMessages = ref(false);
 const loadingArticles = ref(false);
 
+// 高级搜索过滤器相关
+const showAdvancedFilters = ref([]);
+const dateRange = ref([]);
+const messageTypeFilter = ref([]);
+const selectedUsers = ref([]);
+const selectedGroups = ref([]);
+const sortBy = ref('relevance');
+
+// 过滤器选项
+const userFilterOptions = ref([]);
+const groupFilterOptions = ref([]);
+const loadingUsersForFilter = ref(false);
+const loadingGroupsForFilter = ref(false);
+
 // 分页相关
 const userPagination = reactive({
   page: 1,
@@ -324,11 +446,100 @@ const performSearch = async () => {
   }
 };
 
+// 构建搜索参数
+const buildSearchParams = () => {
+  const params = {};
+
+  // 日期范围
+  if (dateRange.value && dateRange.value.length === 2) {
+    params.startDate = dateRange.value[0];
+    params.endDate = dateRange.value[1];
+  }
+
+  // 消息类型
+  if (messageTypeFilter.value.length > 0) {
+    params.messageTypes = messageTypeFilter.value.join(',');
+  }
+
+  // 用户筛选
+  if (selectedUsers.value.length > 0) {
+    params.userIds = selectedUsers.value.join(',');
+  }
+
+  // 群组筛选
+  if (selectedGroups.value.length > 0) {
+    params.groupIds = selectedGroups.value.join(',');
+  }
+
+  // 排序方式
+  params.sortBy = sortBy.value;
+
+  return params;
+};
+
+// 搜索过滤器中的用户
+const searchUsersForFilter = async (query) => {
+  if (!query) {
+    userFilterOptions.value = [];
+    return;
+  }
+
+  loadingUsersForFilter.value = true;
+  try {
+    const response = await searchApi.searchUsers(query, 0, 20);
+    if (response.code === 0 && response.data) {
+      userFilterOptions.value = response.data.list || [];
+    } else {
+      userFilterOptions.value = [];
+    }
+  } catch (error) {
+    console.error('搜索过滤器用户失败:', error);
+    userFilterOptions.value = [];
+  } finally {
+    loadingUsersForFilter.value = false;
+  }
+};
+
+// 搜索过滤器中的群组
+const searchGroupsForFilter = async (query) => {
+  if (!query) {
+    groupFilterOptions.value = [];
+    return;
+  }
+
+  loadingGroupsForFilter.value = true;
+  try {
+    const response = await searchApi.searchGroups(query, 0, 20);
+    if (response.code === 0 && response.data) {
+      groupFilterOptions.value = response.data.list || [];
+    } else {
+      groupFilterOptions.value = [];
+    }
+  } catch (error) {
+    console.error('搜索过滤器群组失败:', error);
+    groupFilterOptions.value = [];
+  } finally {
+    loadingGroupsForFilter.value = false;
+  }
+};
+
+// 重置过滤器
+const resetFilters = () => {
+  dateRange.value = [];
+  messageTypeFilter.value = [];
+  selectedUsers.value = [];
+  selectedGroups.value = [];
+  sortBy.value = 'relevance';
+  userFilterOptions.value = [];
+  groupFilterOptions.value = [];
+};
+
 // 搜索用户
 const searchUsers = async (page = 1, pageSize = 10) => {
   loadingUsers.value = true;
   try {
-    const response = await searchApi.searchUsers(searchQuery.value, page - 1, pageSize);
+    const filterParams = buildSearchParams();
+    const response = await searchApi.searchUsers(searchQuery.value, page - 1, pageSize, filterParams);
     if (response.code === 0 && response.data) {
       userResults.value = response.data.list || [];
       userPagination.total = response.data.total || 0;
@@ -351,7 +562,8 @@ const searchUsers = async (page = 1, pageSize = 10) => {
 const searchGroups = async (page = 1, pageSize = 10) => {
   loadingGroups.value = true;
   try {
-    const response = await searchApi.searchGroups(searchQuery.value, page - 1, pageSize);
+    const filterParams = buildSearchParams();
+    const response = await searchApi.searchGroups(searchQuery.value, page - 1, pageSize, filterParams);
     if (response.code === 0 && response.data) {
       groupResults.value = response.data.list || [];
       groupPagination.total = response.data.total || 0;
@@ -374,7 +586,8 @@ const searchGroups = async (page = 1, pageSize = 10) => {
 const searchArticles = async (page = 1, pageSize = 10) => {
   loadingArticles.value = true;
   try {
-    const response = await searchApi.searchArticles(searchQuery.value, page, pageSize);
+    const filterParams = buildSearchParams();
+    const response = await searchApi.searchArticles(searchQuery.value, page, pageSize, filterParams);
     if (response.code === 0 && response.data) {
       articleResults.value = response.data.list || [];
       articlePagination.total = response.data.total || 0;
@@ -397,7 +610,8 @@ const searchArticles = async (page = 1, pageSize = 10) => {
 const searchMessages = async (page = 1, pageSize = 10) => {
   loadingMessages.value = true;
   try {
-    const response = await searchApi.searchMessages(searchQuery.value, page - 1, pageSize);
+    const filterParams = buildSearchParams();
+    const response = await searchApi.searchMessages(searchQuery.value, page - 1, pageSize, filterParams);
     if (response.code === 0 && response.data) {
       messageResults.value = response.data.list || [];
       messagePagination.total = response.data.total || 0;
@@ -620,6 +834,39 @@ onMounted(() => {
 
 .search-input {
   max-width: 600px;
+}
+
+.search-filters {
+  margin-top: 15px;
+}
+
+.filter-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 15px 0;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+  margin-bottom: 5px;
+}
+
+.filter-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ebeef5;
 }
 
 .search-tabs {

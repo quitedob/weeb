@@ -9,6 +9,7 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isLoggedIn: (state) => !!state.accessToken,
+    isAuthenticated: (state) => !!state.accessToken, // Alias for consistency
     user: (state) => state.currentUser, // Alias for currentUser for convenience
   },
   actions: {

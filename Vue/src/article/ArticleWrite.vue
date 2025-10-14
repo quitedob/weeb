@@ -138,12 +138,10 @@ const form = reactive({
 
 const rules = {
   articleTitle: [
-    { required: true, message: '请输入文章标题', trigger: 'blur' },
-    { min: 1, max: 200, message: '标题长度在1到200个字符之间', trigger: 'blur' }
+    { required: true, message: '请输入文章标题', trigger: 'blur' }
   ],
   articleContent: [
-    { required: true, message: '请输入文章内容', trigger: 'blur' },
-    { min: 10, max: 10000, message: '内容长度在10到10000个字符之间', trigger: 'blur' }
+    { required: true, message: '请输入文章内容', trigger: 'blur' }
   ]
 };
 

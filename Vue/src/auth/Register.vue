@@ -130,136 +130,53 @@ export default {
     const emailError = ref("");
     const genderError = ref("");
 
-    // 辅助函数：判断字符串是否为严格的顺序或逆序（支持数字和字母）
-    const isSequential = (str) => {
-      if (str.length < 2) return false;
-      let ascending = true;
-      let descending = true;
-      for (let i = 1; i < str.length; i++) {
-        if (str.charCodeAt(i) !== str.charCodeAt(i - 1) + 1) {
-          ascending = false;
-        }
-        if (str.charCodeAt(i) !== str.charCodeAt(i - 1) - 1) {
-          descending = false;
-        }
-      }
-      return ascending || descending;
-    };
+    // 简化的注册处理 - 依赖后端进行详细验证
 
-    // 验证密码复杂性
+    // 简化的即时验证 - 仅保留基本反馈
     const validatePassword = () => {
       if (!password.value) {
         passwordError.value = "密码不能为空";
-        return;
+      } else if (password.value.length < 6) {
+        passwordError.value = "密码至少需要6位";
+      } else {
+        passwordError.value = "";
       }
-      if (password.value.length < 8) {
-        passwordError.value = "密码长度至少8位";
-        return;
-      }
-      // 检查是否全为同一字符
-      if (password.value.split("").every((ch) => ch === password.value[0])) {
-        passwordError.value = "密码不能全为相同字符";
-        return;
-      }
-      // 检查是否为简单顺序或逆序（数字或字母）
-      if (isSequential(password.value)) {
-        passwordError.value = "密码不能为简单的顺序或逆序排列";
-        return;
-      }
-      passwordError.value = "";
     };
 
-    // 验证电话号码
+    // 简化的电话号码验证 - 仅检查基本格式
     const validatePhone = () => {
       if (!phone.value) {
         phoneError.value = "电话号码不能为空";
-        return;
-      }
-      if (!/^\d+$/.test(phone.value)) {
+      } else if (!/^\d+$/.test(phone.value)) {
         phoneError.value = "电话号码只能包含数字";
-        return;
-      }
-      // 根据国家代码限制数字位数
-      let requiredLength = 0;
-      if (countryCode.value === "+86") {
-        requiredLength = 11;
-      } else if (countryCode.value === "+1") {
-        requiredLength = 10;
-      } else if (countryCode.value === "+44") {
-        requiredLength = 10;
-      } else if (countryCode.value === "+91") {
-        requiredLength = 10;
-      }
-      if (phone.value.length !== requiredLength) {
-        phoneError.value = `对于${countryCode.value}的号码，必须是${requiredLength}位数字`;
-        return;
-      }
-      // 检查是否全为相同数字
-      if (phone.value.split("").every((ch) => ch === phone.value[0])) {
-        phoneError.value = "电话号码不能全为相同数字";
-        return;
-      }
-      // 检查是否为简单顺序或逆序排列
-      if (isSequential(phone.value)) {
-        phoneError.value = "电话号码不能为简单的顺序或逆序排列";
-        return;
-      }
-      phoneError.value = "";
-    };
-
-    // 验证邮箱格式
-    const validateEmail = () => {
-      if (email.value) {
-        // 必须包含 @ 和 .
-        if (!email.value.includes("@") || !email.value.includes(".")) {
-          emailError.value = "请输入有效的邮箱地址，必须包含 @ 和 .";
-          return;
-        }
-        // 不能只由 @ 和 . 组成
-        if (email.value.replace(/[@.]/g, "").length === 0) {
-          emailError.value = "邮箱地址不能仅包含 @ 和 .";
-          return;
-        }
-      }
-      emailError.value = "";
-    };
-
-    // 验证性别（虽然默认有值，但仍做检查）
-    const validateGender = () => {
-      if (!gender.value) {
-        genderError.value = "请选择性别";
       } else {
-        genderError.value = "";
+        phoneError.value = "";
+      }
+    };
+
+    // 简化的邮箱验证 - 仅检查基本格式
+    const validateEmail = () => {
+      if (email.value && !email.value.includes("@")) {
+        emailError.value = "请输入有效的邮箱地址";
+      } else {
+        emailError.value = "";
       }
     };
 
     const handleRegister = async () => {
-      // 基本非空验证
-      if (!username.value) {
-        usernameError.value = "用户名不能为空";
-      } else {
-        usernameError.value = "";
-      }
-      if (!password.value) {
-        passwordError.value = "密码不能为空";
-      }
-      if (!phone.value) {
-        phoneError.value = "电话号码不能为空";
-      }
-      validateGender();
-      // 调用各项验证函数
-      validatePassword();
-      validatePhone();
-      validateEmail();
+      // 清除之前的错误
+      usernameError.value = "";
+      passwordError.value = "";
+      phoneError.value = "";
+      emailError.value = "";
+      genderError.value = "";
 
-      // 若有任一错误，不提交
-      if (
-          usernameError.value ||
-          passwordError.value ||
-          phoneError.value ||
-          emailError.value ||
-          genderError.value
-      ) {
+      // 基本前端检查 - 主要依赖后端验证
+      if (!username.value || !password.value || !phone.value || !gender.value) {
+        if (!username.value) usernameError.value = "请输入用户名";
+        if (!password.value) passwordError.value = "请输入密码";
+        if (!phone.value) phoneError.value = "请输入电话号码";
+        if (!gender.value) genderError.value = "请选择性别";
         return;
       }
 
@@ -278,7 +195,24 @@ export default {
         router.push("/login");
       } catch (error) {
         console.error("注册请求失败", error);
-        alert("注册失败，请重试");
+        // 处理后端验证错误
+        if (error.response && error.response.data && error.response.data.message) {
+          // 显示后端返回的具体错误信息
+          const errorMsg = error.response.data.message;
+          if (errorMsg.includes("用户名")) {
+            usernameError.value = errorMsg;
+          } else if (errorMsg.includes("密码")) {
+            passwordError.value = errorMsg;
+          } else if (errorMsg.includes("电话") || errorMsg.includes("手机")) {
+            phoneError.value = errorMsg;
+          } else if (errorMsg.includes("邮箱")) {
+            emailError.value = errorMsg;
+          } else {
+            alert(errorMsg); // 其他错误用alert显示
+          }
+        } else {
+          alert("注册失败，请检查网络连接或稍后重试");
+        }
       }
     };
 
