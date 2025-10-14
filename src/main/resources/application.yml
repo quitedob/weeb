@@ -55,18 +55,36 @@ spring:
       port: 6379
       timeout: 2000ms
       database: 0
+      # 添加客户端配置以避免 INFO 命令解析问题
+      client-type: lettuce
       lettuce:
         pool:
           max-active: 8
           max-idle: 8
           min-idle: 0
           max-wait: -1ms
+        # 添加关闭超时配置
+        shutdown-timeout: 100ms
 
   # Elasticsearch配置（HTTP模式，无需认证）
   elasticsearch:
     uris: http://localhost:9200
     enabled: true
 
+management:
+  # 完全禁用 Redis 健康检查
+  health:
+    redis:
+      enabled: false
+    # 启用其他健康检查
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+  # 健康检查端点配置
+  endpoint:
+    health:
+      show-details: always
 
 weeb:
   password: sun55@kong # 群聊密码
@@ -80,6 +98,7 @@ weeb:
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.data.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
 
   # Redis配置优化（已合并到上面的Redis配置中）
   # repositories.enabled已在上面配置
