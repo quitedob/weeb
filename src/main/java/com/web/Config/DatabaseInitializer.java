@@ -225,12 +225,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             createUserStatsTable();
         }
 
-        // 3. 文章表（依赖 user 表）
-        if (!tableExists("articles")) {
-            createArticleTable();
-        }
-
-        // 4. 群组表（依赖 user 表）
+        // 3. 群组表（依赖 user 表）
         if (!tableExists("`group`")) {
             createGroupTable();
         }
@@ -270,42 +265,47 @@ public class DatabaseInitializer implements CommandLineRunner {
             createFileTransferTable();
         }
 
-        // 12. 文章评论表（依赖 article 和 user 表）
-        if (!tableExists("article_comment")) {
-            createArticleCommentTable();
-        }
-
-        // 13. 文章收藏表（依赖 article 和 user 表）
-        if (!tableExists("article_favorite")) {
-            createArticleFavoriteTable();
-        }
-
-        // 14. 文章分类表
+        // 12. 文章分类表（需要在文章表之前创建）
         if (!tableExists("article_category")) {
             createArticleCategoryTable();
         }
 
-        // 15. 文章标签表
+        // 13. 文章表（依赖 user 表和 article_category 表）
+        if (!tableExists("articles")) {
+            createArticleTable();
+        }
+
+        // 14. 文章评论表（依赖 article 和 user 表）
+        if (!tableExists("article_comment")) {
+            createArticleCommentTable();
+        }
+
+        // 15. 文章收藏表（依赖 article 和 user 表）
+        if (!tableExists("article_favorite")) {
+            createArticleFavoriteTable();
+        }
+
+        // 16. 文章标签表
         if (!tableExists("article_tag")) {
             createArticleTagTable();
         }
 
-        // 16. 文章与标签关联表
+        // 17. 文章与标签关联表
         if (!tableExists("article_tag_relation")) {
             createArticleTagRelationTable();
         }
 
-        // 17. 文件记录表（依赖 user 表）
+        // 18. 文件记录表（依赖 user 表）
         if (!tableExists("file_record")) {
             createFileRecordTable();
         }
 
-        // 18. 用户关注表（依赖 user 表）
+        // 19. 用户关注表（依赖 user 表）
         if (!tableExists("user_follow")) {
             createUserFollowTable();
         }
 
-        // 19. 文件分享表（依赖 file_record 表）
+        // 20. 文件分享表（依赖 file_record 表）
         if (!tableExists("file_share")) {
             createFileShareTable();
         }
