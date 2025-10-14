@@ -402,4 +402,62 @@
         UPDATE articles SET favorites_count = GREATEST(favorites_count - 1, 0) WHERE article_id = #{articleId}
     </update>
 
+    <!-- 带过滤条件的搜索文章 -->
+    <select id="searchArticlesWithFilters" parameterType="map" resultMap="ArticleResultMap">
+        SELECT
+            article_id,
+            user_id,
+            category_id,
+            article_title,
+            article_content,
+            article_link,
+            status,
+            likes_count,
+            favorites_count,
+            sponsors_count,
+            created_at,
+            updated_at,
+            exposure_count
+        FROM articles
+        WHERE status = 1        <!-- 只显示已发布的文章 -->
+        AND (article_title LIKE CONCAT('%', #{query}, '%') OR article_content LIKE CONCAT('%', #{query}, '%'))
+        <if test="startDate != null and startDate != ''">
+            AND DATE(created_at) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(created_at) &lt;= #{endDate}
+        </if>
+        <choose>
+            <when test="sortBy == 'created_at'">
+                ORDER BY created_at ${sortOrder}
+            </when>
+            <when test="sortBy == 'exposure_count'">
+                ORDER BY exposure_count ${sortOrder}
+            </when>
+            <when test="sortBy == 'likes_count'">
+                ORDER BY likes_count ${sortOrder}
+            </when>
+            <when test="sortBy == 'favorites_count'">
+                ORDER BY favorites_count ${sortOrder}
+            </when>
+            <otherwise>
+                ORDER BY updated_at DESC
+            </otherwise>
+        </choose>
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 统计带过滤条件的搜索结果数量 -->
+    <select id="countSearchResultsWithFilters" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM articles
+        WHERE status = 1        <!-- 只显示已发布的文章 -->
+        AND (article_title LIKE CONCAT('%', #{query}, '%') OR article_content LIKE CONCAT('%', #{query}, '%'))
+        <if test="startDate != null and startDate != ''">
+            AND DATE(created_at) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(created_at) &lt;= #{endDate}
+        </if>
+    </select>
+
 </mapper>

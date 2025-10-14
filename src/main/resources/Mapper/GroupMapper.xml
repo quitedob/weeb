@@ -20,4 +20,30 @@
         WHERE group_name LIKE CONCAT('%', #{keyword}, '%')
     </select>
 
+    <!-- 带过滤条件的搜索群组 -->
+    <select id="searchGroupsWithFilters" resultType="com.web.model.Group">
+        SELECT g.* FROM `group` g
+        WHERE g.group_name LIKE CONCAT('%', #{keyword}, '%')
+        <if test="startDate != null and startDate != ''">
+            AND DATE(g.create_time) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(g.create_time) &lt;= #{endDate}
+        </if>
+        ${sortClause}
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计带过滤条件的搜索群组数量 -->
+    <select id="countSearchGroupsWithFilters" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM `group` g
+        WHERE g.group_name LIKE CONCAT('%', #{keyword}, '%')
+        <if test="startDate != null and startDate != ''">
+            AND DATE(g.create_time) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(g.create_time) &lt;= #{endDate}
+        </if>
+    </select>
+
 </mapper>

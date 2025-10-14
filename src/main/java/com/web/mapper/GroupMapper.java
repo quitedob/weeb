@@ -3,6 +3,7 @@ package com.web.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.web.model.Group;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import java.util.List; // Added
 
 /**
@@ -36,4 +37,32 @@ public interface GroupMapper extends BaseMapper<Group> {
      * @return 总数
      */
     long countSearchGroups(String keyword);
+
+    /**
+     * 带过滤条件的搜索群组
+     * @param keyword 关键词
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param sortClause 排序子句
+     * @return 群组列表
+     */
+    List<Group> searchGroupsWithFilters(@Param("keyword") String keyword,
+                                       @Param("offset") int offset,
+                                       @Param("limit") int limit,
+                                       @Param("startDate") String startDate,
+                                       @Param("endDate") String endDate,
+                                       @Param("sortClause") String sortClause);
+
+    /**
+     * 统计带过滤条件的搜索群组数量
+     * @param keyword 关键词
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 总数
+     */
+    long countSearchGroupsWithFilters(@Param("keyword") String keyword,
+                                     @Param("startDate") String startDate,
+                                     @Param("endDate") String endDate);
 }

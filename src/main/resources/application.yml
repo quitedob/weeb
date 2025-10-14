@@ -72,7 +72,7 @@ spring:
   # Elasticsearch配置（HTTP模式，无需认证）
   elasticsearch:
     uris: http://localhost:9200
-    enabled: true
+    enabled: true  # 启用Elasticsearch搜索功能
 
 management:
   # 完全禁用 Redis 健康检查
