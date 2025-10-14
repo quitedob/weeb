@@ -271,10 +271,10 @@ public class ValidationUtils {
             log.warn("文件上传验证失败：文件名为空");
             return false;
         }
-        
+
         // 检查文件扩展名
         String lowerFileName = fileName.toLowerCase();
-        String[] allowedExtensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".pdf", ".doc", ".docx", ".txt"};
+        String[] allowedExtensions = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".pdf", ".doc", ".docx", ".txt", ".zip", ".rar"};
         boolean hasValidExtension = false;
         for (String ext : allowedExtensions) {
             if (lowerFileName.endsWith(ext)) {
@@ -282,18 +282,228 @@ public class ValidationUtils {
                 break;
             }
         }
-        
+
         if (!hasValidExtension) {
             log.warn("文件上传验证失败：文件扩展名不允许 - {}", fileName);
             return false;
         }
-        
+
         // 检查文件大小
         if (fileSize > maxSize) {
             log.warn("文件上传验证失败：文件大小过大 - {} bytes", fileSize);
             return false;
         }
-        
+
+        return true;
+    }
+
+    /**
+     * 验证聊天消息内容
+     */
+    public static boolean validateChatMessage(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            log.warn("聊天消息验证失败：内容为空");
+            return false;
+        }
+
+        String trimmedContent = content.trim();
+        if (trimmedContent.length() > 2000) {
+            log.warn("聊天消息验证失败：内容过长 - {}", trimmedContent.length());
+            return false;
+        }
+
+        // 检查是否包含敏感词
+        if (containsSensitiveWords(trimmedContent)) {
+            log.warn("聊天消息验证失败：包含敏感词");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证群组名称
+     */
+    public static boolean validateGroupName(String groupName) {
+        if (groupName == null || groupName.trim().isEmpty()) {
+            log.warn("群组名称验证失败：群组名称为空");
+            return false;
+        }
+
+        String trimmedGroupName = groupName.trim();
+        if (trimmedGroupName.length() < 2 || trimmedGroupName.length() > 50) {
+            log.warn("群组名称验证失败：长度不符合要求 - {}", trimmedGroupName.length());
+            return false;
+        }
+
+        // 检查是否包含敏感词
+        if (containsSensitiveWords(trimmedGroupName)) {
+            log.warn("群组名称验证失败：包含敏感词");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证群组描述
+     */
+    public static boolean validateGroupDescription(String description) {
+        if (description == null) {
+            return true; // 描述是可选的
+        }
+
+        String trimmedDescription = description.trim();
+        if (trimmedDescription.length() > 500) {
+            log.warn("群组描述验证失败：描述过长 - {}", trimmedDescription.length());
+            return false;
+        }
+
+        // 检查是否包含敏感词
+        if (containsSensitiveWords(trimmedDescription)) {
+            log.warn("群组描述验证失败：包含敏感词");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证搜索关键词
+     */
+    public static boolean validateSearchKeyword(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            log.warn("搜索关键词验证失败：关键词为空");
+            return false;
+        }
+
+        String trimmedKeyword = keyword.trim();
+        if (trimmedKeyword.length() < 1 || trimmedKeyword.length() > 100) {
+            log.warn("搜索关键词验证失败：长度不符合要求 - {}", trimmedKeyword.length());
+            return false;
+        }
+
+        // 检查是否包含敏感词
+        if (containsSensitiveWords(trimmedKeyword)) {
+            log.warn("搜索关键词验证失败：包含敏感词");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证用户昵称
+     */
+    public static boolean validateNickname(String nickname) {
+        if (nickname == null || nickname.trim().isEmpty()) {
+            return true; // 昵称是可选的
+        }
+
+        String trimmedNickname = nickname.trim();
+        if (trimmedNickname.length() > 50) {
+            log.warn("用户昵称验证失败：昵称过长 - {}", trimmedNickname.length());
+            return false;
+        }
+
+        // 检查是否包含敏感词
+        if (containsSensitiveWords(trimmedNickname)) {
+            log.warn("用户昵称验证失败：包含敏感词");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证日期范围
+     */
+    public static boolean validateDateRange(String startDate, String endDate) {
+        if (startDate == null || startDate.trim().isEmpty()) {
+            return true; // 开始日期是可选的
+        }
+
+        if (endDate == null || endDate.trim().isEmpty()) {
+            return true; // 结束日期是可选的
+        }
+
+        // 简单的日期格式验证 (YYYY-MM-DD)
+        String datePattern = "^\\d{4}-\\d{2}-\\d{2}$";
+        if (!startDate.matches(datePattern) || !endDate.matches(datePattern)) {
+            log.warn("日期范围验证失败：日期格式不正确 - startDate: {}, endDate: {}", startDate, endDate);
+            return false;
+        }
+
+        // 检查开始日期是否早于或等于结束日期
+        if (startDate.compareTo(endDate) > 0) {
+            log.warn("日期范围验证失败：开始日期晚于结束日期 - startDate: {}, endDate: {}", startDate, endDate);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证消息类型
+     */
+    public static boolean validateMessageType(Integer messageType) {
+        if (messageType == null) {
+            log.warn("消息类型验证失败：消息类型为空");
+            return false;
+        }
+
+        // 允许的消息类型：1-文本消息，2-文件消息，3-图片消息
+        if (messageType < 1 || messageType > 3) {
+            log.warn("消息类型验证失败：消息类型无效 - {}", messageType);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证排序参数
+     */
+    public static boolean validateSortBy(String sortBy, String[] allowedValues) {
+        if (sortBy == null || sortBy.trim().isEmpty()) {
+            return true; // 排序参数是可选的
+        }
+
+        String trimmedSortBy = sortBy.trim();
+        for (String allowedValue : allowedValues) {
+            if (allowedValue.equals(trimmedSortBy)) {
+                return true;
+            }
+        }
+
+        log.warn("排序参数验证失败：不允许的排序值 - {}", sortBy);
+        return false;
+    }
+
+    /**
+     * 验证批量ID列表
+     */
+    public static boolean validateIdList(String idList, String paramName) {
+        if (idList == null || idList.trim().isEmpty()) {
+            return true; // ID列表是可选的
+        }
+
+        String trimmedIdList = idList.trim();
+        String[] ids = trimmedIdList.split(",");
+
+        for (String idStr : ids) {
+            try {
+                Long id = Long.parseLong(idStr.trim());
+                if (id <= 0) {
+                    log.warn("{}验证失败：包含无效ID - {}", paramName, idStr);
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                log.warn("{}验证失败：ID格式错误 - {}", paramName, idStr);
+                return false;
+            }
+        }
+
         return true;
     }
 }

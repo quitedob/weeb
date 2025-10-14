@@ -94,6 +94,20 @@ public interface ArticleService {
     Map<String, Object> searchArticles(String query, int page, int pageSize, String sortBy, String sortOrder);
 
     /**
+     * 搜索文章（支持分页、排序和过滤）
+     *
+     * @param query 搜索关键词
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @param startDate 开始日期 (可选)
+     * @param endDate 结束日期 (可选)
+     * @param sortBy 排序字段
+     * @param sortOrder 排序方向（asc/desc）
+     * @return 包含搜索结果和总数的Map
+     */
+    Map<String, Object> searchArticlesWithFilters(String query, int page, int pageSize, String startDate, String endDate, String sortBy, String sortOrder);
+
+    /**
      * 为指定文章增加金币或赞助金额。
      *
      * @param id     文章的唯一标识符

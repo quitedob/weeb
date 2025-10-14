@@ -28,8 +28,6 @@ import GroupPage from '../group/GroupPage.vue';
 import NotificationListPage from '../views/NotificationListPage.vue';
 import TestNotificationPage from '../views/TestNotificationPage.vue';
 
-// Import auth components
-import Logout from '../auth/logout.vue';
 
 
 const routes = [
@@ -61,8 +59,7 @@ const routes = [
   { path: '/login', name: 'Login', component: Login, meta: { title: '登录' } },
   { path: '/register', name: 'Register', component: Register, meta: { title: '注册' } },
   { path: '/forget', name: 'Forget', component: Forget, meta: { title: '忘记密码' } },
-  { path: '/logout', name: 'Logout', component: Logout, meta: { title: '登出' } },
-  { path: '/:pathMatch(.*)*', name: 'NotFound', component: NotFound, meta: { title: '页面未找到' } }
+    { path: '/:pathMatch(.*)*', name: 'NotFound', component: NotFound, meta: { title: '页面未找到' } }
 ];
 
 const router = createRouter({

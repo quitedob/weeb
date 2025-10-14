@@ -72,7 +72,7 @@ AES_SECRET_KEY=your_secure_aes_key_at_least_16_characters
 
 # 应用安全配置
 WEEB_PASSWORD=your_secure_group_password
-DOUBAO_API_KEY=your_doubao_api_key
+# AI功能已移除，不再需要DOUBAO_API_KEY配置
 
 # CORS安全配置（生产环境必须设置具体域名）
 ALLOWED_ORIGINS=https://yourdomain.com,https://admin.yourdomain.com
@@ -421,14 +421,12 @@ weeb/
 │   │   └── UrlPassRunner.java     # URL通行启动器
 │   ├── schedule/                   # 定时任务 (1个)
 │   │   └── ExpiredClearTask.java  # 过期清理任务
-│   ├── service/                    # 业务逻辑层 (36个)
-│   │   ├── AiChatService.java     # AI聊天服务
+│   ├── service/                    # 业务逻辑层 (35个)
 │   │   ├── ArticleCommentService.java # 文章评论服务
 │   │   ├── ArticleService.java    # 文章服务
 │   │   ├── AuthService.java       # 认证服务
 │   │   ├── ChatListService.java   # 聊天列表服务
 │   │   ├── ContactService.java    # 联系人服务
-│   │   ├── DoubaoAiService.java   # 豆包AI服务
 │   │   ├── FileManagementService.java # 文件管理服务
 │   │   ├── FileService.java       # 文件服务
 │   │   ├── GroupService.java      # 群组服务

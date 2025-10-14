@@ -7,11 +7,12 @@ export default {
    * @param {string} keyword - The search keyword.
    * @param {number} page - Page number (default: 0)
    * @param {number} size - Page size (default: 10)
+   * @param {Object} filters - Additional filter parameters
    * @returns {Promise} Axios promise
    */
-  searchGroups(keyword, page = 0, size = 10) {
+  searchGroups(keyword, page = 0, size = 10, filters = {}) {
     return axiosInstance.get('/api/search/group', {
-      params: { keyword, page, size }
+      params: { keyword, page, size, ...filters }
     });
   },
 
@@ -20,11 +21,12 @@ export default {
    * @param {string} keyword - The search keyword.
    * @param {number} page - Page number (default: 0)
    * @param {number} size - Page size (default: 10)
+   * @param {Object} filters - Additional filter parameters
    * @returns {Promise} Axios promise
    */
-  searchUsers(keyword, page = 0, size = 10) {
+  searchUsers(keyword, page = 0, size = 10, filters = {}) {
     return axiosInstance.get('/api/search/users', {
-      params: { keyword, page, size }
+      params: { keyword, page, size, ...filters }
     });
   },
 
@@ -33,11 +35,12 @@ export default {
    * @param {string} q - The search query.
    * @param {number} page - Page number (default: 0)
    * @param {number} size - Page size (default: 10)
+   * @param {Object} filters - Additional filter parameters
    * @returns {Promise} Axios promise
    */
-  searchMessages(q, page = 0, size = 10) {
+  searchMessages(q, page = 0, size = 10, filters = {}) {
     return axiosInstance.get('/api/search/messages', {
-      params: { q, page, size }
+      params: { q, page, size, ...filters }
     });
   },
 
@@ -46,13 +49,12 @@ export default {
    * @param {string} query - The search query.
    * @param {number} page - Page number (default: 1)
    * @param {number} pageSize - Page size (default: 10)
-   * @param {string} sortBy - Sort field (default: 'created_at')
-   * @param {string} sortOrder - Sort order (default: 'desc')
+   * @param {Object} filters - Additional filter parameters
    * @returns {Promise} Axios promise
    */
-  searchArticles(query, page = 1, pageSize = 10, sortBy = 'created_at', sortOrder = 'desc') {
+  searchArticles(query, page = 1, pageSize = 10, filters = {}) {
     return axiosInstance.get('/api/search/articles', {
-      params: { query, page, pageSize, sortBy, sortOrder }
+      params: { query, page, pageSize, ...filters }
     });
   },
 

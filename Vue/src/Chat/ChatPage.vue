@@ -15,17 +15,7 @@
       </div>
     </div>
 
-    <!-- 音视频聊天弹窗（占位示例） -->
-    <div v-if="videoInfo.videoVisible">
-      <div class="mask"></div>
-      <div class="video-modal">
-        <h3 class="video-modal__title">音视频聊天(占位)</h3>
-        <p class="video-modal__info">目标：{{ videoInfo.videoTargetInfo }}</p>
-        <p class="video-modal__info">是否仅音频：{{ videoInfo.videoIsOnlyAudio }}</p>
-        <button class="video-modal__close" @click="videoInfo.videoVisible = false">关闭</button>
-      </div>
-    </div>
-
+  
     <!-- 用户信息修改弹窗（占位示例） -->
     <div v-if="modifyUserInfoIsOpen">
       <div class="mask"></div>
@@ -187,7 +177,7 @@
             <div class="chat-show-area" ref="chatShowAreaRef">
               <div
                   v-for="msg in msgRecord"
-                  :key="msg.id"
+                  :key="msg.id || msg.tempId"
                   class="msg-item"
                   :style="{
                   justifyContent: msg.fromId === userInfoStore.userId ? 'flex-end' : 'flex-start'
@@ -196,7 +186,18 @@
                 <div class="chat-message-container">
                   <!-- 如果消息已撤回则显示提示，否则显示消息内容 -->
                   <div class="bubble" :class="{ 'sent-message': msg.fromId === userInfoStore.userId }">
-                    {{ msg.isRecalled === 1 ? '消息已撤回' : msg.msgContent }}
+                    <div v-if="msg.isRecalled === 1">消息已撤回</div>
+                    <div v-else-if="msg.messageType === 2 && msg.fileData" class="file-message">
+                      <div class="file-message-content" @click="downloadFile(msg.fileData)">
+                        <div class="file-icon">📄</div>
+                        <div class="file-details">
+                          <div class="file-name">{{ msg.fileData.fileName }}</div>
+                          <div class="file-size">{{ formatFileSize(msg.fileData.fileSize) }}</div>
+                        </div>
+                        <div class="download-hint">点击下载</div>
+                      </div>
+                    </div>
+                    <div v-else>{{ msg.msgContent }}</div>
                   </div>
                   <!-- 消息状态和操作按钮容器 -->
                   <div class="message-actions">
@@ -212,7 +213,7 @@
                       {{ formatMessageTime(msg.timestamp) }}
                     </div>
                     <!-- 撤回按钮：仅对当前用户自己发送的且消息未撤回时显示 -->
-                    <button v-if="msg.fromId === userInfoStore.userId && msg.isRecalled !== 1" class="recall-btn" @click="recallMessage(msg.id)">
+                    <button v-if="msg.fromId === userInfoStore.userId && msg.isRecalled !== 1" class="recall-btn" @click="handleRecallMessage(msg.id || msg.tempId)">
                       撤回
                     </button>
                   </div>
@@ -239,7 +240,13 @@
               </div>
             </div>
             <!-- 聊天输入区 -->
-            <div class="chat-input-area">
+            <div
+              class="chat-input-area"
+              @dragover.prevent="handleDragOver"
+              @dragleave.prevent="handleDragLeave"
+              @drop.prevent="handleFileDrop"
+              :class="{ 'drag-over': isDragOver }"
+            >
               <div class="chat-input-container" ref="inputAreaRef">
                 <!-- 引用消息显示区域 -->
                 <div v-if="msgStore.referenceMsg" class="reference-msg">
@@ -252,6 +259,18 @@
                 <div class="emoji-button" @click="handlerSetEmojiBoxPosition">
                   😊
                 </div>
+                <!-- 文件上传按钮 -->
+                <div class="file-button" @click="triggerFileUpload" title="发送文件">
+                  📎
+                </div>
+                <!-- 隐藏的文件输入框 -->
+                <input
+                    ref="fileInputRef"
+                    type="file"
+                    style="display: none"
+                    @change="handleFileSelect"
+                    :disabled="fileUploadState.isUploading"
+                />
                 <!-- 消息输入框 -->
                 <div class="chat-msg-input">
                   <input
@@ -264,13 +283,37 @@
                   />
                 </div>
               </div>
+              <!-- 文件预览区域 -->
+              <div v-if="fileUploadState.selectedFile" class="file-preview-container">
+                <div class="file-preview">
+                  <div class="file-info">
+                    <span class="file-name">{{ fileUploadState.selectedFile.name }}</span>
+                    <span class="file-size">({{ formatFileSize(fileUploadState.selectedFile.size) }})</span>
+                  </div>
+                  <div class="file-actions">
+                    <button @click="clearFileSelection" class="remove-file-btn" title="移除文件">
+                      ❌
+                    </button>
+                  </div>
+                </div>
+                <!-- 上传进度条 -->
+                <div v-if="fileUploadState.isUploading" class="upload-progress">
+                  <div class="progress-bar">
+                    <div
+                      class="progress-fill"
+                      :style="{ width: fileUploadState.uploadProgress + '%' }"
+                    ></div>
+                  </div>
+                  <span class="progress-text">{{ fileUploadState.uploadProgress }}%</span>
+                </div>
+              </div>
               <!-- 发送按钮：当输入为空时禁用，并显示灰色 -->
               <button
                   class="publish-button"
-                  :disabled="!msgContent.trim()"
+                  :disabled="(!msgContent.trim() && !fileUploadState.selectedFile) || fileUploadState.isUploading"
                   @click="handlerSubmitMsg"
               >
-                发送
+                {{ fileUploadState.isUploading ? '发送中...' : '发送' }}
               </button>
             </div>
           </div>
@@ -335,8 +378,12 @@
 <script setup>
 /* ---------------------- 导入 Vue 响应式 API 以及其他依赖 ---------------------- */
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-// 导入 axios 用于发送 HTTP 请求
-import { instance } from '../api/axiosInstance'
+// 导入 API 模块
+import { getUserList, getUserMap, getOnlineUsers } from '../api/modules/user'
+import { sendMessage, getChatRecord, recallMessage } from '../api/modules/message'
+import fileManagementApi from '../api/modules/fileManagement'
+// 导入工具函数
+import { generateUUID } from '@/utils/uuid'
 // 导入表情包数据（请确保路径正确）
 import emojis from '@constant/emoji/emoji.js'
 // 导入 Vue Router 用于页面跳转
@@ -447,27 +494,43 @@ function handlerSetEmojiBoxPosition(e) {
   // 获取输入区域位置及宽度
   const rect = inputAreaRef.value.getBoundingClientRect()
   const popupHeight = 400 // 弹窗高度预设值
-  emojiPosition.value.x = rect.left
-  emojiPosition.value.y = rect.top - popupHeight
-  inputAreaWidth.value = rect.width
+  const popupWidth = 320 // 弹窗宽度预设值
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+
+  // 计算合适的x位置，确保不超出视窗边界
+  let x = rect.left
+  if (x + popupWidth > viewportWidth) {
+    x = viewportWidth - popupWidth - 10 // 留10px边距
+  }
+  if (x < 10) {
+    x = 10 // 留10px边距
+  }
+
+  // 计算合适的y位置，确保不超出视窗边界
+  let y = rect.top - popupHeight
+  if (y < 10) {
+    // 如果上方空间不够，显示在输入框下方
+    y = rect.bottom + 10
+  }
+
+  emojiPosition.value.x = x
+  emojiPosition.value.y = y
+  inputAreaWidth.value = Math.min(rect.width, popupWidth)
   // 切换表情弹窗显示状态
   isEmojiVisible.value = !isEmojiVisible.value
 }
 
 /* ---------------------- 聊天逻辑 ---------------------- */
-// 文件传输信息对象（占位示例）
-const fileInfo = ref({
-  fileVisible: false,
-  fileTargetInfo: null,
-  fileName: ''
+// 文件上传相关状态
+const fileUploadState = ref({
+  isUploading: false,
+  uploadProgress: 0,
+  selectedFile: null,
+  filePreview: null
 })
-// 音视频聊天信息对象（占位示例）
-const videoInfo = ref({
-  videoVisible: false,
-  videoTargetInfo: null,
-  videoIsSend: false,
-  videoIsOnlyAudio: false
-})
+// 拖拽上传状态
+const isDragOver = ref(false)
 // 消息输入框内容
 const msgContent = ref('')
 // 消息发送中状态
@@ -501,6 +564,9 @@ const msgStore = {
   referenceMsg: null
 }
 
+// 文件输入框引用
+const fileInputRef = ref(null)
+
 // 打字相关变量
 let typingTimeout = null
 const isTyping = ref(false)
@@ -527,9 +593,9 @@ const onlineCount = computed(() => onlineUsers.value.length)
 /**
  * 获取用户列表接口
  */
-async function getUserList() {
+async function fetchUserList() {
   try {
-    const res = await instance.get('/list') // 后端 AuthController 提供 /list
+    const res = await getUserList()
     if (res.code === 0) {
       userList.value = res.data || []
     }
@@ -541,9 +607,9 @@ async function getUserList() {
 /**
  * 获取用户 Map 接口
  */
-async function getUserMap() {
+async function fetchUserMap() {
   try {
-    const res = await instance.get('/list/map') // 后端 AuthController 提供 /list/map
+    const res = await getUserMap()
     if (res.code === 0) {
       userMap.value = res.data || {}
     }
@@ -555,9 +621,9 @@ async function getUserMap() {
 /**
  * 获取在线用户接口
  */
-async function getOnlineUsers() {
+async function fetchOnlineUsers() {
   try {
-    const res = await instance.get('/online/web') // 后端 AuthController 提供 /online/web
+    const res = await getOnlineUsers()
     if (res.code === 0) {
       onlineUsers.value = res.data || []
     }
@@ -568,7 +634,7 @@ async function getOnlineUsers() {
 
 /**
  * 获取聊天记录接口
- * 调用后端 /api/messages/record 接口获取当前聊天对象的消息记录
+ * 调用后端 /api/v1/message/record 接口获取当前聊天对象的消息记录
  */
 async function fetchChatRecord() {
   try {
@@ -577,7 +643,7 @@ async function fetchChatRecord() {
       index: 0,
       num: 50
     }
-    const res = await instance.post('/api/messages/record', payload)
+    const res = await getChatRecord(targetId.value, 0, 50)
     if (res.code === 0) {
       msgRecord.value = res.data || []
     }
@@ -587,66 +653,300 @@ async function fetchChatRecord() {
 }
 
 /**
- * 发送消息接口
+ * 触发文件选择
+ */
+function triggerFileUpload() {
+  fileInputRef.value?.click()
+}
+
+/**
+ * 处理文件选择
+ */
+function handleFileSelect(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  // 验证文件
+  if (!validateFile(file)) {
+    event.target.value = '' // 清空输入
+    return
+  }
+
+  fileUploadState.value.selectedFile = file
+  fileUploadState.value.filePreview = URL.createObjectURL(file)
+}
+
+/**
+ * 验证文件
+ */
+function validateFile(file) {
+  // 检查文件大小（限制为10MB）
+  const maxSize = 10 * 1024 * 1024 // 10MB
+  if (file.size > maxSize) {
+    alert('文件大小不能超过10MB')
+    return false
+  }
+
+  // 检查文件类型（可根据需要扩展）
+  const allowedTypes = ['image/*', 'application/pdf', 'text/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+  const isAllowed = allowedTypes.some(type => {
+    if (type.endsWith('/*')) {
+      return file.type.startsWith(type.slice(0, -1))
+    }
+    return file.type === type
+  })
+
+  if (!isAllowed) {
+    alert('不支持的文件类型')
+    return false
+  }
+
+  return true
+}
+
+/**
+ * 处理拖拽悬停
+ */
+function handleDragOver(event) {
+  event.preventDefault()
+  isDragOver.value = true
+}
+
+/**
+ * 处理拖拽离开
+ */
+function handleDragLeave(event) {
+  event.preventDefault()
+  isDragOver.value = false
+}
+
+/**
+ * 处理文件拖放
+ */
+function handleFileDrop(event) {
+  event.preventDefault()
+  isDragOver.value = false
+
+  const files = event.dataTransfer.files
+  if (files.length === 0) return
+
+  // 只处理第一个文件
+  const file = files[0]
+
+  // 验证文件
+  if (!validateFile(file)) {
+    return
+  }
+
+  fileUploadState.value.selectedFile = file
+  fileUploadState.value.filePreview = URL.createObjectURL(file)
+}
+
+/**
+ * 清除文件选择
+ */
+function clearFileSelection() {
+  fileUploadState.value.selectedFile = null
+  fileUploadState.value.filePreview = null
+  fileUploadState.value.uploadProgress = 0
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
+/**
+ * 格式化文件大小
+ */
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+/**
+ * 下载文件
+ */
+function downloadFile(fileData) {
+  if (!fileData || !fileData.fileId) return
+
+  const downloadUrl = fileManagementApi.getDownloadUrl(fileData.fileId)
+
+  // 创建临时链接并触发下载
+  const link = document.createElement('a')
+  link.href = downloadUrl
+  link.download = fileData.fileName
+  link.style.display = 'none'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+
+  console.log('下载文件:', fileData.fileName)
+}
+
+/**
+ * 上传文件
+ */
+async function uploadFile(file) {
+  try {
+    fileUploadState.value.isUploading = true
+    fileUploadState.value.uploadProgress = 0
+
+    const response = await fileManagementApi.uploadFile(file, false)
+
+    if (response.code === 0 && response.data) {
+      return response.data
+    } else {
+      throw new Error(response.message || '文件上传失败')
+    }
+  } catch (error) {
+    console.error('文件上传出错:', error)
+    throw error
+  } finally {
+    fileUploadState.value.isUploading = false
+    fileUploadState.value.uploadProgress = 0
+  }
+}
+
+/**
+ * 发送消息接口（支持文本和文件）
  * 优先使用WebSocket发送，失败时降级到HTTP请求
  */
 async function handlerSubmitMsg() {
-  if (!msgContent.value.trim()) return
+  // 检查是否有内容可发送
+  const hasText = msgContent.value.trim()
+  const hasFile = fileUploadState.value.selectedFile
+
+  if (!hasText && !hasFile) return
+
   isSendLoading.value = true
 
   const isGroupChat = targetId.value === '1'
   const targetUserId = isGroupChat ? null : targetId.value
 
   try {
+    // 如果有文件，先上传文件
+    let fileData = null
+    if (hasFile) {
+      fileData = await uploadFile(fileUploadState.value.selectedFile)
+    }
+
+    // 准备消息内容
+    let messageContent = msgContent.value.trim()
+    let messageType = 1 // 默认文本消息
+
+    if (fileData) {
+      // 构建文件消息内容
+      messageContent = JSON.stringify({
+        fileId: fileData.id,
+        fileName: fileData.originalName,
+        fileSize: fileData.size,
+        fileUrl: fileManagementApi.getDownloadUrl(fileData.id),
+        fileType: fileData.contentType
+      })
+      messageType = 2 // 文件消息类型
+    }
+
+    // 生成唯一的临时ID用于消息关联
+    const tempId = generateUUID()
+
     // 优先使用WebSocket发送消息
     if (chatStore.isConnected) {
       await chatStore.sendMessage(
-        msgContent.value,
+        messageContent,
         targetId.value,
         isGroupChat ? 'GROUP' : 'PRIVATE',
-        1 // 文本消息类型
+        messageType
       )
 
       // 添加消息到本地记录，初始状态为发送中
       const localMessage = {
-        id: Date.now(), // 临时ID，WebSocket会返回真实ID
+        tempId: tempId, // 临时UUID，用于精确关联
+        id: null, // 真实ID待服务器返回
         fromId: userInfoStore.value.userId,
-        content: msgContent.value,
+        content: messageContent,
         isRecalled: 0,
-        msgContent: msgContent.value,
+        msgContent: fileData ? `[文件] ${fileData.originalName}` : messageContent,
         timestamp: new Date(),
         isFromMe: true,
-        status: 'sending' // 消息状态：sending, sent, delivered, read
+        status: 'sending', // 消息状态：sending, sent, delivered, read
+        messageType: messageType,
+        fileData: fileData // 保存文件信息用于渲染
       }
       msgRecord.value.push(localMessage)
     } else {
       // WebSocket未连接时降级到HTTP请求
       const messageData = {
-        receiverId: targetUserId,
+        tempId: tempId, // 临时UUID用于精确关联
+        targetId: targetUserId,
         groupId: isGroupChat ? 1 : null,
-        content: msgContent.value,
-        messageType: 1  // 文本消息
+        content: messageContent,
+        messageType: messageType
       }
-      const response = await instance.post('/api/messages/send', messageData)
+      const response = await sendMessage(messageData)
       if (response.code === 0 && response.data) {
-        msgRecord.value.push(response.data)
+        // 合并服务器返回的数据与本地临时数据
+        const serverMessage = response.data
+        serverMessage.tempId = tempId
+        serverMessage.status = 'sent'
+        serverMessage.fileData = fileData
+        serverMessage.msgContent = fileData ? `[文件] ${fileData.originalName}` : messageContent
+        msgRecord.value.push(serverMessage)
       } else {
         throw new Error(response.message || "发送消息失败")
       }
     }
+
+    // 清空输入
+    msgContent.value = ""
+    clearFileSelection()
+    scrollToBottom()
+
   } catch (error) {
     console.error("发送消息出错:", error)
     // 尝试HTTP备用方案
     try {
-      const messageData = {
-        receiverId: targetUserId,
-        groupId: isGroupChat ? 1 : null,
-        content: msgContent.value,
-        messageType: 1
+      // 重新准备数据（如果文件上传失败，需要重新上传）
+      let fileData = null
+      if (hasFile && !fileUploadState.value.selectedFile) {
+        // 如果文件已经被清除，让用户重新选择
+        alert('文件发送失败，请重新选择文件')
+        return
+      } else if (hasFile) {
+        fileData = await uploadFile(fileUploadState.value.selectedFile)
       }
-      const response = await instance.post('/api/messages/send', messageData)
+
+      let messageContent = msgContent.value.trim()
+      let messageType = 1
+
+      if (fileData) {
+        messageContent = JSON.stringify({
+          fileId: fileData.id,
+          fileName: fileData.originalName,
+          fileSize: fileData.size,
+          fileUrl: fileManagementApi.getDownloadUrl(fileData.id),
+          fileType: fileData.contentType
+        })
+        messageType = 2
+      }
+
+      const tempId = generateUUID()
+      const messageData = {
+        tempId: tempId,
+        targetId: targetUserId,
+        groupId: isGroupChat ? 1 : null,
+        content: messageContent,
+        messageType: messageType
+      }
+      const response = await sendMessage(messageData)
       if (response.code === 0 && response.data) {
-        msgRecord.value.push(response.data)
+        const serverMessage = response.data
+        serverMessage.tempId = tempId
+        serverMessage.status = 'sent'
+        serverMessage.fileData = fileData
+        serverMessage.msgContent = fileData ? `[文件] ${fileData.originalName}` : messageContent
+        msgRecord.value.push(serverMessage)
         console.log("消息已通过HTTP发送")
       } else {
         throw new Error(response.message || "HTTP发送消息也失败")
@@ -655,7 +955,6 @@ async function handlerSubmitMsg() {
       console.error("HTTP发送消息也出错:", httpError)
       // 显示友好的错误提示
       if (chatStore.isConnected) {
-        // WebSocket连接问题
         alert("消息发送失败，正在尝试重新连接...")
       } else {
         alert("消息发送失败，请检查网络连接！")
@@ -663,22 +962,19 @@ async function handlerSubmitMsg() {
     }
   } finally {
     isSendLoading.value = false
-    msgContent.value = ""
-    scrollToBottom()
   }
 }
 
 /**
  * 撤回消息接口
- * 调用后端 /api/messages/recall 接口撤回指定消息
+ * 调用后端 /api/v1/message/recall 接口撤回指定消息
  */
-async function recallMessage(msgId) {
+async function handleRecallMessage(msgId) {
   try {
-    const payload = { msgId: msgId }
-    const res = await instance.post('/api/messages/recall', payload)
+    const res = await recallMessage(msgId)
     if (res.code === 0 && res.data) {
       const updatedMsg = res.data
-      const idx = msgRecord.value.findIndex(m => m.id === msgId)
+      const idx = msgRecord.value.findIndex(m => m.id === msgId || m.tempId === msgId)
       if (idx !== -1) {
         msgRecord.value[idx] = updatedMsg
       }
@@ -798,9 +1094,23 @@ function toggleDark() {
   console.log('切换主题(示例)')
 }
 
-// 登出处理函数：在执行登出逻辑后跳转到 '/logout'
+// 登出处理函数：直接使用authStore.logout()
 function handlerLogout() {
-  router.push('/logout')
+  // 断开WebSocket连接
+  chatStore.disconnectWebSocket()
+
+  // 使用authStore的logout方法，它会处理后端通知和状态清理
+  authStore.logout()
+
+  // 跳转到登录页面
+  router.push('/login')
+}
+
+// 点击外部关闭表情弹窗
+function handleClickOutside(event) {
+  if (isEmojiVisible.value && !event.target.closest('.emoji-popup') && !event.target.closest('.emoji-button')) {
+    closeEmojiPopup()
+  }
 }
 
 /* ---------------------- 生命周期钩子 ---------------------- */
@@ -809,6 +1119,9 @@ onMounted(() => {
   if (inputAreaRef.value) {
     inputAreaWidth.value = inputAreaRef.value.getBoundingClientRect().width
   }
+
+  // 添加点击外部关闭事件监听
+  document.addEventListener('click', handleClickOutside)
 
   // 连接WebSocket
   console.log('Chat页面：连接WebSocket...')
@@ -830,11 +1143,26 @@ onMounted(() => {
       // 更新本地消息记录，同步消息状态
       newMessages.forEach(newMsg => {
         if (newMsg.isFromMe) {
-          const localMsg = msgRecord.value.find(m => m.id === newMsg.id ||
-            (Math.abs(m.id - newMsg.id) < 1000 && m.msgContent === newMsg.msgContent))
-          if (localMsg && localMsg.status !== 'read') {
-            localMsg.status = newMsg.status || 'sent'
-            localMsg.id = newMsg.id // 更新为真实ID
+          // 首先尝试通过临时ID进行精确匹配
+          let localMsg = msgRecord.value.find(m => m.tempId && m.tempId === newMsg.tempId)
+
+          // 如果没有找到临时ID匹配，回退到ID匹配（兼容旧数据）
+          if (!localMsg && newMsg.id) {
+            localMsg = msgRecord.value.find(m => m.id === newMsg.id)
+          }
+
+          if (localMsg) {
+            // 更新消息状态和真实ID
+            if (newMsg.status) {
+              localMsg.status = newMsg.status
+            }
+            if (newMsg.id) {
+              localMsg.id = newMsg.id // 更新为真实ID
+            }
+            // 移除临时ID（可选）
+            if (newMsg.tempId && localMsg.tempId === newMsg.tempId) {
+              delete localMsg.tempId
+            }
           }
         }
       })
@@ -842,16 +1170,18 @@ onMounted(() => {
   }, { deep: true })
 
   // 初始化：获取用户列表、用户 Map、在线用户和当前聊天记录
-  getUserList()
-  getUserMap()
-  getOnlineUsers()
+  fetchUserList()
+  fetchUserMap()
+  fetchOnlineUsers()
   fetchChatRecord()
 })
 
-// 组件卸载时断开WebSocket
+// 组件卸载时清理
 onUnmounted(() => {
   console.log('Chat页面：断开WebSocket连接')
   chatStore.disconnectWebSocket()
+  // 移除点击外部关闭事件监听
+  document.removeEventListener('click', handleClickOutside)
 })
 
 // 监听 targetId 变化，切换聊天时加载对应的聊天记录
@@ -926,44 +1256,6 @@ watch(targetId, (newVal, oldVal) => {
   background-color: #0056b3;
 }
 
-/* ===================== 音视频聊天弹窗 ===================== */
-.video-modal {
-  position: fixed;
-  top: 200px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #ffffff;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  width: 300px;
-  z-index: 999;
-}
-.video-modal__title {
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 1.5em;
-  text-align: center;
-}
-.video-modal__info {
-  margin: 10px 0;
-  font-size: 1em;
-}
-.video-modal__close {
-  display: block;
-  width: 100%;
-  padding: 10px;
-  margin-top: 20px;
-  background-color: #f44336;
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1em;
-}
-.video-modal__close:hover {
-  background-color: #d32f2f;
-}
 
 /* ===================== 用户信息修改弹窗 ===================== */
 .modify-user-modal {
@@ -980,80 +1272,223 @@ watch(targetId, (newVal, oldVal) => {
 /* ===================== 表情弹窗 ===================== */
 .emoji-popup {
   position: fixed;
-  background: #fff;
-  padding: 8px;
-  z-index: 999;
-  max-height: 400px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 12px;
+  z-index: 1000;
+  max-height: 420px;
+  max-width: 320px;
   overflow-y: auto;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  border: 2px solid rgba(0, 123, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  animation: emoji-popup-enter 0.2s ease-out;
 }
+
+@keyframes emoji-popup-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .emoji-title {
-  margin: 0 0 8px;
+  margin: 0 0 12px;
   text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid rgba(0, 123, 255, 0.2);
+  padding-bottom: 8px;
 }
+
 .emoji-search-container {
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
+
 .emoji-search-input {
-  width: 80%;
-  padding: 4px;
-  display: block;
-  margin: 0 auto;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 123, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  outline: none;
+  font-size: 14px;
+  transition: all 0.3s ease;
 }
+
+.emoji-search-input:focus {
+  border-color: rgba(0, 123, 255, 0.6);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.emoji-search-input::placeholder {
+  color: #999;
+}
+
 .emoji-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
-  max-height: 300px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  max-height: 250px;
   overflow-y: auto;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
 }
+
+.emoji-grid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.emoji-grid::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+.emoji-grid::-webkit-scrollbar-thumb {
+  background: rgba(0, 123, 255, 0.5);
+  border-radius: 2px;
+}
+
 .emoji-item {
   cursor: pointer;
   text-align: center;
   line-height: 32px;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-size: 20px;
+  transition: all 0.2s ease;
+  user-select: none;
 }
+
+.emoji-item:hover {
+  background: rgba(0, 123, 255, 0.1);
+  transform: scale(1.1);
+}
+
+.emoji-item:active {
+  transform: scale(0.95);
+}
+
 .emoji-pagination {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 10px;
-}
-.emoji-pagination-button {
-  margin: 0 10px;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-.emoji-pagination-info {
-  font-size: 14px;
-}
-.emoji-package-container {
-  margin-top: 10px;
-  display: flex;
-  justify-content: center;
+  margin-top: 12px;
   gap: 8px;
 }
-.emoji-package-button {
-  border: 1px solid #ccc;
-  padding: 5px 8px;
+
+.emoji-pagination-button {
+  padding: 6px 12px;
   cursor: pointer;
-  background-color: #f5f5f5;
-  border-radius: 4px;
+  background: rgba(0, 123, 255, 0.1);
+  border: 1px solid rgba(0, 123, 255, 0.3);
+  border-radius: 6px;
+  color: #007bff;
+  font-size: 12px;
+  transition: all 0.3s ease;
 }
+
+.emoji-pagination-button:hover:not(:disabled) {
+  background: rgba(0, 123, 255, 0.2);
+  border-color: rgba(0, 123, 255, 0.5);
+}
+
+.emoji-pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.emoji-pagination-info {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+.emoji-package-container {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.emoji-package-button {
+  padding: 6px 12px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 123, 255, 0.3);
+  border-radius: 6px;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  color: #333;
+}
+
+.emoji-package-button:hover {
+  background: rgba(0, 123, 255, 0.1);
+  border-color: rgba(0, 123, 255, 0.5);
+}
+
 .emoji-package-button.active {
-  background-color: #ddd;
+  background: rgba(0, 123, 255, 0.2);
+  border-color: rgba(0, 123, 255, 0.6);
+  color: #007bff;
+  font-weight: 600;
 }
+
 .emoji-close-button {
-  margin-top: 6px;
+  margin-top: 12px;
   display: block;
   width: 100%;
-  padding: 6px;
-  background-color: #f44336;
+  padding: 8px;
+  background: linear-gradient(135deg, #ff6b6b, #f44336);
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+.emoji-close-button:hover {
+  background: linear-gradient(135deg, #ff5252, #d32f2f);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+}
+
+/* 响应式设计 - 移动端表情弹窗优化 */
+@media screen and (max-width: 480px) {
+  .emoji-popup {
+    max-width: calc(100vw - 20px);
+    max-height: 350px;
+    padding: 10px;
+  }
+
+  .emoji-grid {
+    grid-template-columns: repeat(6, 1fr);
+    max-height: 200px;
+  }
+
+  .emoji-item {
+    font-size: 18px;
+    line-height: 28px;
+  }
+
+  .emoji-package-container {
+    gap: 4px;
+  }
+
+  .emoji-package-button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
 }
 
 /* ===================== 聊天盒子 ===================== */
@@ -1290,6 +1725,31 @@ watch(targetId, (newVal, oldVal) => {
   justify-content: center;
   padding: 0 10px;
   margin: 15px 0;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.chat-input-area.drag-over {
+  background: rgba(64, 158, 255, 0.05);
+  border: 2px dashed rgba(64, 158, 255, 0.3);
+  border-radius: 10px;
+}
+
+.chat-input-area.drag-over::before {
+  content: '拖拽文件到这里上传';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #409eff;
+  font-size: 16px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 16px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
 }
 .chat-input-container {
   width: 80%;
@@ -1323,8 +1783,27 @@ watch(targetId, (newVal, oldVal) => {
   color: rgba(0, 0, 0, 0.5);
   user-select: none;
   position: absolute;
+  right: 45px;
+  top: 10px;
+}
+
+.file-button {
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: rgba(0, 0, 0, 0.5);
+  user-select: none;
+  position: absolute;
   right: 10px;
   top: 10px;
+  transition: color 0.3s;
+}
+
+.file-button:hover {
+  color: rgba(0, 123, 255, 0.8);
 }
 .publish-button {
   height: 55px;
@@ -1350,6 +1829,154 @@ watch(targetId, (newVal, oldVal) => {
   background: grey;
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* ===================== 文件预览和上传样式 ===================== */
+.file-preview-container {
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.file-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.file-size {
+  font-size: 12px;
+  color: #666;
+}
+
+.file-actions {
+  margin-left: 8px;
+}
+
+.remove-file-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px;
+  border-radius: 3px;
+  transition: background 0.3s;
+}
+
+.remove-file-btn:hover {
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.upload-progress {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4caf50;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #666;
+  min-width: 35px;
+}
+
+/* ===================== 文件消息样式 ===================== */
+.file-message {
+  width: 100%;
+}
+
+.file-message-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.file-message-content:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.file-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.file-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.file-message .file-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-message .file-size {
+  font-size: 12px;
+  opacity: 0.8;
+  color: inherit;
+}
+
+.download-hint {
+  font-size: 12px;
+  opacity: 0.7;
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* 发送消息中的文件消息特殊样式 */
+.bubble.sent-message .file-message-content {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.bubble.sent-message .file-message-content:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* ---------------- 右侧菜单 ---------------- */
