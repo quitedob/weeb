@@ -1,5 +1,6 @@
-本项目是一个前后端分离的应用, 前端使用Vue 3, 后端使用Java Spring Boot.
+本项目是一个前后端分离的应用, 前端使用Vue 3.5.13, 后端使用Java Spring Boot 3.5.4.
 核心设计理念是分层清晰, 职责单一, 接口标准化, 高内聚低耦合.
+项目采用微服务架构思想，包含即时通信、内容管理、文件分享、AI对话等核心功能模块.
 所有开发人员必须严格遵守本规范.
 
 === 端口配置规范 ===
@@ -11,16 +12,20 @@
 6. 端口冲突时优先处理占用端口的进程，而不是修改应用端口
 
 === 后端开发规范 ===
-1. 项目使用MySQL 8.0+数据库和MyBatis-Plus持久层框架
+1. 项目使用MySQL 8.0+数据库和MyBatis-Plus 3.5.8持久层框架
 2. 后端遵循多层架构模型, 数据流向为 Controller, Service, Mapper, Database
 3. Controller层是API的入口, 负责接收HTTP请求, 使用@Valid注解校验参数, 并调用Service层
 4. Controller层严禁编写复杂业务逻辑, 所有接口返回ResponseEntity<ApiResponse<T>>
 5. 接收请求必须使用com.web.vo包下的VO对象封装请求体
-6. Service层采用接口加实现的设计模式, 接口位于com.web.service包, 实现位于com.web.service.impl包
+6. Service层采用接口加实现的设计模式, 接口位于com.web.service包, 实现位于com.web.service.Impl包
 7. 涉及多张表读写的复杂数据库操作, 必须在ServiceImpl的方法上使用@Transactional注解
 8. 修改ServiceImpl中的方法签名, 必须立即同步更新其对应的Service接口
 9. Mapper层采用接口加XML的方式, Mapper接口位于com.web.mapper包, XML文件位于resources/Mapper目录
 10. Mapper接口的方法名必须与XML中statement的id一致, @Param注解的参数名必须与XML中的引用严格匹配
+11. 新增功能模块必须包含完整的Controller、Service、ServiceImpl、Mapper、VO、Model结构
+12. AI相关功能统一使用AiChatService，遵循统一的AI接口规范
+13. SSH终端功能统一通过CommandManager管理，确保安全性和可追踪性
+14. 文件上传功能必须通过FileService和FileManagementService，确保文件安全检查
 
 === 数据库规范 ===
 1. 位于com.web.model包的实体类与数据库表一一对应
@@ -37,8 +42,12 @@
 3. 新的API请求应根据业务领域添加到src/api/modules/目录下的对应模块中
 4. 全局状态管理必须使用Pinia, 用户的认证信息由src/stores/authStore.js管理
 5. 新功能模块应在src/stores/目录下创建独立的Store文件
-6. UI组件库统一使用Element Plus, 全局样式使用src/assets/apple-style.css中定义的CSS变量
+6. UI组件库统一使用Element Plus 2.7.8, 全局样式使用src/assets/apple-style.css中定义的CSS变量
 7. 所有页面路由在src/router/index.js中定义, 需要认证的页面应添加meta, { requiresAuth: true }
+8. 富文本编辑功能统一使用Quill 2.0.3，遵循统一的编辑器配置规范
+9. 视频播放功能统一使用video组件，确保跨浏览器兼容性
+10. 新增页面组件必须包含响应式设计，支持移动端适配
+11. 组件命名必须使用PascalCase，文件名与组件名保持一致
 
 === WebSocket开发规范 ===
 1. WebSocket连接使用chatStore.js管理, 连接地址: ws://localhost:8081/ws
@@ -60,6 +69,19 @@
 3. 安全事件通过SecurityAuditUtils记录, 包括登录失败、异常操作等
 4. JWT Token管理通过authStore.js, 过期自动刷新
 5. 敏感信息必须使用环境变量配置, 不得硬编码
+6.禁止使用select * 等操作
+
+=== 本地开发健康规范 ===
+1. 开发环境启动前必须确保MySQL、Redis、Elasticsearch服务正常运行
+2. 数据库连接失败时优先检查服务状态和网络连接，避免频繁修改配置
+3. 使用mvn spring-boot:run启动后端，使用npm run dev启动前端
+4. 定期清理日志文件，避免日志文件过大影响开发环境性能
+5. 本地开发时启用调试模式，设置环境变量DEBUG=true
+6. Git提交前必须执行代码格式化和静态检查
+7. 开发过程中遇到问题优先查看控制台日志和错误信息
+8. 定期更新依赖包版本，确保安全性和性能
+9. 开发完成后必须进行基础功能测试，确保核心功能正常
+10. 遵循Git Flow工作流，feature分支开发完成后及时合并到develop分支
 
 === 文档更新规范 ===
 1. 修改重要功能后必须同步更新README.md
@@ -67,6 +89,9 @@
 3. 端口配置变更必须更新README.md中的访问应用部分
 4. 新增功能必须更新README.md中的核心功能部分
 5. 技术架构变更必须更新README.md中的技术栈部分
+6. 依赖版本变更必须同步更新README.md中的技术栈信息
+7. 新增开发规范必须更新rule.txt文件
+8. 项目结构变更必须更新README.md中的项目结构说明
 
 === 代码修改禁止事项 ===
 1. 严禁随意修改端口配置而不更新相关文件
@@ -77,8 +102,20 @@
 6. 严禁修改核心架构设计模式
 7. 严禁提交包含安全隐患的代码
 
+=== 项目未来健康规范 ===
+1. 保持代码质量和架构清晰
+2. 建立完整的CI/CD流程，自动化测试和部署
+3. 建立完整的错误追踪和日志分析体系
+4. 定期进行代码审查，确保代码质量和规范性
+5. 建立完整的项目文档，包括技术文档、用户文档、运维文档
+6. 关注系统可扩展性，为未来功能扩展预留接口和架构空间
+
 === 违规处理 ===
 1. 违反核心架构规范的代码将被拒绝合并
 2. 不更新文档的功能将被要求补充文档
 3. 安全漏洞代码将被立即要求修复
 4. 多次违反规范的开发者将被移除提交权限
+5. 不遵守本地开发健康规范的将被要求整改
+6. 代码质量不达标的将被要求重构和优化
+7. 影响系统稳定性的变更将被立即回滚
+8. 未经过充分测试的功能将被禁止部署到生产环境

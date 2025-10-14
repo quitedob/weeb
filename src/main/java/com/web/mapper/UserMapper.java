@@ -164,4 +164,32 @@ public interface UserMapper extends BaseMapper<User> {
      * @return 影响行数
      */
     int insertUser(User user);
+
+    /**
+     * 带过滤条件的搜索用户
+     * @param keyword 关键词
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param sortClause 排序子句
+     * @return 用户列表
+     */
+    List<User> searchUsersWithFilters(@Param("keyword") String keyword,
+                                     @Param("offset") int offset,
+                                     @Param("limit") int limit,
+                                     @Param("startDate") String startDate,
+                                     @Param("endDate") String endDate,
+                                     @Param("sortClause") String sortClause);
+
+    /**
+     * 统计带过滤条件的搜索用户数量
+     * @param keyword 关键词
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 总数
+     */
+    long countSearchUsersWithFilters(@Param("keyword") String keyword,
+                                   @Param("startDate") String startDate,
+                                   @Param("endDate") String endDate);
 }

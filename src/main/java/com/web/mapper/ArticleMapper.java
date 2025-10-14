@@ -240,4 +240,30 @@ public interface ArticleMapper {
      * @return 结果数量
      */
     int countSearchResults(@Param("query") String query);
+
+    /**
+     * 带过滤条件的搜索文章
+     * @param query 搜索关键词
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param sortBy 排序字段
+     * @param sortOrder 排序方向
+     * @return 搜索结果列表
+     */
+    List<Article> searchArticlesWithFilters(@Param("query") String query, @Param("offset") int offset,
+                                          @Param("pageSize") int pageSize, @Param("startDate") String startDate,
+                                          @Param("endDate") String endDate, @Param("sortBy") String sortBy,
+                                          @Param("sortOrder") String sortOrder);
+
+    /**
+     * 统计带过滤条件的搜索结果数量
+     * @param query 搜索关键词
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 结果数量
+     */
+    int countSearchResultsWithFilters(@Param("query") String query, @Param("startDate") String startDate,
+                                    @Param("endDate") String endDate);
 }
