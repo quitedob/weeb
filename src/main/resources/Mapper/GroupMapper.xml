@@ -2,10 +2,22 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.web.mapper.GroupMapper">
 
-    <select id="findGroupsByUserId" resultType="com.web.model.Group" parameterType="java.lang.Integer">
+    <select id="findGroupsByUserId" resultType="com.web.model.Group" parameterType="java.lang.Long">
         SELECT g.* FROM `group` g
         JOIN group_member gm ON g.id = gm.group_id
         WHERE gm.user_id = #{userId}
+    </select>
+
+    <select id="searchGroups" resultType="com.web.model.Group">
+        SELECT * FROM `group`
+        WHERE group_name LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countSearchGroups" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM `group`
+        WHERE group_name LIKE CONCAT('%', #{keyword}, '%')
     </select>
 
 </mapper>

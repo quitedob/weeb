@@ -19,6 +19,7 @@ import java.util.HashMap; // Map实现
 import java.util.List; // 列表
 import java.util.Map; // Map
 import java.util.stream.Collectors; // 流处理
+import com.web.service.ArticleService; // 引入文章服务
 
 /**
  * 全局搜索控制器
@@ -40,6 +41,9 @@ public class SearchController {
 
     @Autowired
     private SearchService searchService; // 注入搜索服务
+
+    @Autowired
+    private ArticleService articleService; // 注入文章服务
 
     /**
      * 搜索消息内容（分页）
@@ -146,6 +150,111 @@ public class SearchController {
             data.put("total", 0L);
             return ResponseEntity.status(500)
                 .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "搜索用户失败", data));
+        }
+    }
+
+    /**
+     * 搜索文章（分页）
+     * @param query 搜索关键词
+     * @param page 页码（从1开始）
+     * @param pageSize 每页数量
+     * @param sortBy 排序字段 (created_at, updated_at, title)
+     * @param sortOrder 排序方向 (asc, desc)
+     * @return 搜索结果：{ list: 文章列表, total: 总数 }
+     */
+    @GetMapping("/articles")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchArticles(
+            @RequestParam("query") String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(defaultValue = "created_at") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
+        try {
+            log.info("搜索文章：query={}, page={}, pageSize={}, sortBy={}, sortOrder={}",
+                query, page, pageSize, sortBy, sortOrder);
+
+            Map<String, Object> data = articleService.searchArticles(query, page, pageSize, sortBy, sortOrder);
+
+            log.info("搜索文章完成：找到 {} 篇文章", data.get("list") != null ? ((List<?>)data.get("list")).size() : 0);
+
+            return ResponseEntity.ok(ApiResponse.success(data));
+
+        } catch (Exception e) {
+            log.error("搜索文章失败：{}", e.getMessage(), e);
+            Map<String, Object> data = new HashMap<>();
+            data.put("list", java.util.Collections.emptyList());
+            data.put("total", 0L);
+            return ResponseEntity.status(500)
+                .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "搜索文章失败", data));
+        }
+    }
+
+    /**
+     * 综合搜索 - 一次搜索所有类型
+     * @param q 搜索关键词
+     * @param page 页码（从0开始）
+     * @param size 每页数量
+     * @return 综合搜索结果：{ users: {}, groups: {}, messages: {}, articles: {} }
+     */
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchAll(
+            @RequestParam("q") String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size) {
+        try {
+            log.info("综合搜索：q={}, page={}, size={}", q, page, size);
+
+            Map<String, Object> result = new HashMap<>();
+
+            // 并行搜索各种类型
+            try {
+                result.put("users", searchService.searchUsers(q, page, size));
+            } catch (Exception e) {
+                log.warn("搜索用户失败：{}", e.getMessage());
+                result.put("users", Map.of("list", List.of(), "total", 0L));
+            }
+
+            try {
+                result.put("groups", searchService.searchGroups(q, page, size));
+            } catch (Exception e) {
+                log.warn("搜索群组失败：{}", e.getMessage());
+                result.put("groups", Map.of("list", List.of(), "total", 0L));
+            }
+
+            try {
+                result.put("articles", articleService.searchArticles(q, page + 1, size, "created_at", "desc"));
+            } catch (Exception e) {
+                log.warn("搜索文章失败：{}", e.getMessage());
+                result.put("articles", Map.of("list", List.of(), "total", 0L));
+            }
+
+            // 只有在ES可用时才搜索消息
+            if (elasticsearchOperations != null) {
+                try {
+                    Criteria criteria = new Criteria("content").matches(q);
+                    CriteriaQuery query = new CriteriaQuery(criteria, PageRequest.of(page, size));
+                    SearchHits<MessageDocument> hits = elasticsearchOperations.search(query, MessageDocument.class);
+
+                    Map<String, Object> messageData = new HashMap<>();
+                    messageData.put("list", hits.getSearchHits().stream()
+                            .map(SearchHit::getContent)
+                            .collect(Collectors.toList()));
+                    messageData.put("total", hits.getTotalHits());
+                    result.put("messages", messageData);
+                } catch (Exception e) {
+                    log.warn("搜索消息失败：{}", e.getMessage());
+                    result.put("messages", Map.of("list", List.of(), "total", 0L));
+                }
+            } else {
+                result.put("messages", Map.of("list", List.of(), "total", 0L, "disabled", true));
+            }
+
+            return ResponseEntity.ok(ApiResponse.success(result));
+
+        } catch (Exception e) {
+            log.error("综合搜索失败：{}", e.getMessage(), e);
+            return ResponseEntity.status(500)
+                .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "综合搜索失败", Map.of()));
         }
     }
 }

@@ -195,19 +195,44 @@
               >
                 <div class="chat-message-container">
                   <!-- 如果消息已撤回则显示提示，否则显示消息内容 -->
-                  <div class="bubble">
+                  <div class="bubble" :class="{ 'sent-message': msg.fromId === userInfoStore.userId }">
                     {{ msg.isRecalled === 1 ? '消息已撤回' : msg.msgContent }}
                   </div>
-                  <!-- 撤回按钮：仅对当前用户自己发送的且消息未撤回时显示 -->
-                  <button v-if="msg.fromId === userInfoStore.userId && msg.isRecalled !== 1" @click="recallMessage(msg.id)">
-                    撤回
-                  </button>
+                  <!-- 消息状态和操作按钮容器 -->
+                  <div class="message-actions">
+                    <!-- 消息状态指示器 -->
+                    <div v-if="msg.fromId === userInfoStore.userId" class="message-status">
+                      <span v-if="msg.status === 'sending'" class="status-sending">发送中...</span>
+                      <span v-else-if="msg.status === 'sent'" class="status-sent">已发送</span>
+                      <span v-else-if="msg.status === 'delivered'" class="status-delivered">已送达</span>
+                      <span v-else-if="msg.status === 'read'" class="status-read">已读</span>
+                    </div>
+                    <!-- 时间戳 -->
+                    <div class="message-time">
+                      {{ formatMessageTime(msg.timestamp) }}
+                    </div>
+                    <!-- 撤回按钮：仅对当前用户自己发送的且消息未撤回时显示 -->
+                    <button v-if="msg.fromId === userInfoStore.userId && msg.isRecalled !== 1" class="recall-btn" @click="recallMessage(msg.id)">
+                      撤回
+                    </button>
+                  </div>
                 </div>
               </div>
               <!-- 正在发送提示 -->
               <div v-if="isSendLoading" class="sending-indicator">
                 <strong>发送中...</strong>
               </div>
+
+              <!-- 打字指示器 -->
+              <div v-if="chatStore.isTypingInCurrentChat" class="typing-indicator">
+                <div class="typing-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <span class="typing-text">{{ getTypingUsersText() }}</span>
+              </div>
+
               <!-- 新消息计数，点击滚动到底部 -->
               <div v-if="currentNewMsgCount > 0" class="new-msg-count" @click="scrollToBottom">
                 ▼ {{ currentNewMsgCount }} 条新消息
@@ -235,6 +260,7 @@
                       placeholder="请输入消息"
                       class="chat-text-input"
                       @keyup.enter="handlerSubmitMsg"
+                      @input="handleTypingInput"
                   />
                 </div>
               </div>
@@ -308,15 +334,21 @@
 
 <script setup>
 /* ---------------------- 导入 Vue 响应式 API 以及其他依赖 ---------------------- */
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 // 导入 axios 用于发送 HTTP 请求
 import { instance } from '../api/axiosInstance'
 // 导入表情包数据（请确保路径正确）
 import emojis from '@constant/emoji/emoji.js'
 // 导入 Vue Router 用于页面跳转
 import { useRouter } from 'vue-router'
+// 导入 ChatStore 用于WebSocket连接管理
+import { useChatStore } from '@/stores/chatStore'
+// 导入 AuthStore 用于获取用户信息
+import { useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
+const chatStore = useChatStore()
+const authStore = useAuthStore()
 
 /* ---------------------- 左侧/右侧抽屉控制 ---------------------- */
 // 左侧菜单显示状态
@@ -457,16 +489,21 @@ const currentSelectTarget = ref(null)
 // 消息记录（初始化为空，后续通过接口加载）
 const msgRecord = ref([])
 
-// 用户信息存储（示例数据，实际应从后端获取）
-const userInfoStore = {
-  userId: 1, // 假设当前用户ID为 1
-  userName: '自己',
+// 用户信息存储
+const userInfoStore = computed(() => ({
+  userId: authStore.currentUser?.id || 1,
+  userName: authStore.currentUser?.username || '自己',
   referenceMsg: null
-}
+}))
+
 // 消息引用存储（示例数据）
 const msgStore = {
   referenceMsg: null
 }
+
+// 打字相关变量
+let typingTimeout = null
+const isTyping = ref(false)
 
 /* ---------------------- 用户相关数据 ---------------------- */
 // 用户列表（通过接口获取）
@@ -551,30 +588,79 @@ async function fetchChatRecord() {
 
 /**
  * 发送消息接口
- * 使用 axios 发送 POST 请求至后端 /api/messages/send 接口，
- * 请求体中封装消息内容及类型。
- * 后端返回成功后，将返回的消息对象添加到消息记录中。
+ * 优先使用WebSocket发送，失败时降级到HTTP请求
  */
 async function handlerSubmitMsg() {
   if (!msgContent.value.trim()) return
   isSendLoading.value = true
+
+  const isGroupChat = targetId.value === '1'
+  const targetUserId = isGroupChat ? null : targetId.value
+
   try {
-    // 构造消息对象
-    const messageData = {
-      receiverId: targetId.value === '1' ? null : targetId.value,
-      groupId: targetId.value === '1' ? 1 : null,
-      content: msgContent.value,
-      messageType: 1  // 文本消息
-    }
-    const response = await instance.post('/api/messages/send', messageData)
-    if (response.code === 0 && response.data) {
-      msgRecord.value.push(response.data)
+    // 优先使用WebSocket发送消息
+    if (chatStore.isConnected) {
+      await chatStore.sendMessage(
+        msgContent.value,
+        targetId.value,
+        isGroupChat ? 'GROUP' : 'PRIVATE',
+        1 // 文本消息类型
+      )
+
+      // 添加消息到本地记录，初始状态为发送中
+      const localMessage = {
+        id: Date.now(), // 临时ID，WebSocket会返回真实ID
+        fromId: userInfoStore.value.userId,
+        content: msgContent.value,
+        isRecalled: 0,
+        msgContent: msgContent.value,
+        timestamp: new Date(),
+        isFromMe: true,
+        status: 'sending' // 消息状态：sending, sent, delivered, read
+      }
+      msgRecord.value.push(localMessage)
     } else {
-      alert(response.message || "发送消息失败！")
+      // WebSocket未连接时降级到HTTP请求
+      const messageData = {
+        receiverId: targetUserId,
+        groupId: isGroupChat ? 1 : null,
+        content: msgContent.value,
+        messageType: 1  // 文本消息
+      }
+      const response = await instance.post('/api/messages/send', messageData)
+      if (response.code === 0 && response.data) {
+        msgRecord.value.push(response.data)
+      } else {
+        throw new Error(response.message || "发送消息失败")
+      }
     }
   } catch (error) {
     console.error("发送消息出错:", error)
-    alert("发送消息出错，请稍后再试！")
+    // 尝试HTTP备用方案
+    try {
+      const messageData = {
+        receiverId: targetUserId,
+        groupId: isGroupChat ? 1 : null,
+        content: msgContent.value,
+        messageType: 1
+      }
+      const response = await instance.post('/api/messages/send', messageData)
+      if (response.code === 0 && response.data) {
+        msgRecord.value.push(response.data)
+        console.log("消息已通过HTTP发送")
+      } else {
+        throw new Error(response.message || "HTTP发送消息也失败")
+      }
+    } catch (httpError) {
+      console.error("HTTP发送消息也出错:", httpError)
+      // 显示友好的错误提示
+      if (chatStore.isConnected) {
+        // WebSocket连接问题
+        alert("消息发送失败，正在尝试重新连接...")
+      } else {
+        alert("消息发送失败，请检查网络连接！")
+      }
+    }
   } finally {
     isSendLoading.value = false
     msgContent.value = ""
@@ -623,6 +709,71 @@ function onCreatePrivateChat(userId, username) {
   currentSelectTarget.value = privateChatList.value.find(item => item.targetId === userId.toString())
 }
 
+/**
+ * 处理打字输入，发送打字指示器
+ */
+function handleTypingInput() {
+  if (!isTyping.value) {
+    isTyping.value = true
+    chatStore.sendTypingIndicator(targetId.value, true)
+  }
+
+  // 清除之前的定时器
+  if (typingTimeout) {
+    clearTimeout(typingTimeout)
+  }
+
+  // 设置新的定时器，3秒后停止打字指示器
+  typingTimeout = setTimeout(() => {
+    isTyping.value = false
+    chatStore.sendTypingIndicator(targetId.value, false)
+  }, 3000)
+}
+
+/**
+ * 获取正在打字的用户文本
+ */
+function getTypingUsersText() {
+  const typingUsers = chatStore.isTyping[targetId.value] || {}
+  const typingUserNames = Object.keys(typingUsers).filter(userId => typingUsers[userId] && userId !== userInfoStore.value.userId)
+
+  if (typingUserNames.length === 0) return ''
+
+  if (typingUserNames.length === 1) {
+    const user = userList.value.find(u => u.id.toString() === typingUserNames[0])
+    return user ? `${user.username} 正在输入...` : '正在输入...'
+  }
+
+  return `${typingUserNames.length} 人正在输入...`
+}
+
+/**
+ * 格式化消息时间
+ */
+function formatMessageTime(timestamp) {
+  if (!timestamp) return ''
+
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diff = now - date
+
+  // 如果是今天的消息，显示时间
+  if (diff < 24 * 60 * 60 * 1000 && date.getDate() === now.getDate()) {
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  // 如果是昨天，显示昨天+时间
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (date.getDate() === yesterday.getDate() && date.getMonth() === yesterday.getMonth() && date.getFullYear() === yesterday.getFullYear()) {
+    return '昨天 ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  // 否则显示月日+时间
+  return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) + ' ' +
+         date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
 /* ---------------------- 辅助函数 ---------------------- */
 // 关闭左侧和右侧抽屉（用于移动端点击遮罩关闭菜单）
 function closeMask() {
@@ -658,11 +809,49 @@ onMounted(() => {
   if (inputAreaRef.value) {
     inputAreaWidth.value = inputAreaRef.value.getBoundingClientRect().width
   }
+
+  // 连接WebSocket
+  console.log('Chat页面：连接WebSocket...')
+  chatStore.connectWebSocket()
+
+  // 监听WebSocket连接状态变化
+  const unwatchConnection = watch(() => chatStore.isConnected, (isConnected) => {
+    if (isConnected) {
+      console.log('Chat页面：WebSocket连接成功')
+      // 可以在这里添加连接成功的UI提示
+    } else {
+      console.log('Chat页面：WebSocket连接断开')
+    }
+  })
+
+  // 监听WebSocket消息，更新消息状态
+  const unwatchMessages = watch(() => chatStore.messagesForCurrentChat, (newMessages) => {
+    if (newMessages && newMessages.length > 0) {
+      // 更新本地消息记录，同步消息状态
+      newMessages.forEach(newMsg => {
+        if (newMsg.isFromMe) {
+          const localMsg = msgRecord.value.find(m => m.id === newMsg.id ||
+            (Math.abs(m.id - newMsg.id) < 1000 && m.msgContent === newMsg.msgContent))
+          if (localMsg && localMsg.status !== 'read') {
+            localMsg.status = newMsg.status || 'sent'
+            localMsg.id = newMsg.id // 更新为真实ID
+          }
+        }
+      })
+    }
+  }, { deep: true })
+
   // 初始化：获取用户列表、用户 Map、在线用户和当前聊天记录
   getUserList()
   getUserMap()
   getOnlineUsers()
   fetchChatRecord()
+})
+
+// 组件卸载时断开WebSocket
+onUnmounted(() => {
+  console.log('Chat页面：断开WebSocket连接')
+  chatStore.disconnectWebSocket()
 })
 
 // 监听 targetId 变化，切换聊天时加载对应的聊天记录
@@ -1321,6 +1510,99 @@ watch(targetId, (newVal, oldVal) => {
     opacity: 1;
     pointer-events: auto;
   }
+}
+
+/* ===================== 打字指示器样式 ===================== */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  margin: 5px 0;
+  background: rgba(0, 123, 255, 0.1);
+  border-radius: 15px;
+  max-width: 200px;
+}
+.typing-dots {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+.typing-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #007bff;
+  margin: 0 2px;
+  animation: typing-animation 1.4s infinite;
+}
+.typing-dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes typing-animation {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+.typing-text {
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+}
+
+/* ===================== 消息状态样式 ===================== */
+.message-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: 5px;
+  font-size: 12px;
+  color: #999;
+}
+.message-status {
+  margin-bottom: 2px;
+}
+.status-sending {
+  color: #ff9800;
+}
+.status-sent {
+  color: #4caf50;
+}
+.status-delivered {
+  color: #2196f3;
+}
+.status-read {
+  color: #8bc34a;
+}
+.message-time {
+  margin-bottom: 2px;
+}
+.recall-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: background 0.3s;
+}
+.recall-btn:hover {
+  background: #d32f2f;
+}
+
+/* ===================== 消息气泡增强样式 ===================== */
+.bubble.sent-message {
+  background: #007bff;
+  color: white;
 }
 
 /* ===================== 全局滚动条样式 ===================== */

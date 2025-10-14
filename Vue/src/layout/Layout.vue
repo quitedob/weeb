@@ -134,8 +134,7 @@ const handleLogout = async () => {
 
 // 生命周期
 onMounted(() => {
-  // 初始化WebSocket连接（如果需要）
-  // 这里可以添加WebSocket连接逻辑
+  // 这里不再全局连接WebSocket，改为在聊天页面按需连接
 });
 </script>
 

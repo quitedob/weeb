@@ -20,4 +20,20 @@ public interface GroupMapper extends BaseMapper<Group> {
      * @return 群组列表
      */
     List<Group> findGroupsByUserId(Long userId); // 修改为Long类型以匹配数据库BIGINT
+
+    /**
+     * 搜索群组（按群组名称模糊搜索）
+     * @param keyword 关键词
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @return 群组列表
+     */
+    List<Group> searchGroups(String keyword, int offset, int limit);
+
+    /**
+     * 统计搜索群组数量
+     * @param keyword 关键词
+     * @return 总数
+     */
+    long countSearchGroups(String keyword);
 }

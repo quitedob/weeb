@@ -128,6 +128,67 @@
         </div>
       </el-tab-pane>
 
+      <el-tab-pane label="文章" name="articles">
+        <div v-if="loadingArticles" class="loading-state">
+          <el-skeleton :rows="3" animated />
+        </div>
+        <div v-else-if="articleResults.length === 0" class="empty-state">
+          <el-empty description="没有找到相关文章" />
+        </div>
+        <div v-else class="search-results">
+          <el-card v-for="article in articleResults" :key="article.id" shadow="hover" class="result-card">
+            <template #header>
+              <div class="card-header">
+                <div class="article-info">
+                  <span class="article-title">{{ article.articleTitle }}</span>
+                  <span class="article-author">{{ article.authorUsername || '未知作者' }}</span>
+                </div>
+              </div>
+            </template>
+            <div class="article-content">
+              <p class="article-summary">{{ getArticleSummary(article.articleContent) }}</p>
+              <div class="article-meta">
+                <span class="meta-item">
+                  <el-icon><View /></el-icon>
+                  {{ article.readCount || 0 }}
+                </span>
+                <span class="meta-item">
+                  <el-icon><Star /></el-icon>
+                  {{ article.likeCount || 0 }}
+                </span>
+                <span class="meta-item">
+                  <el-icon><Calendar /></el-icon>
+                  {{ formatDate(article.createdAt) }}
+                </span>
+              </div>
+            </div>
+            <template #footer>
+              <div class="card-footer">
+                <el-button type="primary" text @click="viewArticle(article.id)">阅读全文</el-button>
+                <el-button type="success" text @click="likeArticle(article)" :disabled="article.isLiked">
+                  {{ article.isLiked ? '已点赞' : '点赞' }}
+                </el-button>
+                <el-button type="info" text @click="favoriteArticle(article)" :disabled="article.isFavorited">
+                  {{ article.isFavorited ? '已收藏' : '收藏' }}
+                </el-button>
+              </div>
+            </template>
+          </el-card>
+        </div>
+
+        <!-- 文章搜索分页 -->
+        <div class="pagination-container" v-if="articleResults.length > 0">
+          <el-pagination
+            v-model:current-page="articlePagination.page"
+            v-model:page-size="articlePagination.pageSize"
+            :total="articlePagination.total"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="(size) => { articlePagination.pageSize = size; searchArticles(1, size); }"
+            @current-change="(page) => searchArticles(page, articlePagination.pageSize)"
+          />
+        </div>
+      </el-tab-pane>
+
       <el-tab-pane label="消息" name="messages">
         <div v-if="loadingMessages" class="loading-state">
           <el-skeleton :rows="3" animated />
@@ -184,10 +245,11 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
-import { Search } from '@element-plus/icons-vue';
+import { Search, View, Star, Calendar } from '@element-plus/icons-vue';
 import searchApi from '@/api/modules/search';
 import groupApi from '@/api/modules/group';
 import contactApi from '@/api/modules/contact';
+import articleApi from '@/api/modules/article';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -201,10 +263,12 @@ const hasSearched = ref(false);
 const userResults = ref([]);
 const groupResults = ref([]);
 const messageResults = ref([]);
+const articleResults = ref([]);
 
 const loadingUsers = ref(false);
 const loadingGroups = ref(false);
 const loadingMessages = ref(false);
+const loadingArticles = ref(false);
 
 // 分页相关
 const userPagination = reactive({
@@ -220,6 +284,12 @@ const groupPagination = reactive({
 });
 
 const messagePagination = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0
+});
+
+const articlePagination = reactive({
   page: 1,
   pageSize: 10,
   total: 0
@@ -243,6 +313,7 @@ const performSearch = async () => {
     await Promise.all([
       searchUsers(),
       searchGroups(),
+      searchArticles(),
       searchMessages()
     ]);
   } catch (error) {
@@ -258,7 +329,7 @@ const searchUsers = async (page = 1, pageSize = 10) => {
   loadingUsers.value = true;
   try {
     const response = await searchApi.searchUsers(searchQuery.value, page - 1, pageSize);
-    if (response.code === 200 && response.data) {
+    if (response.code === 0 && response.data) {
       userResults.value = response.data.list || [];
       userPagination.total = response.data.total || 0;
       userPagination.page = page;
@@ -281,7 +352,7 @@ const searchGroups = async (page = 1, pageSize = 10) => {
   loadingGroups.value = true;
   try {
     const response = await searchApi.searchGroups(searchQuery.value, page - 1, pageSize);
-    if (response.code === 200 && response.data) {
+    if (response.code === 0 && response.data) {
       groupResults.value = response.data.list || [];
       groupPagination.total = response.data.total || 0;
       groupPagination.page = page;
@@ -299,12 +370,35 @@ const searchGroups = async (page = 1, pageSize = 10) => {
   }
 };
 
+// 搜索文章
+const searchArticles = async (page = 1, pageSize = 10) => {
+  loadingArticles.value = true;
+  try {
+    const response = await searchApi.searchArticles(searchQuery.value, page, pageSize);
+    if (response.code === 0 && response.data) {
+      articleResults.value = response.data.list || [];
+      articlePagination.total = response.data.total || 0;
+      articlePagination.page = page;
+      articlePagination.pageSize = pageSize;
+    } else {
+      articleResults.value = [];
+      articlePagination.total = 0;
+    }
+  } catch (error) {
+    console.error('搜索文章失败:', error);
+    articleResults.value = [];
+    articlePagination.total = 0;
+  } finally {
+    loadingArticles.value = false;
+  }
+};
+
 // 搜索消息
 const searchMessages = async (page = 1, pageSize = 10) => {
   loadingMessages.value = true;
   try {
     const response = await searchApi.searchMessages(searchQuery.value, page - 1, pageSize);
-    if (response.code === 200 && response.data) {
+    if (response.code === 0 && response.data) {
       messageResults.value = response.data.list || [];
       messagePagination.total = response.data.total || 0;
       messagePagination.page = page;
@@ -356,7 +450,7 @@ const addContact = async (user) => {
         remarks: value || '申请添加为好友'
       });
       
-      if (response.code === 200) {
+      if (response.code === 0) {
         ElMessage.success('好友申请发送成功');
       } else {
         ElMessage.error(response.message || '发送申请失败');
@@ -391,7 +485,7 @@ const joinGroup = async (groupId) => {
         reason: '申请加入群组'
       });
       
-      if (response.code === 200) {
+      if (response.code === 0) {
         ElMessage.success('申请加入成功');
         // 刷新用户群组列表
         fetchUserGroups();
@@ -413,7 +507,7 @@ const joinGroup = async (groupId) => {
 const fetchUserGroups = async () => {
   try {
     const response = await groupApi.getUserJoinedGroups();
-    if (response.code === 200 && response.data) {
+    if (response.code === 0 && response.data) {
       userGroups.value = response.data;
     }
   } catch (error) {
@@ -440,6 +534,51 @@ const goToMessage = (message) => {
   };
   chatStore.setActiveChat(chatSession);
   router.push('/chat');
+};
+
+// 查看文章
+const viewArticle = (articleId) => {
+  router.push(`/article/read/${articleId}`);
+};
+
+// 点赞文章
+const likeArticle = async (article) => {
+  try {
+    const response = await articleApi.likeArticle(article.id);
+    if (response.code === 0) {
+      article.isLiked = true;
+      article.likeCount = (article.likeCount || 0) + 1;
+      ElMessage.success('点赞成功');
+    } else {
+      ElMessage.error(response.message || '点赞失败');
+    }
+  } catch (error) {
+    console.error('点赞文章失败:', error);
+    ElMessage.error('点赞失败');
+  }
+};
+
+// 收藏文章
+const favoriteArticle = async (article) => {
+  try {
+    const response = await articleApi.favoriteArticle(article.id);
+    if (response.code === 0) {
+      article.isFavorited = true;
+      ElMessage.success('收藏成功');
+    } else {
+      ElMessage.error(response.message || '收藏失败');
+    }
+  } catch (error) {
+    console.error('收藏文章失败:', error);
+    ElMessage.error('收藏失败');
+  }
+};
+
+// 获取文章摘要
+const getArticleSummary = (content) => {
+  if (!content) return '暂无内容';
+  const plainText = content.replace(/<[^>]*>/g, '');
+  return plainText.length > 150 ? plainText.substring(0, 150) + '...' : plainText;
 };
 
 // 格式化日期
@@ -598,6 +737,53 @@ onMounted(() => {
   line-height: 1.5;
   margin: 0;
   word-break: break-word;
+}
+
+.article-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.article-title {
+  font-weight: bold;
+  font-size: 16px;
+  color: #303133;
+  line-height: 1.4;
+}
+
+.article-author {
+  font-size: 14px;
+  color: #909399;
+}
+
+.article-content {
+  margin: 15px 0;
+}
+
+.article-summary {
+  color: #606266;
+  line-height: 1.6;
+  margin: 0 0 10px 0;
+  word-break: break-word;
+}
+
+.article-meta {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.meta-item .el-icon {
+  font-size: 14px;
 }
 
 .card-footer {

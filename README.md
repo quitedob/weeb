@@ -217,8 +217,10 @@ mvn spring-boot:run
 ### 🌐 访问应用
 
 - **后端 API**: http://localhost:8080
-- **前端界面**: http://localhost:5173
-- **H2 控制台** (开发环境): http://localhost:8080/h2-console
+- **前端界面**: http://localhost:5173 (默认端口，如被占用会自动使用5174等)
+- **WebSocket**: ws://localhost:8081/ws
+- **Elasticsearch**: http://localhost:9200 (可选)
+- **Redis**: localhost:6379 (可选)
 
 ### 📝 默认账号
 
@@ -226,7 +228,10 @@ mvn spring-boot:run
 - **管理员**: admin / admin123
 - **普通用户**: user1 / user123
 
-> 💡 **提示**: 数据库初始化脚本位于 `src/main/resources/sql/init_database.sql`，包含完整的表结构和测试数据。启动过程中如果遇到数据库连接问题，请确保 MySQL 服务正在运行。
+> 💡 **提示**:
+> - 数据库自动初始化由 `DatabaseInitializer.java` 处理
+> - 如果遇到数据库连接问题，请确保 MySQL 8.0+ 服务正在运行
+> - 默认数据库配置：localhost:3306，数据库名：weeb，用户名：root，密码：1234
 
 ---
 
@@ -238,10 +243,13 @@ mvn spring-boot:run
 - 在线状态管理
 
 ### 💬 聊天系统
-- 实时私聊和群聊
+- 实时私聊和群聊 (WebSocket)
 - 消息推送通知
 - 文件和图片分享
 - 消息搜索和历史记录
+- 打字指示器和消息状态 (发送中/已发送/已送达/已读)
+- 表情包支持和消息撤回功能
+- 实时消息同步和断线重连
 
 ### 👥 群组协作
 - 创建和管理群组
@@ -254,14 +262,18 @@ mvn spring-boot:run
 - 内容搜索和分类
 
 ### 🔍 搜索功能
-- 消息全文搜索
+- 消息全文搜索 (Elasticsearch)
 - 用户和群组搜索
-- 内容标签搜索
+- 文章内容搜索
+- 综合搜索 (同时搜索所有类型)
+- 高级搜索过滤器 (待实现)
 
 ### 🔔 通知系统
 - 实时消息通知
 - 系统公告提醒
 - 个人消息推送
+- 未读消息计数和批量操作
+- 通知历史管理
 
 ---
 
@@ -548,8 +560,11 @@ weeb/
 - `GET /articles/{articleId}/comments/count` - 获取文章评论数量
 
 ### 🔍 搜索接口
-- `GET /messages` - 搜索消息
-- `GET /users` - 搜索用户
+- `GET /api/search/messages` - 搜索消息 (Elasticsearch)
+- `GET /api/search/users` - 搜索用户
+- `GET /api/search/groups` - 搜索群组
+- `GET /api/search/articles` - 搜索文章
+- `GET /api/search/all` - 综合搜索 (所有类型)
 
 ### 🔔 通知接口
 - `GET /notifications` - 获取通知列表
