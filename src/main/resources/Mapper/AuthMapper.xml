@@ -7,9 +7,9 @@
 
     <!-- 根据用户名查询用户信息 -->
     <select id="findByUsername" parameterType="string" resultType="com.web.model.User">
-        SELECT id, username, password, sex, phone_number, user_email, 
+        SELECT id, username, password, sex, phone_number, user_email,
                unique_article_link, unique_video_link, registration_date,
-               ip_ownership, type, avatar, nickname, badge, login_time, bio, online_status
+               ip_ownership, type, avatar, nickname, badge, login_time, bio, online_status, status
         FROM user
         WHERE username = #{username}
     </select>
@@ -36,7 +36,8 @@
             badge,
             login_time,
             bio,
-            online_status
+            online_status,
+            status
         )
         VALUES (
             #{username},
@@ -54,7 +55,8 @@
             #{badge},
             #{loginTime},
             #{bio},
-            #{onlineStatus}
+            #{onlineStatus},
+            #{status}
         )
     </insert>
 
@@ -68,9 +70,9 @@
 
     <!-- 根据用户ID查询用户信息 -->
     <select id="findByUserID" parameterType="long" resultType="com.web.model.User">
-        SELECT id, username, sex, phone_number, user_email, 
+        SELECT id, username, sex, phone_number, user_email,
                unique_article_link, unique_video_link, registration_date,
-               ip_ownership, type, avatar, nickname, badge, login_time, bio, online_status
+               ip_ownership, type, avatar, nickname, badge, login_time, bio, online_status, status
         FROM user
         WHERE id = #{userID}
     </select>
@@ -94,7 +96,8 @@
             badge,
             login_time,
             bio,
-            online_status
+            online_status,
+            status
         FROM user
         WHERE username = #{username}
     </select>
@@ -117,7 +120,8 @@
             badge,
             login_time,
             bio,
-            online_status
+            online_status,
+            status
         FROM user
         ORDER BY type DESC
     </select>
@@ -140,7 +144,8 @@
             badge,
             login_time,
             bio,
-            online_status
+            online_status,
+            status
         FROM user
         ORDER BY type DESC
     </select>
@@ -163,7 +168,8 @@
             badge,
             login_time,
             bio,
-            online_status
+            online_status,
+            status
         FROM user
         WHERE id = #{userID}
     </select>
@@ -212,6 +218,9 @@
             <if test="onlineStatus != null">
                 online_status = #{onlineStatus},
             </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
         </set>
         WHERE id = #{id}
     </update>
@@ -234,7 +243,8 @@
             badge,
             login_time,
             bio,
-            online_status
+            online_status,
+            status
         FROM user
         WHERE id = #{id}
     </select>

@@ -42,6 +42,8 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        System.out.println("=== SecurityConfig: Loading security configuration ===");
+
         http
             // 启用CORS
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -53,16 +55,16 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 公开接口，不需要认证
                 .requestMatchers(
-                    "/login",           // 登录接口
-                    "/register",        // 注册接口
-                    "/captcha",         // 验证码接口
-                    "/forget",          // 忘记密码接口
-                    "/reset",           // 重置密码接口
-                    "/findByUsername",  // 查找用户接口
-                    "/findByUserID",    // 查找用户ID接口
-                    "/error",           // 错误页面
-                    "/favicon.ico",     // 网站图标
-                    "/actuator/**"      // Spring Boot Actuator endpoints (if any)
+                    "/api/login",           // 登录接口
+                    "/api/register",        // 注册接口
+                    "/api/captcha",         // 验证码接口
+                    "/api/forget",          // 忘记密码接口
+                    "/api/reset",           // 重置密码接口
+                    "/api/findByUsername",  // 查找用户接口
+                    "/api/findByUserID",    // 查找用户ID接口
+                    "/error",               // 错误页面
+                    "/favicon.ico",         // 网站图标
+                    "/actuator/**"          // Spring Boot Actuator endpoints (if any)
                 ).permitAll()
                 
                 // 管理员专用接口
@@ -76,6 +78,10 @@ public class SecurityConfig {
                 
                 // 用户管理接口
                 .requestMatchers("/api/user/info", "/api/user/update", "/api/user/profile/**")
+                    .hasAnyRole("USER", "ADMIN")
+
+                // 认证相关接口
+                .requestMatchers("/api/logout")
                     .hasAnyRole("USER", "ADMIN")
                 
                 // 群组管理接口
@@ -99,7 +105,17 @@ public class SecurityConfig {
                 // 文件上传接口
                 .requestMatchers("/api/upload/**")
                     .hasAnyRole("USER", "ADMIN")
-                
+
+                // 其他API接口权限配置
+                .requestMatchers("/api/files/**", "/api/v1/file/**")
+                    .hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/contact/**", "/api/follow/**")
+                    .hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/v1/chat-list/**")
+                    .hasAnyRole("USER", "ADMIN")
+                .requestMatchers("/api/migration/**")
+                    .hasAnyRole("USER", "ADMIN")
+
                 // 其他所有请求都需要认证
                 .anyRequest().authenticated()
             )
@@ -109,15 +125,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * 密码编码器Bean
-     * 使用BCrypt算法进行密码加密
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
+  
     /**
      * 密码策略配置
      */

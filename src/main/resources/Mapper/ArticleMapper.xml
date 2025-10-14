@@ -37,8 +37,7 @@
             updated_at,
             exposure_count,
             <!-- 计算推荐分数：点赞数*0.3 + 阅读量*0.2 + 收藏数*0.3 + 发布时间新鲜度*0.2 -->
-            (likes_count * 0.3 + exposure_count * 0.2 + favorites_count * 0.3 + 
-             (TIMESTAMPDIFF(DAY, created_at, NOW()) < 7) * 10 * 0.2) AS recommend_score
+            <![CDATA[(likes_count * 0.3 + exposure_count * 0.2 + favorites_count * 0.3 + (TIMESTAMPDIFF(DAY, created_at, NOW()) < 7) * 10 * 0.2) AS recommend_score]]>
         FROM articles
         WHERE status = 1        <!-- 只显示已发布的文章 -->
         AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)  <!-- 只推荐30天内的文章 -->

@@ -1,10 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mvn compile:*)",
-      "Bash(mvn:*)",
-      "Bash(find:*)",
-      "Bash(echo:*)"
+      "Bash(mvn compile:*)"
     ],
     "deny": [],
     "ask": []

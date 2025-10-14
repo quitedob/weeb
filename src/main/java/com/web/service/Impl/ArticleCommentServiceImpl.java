@@ -1,21 +1,16 @@
 package com.web.service.impl;
 
-import com.web.exception.WeebException;
 import com.web.mapper.ArticleCommentMapper;
-import com.web.mapper.ArticleMapper;
-import com.web.model.Article;
 import com.web.model.ArticleComment;
 import com.web.service.ArticleCommentService;
-import com.web.service.NotificationService;
-import com.web.vo.comment.CommentCreateVo;
+import com.web.vo.article.ArticleCommentVo;
+import com.web.util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-import java.util.HashMap;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 文章评论服务实现类
@@ -25,164 +20,65 @@ import java.util.Map;
 public class ArticleCommentServiceImpl implements ArticleCommentService {
 
     @Autowired
-    private ArticleCommentMapper commentMapper;
-    
-    @Autowired
-    private ArticleMapper articleMapper;
-    
-    @Autowired
-    private NotificationService notificationService;
-
-    @Override
-    public ArticleComment createComment(CommentCreateVo commentVo, Long userId) {
-        // 验证文章是否存在
-        if (articleMapper.selectArticleById(commentVo.getArticleId()) == null) {
-            throw new WeebException("文章不存在");
-        }
-        
-        // 如果是回复评论，验证父评论是否存在
-        if (commentVo.getParentId() != null) {
-            if (commentMapper.selectById(commentVo.getParentId()) == null) {
-                throw new WeebException("父评论不存在");
-            }
-        }
-        
-        ArticleComment comment = new ArticleComment();
-        comment.setArticleId(commentVo.getArticleId());
-        comment.setUserId(userId);
-        comment.setContent(commentVo.getContent());
-        comment.setParentId(commentVo.getParentId());
-        comment.setCreatedAt(new Date());
-        comment.setUpdatedAt(new Date());
-        
-        commentMapper.insert(comment);
-        
-        // 创建评论通知
-        try {
-            // 获取文章作者ID
-            Article article = articleMapper.selectArticleById(commentVo.getArticleId());
-            if (article != null) {
-                Long authorId = article.getUserId();
-                if (!authorId.equals(userId)) { // 不给自己发通知
-                    notificationService.createCommentNotification(
-                        commentVo.getArticleId(), 
-                        comment.getId(), 
-                        userId, 
-                        authorId
-                    );
-                }
-            }
-        } catch (Exception e) {
-            // 通知创建失败不影响评论创建
-            System.err.println("创建评论通知失败: " + e.getMessage());
-        }
-        
-        return comment;
-    }
-
-    @Override
-    public void deleteComment(Long commentId, Long userId) {
-        ArticleComment comment = commentMapper.selectById(commentId);
-        if (comment == null) {
-            throw new WeebException("评论不存在");
-        }
-        
-        if (!comment.getUserId().equals(userId)) {
-            throw new WeebException("只能删除自己的评论");
-        }
-        
-        commentMapper.deleteById(commentId);
-    }
-
-    @Override
-    public Map<String, Object> getComments(Long articleId, int page, int size) {
-        int offset = (page - 1) * size;
-        
-        List<Map<String, Object>> comments = commentMapper.getCommentsWithUserInfo(articleId, offset, size);
-        int total = commentMapper.getCommentCount(articleId);
-        
-        Map<String, Object> result = new HashMap<>();
-        result.put("comments", comments);
-        result.put("total", total);
-        result.put("page", page);
-        result.put("size", size);
-        result.put("totalPages", (int) Math.ceil((double) total / size));
-        
-        return result;
-    }
+    private ArticleCommentMapper articleCommentMapper;
 
     @Override
     public List<ArticleComment> getCommentsByArticleId(Long articleId) {
-        return commentMapper.getCommentsByArticleId(articleId);
+        if (!ValidationUtils.validateId(articleId, "文章ID")) {
+            throw new IllegalArgumentException("文章ID无效");
+        }
+        return articleCommentMapper.getCommentsByArticleId(articleId);
     }
 
     @Override
     public Long addComment(Long articleId, ArticleCommentVo commentVo, Long userId) {
-        // 验证文章是否存在
-        if (articleMapper.selectArticleById(articleId) == null) {
-            throw new WeebException("文章不存在");
+        // 参数验证
+        if (commentVo == null) {
+            throw new IllegalArgumentException("评论内容不能为空");
         }
-        
-        // 如果是回复评论，验证父评论是否存在
-        if (commentVo.getParentId() != null) {
-            if (commentMapper.selectById(commentVo.getParentId()) == null) {
-                throw new WeebException("父评论不存在");
-            }
+        if (!ValidationUtils.validateId(articleId, "文章ID")) {
+            throw new IllegalArgumentException("文章ID无效");
+        }
+        if (!ValidationUtils.validateId(userId, "用户ID")) {
+            throw new IllegalArgumentException("用户ID无效");
+        }
+        if (!ValidationUtils.validateCommentContent(commentVo.getContent())) {
+            throw new IllegalArgumentException("评论内容不符合要求");
         }
         
         ArticleComment comment = new ArticleComment();
         comment.setArticleId(articleId);
         comment.setUserId(userId);
-        comment.setContent(commentVo.getContent());
+        comment.setContent(commentVo.getContent().trim());
         comment.setParentId(commentVo.getParentId());
-        comment.setCreatedAt(java.time.LocalDateTime.now());
-        comment.setUpdatedAt(java.time.LocalDateTime.now());
+        comment.setCreatedAt(LocalDateTime.now());
+        comment.setUpdatedAt(LocalDateTime.now());
         
-        int result = commentMapper.insertComment(comment);
-        
+        int result = articleCommentMapper.insertComment(comment);
         if (result > 0) {
-            // 创建评论通知
-            try {
-                // 获取文章作者ID
-                Article article = articleMapper.selectArticleById(articleId);
-                if (article != null) {
-                    Long authorId = article.getUserId();
-                    if (!authorId.equals(userId)) { // 不给自己发通知
-                        notificationService.createCommentNotification(
-                            articleId, 
-                            comment.getId(), 
-                            userId, 
-                            authorId
-                        );
-                    }
-                }
-            } catch (Exception e) {
-                // 通知创建失败不影响评论创建
-                System.err.println("创建评论通知失败: " + e.getMessage());
-            }
             return comment.getId();
         }
-        
         return null;
     }
 
     @Override
     public boolean deleteComment(Long commentId, Long userId) {
-        ArticleComment comment = commentMapper.selectById(commentId);
-        if (comment == null) {
-            throw new WeebException("评论不存在");
+        if (!ValidationUtils.validateId(commentId, "评论ID")) {
+            throw new IllegalArgumentException("评论ID无效");
+        }
+        if (!ValidationUtils.validateId(userId, "用户ID")) {
+            throw new IllegalArgumentException("用户ID无效");
         }
         
-        if (!comment.getUserId().equals(userId)) {
-            throw new WeebException("只能删除自己的评论");
-        }
-        
-        int result = commentMapper.deleteComment(commentId, userId);
+        int result = articleCommentMapper.deleteComment(commentId, userId);
         return result > 0;
     }
 
     @Override
     public int getCommentCount(Long articleId) {
-        return commentMapper.countCommentsByArticleId(articleId);
+        if (!ValidationUtils.validateId(articleId, "文章ID")) {
+            throw new IllegalArgumentException("文章ID无效");
+        }
+        return articleCommentMapper.countCommentsByArticleId(articleId);
     }
 }

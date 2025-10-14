@@ -11,6 +11,7 @@ import com.web.vo.user.UpdateUserVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -34,6 +35,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService; // 注入认证服务
+
+    @Autowired
+    private PasswordEncoder passwordEncoder; // 注入密码编码器
 
     /**
      * 用户注册接口，返回统一的ApiResponse格式
@@ -221,7 +225,7 @@ public class AuthController {
             }
             
             // 加密新密码
-            user.setPassword(newPassword.trim());
+            user.setPassword(passwordEncoder.encode(newPassword.trim()));
             authService.updateAuth(user);
             return ResponseEntity.ok(ApiResponse.success("密码已重置"));
         } catch (RuntimeException e) {
