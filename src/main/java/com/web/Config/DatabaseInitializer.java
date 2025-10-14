@@ -347,13 +347,15 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `login_time` DATETIME COMMENT '最后一次登录时间',
                 `bio` TEXT COMMENT '个人简介',
                 `online_status` TINYINT DEFAULT 0 COMMENT '在线状态：0离线，1在线，2忙碌，3离开',
+                `status` TINYINT DEFAULT 1 COMMENT '用户状态：0-禁用，1-启用',
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `uk_username` (`username`),
                 UNIQUE KEY `uk_user_email` (`user_email`),
                 KEY `idx_registration_date` (`registration_date`),
                 KEY `idx_login_time` (`login_time`),
                 KEY `idx_type` (`type`),
-                KEY `idx_online_status` (`online_status`)
+                KEY `idx_online_status` (`online_status`),
+                KEY `idx_status` (`status`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
             COMMENT='用户基础信息表（统计数据分离至user_stats表）'
             """;

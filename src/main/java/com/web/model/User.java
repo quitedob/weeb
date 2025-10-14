@@ -43,6 +43,7 @@ public class User implements Serializable {
 
     private String bio; // 个人简介
     private Integer onlineStatus; // 用户在线状态, stores code from UserOnlineStatus
+    private Integer status; // 用户状态：0-禁用，1-启用
 
     // 创建时间和更新时间
     @TableField(fill = FieldFill.INSERT)
@@ -228,6 +229,14 @@ public class User implements Serializable {
         this.onlineStatus = onlineStatus;
     }
 
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
+
     public Date getCreatedAt() {
         return createdAt;
     }
@@ -276,6 +285,7 @@ public class User implements Serializable {
                 ", loginTime=" + loginTime +
                 ", bio='" + bio + '\'' +
                 ", onlineStatus=" + onlineStatus +
+                ", status=" + status +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
                 '}';
@@ -304,6 +314,7 @@ public class User implements Serializable {
                 Objects.equals(loginTime, user.loginTime) &&
                 Objects.equals(bio, user.bio) &&
                 Objects.equals(onlineStatus, user.onlineStatus) &&
+                Objects.equals(status, user.status) &&
                 Objects.equals(createdAt, user.createdAt) &&
                 Objects.equals(updatedAt, user.updatedAt);
     }
@@ -313,7 +324,7 @@ public class User implements Serializable {
     public int hashCode() {
         return Objects.hash(id, username, password, sex, phoneNumber, userEmail,
                 uniqueArticleLink, uniqueVideoLink, registrationDate, ipOwnership,
-                type, avatar, nickname, badge, loginTime, bio, onlineStatus,
+                type, avatar, nickname, badge, loginTime, bio, onlineStatus, status,
                 createdAt, updatedAt);
     }
 }

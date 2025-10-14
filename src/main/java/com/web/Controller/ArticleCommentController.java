@@ -55,15 +55,15 @@ public class ArticleCommentController {
         try {
             Long commentId = articleCommentService.addComment(articleId, commentVo, userId);
             if (commentId != null) {
-                return ResponseEntity.ok(ApiResponse.success(commentId, "评论成功"));
+                return ResponseEntity.ok(ApiResponse.success("评论成功", commentId));
             } else {
                 return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("评论失败"));
+                    .body(ApiResponse.error(1, "评论失败"));
             }
         } catch (Exception e) {
             logger.error("添加评论失败，文章ID: {}, 用户ID: {}", articleId, userId, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+                .body(ApiResponse.systemError("系统错误"));
         }
     }
 

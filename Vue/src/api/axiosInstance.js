@@ -103,7 +103,10 @@ instance.interceptors.response.use(
           case 403:
             message = '禁止访问';
             // 403 Forbidden 也清理状态，但不跳转
-            useAuthStore().logout();
+            // 检查是否是logout请求本身，避免循环调用
+            if (!error.config.url?.includes('/logout')) {
+              useAuthStore().logout();
+            }
             break;
           case 404:
             message = '请求资源未找到';
