@@ -65,4 +65,42 @@ public interface GroupMapper extends BaseMapper<Group> {
     long countSearchGroupsWithFilters(@Param("keyword") String keyword,
                                      @Param("startDate") String startDate,
                                      @Param("endDate") String endDate);
+
+    /**
+     * 高级搜索群组（支持多维度过滤）
+     * @param keyword 搜索关键词
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param groupTypes 群组类型列表
+     * @param isPublic 是否公开群组
+     * @param sortBy 排序字段
+     * @param sortOrder 排序方向
+     * @return 群组列表
+     */
+    List<Group> searchGroupsAdvanced(@Param("keyword") String keyword,
+                                    @Param("offset") int offset,
+                                    @Param("limit") int limit,
+                                    @Param("startDate") String startDate,
+                                    @Param("endDate") String endDate,
+                                    @Param("groupTypes") List<Integer> groupTypes,
+                                    @Param("isPublic") Boolean isPublic,
+                                    @Param("sortBy") String sortBy,
+                                    @Param("sortOrder") String sortOrder);
+
+    /**
+     * 统计高级搜索群组数量
+     * @param keyword 搜索关键词
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param groupTypes 群组类型列表
+     * @param isPublic 是否公开群组
+     * @return 总数
+     */
+    long countSearchGroupsAdvanced(@Param("keyword") String keyword,
+                                  @Param("startDate") String startDate,
+                                  @Param("endDate") String endDate,
+                                  @Param("groupTypes") List<Integer> groupTypes,
+                                  @Param("isPublic") Boolean isPublic);
 }

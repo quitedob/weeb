@@ -462,6 +462,59 @@ public class ValidationUtils {
     }
 
     /**
+     * 验证文件名
+     */
+    public static boolean validateFileName(String fileName) {
+        if (fileName == null || fileName.trim().isEmpty()) {
+            log.warn("文件名验证失败：文件名为空");
+            return false;
+        }
+
+        String cleanFileName = fileName.trim();
+
+        // 检查文件名长度
+        if (cleanFileName.length() > 255) {
+            log.warn("文件名验证失败：文件名过长 - {}", cleanFileName.length());
+            return false;
+        }
+
+        // 检查路径遍历攻击
+        if (cleanFileName.contains("../") || cleanFileName.contains("..\\")) {
+            log.warn("文件名验证失败：包含路径遍历字符 - {}", cleanFileName);
+            return false;
+        }
+
+        // 检查是否包含危险字符
+        String[] dangerousChars = {"<", ">", ":", "\"", "|", "?", "*", "\0"};
+        for (String dangerousChar : dangerousChars) {
+            if (cleanFileName.contains(dangerousChar)) {
+                log.warn("文件名验证失败：包含危险字符 '{}' - {}", dangerousChar, cleanFileName);
+                return false;
+            }
+        }
+
+        // 检查是否为保留名称（Windows）
+        String[] reservedNames = {
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+        };
+
+        String nameWithoutExtension = cleanFileName.contains(".")
+            ? cleanFileName.substring(0, cleanFileName.lastIndexOf('.')).toUpperCase()
+            : cleanFileName.toUpperCase();
+
+        for (String reservedName : reservedNames) {
+            if (nameWithoutExtension.equals(reservedName)) {
+                log.warn("文件名验证失败：使用保留名称 - {}", cleanFileName);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * 验证排序参数
      */
     public static boolean validateSortBy(String sortBy, String[] allowedValues) {

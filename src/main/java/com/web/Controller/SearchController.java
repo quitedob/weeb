@@ -124,87 +124,78 @@ public class SearchController {
                 .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "搜索功能已禁用，请联系管理员启用Elasticsearch服务", data));
         }
 
-        try {
-            // 构建基础条件：内容匹配
-            Criteria criteria = new Criteria("content").matches(q);
+        // 构建基础条件：内容匹配
+        Criteria criteria = new Criteria("content").matches(q);
 
-            // 添加日期范围过滤
-            if (startDate != null && !startDate.isEmpty()) {
-                criteria = criteria.and(new Criteria("timestamp").greaterThanEqual(startDate));
-            }
-            if (endDate != null && !endDate.isEmpty()) {
-                criteria = criteria.and(new Criteria("timestamp").lessThanEqual(endDate));
-            }
-
-            // 添加消息类型过滤
-            if (messageTypes != null && !messageTypes.isEmpty()) {
-                String[] types = messageTypes.split(",");
-                criteria = criteria.and(new Criteria("messageType").in(types));
-            }
-
-            // 添加用户ID过滤
-            if (userIds != null && !userIds.isEmpty()) {
-                String[] users = userIds.split(",");
-                criteria = criteria.and(new Criteria("fromUserId").in(users));
-            }
-
-            // 添加群组ID过滤
-            if (groupIds != null && !groupIds.isEmpty()) {
-                String[] groups = groupIds.split(",");
-                criteria = criteria.and(new Criteria("targetId").in(groups));
-            }
-
-            // 构建分页查询
-            PageRequest pageRequest = PageRequest.of(page, size);
-
-            // 根据排序方式设置排序
-            switch (sortBy) {
-                case "time_desc":
-                    pageRequest = PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by(
-                            org.springframework.data.domain.Sort.Direction.DESC, "timestamp"));
-                    break;
-                case "time_asc":
-                    pageRequest = PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by(
-                            org.springframework.data.domain.Sort.Direction.ASC, "timestamp"));
-                    break;
-                case "username_asc":
-                    pageRequest = PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by(
-                            org.springframework.data.domain.Sort.Direction.ASC, "fromUsername"));
-                    break;
-                case "username_desc":
-                    pageRequest = PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by(
-                            org.springframework.data.domain.Sort.Direction.DESC, "fromUsername"));
-                    break;
-                default:
-                    // 相关度排序（默认）
-                    break;
-            }
-
-            CriteriaQuery query = new CriteriaQuery(criteria, pageRequest);
-
-            SearchHits<MessageDocument> hits = elasticsearchOperations.search(query, MessageDocument.class); // 执行
-
-            List<MessageDocument> list = hits.getSearchHits().stream()
-                    .map(SearchHit::getContent)
-                    .collect(Collectors.toList()); // 提取内容
-
-            Map<String, Object> data = new HashMap<>();
-            data.put("list", list); // 结果列表
-            data.put("total", hits.getTotalHits()); // 总条数
-
-            return ResponseEntity.ok(ApiResponse.success(data)); // 返回
-        } catch (Exception e) {
-            log.error("搜索消息失败: {}", e.getMessage(), e);
-            Map<String, Object> data = new HashMap<>();
-            data.put("list", java.util.Collections.emptyList());
-            data.put("total", 0);
-            return ResponseEntity.status(500)
-                .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "搜索服务暂时不可用", data));
+        // 添加日期范围过滤
+        if (startDate != null && !startDate.isEmpty()) {
+            criteria = criteria.and(new Criteria("timestamp").greaterThanEqual(startDate));
         }
+        if (endDate != null && !endDate.isEmpty()) {
+            criteria = criteria.and(new Criteria("timestamp").lessThanEqual(endDate));
+        }
+
+        // 添加消息类型过滤
+        if (messageTypes != null && !messageTypes.isEmpty()) {
+            String[] types = messageTypes.split(",");
+            criteria = criteria.and(new Criteria("messageType").in(types));
+        }
+
+        // 添加用户ID过滤
+        if (userIds != null && !userIds.isEmpty()) {
+            String[] users = userIds.split(",");
+            criteria = criteria.and(new Criteria("fromUserId").in(users));
+        }
+
+        // 添加群组ID过滤
+        if (groupIds != null && !groupIds.isEmpty()) {
+            String[] groups = groupIds.split(",");
+            criteria = criteria.and(new Criteria("targetId").in(groups));
+        }
+
+        // 构建分页查询
+        PageRequest pageRequest = PageRequest.of(page, size);
+
+        // 根据排序方式设置排序
+        switch (sortBy) {
+            case "time_desc":
+                pageRequest = PageRequest.of(page, size,
+                    org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "timestamp"));
+                break;
+            case "time_asc":
+                pageRequest = PageRequest.of(page, size,
+                    org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.ASC, "timestamp"));
+                break;
+            case "username_asc":
+                pageRequest = PageRequest.of(page, size,
+                    org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.ASC, "fromUsername"));
+                break;
+            case "username_desc":
+                pageRequest = PageRequest.of(page, size,
+                    org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "fromUsername"));
+                break;
+            default:
+                // 相关度排序（默认）
+                break;
+        }
+
+        CriteriaQuery query = new CriteriaQuery(criteria, pageRequest);
+
+        SearchHits<MessageDocument> hits = elasticsearchOperations.search(query, MessageDocument.class); // 执行
+
+        List<MessageDocument> list = hits.getSearchHits().stream()
+                .map(SearchHit::getContent)
+                .collect(Collectors.toList()); // 提取内容
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("list", list); // 结果列表
+        data.put("total", hits.getTotalHits()); // 总条数
+
+        return ResponseEntity.ok(ApiResponse.success(data)); // 返回
     }
 
     /**

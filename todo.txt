@@ -1,3 +1,280 @@
+本项目是一个前后端分离的应用, 前端使用Vue 3.5.13, 后端使用Java Spring Boot 3.5.4.
+核心设计理念是分层清晰, 职责单一, 接口标准化, 高内聚低耦合.
+项目采用微服务架构思想，包含即时通信、内容管理、文件分享、AI对话等核心功能模块.
+所有开发人员必须严格遵守本规范，并且写不完的请写在todo.txt中，写出哪个文件和模块和功能没实现，具体要怎么实现
+
+=== 端口配置规范 ===
+1. 后端API服务端口：8080 (application.yml中配置)
+2. WebSocket服务端口：8081 (application.yml中配置)
+3. 前端开发服务器默认端口：5173 (Vite默认)
+4. 严禁随意修改端口配置，如需修改必须更新所有相关文件
+5. 修改端口后必须同步更新axiosInstance.js中的API基础URL
+6. 端口冲突时优先处理占用端口的进程，而不是修改应用端口
+
+=== 后端开发规范 ===
+1. 项目使用MySQL 8.0+数据库和MyBatis-Plus 3.5.8持久层框架
+2. 后端遵循多层架构模型, 数据流向为 Controller, Service, Mapper, Database
+3. Controller层是API的入口, 负责接收HTTP请求, 使用@Valid注解校验参数, 并调用Service层
+4. Controller层严禁编写复杂业务逻辑, 所有接口返回ResponseEntity<ApiResponse<T>>
+5. 接收请求必须使用com.web.vo包下的VO对象封装请求体
+6. Service层采用接口加实现的设计模式, 接口位于com.web.service包, 实现位于com.web.service.Impl包
+7. 涉及多张表读写的复杂数据库操作, 必须在ServiceImpl的方法上使用@Transactional注解
+8. 修改ServiceImpl中的方法签名, 必须立即同步更新其对应的Service接口
+9. Mapper层采用接口加XML的方式, Mapper接口位于com.web.mapper包, XML文件位于resources/Mapper目录
+10. Mapper接口的方法名必须与XML中statement的id一致, @Param注解的参数名必须与XML中的引用严格匹配
+11. 新增功能模块必须包含完整的Controller、Service、ServiceImpl、Mapper、VO、Model结构
+12. AI相关功能统一使用AiChatService，遵循统一的AI接口规范
+13. SSH终端功能统一通过CommandManager管理，确保安全性和可追踪性
+14. 文件上传功能必须通过FileService和FileManagementService，确保文件安全检查
+
+=== 数据库规范 ===
+1. 位于com.web.model包的实体类与数据库表一一对应
+2. User表和UserStats表的分离设计是为了避免高并发下的写锁竞争
+3. User表存储低频更新信息, UserStats表存储高频更新的统计信息
+4. DatabaseInitializer.java会在非生产环境自动创建库和表
+5. user表和user_stats表分离是关键性能设计, 开发涉及用户统计数据的功能时, 必须操作user_stats表
+6. 业务逻辑错误应抛出自定义的WeebException
+7. GlobalExceptionHandler会统一捕获异常并以标准化的ApiResponse格式返回给前端
+
+=== 前端开发规范 ===
+1. 前端所有HTTP通信必须通过src/api/axiosInstance.js中封装的axios实例
+2. 请求拦截器会自动添加JWT到请求头, 响应拦截器统一处理ApiResponse格式
+3. 新的API请求应根据业务领域添加到src/api/modules/目录下的对应模块中
+4. 全局状态管理必须使用Pinia, 用户的认证信息由src/stores/authStore.js管理
+5. 新功能模块应在src/stores/目录下创建独立的Store文件
+6. UI组件库统一使用Element Plus 2.7.8, 全局样式使用src/assets/apple-style.css中定义的CSS变量
+7. 所有页面路由在src/router/index.js中定义, 需要认证的页面应添加meta, { requiresAuth: true }
+8. 富文本编辑功能统一使用Quill 2.0.3，遵循统一的编辑器配置规范
+9. 视频播放功能统一使用video组件，确保跨浏览器兼容性
+10. 新增页面组件必须包含响应式设计，支持移动端适配
+11. 组件命名必须使用PascalCase，文件名与组件名保持一致
+
+=== WebSocket开发规范 ===
+1. WebSocket连接使用chatStore.js管理, 连接地址: ws://localhost:8081/ws
+2. 消息格式必须标准化, 包含type、data、timestamp字段
+3. 实时消息同步通过WebSocket实现, HTTP作为备用方案
+4. 打字指示器和消息状态通过WebSocket实时传输
+5. WebSocket断线重连机制已在chatStore中实现, 不得随意修改
+
+=== 搜索功能规范 ===
+1. 消息搜索使用Elasticsearch, 通过SearchController提供API
+2. 搜索API路径必须以/api/search/开头
+3. 支持多类型搜索: messages、users、groups、articles、all
+4. 搜索结果必须包含list和total字段, 支持分页
+5. Elasticsearch不可用时, 搜索功能应优雅降级, 不影响核心功能
+
+=== 安全开发规范 ===
+1. 所有用户输入必须通过ValidationUtils验证
+2. SQL注入防护使用SqlInjectionUtils, 严禁直接拼接SQL
+3. 安全事件通过SecurityAuditUtils记录, 包括登录失败、异常操作等
+4. JWT Token管理通过authStore.js, 过期自动刷新
+5. 敏感信息必须使用环境变量配置, 不得硬编码
+6.禁止使用select * 等操作
+
+=== 本地开发健康规范 ===
+1. 开发环境启动前必须确保MySQL、Redis、Elasticsearch服务正常运行
+2. 数据库连接失败时优先检查服务状态和网络连接，避免频繁修改配置
+3. 使用mvn spring-boot:run启动后端，使用npm run dev启动前端
+4. 定期清理日志文件，避免日志文件过大影响开发环境性能
+5. 本地开发时启用调试模式，设置环境变量DEBUG=true
+6. Git提交前必须执行代码格式化和静态检查
+7. 开发过程中遇到问题优先查看控制台日志和错误信息
+8. 定期更新依赖包版本，确保安全性和性能
+9. 开发完成后必须进行基础功能测试，确保核心功能正常
+10. 遵循Git Flow工作流，feature分支开发完成后及时合并到develop分支
+
+=== 文档更新规范 ===
+1. 修改重要功能后必须同步更新README.md
+2. API接口变更必须更新文档中的接口列表
+3. 端口配置变更必须更新README.md中的访问应用部分
+4. 新增功能必须更新README.md中的核心功能部分
+5. 技术架构变更必须更新README.md中的技术栈部分
+6. 依赖版本变更必须同步更新README.md中的技术栈信息
+7. 新增开发规范必须更新rule.txt文件
+8. 项目结构变更必须更新README.md中的项目结构说明
+
+=== 代码修改禁止事项 ===
+1. 严禁随意修改端口配置而不更新相关文件
+2. 严禁绕过安全验证和输入检查
+3. 严禁直接在Controller层编写复杂业务逻辑
+4. 严禁不使用事务进行多表操作
+5. 严禁不通过统一的API封装进行HTTP请求
+6. 严禁修改核心架构设计模式
+7. 严禁提交包含安全隐患的代码
+
+=== 项目未来健康规范 ===
+1. 保持代码质量和架构清晰
+2. 建立完整的CI/CD流程，自动化测试和部署
+3. 建立完整的错误追踪和日志分析体系
+4. 定期进行代码审查，确保代码质量和规范性
+5. 建立完整的项目文档，包括技术文档、用户文档、运维文档
+6. 关注系统可扩展性，为未来功能扩展预留接口和架构空间
+
+=== 违规处理 ===
+1. 违反核心架构规范的代码将被拒绝合并
+2. 不更新文档的功能将被要求补充文档
+3. 安全漏洞代码将被立即要求修复
+4. 多次违反规范的开发者将被移除提交权限
+5. 不遵守本地开发健康规范的将被要求整改
+6. 代码质量不达标的将被要求重构和优化
+7. 影响系统稳定性的变更将被立即回滚
+8. 未经过充分测试的功能将被禁止部署到生产环境
+
+=== 前端功能待实现清单 ===
+
+鉴于后端API已基本完善，但前端界面严重缺失，按照rule.txt规范要求，现将所有缺失的前端功能详细列出：
+
+1. **密码重置页面**（严重缺失）
+   文件路径：Vue/src/views/ResetPassword.vue
+   功能描述：实现基于安全令牌的密码重置流程前端界面
+   具体需求：
+   - 从URL参数中获取重置令牌
+   - 验证令牌有效性和时效性
+   - 提供新密码输入表单（需确认密码）
+   - 调用/api/password/execute-reset接口
+   - 处理令牌失效、密码强度验证等错误情况
+   - 成功后跳转到登录页面
+
+2. **管理员管理后台界面**（严重缺失）
+   文件路径：Vue/src/views/admin/目录下创建多个组件
+   功能描述：完整的后台管理界面，支持权限、角色、用户管理
+   具体需求：
+   - Vue/src/views/admin/PermissionManagement.vue - 权限管理页面
+   - Vue/src/views/admin/RoleManagement.vue - 角色管理页面
+   - Vue/src/views/admin/UserManagement.vue - 用户管理页面
+   - Vue/src/views/admin/SystemStatistics.vue - 系统统计页面
+   - Vue/src/views/admin/SystemLogs.vue - 系统日志页面
+   - Vue/src/views/admin/Dashboard.vue - 管理后台首页
+   - 集成Element Plus表格、表单、分页组件
+   - 调用对应的AdminController API接口
+
+3. **用户安全中心界面**（严重缺失）
+   文件路径：Vue/src/views/SecurityCenter.vue
+   功能描述：用户账户安全管理界面
+   具体需求：
+   - 会话管理：显示活跃会话列表，支持强制登出
+   - 登录历史：显示最近登录记录和安全事件
+   - 两因素认证：启用/禁用2FA，显示二维码和备用码
+   - 密码修改：当前密码验证和新密码设置
+   - 安全评分：显示账户安全评分和改进建议
+   - 权限查看：显示用户拥有的权限和角色
+   - 调用SecurityController的各个API接口
+
+4. **聊天页面的高级功能UI**（功能缺失）
+   文件路径：Vue/src/Chat/ChatPage.vue（需要大幅扩展）
+   功能描述：实现现代IM应用的核心UI交互
+   具体需求：
+   - 打字指示器：在聊天输入框下方显示"XXX正在输入..."
+   - 消息状态指示：显示消息发送状态（发送中/已发送/已送达/已读）
+   - 消息反应系统：点击消息显示表情选择器，支持添加/移除反应
+   - 消息撤回功能：右键菜单或悬停显示撤回选项
+   - 表情包支持：集成emoji选择器，支持自定义表情
+   - 富文本消息：支持格式化文本、链接预览等
+
+5. **协作与社交功能UI**（功能缺失）
+   文件路径：Vue/src/Chat/components/目录下创建新组件
+   功能描述：现代协作平台的标准功能界面
+   具体需求：
+   - Vue/src/Chat/components/MessageThread.vue - 消息线索组件
+   - Vue/src/Chat/components/UserMention.vue - 用户提及高亮组件
+   - Vue/src/Chat/components/LinkPreview.vue - 富链接预览组件
+   - Vue/src/Chat/components/CustomStatus.vue - 自定义状态组件
+   - 消息线索：点击"回复"按钮创建线索，侧边栏显示线索内容
+   - 用户提及：在输入@时显示用户列表，支持键盘导航选择
+   - 富链接预览：自动识别URL，显示标题、描述、缩略图
+   - 自定义状态：用户可设置自定义状态消息和图标
+
+6. **搜索页面的高级过滤UI**（功能缺失）
+   文件路径：Vue/src/search/SearchPage.vue（需要扩展）
+   功能描述：支持多维度搜索过滤的界面
+   具体需求：
+   - 高级搜索表单：分类筛选、作者筛选、日期范围等
+   - 搜索结果展示：分页、排序、筛选标签显示
+   - 搜索历史：最近搜索关键词和筛选条件保存
+   - 搜索建议：热门搜索关键词和相关搜索提示
+   - 调用新增的高级搜索API接口
+
+7. **用户资料页面的扩展功能**（功能缺失）
+   文件路径：Vue/src/auth/UserProfile.vue（需要扩展）
+   功能描述：完整的用户资料展示和管理界面
+   具体需求：
+   - 个人资料编辑：头像上传、信息修改、隐私设置
+   - 统计数据展示：文章数、粉丝数、点赞数等图表展示
+   - 关注功能：关注/取消关注用户，关注列表管理
+   - 收藏管理：收藏的文章列表，分页展示和管理
+   - 活动历史：用户的最近活动和成就展示
+
+8. **全局组件和工具**（基础设施缺失）
+   文件路径：Vue/src/components/目录下
+   功能描述：支撑上述功能的基础组件库
+   具体需求：
+   - Vue/src/components/EmojiPicker.vue - 表情选择器组件
+   - Vue/src/components/MessageStatus.vue - 消息状态指示器
+   - Vue/src/components/UserMention.vue - 用户提及高亮组件
+   - Vue/src/components/LinkPreview.vue - 链接预览卡片组件
+   - Vue/src/components/SecurityScore.vue - 安全评分显示组件
+   - Vue/src/components/PermissionBadge.vue - 权限标签组件
+   - Vue/src/components/RoleSelector.vue - 角色选择器组件
+
+9. **状态管理和数据流**（架构缺失）
+   文件路径：Vue/src/stores/目录下
+   功能描述：前端状态管理和数据处理逻辑
+   具体需求：
+   - Vue/src/stores/securityStore.js - 安全中心状态管理
+   - Vue/src/stores/adminStore.js - 后台管理状态管理
+   - Vue/src/stores/chatStore.js - 聊天功能增强（已有需扩展）
+   - Vue/src/stores/searchStore.js - 搜索功能状态管理
+   - 集成Pinia状态管理，实现组件间数据共享
+
+10. **路由和导航更新**（配置缺失）
+    文件路径：Vue/src/router/index.js（需要扩展）
+    功能描述：添加新页面的路由配置
+    具体需求：
+    - 添加管理员后台路由（需管理员权限验证）
+    - 添加安全中心路由（需登录验证）
+    - 添加密码重置路由（公开访问）
+    - 更新导航菜单，支持管理员入口和安全中心入口
+
+11. **国际化支持**（功能缺失）
+    文件路径：Vue/src/locales/目录下
+    功能描述：多语言支持（英文、中文等）
+    具体需求：
+    - 创建语言包文件：en.js, zh.js等
+    - 集成vue-i18n插件
+    - 支持语言切换组件
+    - 覆盖所有新功能页面的文案
+
+12. **响应式设计优化**（体验缺失）
+    文件路径：所有新创建的Vue组件
+    功能描述：移动端适配和响应式布局
+    具体需求：
+    - 使用Element Plus响应式栅格系统
+    - 移动端友好的交互设计
+    - 触摸设备的手势支持
+    - 小屏幕设备的布局优化
+
+所有前端功能必须严格遵守rule.txt中的规范：
+- 使用Element Plus 2.7.8组件库
+- 通过src/api/axiosInstance.js进行HTTP通信
+- 使用Pinia进行状态管理
+- 组件命名使用PascalCase
+- 支持移动端响应式设计
+- 集成富文本编辑器Quill 2.0.3（用于需要编辑的页面）
+
+前端开发预计工作量：
+- 基础页面框架：约15-20个Vue组件文件
+- 状态管理：约5个Pinia store文件
+- API集成：约8个新的API模块文件
+- 样式定制：约2000+行CSS代码
+- 国际化：约1000+条翻译文案
+
+建议开发优先级：
+1. 密码重置页面（安全漏洞修复）
+2. 用户安全中心（用户安全需求）
+3. 管理员管理后台（系统管理需求）
+4. 聊天高级功能（核心体验提升）
+5. 协作功能（平台价值提升）
+任务列表
 1. 动态排序参数导致的SQL注入（严重）
 在项目的文章查询和搜索功能中，存在一个典型的SQL注入漏洞。该漏洞源于对用户控制的排序参数未经充分验证和过滤，直接拼接到SQL查询语句中。
 待办任务：修复Mapper层中的SQL注入漏洞

@@ -30,7 +30,31 @@
         <if test="endDate != null and endDate != ''">
             AND DATE(g.create_time) &lt;= #{endDate}
         </if>
-        ${sortClause}
+        ORDER BY
+        <choose>
+            <when test="sortBy == 'relevance'">
+                CASE
+                    WHEN g.group_name = #{keyword} THEN 1
+                    WHEN g.group_name LIKE CONCAT(#{keyword}, '%') THEN 2
+                    ELSE 3
+                END, g.create_time DESC
+            </when>
+            <when test="sortBy == 'time_desc'">
+                g.create_time DESC, g.id DESC
+            </when>
+            <when test="sortBy == 'time_asc'">
+                g.create_time ASC, g.id ASC
+            </when>
+            <when test="sortBy == 'name_asc'">
+                g.group_name ASC, g.id ASC
+            </when>
+            <when test="sortBy == 'name_desc'">
+                g.group_name DESC, g.id DESC
+            </when>
+            <otherwise>
+                g.create_time DESC, g.id DESC
+            </otherwise>
+        </choose>
         LIMIT #{offset}, #{limit}
     </select>
 
@@ -43,6 +67,67 @@
         </if>
         <if test="endDate != null and endDate != ''">
             AND DATE(g.create_time) &lt;= #{endDate}
+        </if>
+    </select>
+
+    <!-- 高级搜索群组（支持多维度过滤） -->
+    <select id="searchGroupsAdvanced" resultType="com.web.model.Group">
+        SELECT g.* FROM `group` g
+        WHERE g.group_name LIKE CONCAT('%', #{keyword}, '%')
+        <if test="startDate != null and startDate != ''">
+            AND DATE(g.create_time) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(g.create_time) &lt;= #{endDate}
+        </if>
+        <if test="groupTypes != null and groupTypes.size() > 0">
+            AND g.group_type IN
+            <foreach collection="groupTypes" item="groupType" open="(" separator="," close=")">
+                #{groupType}
+            </foreach>
+        </if>
+        <if test="isPublic != null">
+            AND g.is_public = #{isPublic}
+        </if>
+        ORDER BY
+        <choose>
+            <when test="sortBy == 'create_time' and sortOrder == 'asc'">
+                g.create_time ASC, g.id ASC
+            </when>
+            <when test="sortBy == 'create_time' and sortOrder == 'desc'">
+                g.create_time DESC, g.id DESC
+            </when>
+            <when test="sortBy == 'group_name' and sortOrder == 'asc'">
+                g.group_name ASC, g.id ASC
+            </when>
+            <when test="sortBy == 'group_name' and sortOrder == 'desc'">
+                g.group_name DESC, g.id DESC
+            </when>
+            <otherwise>
+                g.create_time DESC, g.id DESC
+            </otherwise>
+        </choose>
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计高级搜索群组数量 -->
+    <select id="countSearchGroupsAdvanced" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM `group` g
+        WHERE g.group_name LIKE CONCAT('%', #{keyword}, '%')
+        <if test="startDate != null and startDate != ''">
+            AND DATE(g.create_time) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(g.create_time) &lt;= #{endDate}
+        </if>
+        <if test="groupTypes != null and groupTypes.size() > 0">
+            AND g.group_type IN
+            <foreach collection="groupTypes" item="groupType" open="(" separator="," close=")">
+                #{groupType}
+            </foreach>
+        </if>
+        <if test="isPublic != null">
+            AND g.is_public = #{isPublic}
         </if>
     </select>
 

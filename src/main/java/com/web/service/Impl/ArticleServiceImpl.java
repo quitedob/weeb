@@ -5,6 +5,8 @@ import com.web.mapper.ArticleCategoryMapper;
 import com.web.model.Article;
 import com.web.model.ArticleCategory;
 import com.web.service.ArticleService;
+import com.web.util.SqlInjectionUtils;
+import com.web.exception.WeebException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 文章服务实现类
@@ -22,11 +25,40 @@ import java.util.Map;
 @Transactional
 public class ArticleServiceImpl implements ArticleService {
 
+    // 允许的排序字段白名单
+    private static final Set<String> ALLOWED_SORT_COLUMNS = Set.of(
+        "created_at", "updated_at", "likes_count", "favorites_count",
+        "exposure_count", "sponsors_count", "article_title"
+    );
+
+    // 允许的排序方向白名单
+    private static final Set<String> ALLOWED_SORT_ORDERS = Set.of("asc", "desc");
+
     @Autowired
     private ArticleMapper articleMapper;
 
     @Autowired
     private ArticleCategoryMapper articleCategoryMapper;
+
+    /**
+     * 验证排序参数
+     * @param sortBy 排序字段
+     * @param sortOrder 排序方向
+     * @return 验证后的排序参数数组
+     */
+    private String[] validateSortParams(String sortBy, String sortOrder) {
+        // 验证并设置默认排序字段
+        if (sortBy == null || sortBy.trim().isEmpty() || !ALLOWED_SORT_COLUMNS.contains(sortBy.toLowerCase())) {
+            sortBy = "created_at";
+        }
+
+        // 验证并设置默认排序方向
+        if (sortOrder == null || sortOrder.trim().isEmpty() || !ALLOWED_SORT_ORDERS.contains(sortOrder.toLowerCase())) {
+            sortOrder = "desc";
+        }
+
+        return new String[]{sortBy, sortOrder};
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -101,17 +133,26 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> getAllArticles(int page, int pageSize, String sortBy, String sortOrder) {
+        // 验证排序参数
+        String[] validatedParams = validateSortParams(sortBy, sortOrder);
+        sortBy = validatedParams[0];
+        sortOrder = validatedParams[1];
+
+        // 验证分页参数
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
         int offset = (page - 1) * pageSize;
         List<Article> articles = articleMapper.getAllArticles(offset, pageSize, sortBy, sortOrder);
         int totalCount = articleMapper.countAllArticles();
-        
+
         Map<String, Object> result = new HashMap<>();
         result.put("list", articles);  // 改为 list 以匹配前端期望
         result.put("total", totalCount);  // 改为 total 以匹配前端期望
         result.put("currentPage", page);
         result.put("pageSize", pageSize);
         result.put("totalPages", (int) Math.ceil((double) totalCount / pageSize));
-        
+
         return result;
     }
 
@@ -203,6 +244,24 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> searchArticles(String query, int page, int pageSize, String sortBy, String sortOrder) {
+        // 验证搜索关键词
+        if (query == null || query.trim().isEmpty()) {
+            throw new WeebException("搜索关键词不能为空");
+        }
+        query = query.trim();
+        if (query.length() > 100) {
+            throw new WeebException("搜索关键词长度不能超过100个字符");
+        }
+
+        // 验证排序参数
+        String[] validatedParams = validateSortParams(sortBy, sortOrder);
+        sortBy = validatedParams[0];
+        sortOrder = validatedParams[1];
+
+        // 验证分页参数
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
         int offset = (page - 1) * pageSize;
         List<Article> articles = articleMapper.searchArticles(query, offset, pageSize, sortBy, sortOrder);
         int totalCount = articleMapper.countSearchResults(query);
@@ -220,6 +279,32 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> searchArticlesWithFilters(String query, int page, int pageSize, String startDate, String endDate, String sortBy, String sortOrder) {
+        // 验证搜索关键词
+        if (query == null || query.trim().isEmpty()) {
+            throw new WeebException("搜索关键词不能为空");
+        }
+        query = query.trim();
+        if (query.length() > 100) {
+            throw new WeebException("搜索关键词长度不能超过100个字符");
+        }
+
+        // 验证排序参数
+        String[] validatedParams = validateSortParams(sortBy, sortOrder);
+        sortBy = validatedParams[0];
+        sortOrder = validatedParams[1];
+
+        // 验证分页参数
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+        // 验证日期格式 (简单的YYYY-MM-DD格式验证)
+        if (startDate != null && !startDate.matches("^\\d{4}-\\d{2}-\\d{2}$")) {
+            throw new WeebException("开始日期格式不正确，请使用YYYY-MM-DD格式");
+        }
+        if (endDate != null && !endDate.matches("^\\d{4}-\\d{2}-\\d{2}$")) {
+            throw new WeebException("结束日期格式不正确，请使用YYYY-MM-DD格式");
+        }
+
         int offset = (page - 1) * pageSize;
         List<Article> articles = articleMapper.searchArticlesWithFilters(query, offset, pageSize, startDate, endDate, sortBy, sortOrder);
         int totalCount = articleMapper.countSearchResultsWithFilters(query, startDate, endDate);

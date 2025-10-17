@@ -63,20 +63,32 @@
         FROM articles
         WHERE status = 1        <!-- 只显示已发布的文章 -->
         <choose>
-            <when test="sortBy == 'created_at'">
-                ORDER BY created_at ${sortOrder}
+            <when test="sortBy == 'created_at' and sortOrder == 'asc'">
+                ORDER BY created_at ASC
             </when>
-            <when test="sortBy == 'exposure_count'">
-                ORDER BY exposure_count ${sortOrder}
+            <when test="sortBy == 'created_at' and sortOrder == 'desc'">
+                ORDER BY created_at DESC
             </when>
-            <when test="sortBy == 'likes_count'">
-                ORDER BY likes_count ${sortOrder}
+            <when test="sortBy == 'exposure_count' and sortOrder == 'asc'">
+                ORDER BY exposure_count ASC
             </when>
-            <when test="sortBy == 'favorites_count'">
-                ORDER BY favorites_count ${sortOrder}
+            <when test="sortBy == 'exposure_count' and sortOrder == 'desc'">
+                ORDER BY exposure_count DESC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'asc'">
+                ORDER BY likes_count ASC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'desc'">
+                ORDER BY likes_count DESC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'asc'">
+                ORDER BY favorites_count ASC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'desc'">
+                ORDER BY favorites_count DESC
             </when>
             <otherwise>
-                ORDER BY updated_at DESC
+                ORDER BY created_at DESC
             </otherwise>
         </choose>
         LIMIT #{offset}, #{pageSize}
@@ -101,20 +113,32 @@
         WHERE status = 1        <!-- 只显示已发布的文章 -->
         AND (article_title LIKE CONCAT('%', #{query}, '%') OR article_content LIKE CONCAT('%', #{query}, '%'))
         <choose>
-            <when test="sortBy == 'created_at'">
-                ORDER BY created_at ${sortOrder}
+            <when test="sortBy == 'created_at' and sortOrder == 'asc'">
+                ORDER BY created_at ASC
             </when>
-            <when test="sortBy == 'exposure_count'">
-                ORDER BY exposure_count ${sortOrder}
+            <when test="sortBy == 'created_at' and sortOrder == 'desc'">
+                ORDER BY created_at DESC
             </when>
-            <when test="sortBy == 'likes_count'">
-                ORDER BY likes_count ${sortOrder}
+            <when test="sortBy == 'exposure_count' and sortOrder == 'asc'">
+                ORDER BY exposure_count ASC
             </when>
-            <when test="sortBy == 'favorites_count'">
-                ORDER BY favorites_count ${sortOrder}
+            <when test="sortBy == 'exposure_count' and sortOrder == 'desc'">
+                ORDER BY exposure_count DESC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'asc'">
+                ORDER BY likes_count ASC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'desc'">
+                ORDER BY likes_count DESC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'asc'">
+                ORDER BY favorites_count ASC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'desc'">
+                ORDER BY favorites_count DESC
             </when>
             <otherwise>
-                ORDER BY updated_at DESC
+                ORDER BY created_at DESC
             </otherwise>
         </choose>
         LIMIT #{offset}, #{pageSize}
@@ -141,17 +165,29 @@
         WHERE status = 1        <!-- 只显示已发布的文章 -->
         AND MATCH(article_title, article_content) AGAINST(#{query} IN BOOLEAN MODE)
         <choose>
-            <when test="sortBy == 'created_at'">
-                ORDER BY created_at ${sortOrder}
+            <when test="sortBy == 'created_at' and sortOrder == 'asc'">
+                ORDER BY created_at ASC
             </when>
-            <when test="sortBy == 'exposure_count'">
-                ORDER BY exposure_count ${sortOrder}
+            <when test="sortBy == 'created_at' and sortOrder == 'desc'">
+                ORDER BY created_at DESC
             </when>
-            <when test="sortBy == 'likes_count'">
-                ORDER BY likes_count ${sortOrder}
+            <when test="sortBy == 'exposure_count' and sortOrder == 'asc'">
+                ORDER BY exposure_count ASC
             </when>
-            <when test="sortBy == 'favorites_count'">
-                ORDER BY favorites_count ${sortOrder}
+            <when test="sortBy == 'exposure_count' and sortOrder == 'desc'">
+                ORDER BY exposure_count DESC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'asc'">
+                ORDER BY likes_count ASC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'desc'">
+                ORDER BY likes_count DESC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'asc'">
+                ORDER BY favorites_count ASC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'desc'">
+                ORDER BY favorites_count DESC
             </when>
             <otherwise>
                 ORDER BY relevance_score DESC, updated_at DESC
@@ -428,20 +464,32 @@
             AND DATE(created_at) &lt;= #{endDate}
         </if>
         <choose>
-            <when test="sortBy == 'created_at'">
-                ORDER BY created_at ${sortOrder}
+            <when test="sortBy == 'created_at' and sortOrder == 'asc'">
+                ORDER BY created_at ASC
             </when>
-            <when test="sortBy == 'exposure_count'">
-                ORDER BY exposure_count ${sortOrder}
+            <when test="sortBy == 'created_at' and sortOrder == 'desc'">
+                ORDER BY created_at DESC
             </when>
-            <when test="sortBy == 'likes_count'">
-                ORDER BY likes_count ${sortOrder}
+            <when test="sortBy == 'exposure_count' and sortOrder == 'asc'">
+                ORDER BY exposure_count ASC
             </when>
-            <when test="sortBy == 'favorites_count'">
-                ORDER BY favorites_count ${sortOrder}
+            <when test="sortBy == 'exposure_count' and sortOrder == 'desc'">
+                ORDER BY exposure_count DESC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'asc'">
+                ORDER BY likes_count ASC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'desc'">
+                ORDER BY likes_count DESC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'asc'">
+                ORDER BY favorites_count ASC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'desc'">
+                ORDER BY favorites_count DESC
             </when>
             <otherwise>
-                ORDER BY updated_at DESC
+                ORDER BY created_at DESC
             </otherwise>
         </choose>
         LIMIT #{offset}, #{pageSize}
@@ -457,6 +505,134 @@
         </if>
         <if test="endDate != null and endDate != ''">
             AND DATE(created_at) &lt;= #{endDate}
+        </if>
+    </select>
+
+    <!-- 高级搜索文章（支持多维度过滤） -->
+    <select id="searchArticlesAdvanced" parameterType="map" resultMap="ArticleResultMap">
+        SELECT
+            article_id,
+            user_id,
+            category_id,
+            article_title,
+            article_content,
+            article_link,
+            status,
+            likes_count,
+            favorites_count,
+            sponsors_count,
+            created_at,
+            updated_at,
+            exposure_count
+        FROM articles
+        WHERE status = 1        <!-- 只显示已发布的文章 -->
+        <if test="keyword != null and keyword != ''">
+            AND (article_title LIKE CONCAT('%', #{keyword}, '%') OR article_content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND DATE(created_at) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(created_at) &lt;= #{endDate}
+        </if>
+        <if test="categoryIds != null and categoryIds.size() > 0">
+            AND category_id IN
+            <foreach collection="categoryIds" item="categoryId" open="(" separator="," close=")">
+                #{categoryId}
+            </foreach>
+        </if>
+        <if test="authorId != null">
+            AND user_id = #{authorId}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="minLikes != null">
+            AND likes_count >= #{minLikes}
+        </if>
+        <if test="maxLikes != null">
+            AND likes_count &lt;= #{maxLikes}
+        </if>
+        <if test="minExposure != null">
+            AND exposure_count >= #{minExposure}
+        </if>
+        <if test="maxExposure != null">
+            AND exposure_count &lt;= #{maxExposure}
+        </if>
+        <choose>
+            <when test="sortBy == 'created_at' and sortOrder == 'asc'">
+                ORDER BY created_at ASC
+            </when>
+            <when test="sortBy == 'created_at' and sortOrder == 'desc'">
+                ORDER BY created_at DESC
+            </when>
+            <when test="sortBy == 'updated_at' and sortOrder == 'asc'">
+                ORDER BY updated_at ASC
+            </when>
+            <when test="sortBy == 'updated_at' and sortOrder == 'desc'">
+                ORDER BY updated_at DESC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'asc'">
+                ORDER BY likes_count ASC
+            </when>
+            <when test="sortBy == 'likes_count' and sortOrder == 'desc'">
+                ORDER BY likes_count DESC
+            </when>
+            <when test="sortBy == 'exposure_count' and sortOrder == 'asc'">
+                ORDER BY exposure_count ASC
+            </when>
+            <when test="sortBy == 'exposure_count' and sortOrder == 'desc'">
+                ORDER BY exposure_count DESC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'asc'">
+                ORDER BY favorites_count ASC
+            </when>
+            <when test="sortBy == 'favorites_count' and sortOrder == 'desc'">
+                ORDER BY favorites_count DESC
+            </when>
+            <otherwise>
+                ORDER BY created_at DESC
+            </otherwise>
+        </choose>
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计高级搜索文章数量 -->
+    <select id="countSearchArticlesAdvanced" parameterType="map" resultType="long">
+        SELECT COUNT(*) FROM articles
+        WHERE status = 1        <!-- 只显示已发布的文章 -->
+        <if test="keyword != null and keyword != ''">
+            AND (article_title LIKE CONCAT('%', #{keyword}, '%') OR article_content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND DATE(created_at) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(created_at) &lt;= #{endDate}
+        </if>
+        <if test="categoryIds != null and categoryIds.size() > 0">
+            AND category_id IN
+            <foreach collection="categoryIds" item="categoryId" open="(" separator="," close=")">
+                #{categoryId}
+            </foreach>
+        </if>
+        <if test="authorId != null">
+            AND user_id = #{authorId}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="minLikes != null">
+            AND likes_count >= #{minLikes}
+        </if>
+        <if test="maxLikes != null">
+            AND likes_count &lt;= #{maxLikes}
+        </if>
+        <if test="minExposure != null">
+            AND exposure_count >= #{minExposure}
+        </if>
+        <if test="maxExposure != null">
+            AND exposure_count &lt;= #{maxExposure}
         </if>
     </select>
 

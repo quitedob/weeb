@@ -16,6 +16,10 @@ public class WebSocketMessage {
      * chat: 聊天消息
      * heartbeat: 心跳消息
      * error: 错误消息
+     * typing: 打字指示器消息
+     * message_status: 消息状态更新消息
+     * reaction: 消息反应消息
+     * recall: 消息撤回消息
      */
     private String type;
 
@@ -43,6 +47,28 @@ public class WebSocketMessage {
      * 接收者ID（可选）
      */
     private Long toUserId;
+
+    /**
+     * 群组ID（可选，用于群聊消息）
+     */
+    private Long groupId;
+
+    /**
+     * 会话ID（可选，用于标识会话）
+     */
+    private Long conversationId;
+
+    /**
+     * 消息状态（可选）
+     * 1: 发送中, 2: 已发送, 3: 已送达, 4: 已读, 5: 已撤回
+     */
+    private Integer messageStatus;
+
+    /**
+     * 消息类型（可选）
+     * 1: 文本消息, 2: 图片消息, 3: 文件消息, 4: 系统消息
+     */
+    private Integer messageType;
 
     public WebSocketMessage() {
         this.timestamp = new Date();

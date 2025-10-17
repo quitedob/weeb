@@ -4,6 +4,7 @@ import com.web.annotation.UrlLimit;
 import com.web.util.JwtUtil;
 import com.web.model.User;
 import com.web.service.AuthService;
+import com.web.service.PasswordResetService;
 import com.web.util.ResultUtil;
 import com.web.common.ApiResponse;
 import com.web.vo.auth.LoginVo;
@@ -39,6 +40,9 @@ public class AuthController {
     @Autowired
     private PasswordEncoder passwordEncoder; // 注入密码编码器
 
+    @Autowired
+    private PasswordResetService passwordResetService; // 注入密码重置服务
+
     /**
      * 用户注册接口，返回统一的ApiResponse格式
      * @param payload 前端传入的用户注册信息
@@ -46,67 +50,62 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<String>> register(@RequestBody Map<String, Object> payload) {
-        try {
-            // 参数验证
-            if (payload == null) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "请求参数不能为空"));
-            }
-            
-            String username = (String) payload.get("username");
-            String password = (String) payload.get("password");
-            String email = (String) payload.get("email");
-            
-            // 必填参数验证
-            if (username == null || username.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "用户名不能为空"));
-            }
-            if (password == null || password.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "密码不能为空"));
-            }
-            if (email == null || email.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "邮箱不能为空"));
-            }
-            
-            // 参数长度验证
-            if (username.length() < 3 || username.length() > 50) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "用户名长度必须在3-50个字符之间"));
-            }
-            if (password.length() < 6 || password.length() > 100) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "密码长度必须在6-100个字符之间"));
-            }
-            
-            // 邮箱格式验证
-            if (!email.matches("^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$")) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "邮箱格式不正确"));
-            }
-            
-            // 手动映射前端传入的字段到 User 对象
-            User user = new User();
-            user.setUsername(username.trim());
-            user.setPassword(password.trim());
-            user.setUserEmail(email.trim());
-            
-            // 将 gender 转换为 sex：male -> 1, female -> 0
-            String genderStr = (String) payload.get("gender");
-            user.setSex("male".equalsIgnoreCase(genderStr) ? 1 : 0);
-            
-            String phone = (String) payload.get("phone");
-            if (phone != null && !phone.trim().isEmpty()) {
-                // 手机号格式验证
-                if (!phone.matches("^1[3-9]\\d{9}$")) {
-                    return ResponseEntity.badRequest().body(ApiResponse.error(1, "手机号格式不正确"));
-                }
-                user.setPhoneNumber(phone.trim());
-            }
-            
-            // 其它字段保持默认或由数据库默认值处理
-            authService.register(user); // 调用服务进行注册
-            System.out.println("Payload: " + payload);
-
-            return ResponseEntity.ok(ApiResponse.success("注册成功"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(1, e.getMessage()));
+        // 参数验证
+        if (payload == null) {
+            throw new IllegalArgumentException("请求参数不能为空");
         }
+
+        String username = (String) payload.get("username");
+        String password = (String) payload.get("password");
+        String email = (String) payload.get("email");
+
+        // 必填参数验证
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("用户名不能为空");
+        }
+        if (password == null || password.trim().isEmpty()) {
+            throw new IllegalArgumentException("密码不能为空");
+        }
+        if (email == null || email.trim().isEmpty()) {
+            throw new IllegalArgumentException("邮箱不能为空");
+        }
+
+        // 参数长度验证
+        if (username.length() < 3 || username.length() > 50) {
+            throw new IllegalArgumentException("用户名长度必须在3-50个字符之间");
+        }
+        if (password.length() < 6 || password.length() > 100) {
+            throw new IllegalArgumentException("密码长度必须在6-100个字符之间");
+        }
+
+        // 邮箱格式验证
+        if (!email.matches("^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$")) {
+            throw new IllegalArgumentException("邮箱格式不正确");
+        }
+
+        // 手动映射前端传入的字段到 User 对象
+        User user = new User();
+        user.setUsername(username.trim());
+        user.setPassword(password.trim());
+        user.setUserEmail(email.trim());
+
+        // 将 gender 转换为 sex：male -> 1, female -> 0
+        String genderStr = (String) payload.get("gender");
+        user.setSex("male".equalsIgnoreCase(genderStr) ? 1 : 0);
+
+        String phone = (String) payload.get("phone");
+        if (phone != null && !phone.trim().isEmpty()) {
+            // 手机号格式验证
+            if (!phone.matches("^1[3-9]\\d{9}$")) {
+                throw new IllegalArgumentException("手机号格式不正确");
+            }
+            user.setPhoneNumber(phone.trim());
+        }
+
+        // 其它字段保持默认或由数据库默认值处理
+        authService.register(user); // 调用服务进行注册
+
+        return ResponseEntity.ok(ApiResponse.success("注册成功"));
     }
 
     /**
@@ -116,16 +115,12 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Map<String, String>>> login(@RequestBody @Valid LoginVo loginVo) {
-        try {
-            // 调用服务进行登录，并获取JWT令牌
-            String token = authService.login(loginVo.getUsername(), loginVo.getPassword());
-            // 返回包含令牌的响应
-            Map<String, String> data = new HashMap<>();
-            data.put("token", token);
-            return ResponseEntity.ok(ApiResponse.success(data));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(1, e.getMessage()));
-        }
+        // 调用服务进行登录，并获取JWT令牌
+        String token = authService.login(loginVo.getUsername(), loginVo.getPassword());
+        // 返回包含令牌的响应
+        Map<String, String> data = new HashMap<>();
+        data.put("token", token);
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     /**
@@ -134,16 +129,12 @@ public class AuthController {
      */
     @GetMapping("/user")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserInfo(@RequestHeader("Authorization") String authorizationHeader) {
-        try {
-            String token = extractToken(authorizationHeader);
-            User user = authService.getUserInfo(token);
-            Map<String, Object> data = new HashMap<>();
-            data.put("id", user.getId());
-            data.put("username", user.getUsername());
-            return ResponseEntity.ok(ApiResponse.success(data));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(1, e.getMessage()));
-        }
+        String token = extractToken(authorizationHeader);
+        User user = authService.getUserInfo(token);
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", user.getId());
+        data.put("username", user.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(data));
     }
 
     /**
@@ -153,13 +144,9 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<String>> logout(@RequestHeader("Authorization") String authorizationHeader) {
-        try {
-            String token = extractToken(authorizationHeader);
-            authService.logout(token);
-            return ResponseEntity.ok(ApiResponse.success("登出成功"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error(1, e.getMessage()));
-        }
+        String token = extractToken(authorizationHeader);
+        authService.logout(token);
+        return ResponseEntity.ok(ApiResponse.success("登出成功"));
     }
 
     /**
@@ -175,61 +162,69 @@ public class AuthController {
     }
 
     /**
-     * 忘记密码（占位实现：返回提示信息）
+     * 发送密码重置链接（安全实现）
      */
-    @PostMapping("/forget")
-    public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestBody Map<String, Object> payload) {
-        // TODO: 生产环境实现邮件发送/短信发送 + 令牌
-        return ResponseEntity.ok(ApiResponse.success("重置链接已发送（模拟）。请检查邮箱/短信。"));
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendPasswordResetLink(@RequestBody Map<String, Object> payload) {
+        String email = (String) payload.get("email");
+
+        Map<String, Object> result = passwordResetService.sendPasswordResetLink(email);
+
+        if ((Boolean) result.get("success")) {
+            return ResponseEntity.ok(ApiResponse.success((String) result.get("message"), result));
+        } else {
+            throw new IllegalArgumentException((String) result.get("message"));
+        }
     }
 
     /**
-     * 重置密码（简化实现：通过 username 直接更新新密码）
+     * 验证重置令牌
      */
-    @PostMapping("/reset")
-    public ResponseEntity<ApiResponse<String>> resetPassword(@RequestBody Map<String, Object> payload) {
-        try {
-            String username = (String) payload.get("username");
-            String newPassword = (String) payload.get("newPassword");
-            String confirmPassword = (String) payload.get("confirmPassword");
-            
-            // 参数验证
-            if (username == null || username.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "用户名不能为空"));
-            }
-            if (newPassword == null || newPassword.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "新密码不能为空"));
-            }
-            if (confirmPassword == null || confirmPassword.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "确认密码不能为空"));
-            }
-            
-            // 密码长度验证
-            if (newPassword.length() < 6 || newPassword.length() > 100) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "密码长度必须在6-100个字符之间"));
-            }
-            
-            // 密码一致性验证
-            if (!newPassword.equals(confirmPassword)) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "两次输入的密码不一致"));
-            }
-            
-            // 密码强度验证（至少包含字母和数字）
-            if (!newPassword.matches("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*?&]{6,}$")) {
-                return ResponseEntity.badRequest().body(ApiResponse.error(1, "密码必须包含至少一个字母和一个数字"));
-            }
-            
-            User user = authService.findByUsername(username.trim());
-            if (user == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(1, "用户不存在"));
-            }
-            
-            // 加密新密码
-            user.setPassword(passwordEncoder.encode(newPassword.trim()));
-            authService.updateAuth(user);
-            return ResponseEntity.ok(ApiResponse.success("密码已重置"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(1, e.getMessage()));
+    @GetMapping("/validate-reset-token")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> validateResetToken(@RequestParam String token) {
+        Map<String, Object> result = passwordResetService.validateResetToken(token);
+
+        if ((Boolean) result.get("valid")) {
+            return ResponseEntity.ok(ApiResponse.success((String) result.get("message"), result));
+        } else {
+            throw new IllegalArgumentException((String) result.get("message"));
+        }
+    }
+
+    /**
+     * 重置密码（安全实现：通过令牌验证）
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> resetPassword(@RequestBody Map<String, Object> payload) {
+        String token = (String) payload.get("token");
+        String newPassword = (String) payload.get("newPassword");
+        String confirmPassword = (String) payload.get("confirmPassword");
+
+        Map<String, Object> result = passwordResetService.resetPassword(token, newPassword, confirmPassword);
+
+        if ((Boolean) result.get("success")) {
+            return ResponseEntity.ok(ApiResponse.success((String) result.get("message"), result));
+        } else {
+            throw new IllegalArgumentException((String) result.get("message"));
+        }
+    }
+
+    /**
+     * 执行密码重置（前端页面调用的接口）
+     * @param payload 包含令牌和新密码的数据
+     * @return 操作结果
+     */
+    @PostMapping("/password/execute-reset")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> executePasswordReset(@RequestBody Map<String, Object> payload) {
+        String token = (String) payload.get("token");
+        String newPassword = (String) payload.get("newPassword");
+
+        Map<String, Object> result = passwordResetService.resetPassword(token, newPassword, newPassword);
+
+        if ((Boolean) result.get("success")) {
+            return ResponseEntity.ok(ApiResponse.success((String) result.get("message"), result));
+        } else {
+            return ResponseEntity.badRequest().body(ApiResponse.error(1, (String) result.get("message")));
         }
     }
 

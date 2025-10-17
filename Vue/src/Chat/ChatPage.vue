@@ -173,6 +173,21 @@
           </div>
           <!-- 聊天消息展示区及输入区 -->
           <div class="middle-content">
+            <!-- 打字指示器区域 -->
+            <div class="typing-indicator" v-if="isTyping">
+              <div class="typing-avatar">
+                <img :src="typingUserAvatar" alt="用户头像" class="typing-avatar-img" />
+              </div>
+              <div class="typing-content">
+                <div class="typing-text">{{ typingUserName }} 正在输入...</div>
+                <div class="typing-animation">
+                  <span class="typing-dot"></span>
+                  <span class="typing-dot"></span>
+                  <span class="typing-dot"></span>
+                </div>
+              </div>
+            </div>
+
             <!-- 消息展示区 -->
             <div class="chat-show-area" ref="chatShowAreaRef">
               <div
@@ -212,6 +227,27 @@
                     <div class="message-time">
                       {{ formatMessageTime(msg.timestamp) }}
                     </div>
+                  </div>
+
+                  <!-- 消息反应区域 -->
+                  <div class="message-reactions" v-if="msg.reactions && msg.reactions.length > 0">
+                    <div
+                      v-for="reaction in msg.reactions"
+                      :key="reaction.emoji"
+                      class="reaction-item"
+                      @click="toggleReaction(msg, reaction.emoji)"
+                    >
+                      <span class="reaction-emoji">{{ reaction.emoji }}</span>
+                      <span class="reaction-count">{{ reaction.count }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 添加反应按钮 -->
+                  <div class="add-reaction" v-if="!msg.isRecalled">
+                    <button class="reaction-btn" @click="showReactionPicker(msg)" @contextmenu="handleMessageContextMenu($event, msg)">
+                      <span class="reaction-plus">+</span>
+                    </button>
+                  </div>
                     <!-- 撤回按钮：仅对当前用户自己发送的且消息未撤回时显示 -->
                     <button v-if="msg.fromId === userInfoStore.userId && msg.isRecalled !== 1" class="recall-btn" @click="handleRecallMessage(msg.id || msg.tempId)">
                       撤回
@@ -570,6 +606,12 @@ const fileInputRef = ref(null)
 // 打字相关变量
 let typingTimeout = null
 const isTyping = ref(false)
+const typingUserName = ref('')
+const typingUserAvatar = ref('')
+
+// 反应相关变量
+const showReactionPickerFlag = ref(false)
+const currentReactionMessage = ref(null)
 
 /* ---------------------- 用户相关数据 ---------------------- */
 // 用户列表（通过接口获取）
@@ -987,6 +1029,91 @@ async function handleRecallMessage(msgId) {
   }
 }
 
+// 显示反应选择器
+function showReactionPicker(message) {
+  currentReactionMessage.value = message
+  showReactionPickerFlag.value = true
+}
+
+// 切换反应（添加或移除）
+async function toggleReaction(message, emoji) {
+  try {
+    const messageId = message.id || message.tempId
+    // 这里需要调用后端API添加反应
+    // const response = await addReaction(messageId, emoji)
+
+    // 模拟前端更新反应数据
+    if (!message.reactions) message.reactions = []
+
+    const existingReaction = message.reactions.find(r => r.emoji === emoji)
+    if (existingReaction) {
+      if (existingReaction.userReacted) {
+        // 用户已反应，移除反应
+        existingReaction.count--
+        existingReaction.userReacted = false
+      } else {
+        // 用户未反应，添加反应
+        existingReaction.count++
+        existingReaction.userReacted = true
+      }
+    } else {
+      // 新建反应
+      message.reactions.push({
+        emoji,
+        count: 1,
+        userReacted: true
+      })
+    }
+
+    ElMessage.success('反应已更新')
+  } catch (error) {
+    console.error('反应操作失败:', error)
+    ElMessage.error('操作失败')
+  }
+}
+
+// 处理消息右键菜单
+function handleMessageContextMenu(event, message) {
+  event.preventDefault()
+
+  if (message.fromId === userInfoStore.userId && message.isRecalled !== 1) {
+    // 显示撤回选项
+    ElMessageBox.confirm(
+      '确定要撤回这条消息吗？',
+      '撤回确认',
+      {
+        confirmButtonText: '确定撤回',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    ).then(() => {
+      handleRecallMessage(message.id || message.tempId)
+    })
+  }
+}
+
+// 获取消息状态样式类
+function getMessageStatusClass(status) {
+  const classes = {
+    'sending': 'status-sending',
+    'sent': 'status-sent',
+    'delivered': 'status-delivered',
+    'read': 'status-read'
+  }
+  return classes[status] || 'status-unknown'
+}
+
+// 获取消息状态文本
+function getMessageStatusText(status) {
+  const texts = {
+    'sending': '发送中...',
+    'sent': '已发送',
+    'delivered': '已送达',
+    'read': '已读'
+  }
+  return texts[status] || '未知'
+}
+
 /**
  * 创建私聊：如果私聊不存在则创建新会话
  * 通过传入 userId 和 username 构造私聊信息
@@ -1199,6 +1326,180 @@ watch(targetId, (newVal, oldVal) => {
   margin-bottom: 40px;
   width: 100%;
   height: 100%;
+}
+
+/* 打字指示器样式 */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin: 8px 16px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.typing-avatar {
+  width: 32px;
+  height: 32px;
+  margin-right: 12px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.typing-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.typing-content {
+  flex: 1;
+}
+
+.typing-text {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.typing-animation {
+  display: flex;
+  gap: 2px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #999;
+  animation: typingBounce 1.4s ease-in-out infinite both;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+.typing-dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+/* 消息反应样式 */
+.message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  font-size: 12px;
+}
+
+.reaction-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reaction-item:hover {
+  background: #f0f0f0;
+  transform: scale(1.05);
+}
+
+.reaction-emoji {
+  font-size: 14px;
+}
+
+.reaction-count {
+  color: #666;
+  font-size: 11px;
+}
+
+/* 添加反应按钮样式 */
+.add-reaction {
+  margin-top: 4px;
+}
+
+.reaction-btn {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #999;
+  transition: all 0.2s ease;
+}
+
+.reaction-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
+}
+
+.reaction-plus {
+  font-size: 14px;
+}
+
+/* 消息状态指示器样式 */
+.message-status {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.status-icon {
+  font-size: 10px;
+}
+
+.status-sending {
+  color: #f39c12;
+}
+
+.status-sent {
+  color: #27ae60;
+}
+
+.status-delivered {
+  color: #3498db;
+}
+
+.status-read {
+  color: #9b59b6;
+}
+
+.status-unknown {
+  color: #95a5a6;
+}
+
+/* 撤回按钮样式 */
+.recall-btn {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.recall-btn:hover {
+  background: #fee;
+  color: #c0392b;
+}
   position: absolute;
   background: var(--screen-bg-color);
   display: flex;

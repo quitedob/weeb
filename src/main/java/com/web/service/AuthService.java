@@ -63,6 +63,13 @@ public interface AuthService {
     User findByUsername(String username);
 
     /**
+     * 根据邮箱查询用户信息
+     * @param email 用户邮箱
+     * @return 用户信息
+     */
+    User findByEmail(String email);
+
+    /**
      * 根据用户名查询用户信息，并获取注册日期
      * @param username 用户名
      * @return 用户信息（带注册日期）

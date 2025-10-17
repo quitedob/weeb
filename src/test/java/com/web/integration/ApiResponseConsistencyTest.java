@@ -46,9 +46,9 @@ public class ApiResponseConsistencyTest {
         
         // Test ArticleCenterController endpoints
         testEndpointResponseFormat("GET", "/articles", null, false);
-        
-        // Test ChatListController endpoints
-        testEndpointResponseFormat("GET", "/api/v1/chat-list", null, false);
+
+        // Test ChatController endpoints (replaces deprecated ChatListController)
+        testEndpointResponseFormat("GET", "/api/chat", null, false);
     }
 
     @Test
@@ -130,7 +130,7 @@ public class ApiResponseConsistencyTest {
             "/api/auth/login",
             "/articles",
             "/api/user/profile",
-            "/api/v1/chat-list",
+            "/api/chat",
             "/api/notifications",
             "/api/search/articles?q=test"
         };
