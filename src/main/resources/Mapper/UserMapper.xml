@@ -326,7 +326,33 @@
         <if test="endDate != null and endDate != ''">
             AND DATE(u.registration_date) &lt;= #{endDate}
         </if>
-        ${sortClause}
+        ORDER BY
+        <choose>
+            <when test="sortBy == 'relevance'">
+                CASE
+                    WHEN u.username = #{keyword} THEN 1
+                    WHEN u.nickname = #{keyword} THEN 2
+                    WHEN u.username LIKE CONCAT(#{keyword}, '%') THEN 3
+                    WHEN u.nickname LIKE CONCAT(#{keyword}, '%') THEN 4
+                    ELSE 5
+                END, u.id DESC
+            </when>
+            <when test="sortBy == 'time_desc'">
+                u.registration_date DESC, u.id DESC
+            </when>
+            <when test="sortBy == 'time_asc'">
+                u.registration_date ASC, u.id ASC
+            </when>
+            <when test="sortBy == 'name_asc'">
+                u.username ASC, u.id ASC
+            </when>
+            <when test="sortBy == 'name_desc'">
+                u.username DESC, u.id DESC
+            </when>
+            <otherwise>
+                u.registration_date DESC, u.id DESC
+            </otherwise>
+        </choose>
         LIMIT #{offset}, #{limit}
     </select>
 
@@ -340,6 +366,73 @@
         </if>
         <if test="endDate != null and endDate != ''">
             AND DATE(u.registration_date) &lt;= #{endDate}
+        </if>
+    </select>
+
+    <!-- 高级搜索用户（支持多维度过滤） -->
+    <select id="searchUsersAdvanced" resultMap="UserResultMap">
+        SELECT id, username, sex, phone_number, user_email,
+               unique_article_link, unique_video_link, registration_date,
+               ip_ownership, type, avatar, nickname, badge,
+               login_time, bio, online_status
+        FROM user u
+        WHERE (u.username LIKE CONCAT('%', #{keyword}, '%')
+               OR u.nickname LIKE CONCAT('%', #{keyword}, '%'))
+        <if test="startDate != null and startDate != ''">
+            AND DATE(u.registration_date) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(u.registration_date) &lt;= #{endDate}
+        </if>
+        <if test="userTypes != null and userTypes.size() > 0">
+            AND u.type IN
+            <foreach collection="userTypes" item="userType" open="(" separator="," close=")">
+                #{userType}
+            </foreach>
+        </if>
+        <if test="onlineStatus != null">
+            AND u.online_status = #{onlineStatus}
+        </if>
+        ORDER BY
+        <choose>
+            <when test="sortBy == 'registration_date' and sortOrder == 'asc'">
+                u.registration_date ASC, u.id ASC
+            </when>
+            <when test="sortBy == 'registration_date' and sortOrder == 'desc'">
+                u.registration_date DESC, u.id DESC
+            </when>
+            <when test="sortBy == 'username' and sortOrder == 'asc'">
+                u.username ASC, u.id ASC
+            </when>
+            <when test="sortBy == 'username' and sortOrder == 'desc'">
+                u.username DESC, u.id DESC
+            </when>
+            <otherwise>
+                u.registration_date DESC, u.id DESC
+            </otherwise>
+        </choose>
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 统计高级搜索用户数量 -->
+    <select id="countSearchUsersAdvanced" resultType="long">
+        SELECT COUNT(*) FROM user u
+        WHERE (u.username LIKE CONCAT('%', #{keyword}, '%')
+               OR u.nickname LIKE CONCAT('%', #{keyword}, '%'))
+        <if test="startDate != null and startDate != ''">
+            AND DATE(u.registration_date) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND DATE(u.registration_date) &lt;= #{endDate}
+        </if>
+        <if test="userTypes != null and userTypes.size() > 0">
+            AND u.type IN
+            <foreach collection="userTypes" item="userType" open="(" separator="," close=")">
+                #{userType}
+            </foreach>
+        </if>
+        <if test="onlineStatus != null">
+            AND u.online_status = #{onlineStatus}
         </if>
     </select>
 

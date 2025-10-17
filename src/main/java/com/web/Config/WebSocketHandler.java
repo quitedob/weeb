@@ -80,6 +80,18 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
                 case "heartbeat":
                     handleHeartbeatMessage(ctx, message);
                     break;
+                case "typing":
+                    handleTypingMessage(ctx, message);
+                    break;
+                case "message_status":
+                    handleMessageStatusMessage(ctx, message);
+                    break;
+                case "reaction":
+                    handleReactionMessage(ctx, message);
+                    break;
+                case "recall":
+                    handleRecallMessage(ctx, message);
+                    break;
                 default:
                     log.warn("未知消息类型: {}", message.getType());
                     sendErrorMessage(ctx, "未知消息类型");
@@ -184,6 +196,179 @@ public class WebSocketHandler extends SimpleChannelInboundHandler<Object> {
         response.setData(ResultUtil.Fail(errorMsg));
         response.setTimestamp(new Date());
         sendMessage(ctx, response);
+    }
+
+    /**
+     * 处理打字指示器消息
+     */
+    private void handleTypingMessage(ChannelHandlerContext ctx, WebSocketMessage message) {
+        try {
+            Long userId = WebSocketService.Online_Channel.get(ctx.channel());
+            if (userId == null) {
+                sendErrorMessage(ctx, "请先认证");
+                return;
+            }
+
+            // 解析打字数据
+            Object typingData = message.getData();
+            if (typingData instanceof java.util.Map) {
+                java.util.Map<?, ?> typingMap = (java.util.Map<?, ?>) typingData;
+
+                Long targetId = Long.valueOf(typingMap.get("targetId").toString());
+                String chatType = typingMap.get("chatType").toString(); // PRIVATE 或 GROUP
+                String action = typingMap.get("action").toString(); // start 或 stop
+
+                // 构建打字指示器消息转发给目标用户
+                WebSocketMessage typingResponse = new WebSocketMessage();
+                typingResponse.setType("typing");
+                typingResponse.setFromUserId(userId);
+                typingResponse.setToUserId(targetId);
+                typingResponse.setData(java.util.Map.of(
+                    "fromUserId", userId,
+                    "action", action,
+                    "chatType", chatType,
+                    "timestamp", new Date()
+                ));
+                typingResponse.setTimestamp(new Date());
+
+                // 发送给目标用户
+                webSocketService.sendMsgToUser(typingResponse, userId, targetId);
+            }
+        } catch (Exception e) {
+            log.error("处理打字指示器消息失败", e);
+            sendErrorMessage(ctx, "打字指示器消息发送失败");
+        }
+    }
+
+    /**
+     * 处理消息状态更新消息
+     */
+    private void handleMessageStatusMessage(ChannelHandlerContext ctx, WebSocketMessage message) {
+        try {
+            Long userId = WebSocketService.Online_Channel.get(ctx.channel());
+            if (userId == null) {
+                sendErrorMessage(ctx, "请先认证");
+                return;
+            }
+
+            // 解析消息状态数据
+            Object statusData = message.getData();
+            if (statusData instanceof java.util.Map) {
+                java.util.Map<?, ?> statusMap = (java.util.Map<?, ?>) statusData;
+
+                String messageId = statusMap.get("messageId").toString();
+                Integer status = Integer.valueOf(statusMap.get("status").toString());
+                Long targetId = Long.valueOf(statusMap.get("targetId").toString());
+
+                // 构建消息状态更新消息转发给发送者
+                WebSocketMessage statusResponse = new WebSocketMessage();
+                statusResponse.setType("message_status");
+                statusResponse.setMessageId(messageId);
+                statusResponse.setFromUserId(userId);
+                statusResponse.setToUserId(targetId);
+                statusResponse.setMessageStatus(status);
+                statusResponse.setData(java.util.Map.of(
+                    "messageId", messageId,
+                    "status", status,
+                    "fromUserId", userId,
+                    "timestamp", new Date()
+                ));
+                statusResponse.setTimestamp(new Date());
+
+                // 发送给消息发送者
+                webSocketService.sendMsgToUser(statusResponse, userId, targetId);
+            }
+        } catch (Exception e) {
+            log.error("处理消息状态更新消息失败", e);
+            sendErrorMessage(ctx, "消息状态更新失败");
+        }
+    }
+
+    /**
+     * 处理消息反应消息
+     */
+    private void handleReactionMessage(ChannelHandlerContext ctx, WebSocketMessage message) {
+        try {
+            Long userId = WebSocketService.Online_Channel.get(ctx.channel());
+            if (userId == null) {
+                sendErrorMessage(ctx, "请先认证");
+                return;
+            }
+
+            // 解析反应数据
+            Object reactionData = message.getData();
+            if (reactionData instanceof java.util.Map) {
+                java.util.Map<?, ?> reactionMap = (java.util.Map<?, ?>) reactionData;
+
+                String messageId = reactionMap.get("messageId").toString();
+                String reaction = reactionMap.get("reaction").toString();
+                Long targetId = Long.valueOf(reactionMap.get("targetId").toString());
+                String action = reactionMap.get("action").toString(); // add 或 remove
+
+                // 构建反应消息转发给目标用户
+                WebSocketMessage reactionResponse = new WebSocketMessage();
+                reactionResponse.setType("reaction");
+                reactionResponse.setMessageId(messageId);
+                reactionResponse.setFromUserId(userId);
+                reactionResponse.setToUserId(targetId);
+                reactionResponse.setData(java.util.Map.of(
+                    "messageId", messageId,
+                    "reaction", reaction,
+                    "action", action,
+                    "fromUserId", userId,
+                    "timestamp", new Date()
+                ));
+                reactionResponse.setTimestamp(new Date());
+
+                // 发送给目标用户
+                webSocketService.sendMsgToUser(reactionResponse, userId, targetId);
+            }
+        } catch (Exception e) {
+            log.error("处理消息反应消息失败", e);
+            sendErrorMessage(ctx, "消息反应失败");
+        }
+    }
+
+    /**
+     * 处理消息撤回消息
+     */
+    private void handleRecallMessage(ChannelHandlerContext ctx, WebSocketMessage message) {
+        try {
+            Long userId = WebSocketService.Online_Channel.get(ctx.channel());
+            if (userId == null) {
+                sendErrorMessage(ctx, "请先认证");
+                return;
+            }
+
+            // 解析撤回数据
+            Object recallData = message.getData();
+            if (recallData instanceof java.util.Map) {
+                java.util.Map<?, ?> recallMap = (java.util.Map<?, ?>) recallData;
+
+                String messageId = recallMap.get("messageId").toString();
+                Long targetId = Long.valueOf(recallMap.get("targetId").toString());
+
+                // 构建撤回消息转发给目标用户
+                WebSocketMessage recallResponse = new WebSocketMessage();
+                recallResponse.setType("recall");
+                recallResponse.setMessageId(messageId);
+                recallResponse.setFromUserId(userId);
+                recallResponse.setToUserId(targetId);
+                recallResponse.setMessageStatus(5); // 已撤回状态
+                recallResponse.setData(java.util.Map.of(
+                    "messageId", messageId,
+                    "fromUserId", userId,
+                    "timestamp", new Date()
+                ));
+                recallResponse.setTimestamp(new Date());
+
+                // 发送给目标用户
+                webSocketService.sendMsgToUser(recallResponse, userId, targetId);
+            }
+        } catch (Exception e) {
+            log.error("处理消息撤回消息失败", e);
+            sendErrorMessage(ctx, "消息撤回失败");
+        }
     }
 
     /**

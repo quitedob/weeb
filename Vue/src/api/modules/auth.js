@@ -56,5 +56,27 @@ export default {
   // 重置密码
   resetPassword(data) {
     return axiosInstance.post('/api/reset', data);
+  },
+
+  // 发送密码重置链接
+  sendPasswordResetLink(email) {
+    return axiosInstance.post('/api/forgot-password', { email });
+  },
+
+  // 验证重置令牌
+  validateResetToken(token) {
+    return axiosInstance.get('/api/validate-reset-token', {
+      params: { token }
+    });
+  },
+
+  // 执行密码重置（前端页面调用的接口）
+  executePasswordReset(data) {
+    return axiosInstance.post('/api/password/execute-reset', data);
+  },
+
+  // 重置密码（原有的接口）
+  resetPasswordOld(data) {
+    return axiosInstance.post('/api/reset-password', data);
   }
 };

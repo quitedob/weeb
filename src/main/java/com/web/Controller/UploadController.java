@@ -3,6 +3,7 @@ package com.web.Controller;
 import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.service.StorageService;
+import com.web.util.ValidationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -10,10 +11,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * 文件上传控制器
@@ -23,6 +29,46 @@ import java.util.Map;
 @RequestMapping("/api/upload")
 @Slf4j
 public class UploadController {
+
+    // 允许的文件扩展名白名单
+    private static final Set<String> ALLOWED_FILE_EXTENSIONS = Set.of(
+        // 图片文件
+        "jpg", "jpeg", "png", "gif", "bmp", "webp",
+        // 文档文件
+        "pdf", "doc", "docx", "txt", "rtf",
+        // 压缩文件
+        "zip", "rar", "7z", "tar", "gz"
+    );
+
+    // 文件MIME类型映射
+    private static final Map<String, String> MIME_TYPE_MAP = Map.of(
+        "jpg", "image/jpeg",
+        "jpeg", "image/jpeg",
+        "png", "image/png",
+        "gif", "image/gif",
+        "bmp", "image/bmp",
+        "webp", "image/webp",
+        "pdf", "application/pdf",
+        "doc", "application/msword",
+        "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "txt", "text/plain",
+        "rtf", "application/rtf",
+        "zip", "application/zip",
+        "rar", "application/x-rar-compressed",
+        "7z", "application/x-7z-compressed"
+    );
+
+    // 文件魔术字节（文件头）
+    private static final Map<String, byte[]> FILE_SIGNATURES = Map.of(
+        "jpg", new byte[]{(byte)0xFF, (byte)0xD8, (byte)0xFF},
+        "jpeg", new byte[]{(byte)0xFF, (byte)0xD8, (byte)0xFF},
+        "png", new byte[]{(byte)0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A},
+        "gif", new byte[]{0x47, 0x49, 0x46, 0x38},
+        "bmp", new byte[]{0x42, 0x4D},
+        "pdf", new byte[]{0x25, 0x50, 0x44, 0x46},
+        "zip", new byte[]{0x50, 0x4B, 0x03, 0x04},
+        "rar", new byte[]{0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00}
+    );
 
     @Autowired
     private StorageService storageService;
@@ -36,30 +82,22 @@ public class UploadController {
             @RequestParam(value = "directory", defaultValue = "files") String directory,
             @Userid Long userId) {
 
-        try {
-            log.info("用户 {} 上传文件: {}", userId, file.getOriginalFilename());
+        log.info("用户 {} 上传文件: {}", userId, file.getOriginalFilename());
 
-            // 验证文件
-            validateFile(file);
+        // 验证文件
+        validateFile(file);
 
-            // 上传文件
-            String fileUrl = storageService.uploadFile(file, directory);
+        // 上传文件
+        String fileUrl = storageService.uploadFile(file, directory);
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("url", fileUrl);
-            result.put("filename", file.getOriginalFilename());
-            result.put("size", file.getSize());
-            result.put("contentType", file.getContentType());
+        Map<String, Object> result = new HashMap<>();
+        result.put("url", fileUrl);
+        result.put("filename", file.getOriginalFilename());
+        result.put("size", file.getSize());
+        result.put("contentType", file.getContentType());
 
-            log.info("文件上传成功: {}", fileUrl);
-            return ResponseEntity.ok(ApiResponse.success("文件上传成功", result));
-
-        } catch (Exception e) {
-            log.error("文件上传失败", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(ApiResponse.ErrorCode.FILE_UPLOAD_ERROR,
-                            "文件上传失败: " + e.getMessage()));
-        }
+        log.info("文件上传成功: {}", fileUrl);
+        return ResponseEntity.ok(ApiResponse.success("文件上传成功", result));
     }
 
     /**
@@ -71,35 +109,27 @@ public class UploadController {
             @RequestParam(value = "directory", defaultValue = "files") String directory,
             @Userid Long userId) {
 
-        try {
-            log.info("用户 {} 批量上传 {} 个文件", userId, files.length);
+        log.info("用户 {} 批量上传 {} 个文件", userId, files.length);
 
-            List<Map<String, Object>> results = new ArrayList<>();
+        List<Map<String, Object>> results = new ArrayList<>();
 
-            for (MultipartFile file : files) {
-                // 验证文件
-                validateFile(file);
+        for (MultipartFile file : files) {
+            // 验证文件
+            validateFile(file);
 
-                // 上传文件
-                String fileUrl = storageService.uploadFile(file, directory);
+            // 上传文件
+            String fileUrl = storageService.uploadFile(file, directory);
 
-                Map<String, Object> result = new HashMap<>();
-                result.put("url", fileUrl);
-                result.put("filename", file.getOriginalFilename());
-                result.put("size", file.getSize());
-                result.put("contentType", file.getContentType());
-                results.add(result);
-            }
-
-            log.info("批量文件上传成功，共 {} 个文件", results.size());
-            return ResponseEntity.ok(ApiResponse.success("批量上传成功", results));
-
-        } catch (Exception e) {
-            log.error("批量文件上传失败", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(ApiResponse.ErrorCode.FILE_UPLOAD_ERROR,
-                            "批量上传失败: " + e.getMessage()));
+            Map<String, Object> result = new HashMap<>();
+            result.put("url", fileUrl);
+            result.put("filename", file.getOriginalFilename());
+            result.put("size", file.getSize());
+            result.put("contentType", file.getContentType());
+            results.add(result);
         }
+
+        log.info("批量文件上传成功，共 {} 个文件", results.size());
+        return ResponseEntity.ok(ApiResponse.success("批量上传成功", results));
     }
 
     /**
@@ -110,29 +140,21 @@ public class UploadController {
             @RequestParam("avatar") MultipartFile avatar,
             @Userid Long userId) {
 
-        try {
-            log.info("用户 {} 上传头像", userId);
+        log.info("用户 {} 上传头像", userId);
 
-            // 验证头像文件
-            validateAvatarFile(avatar);
+        // 验证头像文件
+        validateAvatarFile(avatar);
 
-            // 上传到头像目录
-            String avatarUrl = storageService.uploadFile(avatar, "avatars");
+        // 上传到头像目录
+        String avatarUrl = storageService.uploadFile(avatar, "avatars");
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("avatarUrl", avatarUrl);
-            result.put("filename", avatar.getOriginalFilename());
-            result.put("size", avatar.getSize());
+        Map<String, Object> result = new HashMap<>();
+        result.put("avatarUrl", avatarUrl);
+        result.put("filename", avatar.getOriginalFilename());
+        result.put("size", avatar.getSize());
 
-            log.info("头像上传成功: {}", avatarUrl);
-            return ResponseEntity.ok(ApiResponse.success("头像上传成功", result));
-
-        } catch (Exception e) {
-            log.error("头像上传失败", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(ApiResponse.ErrorCode.FILE_UPLOAD_ERROR,
-                            "头像上传失败: " + e.getMessage()));
-        }
+        log.info("头像上传成功: {}", avatarUrl);
+        return ResponseEntity.ok(ApiResponse.success("头像上传成功", result));
     }
 
     /**
@@ -144,41 +166,34 @@ public class UploadController {
             @RequestParam("groupId") Long groupId,
             @Userid Long userId) {
 
-        try {
-            log.info("用户 {} 为群组 {} 上传头像", userId, groupId);
+        log.info("用户 {} 为群组 {} 上传头像", userId, groupId);
 
-            // 验证头像文件
-            validateAvatarFile(avatar);
+        // 验证头像文件
+        validateAvatarFile(avatar);
 
-            // 上传到群组头像目录
-            String avatarUrl = storageService.uploadFile(avatar, "group-avatars/" + groupId);
+        // 上传到群组头像目录
+        String avatarUrl = storageService.uploadFile(avatar, "group-avatars/" + groupId);
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("avatarUrl", avatarUrl);
-            result.put("groupId", groupId);
-            result.put("filename", avatar.getOriginalFilename());
-            result.put("size", avatar.getSize());
+        Map<String, Object> result = new HashMap<>();
+        result.put("avatarUrl", avatarUrl);
+        result.put("groupId", groupId);
+        result.put("filename", avatar.getOriginalFilename());
+        result.put("size", avatar.getSize());
 
-            log.info("群组头像上传成功: {}", avatarUrl);
-            return ResponseEntity.ok(ApiResponse.success("群组头像上传成功", result));
-
-        } catch (Exception e) {
-            log.error("群组头像上传失败", e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(ApiResponse.ErrorCode.FILE_UPLOAD_ERROR,
-                            "群组头像上传失败: " + e.getMessage()));
-        }
+        log.info("群组头像上传成功: {}", avatarUrl);
+        return ResponseEntity.ok(ApiResponse.success("群组头像上传成功", result));
     }
 
     /**
-     * 验证文件
+     * 安全验证文件
      */
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("文件不能为空");
         }
 
-        if (file.getSize() > 10 * 1024 * 1024) { // 10MB
+        // 文件大小限制（10MB）
+        if (file.getSize() > 10 * 1024 * 1024) {
             throw new IllegalArgumentException("文件大小不能超过10MB");
         }
 
@@ -187,11 +202,86 @@ public class UploadController {
             throw new IllegalArgumentException("文件名不能为空");
         }
 
-        // 检查文件扩展名安全性
-        String extension = getFileExtension(filename);
-        if (isDangerousExtension(extension)) {
+        // 检查文件名安全性（防止路径遍历攻击）
+        if (!ValidationUtils.validateFileName(filename)) {
+            throw new IllegalArgumentException("文件名包含非法字符");
+        }
+
+        // 获取文件扩展名
+        String extension = getFileExtension(filename).toLowerCase();
+
+        // 白名单验证
+        if (!ALLOWED_FILE_EXTENSIONS.contains(extension)) {
             throw new IllegalArgumentException("不支持的文件类型: " + extension);
         }
+
+        // MIME类型验证
+        String expectedMimeType = MIME_TYPE_MAP.get(extension);
+        if (expectedMimeType != null) {
+            String actualMimeType = file.getContentType();
+            if (actualMimeType == null || !actualMimeType.equals(expectedMimeType)) {
+                throw new IllegalArgumentException("文件类型与扩展名不匹配");
+            }
+        }
+
+        // 魔术字节验证（文件内容验证）
+        if (!validateFileContent(file, extension)) {
+            throw new IllegalArgumentException("文件内容验证失败，可能为恶意文件");
+        }
+    }
+
+    /**
+     * 验证文件内容（魔术字节）
+     */
+    private boolean validateFileContent(MultipartFile file, String extension) {
+        try (InputStream inputStream = file.getInputStream()) {
+            byte[] header = new byte[10];
+            int bytesRead = inputStream.read(header);
+
+            if (bytesRead <= 0) {
+                return false;
+            }
+
+            byte[] expectedSignature = FILE_SIGNATURES.get(extension);
+            if (expectedSignature != null) {
+                return startsWith(header, expectedSignature);
+            }
+
+            // 对于没有定义魔术字节的文件类型，进行基本的检查
+            return !isBinaryFile(header);
+        } catch (IOException e) {
+            log.error("验证文件内容失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 检查字节数组是否以指定前缀开头
+     */
+    private boolean startsWith(byte[] data, byte[] prefix) {
+        if (data.length < prefix.length) {
+            return false;
+        }
+        for (int i = 0; i < prefix.length; i++) {
+            if (data[i] != prefix[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 检查是否为二进制文件
+     */
+    private boolean isBinaryFile(byte[] header) {
+        // 检查前100字节中是否包含null字节
+        int checkLength = Math.min(header.length, 100);
+        for (int i = 0; i < checkLength; i++) {
+            if (header[i] == 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

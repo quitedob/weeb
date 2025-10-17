@@ -192,4 +192,58 @@ public interface UserMapper extends BaseMapper<User> {
     long countSearchUsersWithFilters(@Param("keyword") String keyword,
                                    @Param("startDate") String startDate,
                                    @Param("endDate") String endDate);
+
+    /**
+     * 高级搜索用户（支持多维度过滤）
+     * @param keyword 搜索关键词
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param userTypes 用户类型列表
+     * @param onlineStatus 在线状态
+     * @param minFansCount 最小粉丝数
+     * @param maxFansCount 最大粉丝数
+     * @param minTotalLikes 最小总点赞数
+     * @param maxTotalLikes 最大总点赞数
+     * @param sortBy 排序字段
+     * @param sortOrder 排序方向
+     * @return 用户列表
+     */
+    List<User> searchUsersAdvanced(@Param("keyword") String keyword,
+                                  @Param("offset") int offset,
+                                  @Param("limit") int limit,
+                                  @Param("startDate") String startDate,
+                                  @Param("endDate") String endDate,
+                                  @Param("userTypes") List<Integer> userTypes,
+                                  @Param("onlineStatus") Integer onlineStatus,
+                                  @Param("minFansCount") Long minFansCount,
+                                  @Param("maxFansCount") Long maxFansCount,
+                                  @Param("minTotalLikes") Long minTotalLikes,
+                                  @Param("maxTotalLikes") Long maxTotalLikes,
+                                  @Param("sortBy") String sortBy,
+                                  @Param("sortOrder") String sortOrder);
+
+    /**
+     * 统计高级搜索用户数量
+     * @param keyword 搜索关键词
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param userTypes 用户类型列表
+     * @param onlineStatus 在线状态
+     * @param minFansCount 最小粉丝数
+     * @param maxFansCount 最大粉丝数
+     * @param minTotalLikes 最小总点赞数
+     * @param maxTotalLikes 最大总点赞数
+     * @return 总数
+     */
+    long countSearchUsersAdvanced(@Param("keyword") String keyword,
+                                 @Param("startDate") String startDate,
+                                 @Param("endDate") String endDate,
+                                 @Param("userTypes") List<Integer> userTypes,
+                                 @Param("onlineStatus") Integer onlineStatus,
+                                 @Param("minFansCount") Long minFansCount,
+                                 @Param("maxFansCount") Long maxFansCount,
+                                 @Param("minTotalLikes") Long minTotalLikes,
+                                 @Param("maxTotalLikes") Long maxTotalLikes);
 }

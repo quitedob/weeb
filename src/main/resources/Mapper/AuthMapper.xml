@@ -14,6 +14,15 @@
         WHERE username = #{username}
     </select>
 
+    <!-- 根据邮箱查询用户信息 -->
+    <select id="findByEmail" parameterType="string" resultType="com.web.model.User">
+        SELECT id, username, password, sex, phone_number, user_email,
+               unique_article_link, unique_video_link, registration_date,
+               ip_ownership, type, avatar, nickname, badge, login_time, bio, online_status, status
+        FROM user
+        WHERE user_email = #{email}
+    </select>
+
     <!-- 统计邮箱数量 -->
     <select id="countByEmail" parameterType="string" resultType="long">
         SELECT COUNT(*) FROM user WHERE user_email = #{userEmail}

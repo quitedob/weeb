@@ -91,28 +91,10 @@ public class SearchServiceImpl implements SearchService {
         // 计算偏移量
         int offset = page * size;
 
-        // 构建排序条件
-        String sortClause = "ORDER BY g.create_time DESC"; // 默认按创建时间排序
-        if (sortBy != null) {
-            switch (sortBy) {
-                case "time_asc":
-                    sortClause = "ORDER BY g.create_time ASC";
-                    break;
-                case "name_asc":
-                    sortClause = "ORDER BY g.group_name ASC";
-                    break;
-                case "name_desc":
-                    sortClause = "ORDER BY g.group_name DESC";
-                    break;
-                case "relevance":
-                default:
-                    // 相关度排序，使用默认的数据库排序逻辑
-                    sortClause = "ORDER BY g.create_time DESC";
-                    break;
-            }
-        }
+        // 设置默认排序方式
+        String safeSortBy = sortBy != null ? sortBy : "time_desc";
 
-        List<Group> groups = groupMapper.searchGroupsWithFilters(keyword.trim(), offset, size, startDate, endDate, sortClause);
+        List<Group> groups = groupMapper.searchGroupsWithFilters(keyword.trim(), offset, size, startDate, endDate, safeSortBy);
         long total = groupMapper.countSearchGroupsWithFilters(keyword.trim(), startDate, endDate);
 
         Map<String, Object> result = new HashMap<>();
@@ -135,28 +117,10 @@ public class SearchServiceImpl implements SearchService {
         // 计算偏移量
         int offset = page * size;
 
-        // 构建排序条件
-        String sortClause = "ORDER BY u.create_time DESC"; // 默认按创建时间排序
-        if (sortBy != null) {
-            switch (sortBy) {
-                case "time_asc":
-                    sortClause = "ORDER BY u.create_time ASC";
-                    break;
-                case "name_asc":
-                    sortClause = "ORDER BY u.username ASC";
-                    break;
-                case "name_desc":
-                    sortClause = "ORDER BY u.username DESC";
-                    break;
-                case "relevance":
-                default:
-                    // 相关度排序，使用默认的数据库排序逻辑
-                    sortClause = "ORDER BY u.create_time DESC";
-                    break;
-            }
-        }
+        // 设置默认排序方式
+        String safeSortBy = sortBy != null ? sortBy : "time_desc";
 
-        List<User> users = userMapper.searchUsersWithFilters(keyword.trim(), offset, size, startDate, endDate, sortClause);
+        List<User> users = userMapper.searchUsersWithFilters(keyword.trim(), offset, size, startDate, endDate, safeSortBy);
         long total = userMapper.countSearchUsersWithFilters(keyword.trim(), startDate, endDate);
 
         // 过滤敏感信息（不返回密码等）
@@ -166,6 +130,72 @@ public class SearchServiceImpl implements SearchService {
 
         Map<String, Object> result = new HashMap<>();
         result.put("list", users);
+        result.put("total", total);
+
+        return result;
+    }
+
+    @Override
+    public Map<String, Object> searchUsersAdvanced(String keyword, int page, int size, String startDate, String endDate,
+                                                   List<Integer> userTypes, Integer onlineStatus,
+                                                   Long minFansCount, Long maxFansCount, Long minTotalLikes, Long maxTotalLikes,
+                                                   String sortBy) {
+        // 参数验证
+        if (keyword == null || keyword.trim().isEmpty()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("list", List.of());
+            result.put("total", 0L);
+            return result;
+        }
+
+        // 计算偏移量
+        int offset = page * size;
+
+        // 设置默认排序方式
+        String safeSortBy = sortBy != null ? sortBy : "time_desc";
+
+        List<User> users = userMapper.searchUsersAdvanced(keyword.trim(), offset, size, startDate, endDate,
+                userTypes, onlineStatus, minFansCount, maxFansCount, minTotalLikes, maxTotalLikes, safeSortBy, "desc");
+
+        long total = userMapper.countSearchUsersAdvanced(keyword.trim(), startDate, endDate,
+                userTypes, onlineStatus, minFansCount, maxFansCount, minTotalLikes, maxTotalLikes);
+
+        // 过滤敏感信息（不返回密码等）
+        users.forEach(user -> {
+            user.setPassword(null); // 不返回密码
+        });
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", users);
+        result.put("total", total);
+
+        return result;
+    }
+
+    @Override
+    public Map<String, Object> searchGroupsAdvanced(String keyword, int page, int size, String startDate, String endDate,
+                                                    List<Integer> groupTypes, Boolean isPublic, String sortBy) {
+        // 参数验证
+        if (keyword == null || keyword.trim().isEmpty()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("list", List.of());
+            result.put("total", 0L);
+            return result;
+        }
+
+        // 计算偏移量
+        int offset = page * size;
+
+        // 设置默认排序方式
+        String safeSortBy = sortBy != null ? sortBy : "time_desc";
+
+        List<Group> groups = groupMapper.searchGroupsAdvanced(keyword.trim(), offset, size, startDate, endDate,
+                groupTypes, isPublic, safeSortBy, "desc");
+
+        long total = groupMapper.countSearchGroupsAdvanced(keyword.trim(), startDate, endDate, groupTypes, isPublic);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", groups);
         result.put("total", total);
 
         return result;

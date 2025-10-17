@@ -21,6 +21,13 @@ public interface AuthMapper {
     User findByUsername(@Param("username") String username);
 
     /**
+     * 根据邮箱查询用户信息
+     * @param email 邮箱
+     * @return 用户对象
+     */
+    User findByEmail(@Param("email") String email);
+
+    /**
      * 统计邮箱数量
      * @param userEmail 邮箱
      * @return 邮箱数量

@@ -228,6 +228,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public User findByEmail(String email) {
+        return authMapper.findByEmail(email);
+    }
+
+    @Override
     public User findDateByUsername(String username) {
         return authMapper.findDateByUsername(username);
     }
