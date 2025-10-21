@@ -190,14 +190,19 @@
 
             <!-- 消息展示区 -->
             <div class="chat-show-area" ref="chatShowAreaRef">
-              <div
-                  v-for="msg in msgRecord"
-                  :key="msg.id || msg.tempId"
-                  class="msg-item"
-                  :style="{
-                  justifyContent: msg.fromId === userInfoStore.userId ? 'flex-end' : 'flex-start'
-                }"
+              <VirtualMessageList
+                ref="virtualMessageListRef"
+                :msg-record="msgRecord"
+                :height="400"
+                :item-height="80"
               >
+                <template #default="{ message: msg, index }">
+                  <div
+                    class="msg-item"
+                    :style="{
+                      justifyContent: msg.fromId === userInfoStore.userId ? 'flex-end' : 'flex-start'
+                    }"
+                  >
                 <div class="chat-message-container">
                   <!-- 如果消息已撤回则显示提示，否则显示消息内容 -->
                   <div class="bubble" :class="{ 'sent-message': msg.fromId === userInfoStore.userId }">
@@ -254,7 +259,9 @@
                     </button>
                   </div>
                 </div>
-              </div>
+                  </div>
+                </template>
+              </VirtualMessageList>
               <!-- 正在发送提示 -->
               <div v-if="isSendLoading" class="sending-indicator">
                 <strong>发送中...</strong>
@@ -428,6 +435,8 @@ import { useRouter } from 'vue-router'
 import { useChatStore } from '@/stores/chatStore'
 // 导入 AuthStore 用于获取用户信息
 import { useAuthStore } from '@/stores/authStore'
+// 导入虚拟消息列表组件
+import VirtualMessageList from '@/components/VirtualMessageList.vue'
 
 const router = useRouter()
 const chatStore = useChatStore()
@@ -622,6 +631,7 @@ const userMap = ref({})
 const onlineUsers = ref([])
 // 用户搜索关键词
 const userSearchValue = ref('')
+const virtualMessageListRef = ref(null)
 
 // 根据搜索关键词过滤用户列表（使用 username 字段）
 const userListFiltered = computed(() => {
@@ -1207,6 +1217,10 @@ function closeMask() {
 // 模拟滚动到底部，重置新消息计数
 function scrollToBottom() {
   currentNewMsgCount.value = 0
+  // 使用虚拟列表组件的滚动到底部方法
+  if (virtualMessageListRef.value) {
+    virtualMessageListRef.value.scrollToBottom()
+  }
 }
 
 /**

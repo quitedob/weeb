@@ -37,8 +37,10 @@ public class CorsConfig {
             // 开发环境：允许本地开发端口，启用credentials以支持Authorization头
             configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",
-                "http://localhost:5174", 
+                "http://localhost:5174",
+                    "http://localhost:5175",
                 "http://127.0.0.1:5173",
+                    "http://127.0.0.1:5175",
                 "http://127.0.0.1:5174"
             ));
             configuration.setAllowCredentials(true); // 开发环境启用credentials以支持JWT

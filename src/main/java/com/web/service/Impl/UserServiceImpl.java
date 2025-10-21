@@ -2,14 +2,23 @@ package com.web.service.impl;
 
 import com.web.mapper.UserMapper;
 import com.web.mapper.UserStatsMapper;
+import com.web.model.Permission;
 import com.web.model.User;
 import com.web.model.UserStats;
 import com.web.model.UserWithStats;
+import com.web.service.PermissionService;
 import com.web.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,11 +30,19 @@ import java.util.Map;
 @Transactional
 public class UserServiceImpl implements UserService {
 
+    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
+
     @Autowired
     private UserMapper userMapper;
 
     @Autowired
     private UserStatsMapper userStatsMapper;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private PermissionService permissionService;
 
     @Override
     public UserWithStats getUserProfile(Long userId) {
@@ -275,5 +292,279 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserStats getUserStatsOnly(Long userId) {
         return userStatsMapper.selectByUserId(userId);
+    }
+
+    @Override
+    public Map<String, Object> getUsersWithPaging(int page, int pageSize, String keyword) {
+        try {
+            Map<String, Object> result = new HashMap<>();
+
+            // 计算偏移量
+            int offset = (page - 1) * pageSize;
+
+            // 查询用户列表
+            List<UserWithStats> users;
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                users = userMapper.selectUsersWithStatsByKeyword(keyword.trim(), offset, pageSize);
+            } else {
+                users = userMapper.selectUsersWithStatsWithPaging(offset, pageSize);
+            }
+
+            // 查询总数量
+            int total;
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                total = userMapper.countUsersByKeyword(keyword.trim());
+            } else {
+                total = userMapper.countUsers();
+            }
+
+            result.put("list", users);
+            result.put("total", total);
+            result.put("page", page);
+            result.put("pageSize", pageSize);
+            result.put("totalPages", (int) Math.ceil((double) total / pageSize));
+
+            return result;
+        } catch (Exception e) {
+            log.error("分页查询用户失败: page={}, pageSize={}, keyword={}", page, pageSize, keyword, e);
+            throw new RuntimeException("分页查询用户失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean banUser(Long userId) {
+        try {
+            // 检查用户是否存在
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                throw new RuntimeException("用户不存在: " + userId);
+            }
+
+            // 设置用户状态为禁用
+            user.setStatus(0); // 0表示禁用
+            user.setUpdatedAt(new Date());
+            int result = userMapper.updateUser(user);
+
+            if (result > 0) {
+                log.info("封禁用户成功: userId={}", userId);
+                return true;
+            } else {
+                throw new RuntimeException("封禁用户失败");
+            }
+        } catch (Exception e) {
+            log.error("封禁用户失败: userId={}", userId, e);
+            throw new RuntimeException("封禁用户失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean unbanUser(Long userId) {
+        try {
+            // 检查用户是否存在
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                throw new RuntimeException("用户不存在: " + userId);
+            }
+
+            // 设置用户状态为启用
+            user.setStatus(1); // 1表示启用
+            user.setUpdatedAt(new Date());
+            int result = userMapper.updateUser(user);
+
+            if (result > 0) {
+                log.info("解封用户成功: userId={}", userId);
+                return true;
+            } else {
+                throw new RuntimeException("解封用户失败");
+            }
+        } catch (Exception e) {
+            log.error("解封用户失败: userId={}", userId, e);
+            throw new RuntimeException("解封用户失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean resetUserPassword(Long userId, String newPassword) {
+        try {
+            // 检查用户是否存在
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                throw new RuntimeException("用户不存在: " + userId);
+            }
+
+            // 检查新密码是否有效
+            if (newPassword == null || newPassword.trim().isEmpty()) {
+                throw new RuntimeException("新密码不能为空");
+            }
+
+            // 加密新密码
+            String encodedPassword = passwordEncoder.encode(newPassword.trim());
+
+            // 更新密码
+            user.setPassword(encodedPassword);
+            user.setUpdatedAt(new Date());
+            int result = userMapper.updateUser(user);
+
+            if (result > 0) {
+                log.info("重置用户密码成功: userId={}", userId);
+                return true;
+            } else {
+                throw new RuntimeException("重置用户密码失败");
+            }
+        } catch (Exception e) {
+            log.error("重置用户密码失败: userId={}", userId, e);
+            throw new RuntimeException("重置用户密码失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Map<String, Object> getSystemStatistics() {
+        try {
+            Map<String, Object> stats = new HashMap<>();
+
+            // 获取用户总数
+            int totalUsers = userMapper.countUsers();
+            stats.put("totalUsers", totalUsers);
+
+            // 获取活跃用户数（最近30天有活动的用户）
+            Date thirtyDaysAgo = Date.from(LocalDateTime.now().minusDays(30).atZone(ZoneId.systemDefault()).toInstant());
+            int activeUsers = userMapper.countActiveUsers(thirtyDaysAgo);
+            stats.put("activeUsers", activeUsers);
+
+            // 获取新注册用户数（最近7天）
+            Date sevenDaysAgo = Date.from(LocalDateTime.now().minusDays(7).atZone(ZoneId.systemDefault()).toInstant());
+            int newUsers = userMapper.countNewUsers(sevenDaysAgo);
+            stats.put("newUsers", newUsers);
+
+            // 获取被封禁用户数
+            int bannedUsers = userMapper.countBannedUsers();
+            stats.put("bannedUsers", bannedUsers);
+
+            // 获取用户统计数据汇总
+            Map<String, Object> userStatsSummary = userStatsMapper.selectUserStatsSummary();
+            stats.put("userStats", userStatsSummary);
+
+            // 计算用户活跃度
+            double activityRate = totalUsers > 0 ? (double) activeUsers / totalUsers * 100 : 0;
+            stats.put("activityRate", Math.round(activityRate * 100.0) / 100.0);
+
+            log.debug("获取系统统计信息成功");
+            return stats;
+        } catch (Exception e) {
+            log.error("获取系统统计信息失败", e);
+            throw new RuntimeException("获取系统统计信息失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean changePassword(Long userId, String currentPassword, String newPassword) {
+        try {
+            // 检查用户是否存在
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                throw new RuntimeException("用户不存在: " + userId);
+            }
+
+            // 验证当前密码
+            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                throw new RuntimeException("当前密码不正确");
+            }
+
+            // 检查新密码是否有效
+            if (newPassword == null || newPassword.trim().isEmpty()) {
+                throw new RuntimeException("新密码不能为空");
+            }
+
+            // 检查新密码是否与旧密码相同
+            if (passwordEncoder.matches(newPassword, user.getPassword())) {
+                throw new RuntimeException("新密码不能与旧密码相同");
+            }
+
+            // 加密新密码
+            String encodedPassword = passwordEncoder.encode(newPassword.trim());
+
+            // 更新密码
+            user.setPassword(encodedPassword);
+            user.setUpdatedAt(new Date());
+            int result = userMapper.updateUser(user);
+
+            if (result > 0) {
+                log.info("修改密码成功: userId={}", userId);
+                return true;
+            } else {
+                throw new RuntimeException("修改密码失败");
+            }
+        } catch (Exception e) {
+            log.error("修改密码失败: userId={}", userId, e);
+            throw new RuntimeException("修改密码失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public User findByUsername(String username) {
+        try {
+            if (username == null || username.trim().isEmpty()) {
+                return null;
+            }
+            return userMapper.selectByUsername(username.trim());
+        } catch (Exception e) {
+            log.error("根据用户名查找用户失败: username={}", username, e);
+            return null;
+        }
+    }
+
+    @Override
+    public List<Permission> getUserPermissions(Long userId) {
+        try {
+            if (userId == null) {
+                return List.of();
+            }
+            return userMapper.selectUserPermissions(userId);
+        } catch (Exception e) {
+            log.error("获取用户权限失败: userId={}", userId, e);
+            return List.of();
+        }
+    }
+
+    @Override
+    public boolean isArticleOwner(Long userId, Long articleId) {
+        try {
+            if (userId == null || articleId == null) {
+                return false;
+            }
+            Long articleOwnerId = userMapper.selectArticleOwnerId(articleId);
+            return userId.equals(articleOwnerId);
+        } catch (Exception e) {
+            log.error("检查文章所有权失败: userId={}, articleId={}", userId, articleId, e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean isMessageOwner(Long userId, Long messageId) {
+        try {
+            if (userId == null || messageId == null) {
+                return false;
+            }
+            Long messageOwnerId = userMapper.selectMessageOwnerId(messageId);
+            return userId.equals(messageOwnerId);
+        } catch (Exception e) {
+            log.error("检查消息所有权失败: userId={}, messageId={}", userId, messageId, e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean isGroupOwner(Long userId, Long groupId) {
+        try {
+            if (userId == null || groupId == null) {
+                return false;
+            }
+            Long groupOwnerId = userMapper.selectGroupOwnerId(groupId);
+            return userId.equals(groupOwnerId);
+        } catch (Exception e) {
+            log.error("检查群组所有权失败: userId={}, groupId={}", userId, groupId, e);
+            return false;
+        }
     }
 }

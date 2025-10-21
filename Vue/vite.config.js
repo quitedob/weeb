@@ -3,9 +3,25 @@ import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import path from 'path';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(async ({ mode }) => {
   // 加载环境变量
   const env = loadEnv(mode, process.cwd(), '');
+
+  // 动态导入插件以支持条件加载
+  const plugins = [vue()];
+
+  // 开发环境下添加 bundle 分析器
+  if (mode === 'development') {
+    const { visualizer } = await import('rollup-plugin-visualizer');
+    plugins.push(
+      visualizer({
+        open: true,
+        filename: 'dist/stats.html',
+        gzipSize: true,
+        brotliSize: true,
+      })
+    );
+  }
 
   return {
     css: {
@@ -16,7 +32,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [vue()],
+    plugins,
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'), // 使用 path.resolve 确保路径正确
@@ -37,6 +53,55 @@ export default defineConfig(({ mode }) => {
     // 确保环境变量在客户端代码中可用
     define: {
       __VITE_ENV__: JSON.stringify(env),
+    },
+    // 构建优化配置
+    build: {
+      target: 'es2015',
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: mode === 'production', // 生产环境移除 console
+          drop_debugger: true,
+        },
+      },
+      rollupOptions: {
+        output: {
+          // 手动代码分割配置
+          manualChunks: {
+            // 核心库
+            'vendor': ['vue', 'vue-router', 'pinia'],
+            // UI 库
+            'ui-library': ['element-plus'],
+            // 编辑器相关
+            'editor': ['quill'],
+            // 工具库
+            'utils': ['lodash-es', 'dayjs'],
+            // WebSocket 相关
+            'websocket': ['socket.io-client'],
+          },
+          // 按入口点分割
+          chunkFileNames: 'assets/js/[name]-[hash].js',
+          entryFileNames: 'assets/js/[name]-[hash].js',
+          assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+        },
+      },
+      // 大文件警告限制
+      chunkSizeWarningLimit: 1000,
+      // 小资源内联限制（4KB）
+      assetsInlineLimit: 4096,
+    },
+    // 预加载优化
+    optimizeDeps: {
+      include: [
+        'vue',
+        'vue-router',
+        'pinia',
+        'element-plus',
+        'quill',
+        'lodash-es',
+        'dayjs',
+        'socket.io-client'
+      ],
     },
   };
 });

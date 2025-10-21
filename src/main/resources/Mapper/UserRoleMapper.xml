@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.UserRoleMapper">
+
+    <!-- 为用户分配角色 -->
+    <insert id="assignRoleToUser">
+        INSERT INTO user_role (user_id, role_id, created_at)
+        VALUES (#{userId}, #{roleId}, NOW())
+    </insert>
+
+    <!-- 从用户移除角色 -->
+    <delete id="removeRoleFromUser">
+        DELETE FROM user_role
+        WHERE user_id = #{userId} AND role_id = #{roleId}
+    </delete>
+
+    <!-- 获取用户的角色ID列表 -->
+    <select id="selectRoleIdsByUserId" resultType="long">
+        SELECT role_id FROM user_role
+        WHERE user_id = #{userId}
+    </select>
+
+    <!-- 获取用户的角色名称列表 -->
+    <select id="selectRoleNamesByUserId" resultType="string">
+        SELECT r.name FROM role r
+        INNER JOIN user_role ur ON r.id = ur.role_id
+        WHERE ur.user_id = #{userId} AND r.status = 1
+    </select>
+
+    <!-- 获取用户的权限名称集合 -->
+    <select id="selectPermissionNamesByUserId" resultType="string">
+        SELECT DISTINCT p.name FROM permission p
+        INNER JOIN role_permission rp ON p.id = rp.permission_id
+        INNER JOIN user_role ur ON rp.role_id = ur.role_id
+        WHERE ur.user_id = #{userId} AND p.status = 1
+    </select>
+
+    <!-- 检查用户是否拥有指定角色 -->
+    <select id="hasRole" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM user_role
+        WHERE user_id = #{userId} AND role_id = #{roleId}
+    </select>
+
+    <!-- 检查用户是否拥有指定角色名称 -->
+    <select id="hasRoleByName" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM user_role ur
+        INNER JOIN role r ON ur.role_id = r.id
+        WHERE ur.user_id = #{userId} AND r.name = #{roleName} AND r.status = 1
+    </select>
+
+    <!-- 检查用户是否拥有指定权限 -->
+    <select id="hasPermission" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM user_role ur
+        INNER JOIN role_permission rp ON ur.role_id = rp.role_id
+        INNER JOIN permission p ON rp.permission_id = p.id
+        WHERE ur.user_id = #{userId} AND p.name = #{permissionName} AND p.status = 1
+    </select>
+
+    <!-- 清空用户的所有角色 -->
+    <delete id="clearUserRoles">
+        DELETE FROM user_role WHERE user_id = #{userId}
+    </delete>
+
+    <!-- 为用户分配多个角色 -->
+    <insert id="assignRolesToUser">
+        INSERT INTO user_role (user_id, role_id, created_at)
+        VALUES
+        <foreach collection="roleIds" item="roleId" separator=",">
+            (#{userId}, #{roleId}, NOW())
+        </foreach>
+    </insert>
+
+</mapper>

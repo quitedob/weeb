@@ -4,10 +4,16 @@ import { useAuthStore } from './authStore';
 import api from '@/api';
 
 export const useChatStore = defineStore('chat', {
+  persist: {
+    key: 'chat-store',
+    paths: ['recentSessions', 'unreadCounts'],
+    storage: localStorage,
+  },
   state: () => ({
     activeChatSession: null, // Stores the currently active chat session object
                              // e.g., { id: 'group101', name: 'Tech Talk', type: 'GROUP', ... }
     chatMessages: {},        // Object to store messages per chatId: { chatId1: [msg1, msg2], chatId2: [...] }
+    chatPagination: {},      // Pagination info per chat: { chatId1: { hasMore: true, page: 1 }, ... }
     recentSessions: [],      // List of recent chat sessions for a chat list panel
     unreadCounts: {},        // Unread message counts per chatId: { chatId1: 2, chatId2: 0 }
     connectionStatus: 'disconnected', // WebSocket connection status: 'disconnected', 'connecting', 'connected', 'error'
@@ -17,6 +23,7 @@ export const useChatStore = defineStore('chat', {
     heartbeatInterval: null, // Heartbeat interval
     isTyping: {},            // Typing status per chatId: { chatId1: { userId1: true, userId2: false }, ... }
     onlineUsers: new Set(),  // Set of online user IDs
+    messageBatchSize: 50,    // Number of messages to load per batch
   }),
   getters: {
     currentChatId: (state) => state.activeChatSession ? state.activeChatSession.id : null,
@@ -27,6 +34,14 @@ export const useChatStore = defineStore('chat', {
       }
       return [];
     },
+    // Optimized getter for virtual scrolling - returns visible messages only
+    visibleMessagesForCurrentChat: (state) => (startIndex, visibleCount) => {
+      if (!state.activeChatSession || !state.chatMessages[state.activeChatSession.id]) {
+        return [];
+      }
+      const messages = state.chatMessages[state.activeChatSession.id];
+      return messages.slice(startIndex, startIndex + visibleCount);
+    },
     totalUnreadCount: (state) => {
       return Object.values(state.unreadCounts).reduce((total, count) => total + count, 0);
     },
@@ -35,6 +50,17 @@ export const useChatStore = defineStore('chat', {
       if (!state.activeChatSession) return false;
       const typingUsers = state.isTyping[state.activeChatSession.id];
       return typingUsers && Object.keys(typingUsers).some(userId => typingUsers[userId]);
+    },
+    // Pagination info for current chat
+    currentChatPagination: (state) => {
+      if (!state.activeChatSession) return null;
+      return state.chatPagination[state.activeChatSession.id] || { hasMore: false, page: 0 };
+    },
+    // Check if more messages can be loaded for current chat
+    canLoadMoreMessages: (state) => {
+      if (!state.activeChatSession) return false;
+      const pagination = state.chatPagination[state.activeChatSession.id];
+      return pagination ? pagination.hasMore : false;
     }
   },
   actions: {
@@ -295,15 +321,25 @@ export const useChatStore = defineStore('chat', {
       this.sendWebSocketMessage(message);
     },
 
-    async fetchMessagesForChat(chatId, page = 1, limit = 50) {
+    async fetchMessagesForChat(chatId, page = 1, limit = null) {
       try {
+        const batchSize = limit || this.messageBatchSize;
         const response = await api.message.getRecord({
           targetId: chatId,
-          index: (page - 1) * limit,
-          num: limit
+          index: (page - 1) * batchSize,
+          num: batchSize
         });
 
         if (response.code === 200 && response.data) {
+          const hasMore = response.data.length === batchSize;
+
+          // Update pagination info
+          this.chatPagination[chatId] = {
+            hasMore,
+            page,
+            total: response.data.length
+          };
+
           if (page === 1) {
             this.setMessages(chatId, response.data);
           } else {
@@ -315,6 +351,25 @@ export const useChatStore = defineStore('chat', {
       } catch (error) {
         console.error(`Failed to fetch messages for chat ${chatId}:`, error);
         throw error;
+      }
+    },
+
+    // Load more messages for current chat
+    async loadMoreMessages() {
+      if (!this.activeChatSession) return;
+
+      const chatId = this.activeChatSession.id;
+      const pagination = this.chatPagination[chatId] || { page: 0 };
+      const nextPage = pagination.page + 1;
+
+      await this.fetchMessagesForChat(chatId, nextPage);
+    },
+
+    // Clear messages for a chat to free memory
+    clearChatMessages(chatId) {
+      if (this.chatMessages[chatId]) {
+        delete this.chatMessages[chatId];
+        delete this.chatPagination[chatId];
       }
     },
 

@@ -1,5 +1,6 @@
 package com.web.service;
 
+import com.web.model.Permission;
 import com.web.model.User;
 import com.web.model.UserStats;
 import com.web.model.UserWithStats;
@@ -187,4 +188,54 @@ public interface UserService {
      * @return 用户统计数据
      */
     UserStats getUserStatsOnly(Long userId);
+
+    Map<String, Object> getUsersWithPaging(int page, int pageSize, String keyword);
+
+    boolean banUser(Long userId);
+
+    boolean unbanUser(Long userId);
+
+    boolean resetUserPassword(Long userId, String newPassword);
+
+    Map<String, Object> getSystemStatistics();
+
+    boolean changePassword(Long userId, String currentPassword, String newPassword);
+
+    /**
+     * 根据用户名查找用户
+     * @param username 用户名
+     * @return 用户对象
+     */
+    User findByUsername(String username);
+
+    /**
+     * 获取用户的所有权限
+     * @param userId 用户ID
+     * @return 用户权限列表
+     */
+    List<Permission> getUserPermissions(Long userId);
+
+    /**
+     * 检查用户是否是文章的所有者
+     * @param userId 用户ID
+     * @param articleId 文章ID
+     * @return 是否是所有者
+     */
+    boolean isArticleOwner(Long userId, Long articleId);
+
+    /**
+     * 检查用户是否是消息的所有者
+     * @param userId 用户ID
+     * @param messageId 消息ID
+     * @return 是否是所有者
+     */
+    boolean isMessageOwner(Long userId, Long messageId);
+
+    /**
+     * 检查用户是否是群组的所有者
+     * @param userId 用户ID
+     * @param groupId 群组ID
+     * @return 是否是所有者
+     */
+    boolean isGroupOwner(Long userId, Long groupId);
 }

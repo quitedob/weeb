@@ -1,6 +1,8 @@
 package com.web.Config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -18,6 +20,8 @@ import java.sql.Statement;
 @Slf4j
 @Component
 public class DatabaseInitializer implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -211,106 +215,155 @@ public class DatabaseInitializer implements CommandLineRunner {
      * 检查并创建所有表
      */
     private void checkAndCreateTables() {
-        log.info("开始检查数据库表...");
+        log.info("开始检查数据库表结构...");
+
+        // 定义所有需要检查的表及其结构
+        String[][] tables = {
+            {"user", "id,username,password,sex,phone_number,user_email,unique_article_link,unique_video_link,registration_date,ip_ownership,type,avatar,nickname,badge,login_time,bio,online_status,status"},
+            {"user_stats", "user_id,fans_count,total_likes,total_favorites,total_sponsorship,total_article_exposure,website_coins,created_at,updated_at"},
+            {"`group`", "id,group_name,owner_id,group_avatar_url,create_time"},
+            {"group_member", "id,group_id,user_id,role,join_time,update_time"},
+            {"contact", "id,user_id,friend_id,status,remarks,create_time,update_time"},
+            {"chat_list", "id,user_id,target_id,group_id,target_info,type,unread_count,last_message,create_time,update_time"},
+            {"message", "id,sender_id,chat_id,content,message_type,read_status,is_recalled,user_ip,source,is_show_time,reply_to_message_id,created_at,updated_at"},
+            {"message_reaction", "id,message_id,user_id,reaction_type,create_time"},
+            {"notifications", "id,recipient_id,actor_id,type,entity_type,entity_id,is_read,created_at"},
+            {"file_transfer", "id,initiator_id,target_id,offer_sdp,answer_sdp,candidate,status,created_at,updated_at"},
+            {"article_category", "id,category_name,parent_id,created_at"},
+            {"articles", "article_id,user_id,category_id,article_title,article_content,article_link,likes_count,favorites_count,sponsors_count,exposure_count,created_at,updated_at,status"},
+            {"article_comment", "id,article_id,user_id,content,parent_id,created_at,updated_at"},
+            {"article_favorite", "id,user_id,article_id,created_at"},
+            {"article_tag", "id,tag_name,created_at"},
+            {"article_tag_relation", "id,article_id,tag_id,created_at"},
+            {"file_record", "id,user_id,file_name,stored_name,file_path,file_size,mime_type,file_hash,is_public,created_at,updated_at"},
+            {"user_follow", "id,follower_id,followee_id,created_at"},
+            {"file_share", "id,file_id,sharer_id,shared_to_user_id,share_token,permission,expires_at,status,access_count,created_at,updated_at"}
+        };
+
+        boolean allTablesValid = true;
+
+        // 检查每个表的结构
+        for (String[] tableInfo : tables) {
+            String tableName = tableInfo[0];
+            String[] expectedColumns = tableInfo[1].split(",");
+
+            if (!validateTableStructure(tableName, expectedColumns)) {
+                log.warn("表 {} 结构不符合预期，将重建数据库", tableName);
+                allTablesValid = false;
+                break;
+            }
+        }
+
+        // 如果有任何表结构不符合要求，重建整个数据库
+        if (!allTablesValid) {
+            log.info("开始重建数据库...");
+            rebuildDatabase();
+        } else {
+            log.info("✅ 所有表结构验证通过");
+        }
+
+        log.info("数据库表结构检查完成");
+    }
+
+    /**
+     * 验证表结构是否符合预期
+     */
+    private boolean validateTableStructure(String tableName, String[] expectedColumns) {
+        try {
+            // 检查表是否存在
+            if (!tableExists(tableName)) {
+                log.info("表 {} 不存在", tableName);
+                return false;
+            }
+
+            // 获取表的列信息
+            String sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" +
+                        databaseName + "' AND TABLE_NAME = " +
+                        (tableName.startsWith("`") ? tableName : "'" + tableName + "'");
+
+            java.util.List<String> actualColumns = jdbcTemplate.queryForList(sql, String.class);
+
+            // 检查每个预期的列是否存在
+            for (String expectedColumn : expectedColumns) {
+                expectedColumn = expectedColumn.trim();
+                if (!actualColumns.contains(expectedColumn)) {
+                    log.warn("表 {} 缺少列: {}", tableName, expectedColumn);
+                    return false;
+                }
+            }
+
+            log.debug("表 {} 结构验证通过", tableName);
+            return true;
+
+        } catch (Exception e) {
+            log.error("验证表 {} 结构时出错: {}", tableName, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 重建整个数据库
+     */
+    private void rebuildDatabase() {
+        try {
+            log.info("删除旧数据库...");
+            String mysqlSystemUrl = getMysqlSystemUrl();
+
+            try (Connection connection = java.sql.DriverManager.getConnection(mysqlSystemUrl, dbUsername, dbPassword);
+                 Statement statement = connection.createStatement()) {
+
+                // 删除数据库
+                String dropDbSql = "DROP DATABASE IF EXISTS `" + databaseName + "`";
+                statement.execute(dropDbSql);
+                log.info("✅ 旧数据库删除成功");
+
+                // 创建新数据库
+                String createDbSql = "CREATE DATABASE `" + databaseName + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+                statement.execute(createDbSql);
+                log.info("✅ 新数据库创建成功");
+            }
+
+            // 重新连接到新数据库并创建所有表
+            checkDatabaseConnection();
+            createAllTables();
+            insertInitialData();
+
+            log.info("✅ 数据库重建完成");
+
+        } catch (Exception e) {
+            log.error("❌ 数据库重建失败", e);
+            throw new RuntimeException("数据库重建失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 创建所有表
+     */
+    private void createAllTables() {
+        log.info("开始创建所有表...");
 
         // 按依赖关系顺序创建表
-        
-        // 1. 核心用户表
-        if (!tableExists("user")) {
-            createUserTable();
-        }
+        createUserTable();
+        createUserStatsTable();
+        createGroupTable();
+        createGroupMemberTable();
+        createContactTable();
+        createChatListTable();
+        createMessageTable();
+        createMessageReactionTable();
+        createNotificationTable();
+        createFileTransferTable();
+        createArticleCategoryTable();
+        createArticleTable();
+        createArticleCommentTable();
+        createArticleFavoriteTable();
+        createArticleTagTable();
+        createArticleTagRelationTable();
+        createFileRecordTable();
+        createUserFollowTable();
+        createFileShareTable();
 
-        // 2. 用户统计表（依赖 user 表）
-        if (!tableExists("user_stats")) {
-            createUserStatsTable();
-        }
-
-        // 3. 群组表（依赖 user 表）
-        if (!tableExists("`group`")) {
-            createGroupTable();
-        }
-
-        // 5. 群组成员表（依赖 group 和 user 表）
-        if (!tableExists("group_member")) {
-            createGroupMemberTable();
-        }
-
-        // 6. 联系人表（依赖 user 表）
-        if (!tableExists("contact")) {
-            createContactTable();
-        }
-
-        // 7. 聊天列表表（依赖 user 表）
-        if (!tableExists("chat_list")) {
-            createChatListTable();
-        }
-
-        // 8. 消息表（依赖 user 和 group 表）
-        if (!tableExists("message")) {
-            createMessageTable();
-        }
-
-        // 9. 消息反应表（依赖 message 和 user 表）
-        if (!tableExists("message_reaction")) {
-            createMessageReactionTable();
-        }
-
-        // 10. 通知表（依赖 user 表）
-        if (!tableExists("notifications")) {
-            createNotificationTable();
-        }
-
-        // 11. 文件传输表（依赖 user 表）
-        if (!tableExists("file_transfer")) {
-            createFileTransferTable();
-        }
-
-        // 12. 文章分类表（需要在文章表之前创建）
-        if (!tableExists("article_category")) {
-            createArticleCategoryTable();
-        }
-
-        // 13. 文章表（依赖 user 表和 article_category 表）
-        if (!tableExists("articles")) {
-            createArticleTable();
-        }
-
-        // 14. 文章评论表（依赖 article 和 user 表）
-        if (!tableExists("article_comment")) {
-            createArticleCommentTable();
-        }
-
-        // 15. 文章收藏表（依赖 article 和 user 表）
-        if (!tableExists("article_favorite")) {
-            createArticleFavoriteTable();
-        }
-
-        // 16. 文章标签表
-        if (!tableExists("article_tag")) {
-            createArticleTagTable();
-        }
-
-        // 17. 文章与标签关联表
-        if (!tableExists("article_tag_relation")) {
-            createArticleTagRelationTable();
-        }
-
-        // 18. 文件记录表（依赖 user 表）
-        if (!tableExists("file_record")) {
-            createFileRecordTable();
-        }
-
-        // 19. 用户关注表（依赖 user 表）
-        if (!tableExists("user_follow")) {
-            createUserFollowTable();
-        }
-
-        // 20. 文件分享表（依赖 file_record 表）
-        if (!tableExists("file_share")) {
-            createFileShareTable();
-        }
-
-        log.info("数据库表检查完成");
+        log.info("✅ 所有表创建完成");
     }
 
     private boolean tableExists(String tableName) {
@@ -714,18 +767,85 @@ public class DatabaseInitializer implements CommandLineRunner {
         log.info("开始插入初始数据...");
 
         try {
+            log.info("检查并创建默认用户...");
+
             // 检查是否已有管理员用户
             Integer adminCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM user WHERE username = 'admin'", Integer.class);
-            
+
             if (adminCount == null || adminCount == 0) {
-                // 插入管理员用户
+                // 插入管理员用户 (密码: admin123)
                 jdbcTemplate.update("""
-                    INSERT INTO user (username, password, user_email, nickname, type, online_status)
-                    VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iKV6biekKXsE6X5w5R2fK5U2gO6', 'admin@example.com', '管理员', 'ADMIN', 0)
+                    INSERT INTO user (username, password, user_email, nickname, type, online_status, status, registration_date)
+                    VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iKV6biekKXsE6X5w5R2fK5U2gO6', 'admin@weeb.com', '系统管理员', 'ADMIN', 0, 1, NOW())
                     """);
-                
-                log.info("✅ 管理员用户创建成功");
+
+                // 获取管理员用户ID并插入统计信息
+                Long adminId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+                jdbcTemplate.update("""
+                    INSERT INTO user_stats (user_id, fans_count, total_likes, total_favorites, total_sponsorship, total_article_exposure, website_coins)
+                    VALUES (?, 100, 50, 25, 1000.00, 5000, 1000)
+                    """, adminId);
+
+                log.info("✅ 管理员用户创建成功 (用户名: admin, 密码: admin123)");
+            } else {
+                log.info("管理员用户已存在，跳过创建");
+            }
+
+            // 检查是否已有测试用户
+            Integer userCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM user WHERE username = 'testuser'", Integer.class);
+
+            if (userCount == null || userCount == 0) {
+                // 插入测试用户 (密码: test123)
+                jdbcTemplate.update("""
+                    INSERT INTO user (username, password, user_email, nickname, type, online_status, status)
+                    VALUES ('testuser', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iKV6biekKXsE6X5w5R2fK5U2gO6', 'test@weeb.com', '测试用户', 'USER', 1, 1)
+                    """);
+
+                // 获取测试用户ID并插入统计信息
+                Long testUserId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+                jdbcTemplate.update("""
+                    INSERT INTO user_stats (user_id, fans_count, total_likes, total_favorites, total_sponsorship, total_article_exposure, website_coins)
+                    VALUES (?, 10, 5, 3, 100.00, 500, 100)
+                    """, testUserId);
+
+                log.info("✅ 测试用户创建成功 (用户名: testuser, 密码: test123)");
+            }
+
+            // 插入更多测试用户
+            String[][] testUsers = {
+                {"alice", "alice@weeb.com", "爱丽丝", "100"},
+                {"bob", "bob@weeb.com", "鲍勃", "200"},
+                {"charlie", "charlie@weeb.com", "查理", "300"},
+                {"diana", "diana@weeb.com", "戴安娜", "400"},
+                {"eve", "eve@weeb.com", "伊芙", "500"}
+            };
+
+            for (String[] userInfo : testUsers) {
+                String username = userInfo[0];
+                String email = userInfo[1];
+                String nickname = userInfo[2];
+                String passwordHash = userInfo[3];
+
+                Integer existingUser = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM user WHERE username = '" + username + "'", Integer.class);
+
+                if (existingUser == null || existingUser == 0) {
+                    jdbcTemplate.update("""
+                        INSERT INTO user (username, password, user_email, nickname, type, online_status, status)
+                        VALUES (?, '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iKV6biekKXsE6X5w5R2fK5U2gO6', ?, ?, 'USER', 1, 1)
+                        """, username, email, nickname);
+
+                    Long userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+                    jdbcTemplate.update("""
+                        INSERT INTO user_stats (user_id, fans_count, total_likes, total_favorites, total_sponsorship, total_article_exposure, website_coins)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, userId, (int)(Math.random() * 50), (int)(Math.random() * 25), (int)(Math.random() * 10),
+                           Math.random() * 500, Math.random() * 1000, Math.random() * 200);
+
+                    log.info("✅ 测试用户 {} 创建成功", nickname);
+                }
             }
             
             // 检查是否已有文章分类

@@ -1,32 +1,9 @@
 // Vue/src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
+
+// Layout component (keep eager since it's used by all authenticated routes)
 import Layout from '../layout/Layout.vue';
-import ChatWindow from '../views/chat/ChatWindow.vue';
-import ContactPage from '../contact/ContactPage.vue';
-import SettingPage from '../views/Settings.vue';
-import SearchPage from '../search/SearchPage.vue';
-import Login from '../views/Login.vue';
-import Register from '../views/Register.vue';
-import Forget from '../views/Forget.vue';
-import UserDetail from '../views/UserDetail.vue';
-import NotFound from '../views/NotFound.vue';
-import GroupsPage from '../views/Groups.vue';
-import GroupDetail from '../views/group/GroupDetail.vue';
-
-// Import article components
-import ArticleMain from '../article/ArticleMain.vue';
-import ArticleRead from '../article/ArticleRead.vue';
-import ArticleWrite from '../article/ArticleWrite.vue';
-import ArticleManage from '../article/ArticleManage.vue';
-import ArticleEdit from '../article/ArticleEdit.vue';
-
-// Import group components
-import GroupPage from '../group/GroupPage.vue';
-
-// Import notification component
-import NotificationListPage from '../views/NotificationListPage.vue';
-import TestNotificationPage from '../views/TestNotificationPage.vue';
 
 
 
@@ -36,30 +13,135 @@ const routes = [
     component: Layout,
     redirect: '/chat',
     children: [
-      { path: '/chat', name: 'Chat', component: ChatWindow, meta: { title: '聊天', requiresAuth: true } },
-      { path: '/chat/:type/:id', name: 'SpecificChat', component: ChatWindow, props: true, meta: { title: '聊天', requiresAuth: true } },
-      { path: '/contact', name: 'Contact', component: ContactPage, meta: { title: '联系人', requiresAuth: true } },
+      {
+        path: '/chat',
+        name: 'Chat',
+        component: () => import(/* webpackChunkName: "chat" */ '../views/chat/ChatWindow.vue'),
+        meta: { title: '聊天', requiresAuth: true }
+      },
+      {
+        path: '/chat/:type/:id',
+        name: 'SpecificChat',
+        component: () => import(/* webpackChunkName: "chat" */ '../views/chat/ChatWindow.vue'),
+        props: true,
+        meta: { title: '聊天', requiresAuth: true }
+      },
+      {
+        path: '/contact',
+        name: 'Contact',
+        component: () => import(/* webpackChunkName: "contact" */ '../contact/ContactPage.vue'),
+        meta: { title: '联系人', requiresAuth: true }
+      },
       // Article Routes
-      { path: '/article', name: 'ArticleMain', component: ArticleMain, meta: { title: '文章中心', requiresAuth: true } },
-      { path: '/article/read/:articleId', name: 'ArticleRead', component: ArticleRead, props: true, meta: { title: '文章详情', requiresAuth: true } },
-      { path: '/article/write', name: 'ArticleWrite', component: ArticleWrite, meta: { title: '发布文章', requiresAuth: true } },
-      { path: '/article/manage', name: 'ArticleManage', component: ArticleManage, meta: { title: '管理文章', requiresAuth: true } },
-      { path: '/article/edit/:articleId', name: 'ArticleEdit', component: ArticleEdit, props: true, meta: { title: '编辑文章', requiresAuth: true } },
+      {
+        path: '/article',
+        name: 'ArticleMain',
+        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleMain.vue'),
+        meta: { title: '文章中心', requiresAuth: true }
+      },
+      {
+        path: '/article/read/:articleId',
+        name: 'ArticleRead',
+        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleRead.vue'),
+        props: true,
+        meta: { title: '文章详情', requiresAuth: true }
+      },
+      {
+        path: '/article/write',
+        name: 'ArticleWrite',
+        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleWrite.vue'),
+        meta: { title: '发布文章', requiresAuth: true }
+      },
+      {
+        path: '/article/manage',
+        name: 'ArticleManage',
+        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleManage.vue'),
+        meta: { title: '管理文章', requiresAuth: true }
+      },
+      {
+        path: '/article/edit/:articleId',
+        name: 'ArticleEdit',
+        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleEdit.vue'),
+        props: true,
+        meta: { title: '编辑文章', requiresAuth: true }
+      },
       // Existing Group and Settings routes
-      { path: '/groups', name: 'Groups', component: GroupsPage, meta: { title: '群组', requiresAuth: true } },
-      { path: '/groups/manage', name: 'GroupManage', component: GroupPage, meta: { title: '群组管理', requiresAuth: true } },
-      { path: '/group/:groupId', name: 'GroupDetail', component: GroupDetail, props: true, meta: { title: '群组详情', requiresAuth: true } },
-      { path: '/setting', name: 'Setting', component: SettingPage, meta: { title: '设置', requiresAuth: true } },
-      { path: '/search', name: 'Search', component: SearchPage, meta: { title: '搜索', requiresAuth: true } },
-      { path: '/notifications', name: 'Notifications', component: NotificationListPage, meta: { title: '通知中心', requiresAuth: true } },
-      { path: '/test-notifications', name: 'TestNotifications', component: TestNotificationPage, meta: { title: '通知测试', requiresAuth: true } },
-      { path: '/user/:userId', name: 'UserDetail', component: UserDetail, props: true, meta: { title: '用户详情', requiresAuth: true } }
+      {
+        path: '/groups',
+        name: 'Groups',
+        component: () => import(/* webpackChunkName: "group" */ '../views/Groups.vue'),
+        meta: { title: '群组', requiresAuth: true }
+      },
+      {
+        path: '/groups/manage',
+        name: 'GroupManage',
+        component: () => import(/* webpackChunkName: "group" */ '../group/GroupPage.vue'),
+        meta: { title: '群组管理', requiresAuth: true }
+      },
+      {
+        path: '/group/:groupId',
+        name: 'GroupDetail',
+        component: () => import(/* webpackChunkName: "group" */ '../views/group/GroupDetail.vue'),
+        props: true,
+        meta: { title: '群组详情', requiresAuth: true }
+      },
+      {
+        path: '/setting',
+        name: 'Setting',
+        component: () => import(/* webpackChunkName: "settings" */ '../views/Settings.vue'),
+        meta: { title: '设置', requiresAuth: true }
+      },
+      {
+        path: '/search',
+        name: 'Search',
+        component: () => import(/* webpackChunkName: "search" */ '../search/SearchPage.vue'),
+        meta: { title: '搜索', requiresAuth: true }
+      },
+      {
+        path: '/notifications',
+        name: 'Notifications',
+        component: () => import(/* webpackChunkName: "notifications" */ '../views/NotificationListPage.vue'),
+        meta: { title: '通知中心', requiresAuth: true }
+      },
+      {
+        path: '/test-notifications',
+        name: 'TestNotifications',
+        component: () => import(/* webpackChunkName: "notifications" */ '../views/TestNotificationPage.vue'),
+        meta: { title: '通知测试', requiresAuth: true }
+      },
+      {
+        path: '/user/:userId',
+        name: 'UserDetail',
+        component: () => import(/* webpackChunkName: "user" */ '../views/UserDetail.vue'),
+        props: true,
+        meta: { title: '用户详情', requiresAuth: true }
+      }
     ]
   },
-  { path: '/login', name: 'Login', component: Login, meta: { title: '登录' } },
-  { path: '/register', name: 'Register', component: Register, meta: { title: '注册' } },
-  { path: '/forget', name: 'Forget', component: Forget, meta: { title: '忘记密码' } },
-    { path: '/:pathMatch(.*)*', name: 'NotFound', component: NotFound, meta: { title: '页面未找到' } }
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import(/* webpackChunkName: "auth" */ '../views/Login.vue'),
+    meta: { title: '登录' }
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import(/* webpackChunkName: "auth" */ '../views/Register.vue'),
+    meta: { title: '注册' }
+  },
+  {
+    path: '/forget',
+    name: 'Forget',
+    component: () => import(/* webpackChunkName: "auth" */ '../views/Forget.vue'),
+    meta: { title: '忘记密码' }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import(/* webpackChunkName: "common" */ '../views/NotFound.vue'),
+    meta: { title: '页面未找到' }
+  }
 ];
 
 const router = createRouter({

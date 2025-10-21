@@ -41,22 +41,25 @@ public class UploadController {
     );
 
     // 文件MIME类型映射
-    private static final Map<String, String> MIME_TYPE_MAP = Map.of(
-        "jpg", "image/jpeg",
-        "jpeg", "image/jpeg",
-        "png", "image/png",
-        "gif", "image/gif",
-        "bmp", "image/bmp",
-        "webp", "image/webp",
-        "pdf", "application/pdf",
-        "doc", "application/msword",
-        "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "txt", "text/plain",
-        "rtf", "application/rtf",
-        "zip", "application/zip",
-        "rar", "application/x-rar-compressed",
-        "7z", "application/x-7z-compressed"
-    );
+    private static final Map<String, String> MIME_TYPE_MAP;
+    static {
+        Map<String, String> map = new HashMap<>();
+        map.put("jpg", "image/jpeg");
+        map.put("jpeg", "image/jpeg");
+        map.put("png", "image/png");
+        map.put("gif", "image/gif");
+        map.put("bmp", "image/bmp");
+        map.put("webp", "image/webp");
+        map.put("pdf", "application/pdf");
+        map.put("doc", "application/msword");
+        map.put("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        map.put("txt", "text/plain");
+        map.put("rtf", "application/rtf");
+        map.put("zip", "application/zip");
+        map.put("rar", "application/x-rar-compressed");
+        map.put("7z", "application/x-7z-compressed");
+        MIME_TYPE_MAP = Map.copyOf(map);
+    }
 
     // 文件魔术字节（文件头）
     private static final Map<String, byte[]> FILE_SIGNATURES = Map.of(

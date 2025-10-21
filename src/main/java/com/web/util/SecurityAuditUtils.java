@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -171,8 +172,8 @@ public class SecurityAuditUtils {
      * 获取当前请求信息
      */
     public static Map<String, String> getCurrentRequestInfo() {
-        Map<String, String> info = new ConcurrentHashMap<>();
-        
+        Map<String, String> info = new HashMap<>();
+
         try {
             HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
             if (request != null) {
@@ -190,7 +191,7 @@ public class SecurityAuditUtils {
         } catch (Exception e) {
             log.warn("获取请求信息失败", e);
         }
-        
+
         return info;
     }
 

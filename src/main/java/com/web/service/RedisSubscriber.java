@@ -2,32 +2,30 @@ package com.web.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.web.dto.RedisBroadcastMsg;
-import org.slf4j.Logger; // Added for logging
-import org.slf4j.LoggerFactory; // Added for logging
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 
 /**
- * Redis消息订阅者服务
- * 简化注释：Redis订阅者
+ * Redis message subscriber service
+ * Redis subscriber
  */
 @Service
 public class RedisSubscriber {
 
-    private static final Logger log = LoggerFactory.getLogger(RedisSubscriber.class); // Added logger
+    private static final Logger log = LoggerFactory.getLogger(RedisSubscriber.class);
 
     @Autowired
-    private WebSocketService webSocketService; // Assuming WebSocketService is injectable
+    private WebSocketService webSocketService;
 
-    // Using a static ObjectMapper is fine for this, or inject one if configured as a bean elsewhere
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * Redis消息的统一处理器. This method name "handleMessage" is configured in RedisConfig's MessageListenerAdapter.
-     * @param message 消息内容（JSON字符串 of RedisBroadcastMsg）
-     * 简化注释：处理消息
+     * Unified handler for Redis messages. This method name "handleMessage" is configured in RedisConfig's MessageListenerAdapter.
+     * @param message Message content (JSON string of RedisBroadcastMsg)
      */
     public void handleMessage(String message) {
         log.debug("Received message from Redis topic: {}", message);

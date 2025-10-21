@@ -6,6 +6,7 @@ import com.web.model.UserWithStats;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 用户统计数据Mapper接口
@@ -144,4 +145,10 @@ public interface UserStatsMapper extends BaseMapper<UserStats> {
      * @return 用户统计数据
      */
     UserStats selectUserStatsByUserId(@Param("userId") Long userId);
+
+    /**
+     * 获取用户统计摘要信息
+     * @return 用户统计摘要
+     */
+    Map<String, Object> selectUserStatsSummary();
 }

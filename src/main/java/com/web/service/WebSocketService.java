@@ -43,31 +43,20 @@ public class WebSocketService {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketService.class);
 
-    private static UserMapper userMapper;
-    private static ContactService contactService;
+    @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
+    private ContactService contactService;
+
     // Keep existing userService for now, as updateAndBroadcastStatus has a fallback to it.
     // Eventually, the direct userService.online/offline might be fully replaced.
     @Resource
     @Lazy // 延迟加载 AuthService，避免循环依赖
     AuthService userService;
 
-
     @Autowired
-    public void setUserMapper(UserMapper userMapper) {
-        WebSocketService.userMapper = userMapper;
-    }
-
-    @Autowired
-    public void setContactService(ContactService contactService) {
-        WebSocketService.contactService = contactService;
-    }
-
-    private static RedisTemplate<String, Object> redisTemplate;
-
-    @Autowired
-    public void setRedisTemplate(RedisTemplate<String, Object> redisTemplate) {
-        WebSocketService.redisTemplate = redisTemplate;
-    }
+    private RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 内部静态类，用于封装 WebSocket 消息的内容。
@@ -163,7 +152,7 @@ public class WebSocketService {
      * @param targetId 目标用户 ID
      */
     public void sendMsgToUser(Object msgPayload, Long fromUserId, Long targetId) { // msgPayload is likely a Message or NotifyDto
-        if (redisTemplate == null) {
+        if (this.redisTemplate == null) {
             log.warn("RedisTemplate not injected in sendMsgToUser for message from {} to {}. Message not sent via Redis.", fromUserId, targetId);
             // Fallback to direct send if user is local? Or just fail? For now, log and return.
             // Alternative: direct send if target is local, but that bypasses Redis for that message.
@@ -183,7 +172,7 @@ public class WebSocketService {
                 .build();
 
         // 通过 Redis 发布消息
-        redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, broadcastMsg);
+        this.redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, broadcastMsg);
         log.info("Message sent via Redis from user {} to user {}", fromUserId, targetId);
     }
 
@@ -239,7 +228,7 @@ public class WebSocketService {
     }
 
     private void updateAndBroadcastStatus(Long userId, UserOnlineStatus status) {
-        if (userMapper == null || contactService == null || redisTemplate == null) { // Added redisTemplate check
+        if (this.userMapper == null || this.contactService == null || this.redisTemplate == null) { // Added redisTemplate check
             log.warn("UserMapper, ContactService, or RedisTemplate not injected. Cannot update/broadcast status for user {}.", userId);
             // Potentially call original userService.online/offline as fallback if that's critical
             if (status == UserOnlineStatus.ONLINE && userService != null) {
@@ -253,7 +242,7 @@ public class WebSocketService {
             return;
         }
         log.info("Updating status for user {}: {}", userId, status.name());
-        userMapper.updateOnlineStatus(userId, status.getCode());
+        this.userMapper.updateOnlineStatus(userId, status.getCode());
 
         NotifyDto<Map<String, Object>> notifyDto = new NotifyDto<>();
         notifyDto.setType(WsContentType.STATUS_CHANGE.getCode());
@@ -262,7 +251,7 @@ public class WebSocketService {
 
         String messageBodyJson = JSONUtil.toJsonStr(notifyDto); // Serialize NotifyDto to JSON string for messageBody
 
-        List<Long> contactFriendIds = contactService.getContactUserIds(userId, com.web.constant.ContactStatus.ACCEPTED);
+        List<Long> contactFriendIds = this.contactService.getContactUserIds(userId, com.web.constant.ContactStatus.ACCEPTED);
 
         if (contactFriendIds != null && !contactFriendIds.isEmpty()) {
             log.info("Publishing status change of user {} to Redis for contacts: {}", userId, contactFriendIds);
@@ -271,7 +260,7 @@ public class WebSocketService {
                         .targetUserId(contactId)
                         .messageBody(messageBodyJson) // messageBody is the JSON string of NotifyDto
                         .build();
-                redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, broadcastMsg); // Send RedisBroadcastMsg object
+                this.redisTemplate.convertAndSend(RedisConfig.USER_MESSAGE_TOPIC, broadcastMsg); // Send RedisBroadcastMsg object
             }
         } else {
             log.info("User {} has no contacts to notify for status change.", userId);

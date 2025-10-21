@@ -3,6 +3,11 @@ import { defineStore } from 'pinia';
 import api from '@/api';
 
 export const useAuthStore = defineStore('auth', {
+  persist: {
+    key: 'auth-store',
+    paths: ['accessToken', 'currentUser'],
+    storage: localStorage,
+  },
   state: () => ({
     accessToken: localStorage.getItem('jwt_token') || null, // Consistent with user's interceptor example
     currentUser: JSON.parse(localStorage.getItem('currentUser')) || null,

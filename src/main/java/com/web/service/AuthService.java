@@ -13,7 +13,7 @@ public interface AuthService {
     User getAuthById(Long id);
 
     // 更新用户的基本信息
-    void updateAuth(User user);
+    boolean updateAuth(User user);
     /**
      * 根据用户名查询用户ID
      * @param username 用户名
