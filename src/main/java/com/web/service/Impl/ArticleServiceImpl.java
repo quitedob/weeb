@@ -397,4 +397,13 @@ public class ArticleServiceImpl implements ArticleService {
     public List<ArticleCategory> getAllCategories() {
         return articleCategoryMapper.getAllCategories();
     }
+
+    @Override
+    public Map<String, Object> searchArticlesAdvanced(String query, int page, int pageSize, String startDate, String endDate,
+                                                    List<Long> categoryIds, Long authorId, Integer status,
+                                                    Long minLikes, Long maxLikes, Long minExposure, Long maxExposure,
+                                                    String sortBy, String sortOrder) {
+        // TODO: Implement advanced search logic
+        return Map.of("list", List.of(), "total", 0);
+    }
 }

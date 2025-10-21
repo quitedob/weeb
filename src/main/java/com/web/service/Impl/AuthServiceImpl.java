@@ -61,8 +61,8 @@ public class AuthServiceImpl implements AuthService {
      * 更新用户认证信息（内部方法）
      * @param user 用户对象
      */
-    public void updateAuth(User user) {
-        authMapper.updateAuth(user);
+    public boolean updateAuth(User user) {
+        return authMapper.updateAuth(user) > 0;
     }
 
     @Override

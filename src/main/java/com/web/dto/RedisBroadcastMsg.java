@@ -2,32 +2,30 @@ package com.web.dto;
 
 import lombok.Builder;
 import lombok.Data;
-import lombok.AllArgsConstructor; // Added for builder flexibility
-import lombok.NoArgsConstructor;  // Added for deserialization flexibility
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
 /**
- * 在Redis Pub/Sub中广播的消息对象
- * 简化注释：Redis广播消息
+ * Message object broadcast in Redis Pub/Sub
+ * Redis broadcast message
  */
 @Data
 @Builder
-@NoArgsConstructor  // Important for Jackson deserialization
-@AllArgsConstructor // Useful for @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class RedisBroadcastMsg implements Serializable {
-    private static final long serialVersionUID = 1L; // Good practice for Serializable classes
+    private static final long serialVersionUID = 1L;
 
     /**
-     * 目标用户ID
-     * 简化注释：目标用户ID
+     * Target user ID
      */
     private Long targetUserId;
 
     /**
-     * 实际要发送的消息体（JSON字符串）
+     * Actual message body to be sent (JSON string)
      * This will typically be a serialized DTO like NotifyDto or MessageDto
-     * 简化注释：消息内容
      */
     private String messageBody;
 }

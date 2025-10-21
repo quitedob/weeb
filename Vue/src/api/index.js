@@ -7,7 +7,11 @@ import group from './modules/group';
 import search from './modules/search';
 import article from './modules/article';
 import notification from './modules/notification';
-import chat from './modules/chat';
+import message from './modules/message';
+import comment from './modules/comment';
+import fileManagement from './modules/fileManagement';
+import follow from './modules/follow';
+import contact from './modules/contact';
 
 export default {
   auth,
@@ -16,5 +20,9 @@ export default {
   search,
   article,
   notification,
-  chat,
+  message,
+  comment,
+  fileManagement,
+  follow,
+  contact,
 };

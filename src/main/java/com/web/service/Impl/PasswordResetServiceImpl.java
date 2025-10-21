@@ -1,5 +1,6 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
+import com.web.model.User;
 import com.web.service.PasswordResetService;
 import com.web.service.AuthService;
 import com.web.util.JwtUtil;
