@@ -377,35 +377,43 @@ mvn spring-boot:run
 
 ## 项目结构
 weeb/
-├── src/main/java/com/web/          # 后端主包 (197个Java文件)
-│   ├── annotation/                 # 自定义注解
+├── src/main/java/com/web/          # 后端主包 (270个Java文件)
+│   ├── annotation/                 # 自定义注解 (6个)
 │   │   ├── CommandInfo.java       # 命令信息注解
 │   │   ├── UrlFree.java           # URL免登录注解
 │   │   ├── UrlLimit.java          # URL限流注解
 │   │   ├── UrlResource.java       # URL资源注解
 │   │   ├── Userid.java            # 用户ID注解
 │   │   └── UserIp.java            # 用户IP注解
-│   ├── aop/                        # 面向切面编程
+│   ├── aop/                        # 面向切面编程 (2个)
 │   │   ├── MessageRateLimitAspect.java # 消息限流切面
 │   │   └── UrlLimitAspect.java     # URL限流切面
-│   ├── common/                     # 公共类
+│   ├── common/                     # 公共类 (1个)
 │   │   └── ApiResponse.java       # 统一API响应格式
-│   ├── Config/                     # 配置类
+│   ├── Config/                     # 配置类 (21个)
+│   │   ├── AIConfig.java          # AI功能配置
 │   │   ├── AsyncConfig.java       # 异步配置
 │   │   ├── CacheConfig.java       # 缓存配置
 │   │   ├── CorsConfig.java        # CORS跨域配置
 │   │   ├── DatabaseInitializer.java # 数据库自动初始化
 │   │   ├── ElasticsearchConfig.java # Elasticsearch配置
+│   │   ├── ElasticsearchRepositoryConfig.java # Elasticsearch仓库配置
+│   │   ├── MethodSecurityConfig.java # 方法安全配置
 │   │   ├── MybatisHandler.java    # MyBatis处理器
 │   │   ├── RedisConfig.java       # Redis配置
 │   │   ├── RedisHealthCheckConfig.java # Redis健康检查配置
 │   │   ├── SecurityBeansConfig.java # 安全Bean配置
 │   │   ├── SecurityConfig.java    # 安全配置
 │   │   ├── SensitiveWordConfig.java # 敏感词配置
+│   │   ├── SpringWebSocketConfig.java # Spring WebSocket配置
 │   │   ├── UserInfoArgumentResolver.java # 用户信息参数解析器
 │   │   ├── WebMvcConfig.java      # Web MVC配置
+│   │   ├── WebSocketConfig.java   # WebSocket配置
+│   │   ├── WebSocketHandler.java  # WebSocket处理器
+│   │   ├── WebSocketMessage.java  # WebSocket消息
+│   │   ├── WebSocketSecurityConfig.java # WebSocket安全配置
 │   │   └── WeebConfig.java        # 应用主配置
-│   ├── constant/                   # 常量类
+│   ├── constant/                   # 常量类 (13个)
 │   │   ├── BadgeType.java         # 徽章类型
 │   │   ├── ChatListType.java      # 聊天列表类型
 │   │   ├── ContactStatus.java     # 联系人状态
@@ -414,158 +422,213 @@ weeb/
 │   │   ├── MessageSource.java     # 消息来源
 │   │   ├── MessageType.java       # 消息类型
 │   │   ├── NotifyType.java        # 通知类型
+│   │   ├── Permissions.java       # 权限定义
 │   │   ├── TextContentType.java   # 文本内容类型
 │   │   ├── UserOnlineStatus.java  # 用户在线状态
 │   │   ├── UserType.java          # 用户类型
 │   │   └── WsContentType.java     # WebSocket内容类型
-│   ├── Controller/                 # REST控制器 (17个)
+│   ├── Controller/                 # REST控制器 (30个)
+│   │   ├── AdminController.java   # 管理员控制器
+│   │   ├── AIController.java      # AI功能控制器
 │   │   ├── ArticleCenterController.java # 文章中心控制器
 │   │   ├── ArticleCommentController.java # 文章评论控制器
+│   │   ├── ArticleVersionController.java # 文章版本控制器
 │   │   ├── AuthController.java    # 认证控制器
 │   │   ├── ChatController.java    # 聊天控制器
-│   │   ├── ChatListController.java # 聊天列表控制器
 │   │   ├── ContactController.java # 联系人控制器
+│   │   ├── ContentReportController.java # 内容举报控制器
 │   │   ├── FileController.java    # 文件控制器
 │   │   ├── FileManagementController.java # 文件管理控制器
 │   │   ├── GroupController.java   # 群组控制器
 │   │   ├── MessageController.java # 消息控制器
+│   │   ├── MessageThreadController.java # 消息线索控制器
 │   │   ├── MigrationController.java # 数据迁移控制器
 │   │   ├── NotificationController.java # 通知控制器
 │   │   ├── SearchController.java  # 搜索控制器
+│   │   ├── SecurityController.java # 安全控制器
+│   │   ├── StandardAuthController.java # 标准认证控制器
+│   │   ├── StandardGroupController.java # 标准群组控制器
+│   │   ├── StandardUserController.java # 标准用户控制器
 │   │   ├── UploadController.java  # 上传控制器
 │   │   ├── UserController.java    # 用户控制器
-│   │   └── UserFollowController.java # 用户关注控制器
+│   │   ├── UserFollowController.java # 用户关注控制器
+│   │   └── WebSocketMessageController.java # WebSocket消息控制器
 │   ├── WeebApplication.java       # Spring Boot主启动类
-│   ├── dto/                        # 数据传输对象
+│   ├── dto/                        # 数据传输对象 (4个)
 │   │   ├── NotifyDto.java         # 通知DTO
 │   │   ├── RedisBroadcastMsg.java # Redis广播消息
 │   │   ├── UrlLimitStats.java     # URL限流统计
 │   │   └── UserDto.java           # 用户DTO
-│   ├── exception/                  # 异常处理
+│   ├── exception/                  # 异常处理 (2个)
 │   │   ├── GlobalExceptionHandler.java # 全局异常处理器
 │   │   └── WeebException.java     # 自定义异常
-│   ├── filter/                     # 过滤器
+│   ├── filter/                     # 过滤器 (1个)
 │   │   └── JwtAuthenticationFilter.java # JWT认证过滤器
-│   ├── mapper/                     # MyBatis Mapper接口
+│   ├── mapper/                     # MyBatis Mapper接口 (30个)
+│   │   ├── ArticleCategoryMapper.java # 文章分类Mapper
 │   │   ├── ArticleCommentMapper.java # 文章评论Mapper
 │   │   ├── ArticleMapper.java     # 文章Mapper
+│   │   ├── ArticleTagMapper.java  # 文章标签Mapper
+│   │   ├── ArticleVersionMapper.java # 文章版本Mapper
 │   │   ├── AuthMapper.java        # 认证Mapper
 │   │   ├── ChatListMapper.java    # 聊天列表Mapper
 │   │   ├── ContactMapper.java     # 联系人Mapper
+│   │   ├── ContentReportMapper.java # 内容举报Mapper
 │   │   ├── FileMapper.java        # 文件Mapper
 │   │   ├── FileRecordMapper.java  # 文件记录Mapper
 │   │   ├── FileShareMapper.java   # 文件分享Mapper
 │   │   ├── GroupMapper.java       # 群组Mapper
 │   │   ├── GroupMemberMapper.java # 群组成员Mapper
+│   │   ├── LinkPreviewMapper.java # 链接预览Mapper
 │   │   ├── MessageMapper.java     # 消息Mapper
 │   │   ├── MessageReactionMapper.java # 消息反应Mapper
+│   │   ├── MessageThreadMapper.java # 消息线索Mapper
 │   │   ├── NotificationMapper.java # 通知Mapper
+│   │   ├── PermissionMapper.java  # 权限Mapper
+│   │   ├── RoleMapper.java        # 角色Mapper
 │   │   ├── UserFollowMapper.java  # 用户关注Mapper
 │   │   ├── UserMapper.java        # 用户Mapper
+│   │   ├── UserMentionMapper.java # 用户提及Mapper
+│   │   ├── UserRoleMapper.java    # 用户角色Mapper
 │   │   └── UserStatsMapper.java   # 用户统计Mapper
-│   ├── migration/                   # 数据库迁移
+│   ├── migration/                  # 数据库迁移 (3个)
 │   │   ├── DatabaseMigrationExecutor.java # 数据库迁移执行器
-│   │   ├── MigrationRunner.java      # 迁移运行器
-│   │   └── MigrationValidator.java   # 迁移验证器
-│   ├── model/                      # 数据模型
+│   │   ├── MigrationRunner.java   # 迁移运行器
+│   │   └── MigrationValidator.java # 迁移验证器
+│   ├── model/                      # 数据模型 (29个)
 │   │   ├── Article.java           # 文章模型
+│   │   ├── ArticleCategory.java   # 文章分类模型
 │   │   ├── ArticleComment.java    # 文章评论模型
+│   │   ├── ArticleTag.java        # 文章标签模型
+│   │   ├── ArticleVersion.java    # 文章版本模型
 │   │   ├── ChatList.java          # 聊天列表模型
 │   │   ├── Contact.java           # 联系人模型
-│   │   ├── elasticsearch/         # Elasticsearch文档
-│   │   │   └── MessageDocument.java # 消息文档
+│   │   ├── ContentReport.java     # 内容举报模型
 │   │   ├── FileRecord.java        # 文件记录模型
 │   │   ├── FileShare.java         # 文件分享模型
 │   │   ├── FileTransfer.java      # 文件传输模型
 │   │   ├── Group.java             # 群组模型
 │   │   ├── GroupMember.java       # 群组成员模型
+│   │   ├── LinkPreview.java       # 链接预览模型
 │   │   ├── Message.java           # 消息模型
 │   │   ├── MessageReaction.java   # 消息反应模型
+│   │   ├── MessageThread.java     # 消息线索模型
 │   │   ├── Notification.java      # 通知模型
+│   │   ├── Permission.java        # 权限模型
+│   │   ├── Role.java              # 角色模型
 │   │   ├── User.java              # 用户模型
 │   │   ├── UserFollow.java        # 用户关注模型
+│   │   ├── UserMention.java       # 用户提及模型
+│   │   ├── UserRole.java          # 用户角色模型
 │   │   ├── UserStats.java         # 用户统计模型
-│   │   └── UserWithStats.java     # 带统计的用户模型
-│   ├── repository/                 # 数据仓库层
+│   │   ├── UserWithStats.java     # 带统计的用户模型
+│   │   └── elasticsearch/         # Elasticsearch文档
+│   │       └── MessageDocument.java # 消息文档
+│   ├── repository/                 # 数据仓库层 (1个)
 │   │   └── MessageSearchRepository.java # 消息搜索仓库
-│   ├── runner/                     # 应用启动器
+│   ├── runner/                     # 应用启动器 (1个)
 │   │   └── UrlPassRunner.java     # URL通行启动器
-│   ├── schedule/                   # 定时任务
+│   ├── schedule/                   # 定时任务 (1个)
 │   │   └── ExpiredClearTask.java  # 过期清理任务
-│   ├── service/                    # 业务逻辑层 (37个)
-│   │   ├── AiChatService.java     # AI聊天服务
-│   │   ├── ArticleCommentService.java # 文章评论服务
-│   │   ├── ArticleService.java    # 文章服务
-│   │   ├── AuthService.java       # 认证服务
-│   │   ├── ChatListService.java   # 聊天列表服务
-│   │   ├── ChatService.java       # 聊天服务
-│   │   ├── ContactService.java    # 联系人服务
-│   │   ├── FileManagementService.java # 文件管理服务
-│   │   ├── FileService.java       # 文件服务
-│   │   ├── GroupService.java      # 群组服务
-│   │   ├── Impl/                  # 服务实现类 (18个)
-│   │   │   ├── ArticleCommentServiceImpl.java
-│   │   │   ├── ArticleServiceImpl.java
-│   │   │   ├── AuthServiceImpl.java
-│   │   │   ├── ChatListServiceImpl.java
-│   │   │   ├── ChatServiceImpl.java
-│   │   │   ├── ContactServiceImpl.java
-│   │   │   ├── FileManagementServiceImpl.java
-│   │   │   ├── FileServiceImpl.java
-│   │   │   ├── GroupServiceImpl.java
-│   │   │   ├── MessageServiceImpl.java
-│   │   │   ├── NotificationServiceImpl.java
-│   │   │   ├── SearchServiceImpl.java
-│   │   │   ├── StorageServiceImpl.java
-│   │   │   ├── UserFollowServiceImpl.java
-│   │   │   ├── UserServiceImpl.java
-│   │   │   ├── UserStatsServiceImpl.java
-│   │   │   └── UserTransactionServiceImpl.java
-│   │   ├── MessageService.java    # 消息服务
-│   │   ├── NotificationService.java # 通知服务
-│   │   ├── RedisSubscriber.java   # Redis订阅者
-│   │   ├── SearchService.java     # 搜索服务
-│   │   ├── StorageService.java    # 存储服务
-│   │   ├── UserFollowService.java # 用户关注服务
-│   │   ├── UserService.java       # 用户服务
-│   │   ├── UserStatsService.java  # 用户统计服务
-│   │   ├── UserTransactionService.java # 用户事务服务
-│   │   └── WebSocketService.java  # WebSocket服务
-│   ├── ssh/                        # SSH终端交互
+│   ├── security/                   # 安全模块 (1个)
+│   │   └── CustomPermissionEvaluator.java # 自定义权限评估器
+│   ├── service/                    # 业务逻辑层 (57个)
+│   │   ├── AIService.java         # AI服务接口
+│   │   ├── ArticleService.java    # 文章服务接口
+│   │   ├── ArticleVersionService.java # 文章版本服务接口
+│   │   ├── AuthService.java       # 认证服务接口
+│   │   ├── ChatListService.java   # 聊天列表服务接口
+│   │   ├── ChatService.java       # 聊天服务接口
+│   │   ├── ContactService.java    # 联系人服务接口
+│   │   ├── ContentReportService.java # 内容举报服务接口
+│   │   ├── FileManagementService.java # 文件管理服务接口
+│   │   ├── FileService.java       # 文件服务接口
+│   │   ├── GroupService.java      # 群组服务接口
+│   │   ├── LinkPreviewService.java # 链接预览服务接口
+│   │   ├── MessageService.java    # 消息服务接口
+│   │   ├── MessageThreadService.java # 消息线索服务接口
+│   │   ├── NotificationService.java # 通知服务接口
+│   │   ├── PermissionService.java # 权限服务接口
+│   │   ├── RBACService.java       # 基于角色的访问控制服务接口
+│   │   ├── RoleService.java       # 角色服务接口
+│   │   ├── SearchService.java     # 搜索服务接口
+│   │   ├── StorageService.java    # 存储服务接口
+│   │   ├── SystemPermissionInitializer.java # 系统权限初始化器
+│   │   ├── UserFollowService.java # 用户关注服务接口
+│   │   ├── UserMentionService.java # 用户提及服务接口
+│   │   ├── UserService.java       # 用户服务接口
+│   │   ├── UserStatsService.java  # 用户统计服务接口
+│   │   ├── UserTransactionService.java # 用户事务服务接口
+│   │   ├── WebSocketService.java  # WebSocket服务接口
+│   │   └── Impl/                  # 服务实现类 (32个)
+│   │       ├── AIServiceImpl.java # AI服务实现
+│   │       ├── ArticleServiceImpl.java # 文章服务实现
+│   │       ├── ArticleVersionServiceImpl.java # 文章版本服务实现
+│   │       ├── AuthServiceImpl.java # 认证服务实现
+│   │       ├── ChatListServiceImpl.java # 聊天列表服务实现
+│   │       ├── ChatServiceImpl.java # 聊天服务实现
+│   │       ├── ContactServiceImpl.java # 联系人服务实现
+│   │       ├── ContentReportServiceImpl.java # 内容举报服务实现
+│   │       ├── FileManagementServiceImpl.java # 文件管理服务实现
+│   │       ├── FileServiceImpl.java # 文件服务实现
+│   │       ├── GroupServiceImpl.java # 群组服务实现
+│   │       ├── LinkPreviewServiceImpl.java # 链接预览服务实现
+│   │       ├── MessageServiceImpl.java # 消息服务实现
+│   │       ├── MessageThreadServiceImpl.java # 消息线索服务实现
+│   │       ├── NotificationServiceImpl.java # 通知服务实现
+│   │       ├── PasswordResetServiceImpl.java # 密码重置服务实现
+│   │       ├── PermissionServiceImpl.java # 权限服务实现
+│   │       ├── RBACServiceImpl.java # RBAC服务实现
+│   │       ├── RoleServiceImpl.java # 角色服务实现
+│   │       ├── SearchServiceImpl.java # 搜索服务实现
+│   │       ├── StorageServiceImpl.java # 存储服务实现
+│   │       ├── SystemPermissionInitializer.java # 系统权限初始化器实现
+│   │       ├── UserFollowServiceImpl.java # 用户关注服务实现
+│   │       ├── UserMentionServiceImpl.java # 用户提及服务实现
+│   │       ├── UserServiceImpl.java # 用户服务实现
+│   │       ├── UserStatsServiceImpl.java # 用户统计服务实现
+│   │       ├── UserTransactionServiceImpl.java # 用户事务服务实现
+│   │       └── WeebApplication.java # Spring Boot主启动类
+│   ├── ssh/                        # SSH终端交互 (7个)
 │   │   ├── CommandManager.java    # 命令管理器
-│   │   ├── commands/              # 命令实现
+│   │   ├── commands/              # 命令实现 (3个)
 │   │   ├── CustomCommand.java     # 自定义命令
 │   │   └── InteractionConnect.java # 交互连接
-│   ├── util/                       # 工具类
+│   ├── util/                       # 工具类 (11个)
 │   │   ├── CacheUtil.java         # 缓存工具
 │   │   ├── DatabaseMigrationUtil.java # 数据库迁移工具
 │   │   ├── IpUtil.java            # IP工具
 │   │   ├── JwtUtil.java           # JWT工具
 │   │   ├── ResultUtil.java        # 结果工具
+│   │   ├── SecurityAuditUtils.java # 安全审计工具
 │   │   ├── SecurityUtil.java      # 安全工具
 │   │   ├── SqlInjectionUtils.java # SQL注入防护工具
-│   │   ├── ValidationUtils.java   # 输入验证工具
-│   │   ├── SecurityAuditUtils.java # 安全审计工具
 │   │   ├── UrlPermitUtil.java     # URL权限工具
-│   │   └── UserStatsUtil.java     # 用户统计工具
-│   └── vo/                         # 视图对象
-│       ├── article/                # 文章VO
-│       ├── auth/                   # 认证VO
-│       ├── chat/                   # 聊天VO
-│       ├── chatList/               # 聊天列表VO
-│       ├── comment/                # 评论VO
-│       ├── contact/                # 联系人VO
-│       ├── file/                   # 文件VO
-│       ├── group/                  # 群组VO
-│       ├── login/                  # 登录VO
-│       ├── message/                # 消息VO
-│       ├── user/                   # 用户VO
-│       └── video/                  # 视频VO
+│   │   ├── UserStatsUtil.java     # 用户统计工具
+│   │   └── ValidationUtils.java   # 输入验证工具
+│   └── vo/                         # 视图对象 (39个)
+│       ├── article/                # 文章相关VO
+│       ├── auth/                   # 认证相关VO
+│       ├── chat/                   # 聊天相关VO
+│       ├── chatList/               # 聊天列表相关VO
+│       ├── comment/                # 评论相关VO
+│       ├── contact/                # 联系人相关VO
+│       ├── file/                   # 文件相关VO
+│       ├── group/                  # 群组相关VO
+│       ├── login/                  # 登录相关VO
+│       ├── message/                # 消息相关VO
+│       ├── user/                   # 用户相关VO
+│       └── video/                  # 视频相关VO
 ├── src/main/resources/             # 资源文件
 │   ├── application.yml             # 主配置文件
+│   ├── application-ai.properties   # AI功能配置文件
+│   ├── db/                         # 数据库迁移脚本
+│   │   └── migration/              # Flyway迁移脚本
+│   │       └── V2__advanced_chat_features.sql # 高级聊天功能迁移脚本
 │   ├── es/                         # Elasticsearch配置
 │   │   └── README.md               # ES配置说明
-│   ├── Mapper/                     # MyBatis XML映射文件 (14个)
+│   ├── Mapper/                     # MyBatis XML映射文件 (18个)
+│   │   ├── ArticleCategoryMapper.xml # 文章分类Mapper映射
 │   │   ├── ArticleCommentMapper.xml # 文章评论Mapper映射
 │   │   ├── ArticleMapper.xml       # 文章Mapper映射
 │   │   ├── AuthMapper.xml          # 认证Mapper映射
@@ -577,13 +640,18 @@ weeb/
 │   │   ├── MessageMapper.xml       # 消息Mapper映射
 │   │   ├── MessageReactionMapper.xml # 消息反应Mapper映射
 │   │   ├── NotificationMapper.xml  # 通知Mapper映射
+│   │   ├── PermissionMapper.xml    # 权限Mapper映射
+│   │   ├── RoleMapper.xml          # 角色Mapper映射
 │   │   ├── UserFollowMapper.xml    # 用户关注Mapper映射
 │   │   ├── UserMapper.xml          # 用户Mapper映射
+│   │   ├── UserRoleMapper.xml      # 用户角色Mapper映射
 │   │   └── UserStatsMapper.xml     # 用户统计Mapper映射
 │   └── sql/                        # 数据库初始化脚本
-├── src/test/java/com/web/         # 测试代码
+│       ├── create_article_version_table.sql # 文章版本表创建脚本
+│       └── create_content_report_table.sql # 内容举报表创建脚本
+├── src/test/java/com/web/         # 测试代码 (15个)
 │   ├── Config/                    # 测试配置 (1个)
-│   │   └── [测试配置文件]
+│   │   └── DatabaseInitializerTest.java # 数据库初始化器测试
 │   ├── integration/               # 集成测试 (8个)
 │   │   ├── ApiResponseConsistencyTest.java # API响应一致性测试
 │   │   ├── BasicFunctionalityTest.java # 基础功能测试
@@ -594,16 +662,115 @@ weeb/
 │   │   ├── NotificationSystemValidationTest.java # 通知系统验证测试
 │   │   └── SystemValidationTest.java # 系统验证测试
 │   ├── mapper/                    # Mapper测试 (3个)
-│   │   └── [Mapper测试类]
+│   │   ├── ArticleMapperTest.java # 文章Mapper测试
+│   │   ├── UserMapperTest.java    # 用户Mapper测试
+│   │   └── UserStatsMapperTest.java # 用户统计Mapper测试
 │   └── performance/               # 性能测试 (3个)
-│       └── [性能测试类]
+│       ├── AuthenticationPerformanceTest.java # 认证性能测试
+│       ├── PerformanceBenchmarkTest.java # 性能基准测试
+│       └── PerformanceTestSuite.java # 性能测试套件
 ├── Vue/                           # 前端Vue项目
-├── mvnw                           # Maven Wrapper (Linux/Mac)
-├── mvnw.cmd                       # Maven Wrapper (Windows)
-├── pom.xml                        # Maven项目配置
-├── package.json                   # Node.js项目配置
-├── package-lock.json              # Node.js依赖锁定
-└── README.md                      # 项目文档
+│   ├── src/                      # 源代码目录
+│   │   ├── api/                  # API接口封装
+│   │   │   ├── API_DOCUMENTATION.md # API文档
+│   │   │   ├── axiosInstance.js  # Axios实例配置
+│   │   │   ├── index.js          # API统一导出
+│   │   │   └── modules/          # API模块 (11个)
+│   │   │       ├── article.js    # 文章API
+│   │   │       ├── auth.js       # 认证API
+│   │   │       ├── comment.js    # 评论API
+│   │   │       ├── contact.js    # 联系人API
+│   │   │       ├── fileManagement.js # 文件管理API
+│   │   │       ├── follow.js     # 关注API
+│   │   │       ├── group.js      # 群组API
+│   │   │       ├── message.js    # 消息API
+│   │   │       ├── notification.js # 通知API
+│   │   │       ├── search.js     # 搜索API
+│   │   │       └── user.js       # 用户API
+│   │   ├── App.vue               # Vue应用根组件
+│   │   ├── article/              # 文章相关页面 (5个)
+│   │   │   ├── ArticleEdit.vue   # 文章编辑
+│   │   │   ├── ArticleMain.vue   # 文章主页
+│   │   │   ├── ArticleManage.vue # 文章管理
+│   │   │   ├── ArticleRead.vue   # 文章阅读
+│   │   │   └── ArticleWrite.vue  # 文章写作
+│   │   ├── assets/               # 静态资源
+│   │   │   ├── apple-style.css   # Apple风格样式
+│   │   │   └── main.css          # 主样式文件
+│   │   ├── auth/                 # 认证相关页面 (4个)
+│   │   │   ├── HelpCenter.vue    # 帮助中心
+│   │   │   ├── Register.vue      # 注册页面
+│   │   │   ├── UserInform.vue    # 用户信息
+│   │   │   └── usermain.vue      # 用户主页
+│   │   ├── Chat/                 # 聊天相关页面
+│   │   │   └── ChatPage.vue      # 聊天页面
+│   │   │   └── components/       # 聊天组件 (4个)
+│   │   │       ├── CustomStatus.vue # 自定义状态组件
+│   │   │       ├── LinkPreview.vue # 链接预览组件
+│   │   │       ├── MessageThread.vue # 消息线索组件
+│   │   │       └── UserMention.vue # 用户提及组件
+│   │   ├── components/           # 通用组件
+│   │   │   └── VirtualMessageList.vue # 虚拟消息列表
+│   │   ├── contact/              # 联系人页面
+│   │   │   └── ContactPage.vue   # 联系人页面
+│   │   ├── group/                # 群组页面
+│   │   │   └── GroupPage.vue     # 群组页面
+│   │   ├── layout/               # 布局组件
+│   │   │   ├── AsideMenu.vue     # 侧边菜单
+│   │   │   ├── components/       # 布局子组件
+│   │   │   │   └── NotificationBell.vue # 通知铃铛
+│   │   │   └── Layout.vue        # 主布局
+│   │   ├── main.js               # Vue应用入口
+│   │   ├── router/               # 路由配置
+│   │   │   └── index.js          # 路由定义
+│   │   ├── search/               # 搜索页面
+│   │   │   └── SearchPage.vue    # 搜索页面
+│   │   ├── stores/               # Pinia状态管理
+│   │   │   ├── authStore.js      # 认证状态
+│   │   │   ├── chatStore.js      # 聊天状态
+│   │   │   └── notificationStore.js # 通知状态
+│   │   ├── utils/                # 工具类
+│   │   │   └── uuid.js           # UUID工具
+│   │   ├── value/                # 值组件 (2个)
+│   │   │   ├── usevalue.vue      # 使用值组件
+│   │   │   └── value.vue         # 值组件
+│   │   ├── video/                # 视频组件
+│   │   │   └── Video.vue         # 视频播放器
+│   │   └── views/                # 视图页面 (20个)
+│   │       ├── admin/            # 管理员页面 (4个)
+│   │       │   ├── Dashboard.vue # 管理仪表板
+│   │       │   ├── PermissionManagement.vue # 权限管理
+│   │       │   ├── RoleManagement.vue # 角色管理
+│   │       │   └── UserManagement.vue # 用户管理
+│   │       ├── chat/             # 聊天视图
+│   │       │   └── ChatWindow.vue # 聊天窗口
+│   │       ├── FileTransfer.vue  # 文件传输
+│   │       ├── Forget.vue        # 忘记密码
+│   │       ├── group/            # 群组视图
+│   │       │   └── GroupDetail.vue # 群组详情
+│   │       ├── Groups.vue        # 群组列表
+│   │       ├── Login.vue         # 登录页面
+│   │       ├── NotFound.vue      # 404页面
+│   │       ├── NotificationListPage.vue # 通知列表
+│   │       ├── Register.vue      # 注册页面
+│   │       ├── ResetPassword.vue # 重置密码
+│   │       ├── SecurityCenter.vue # 安全中心
+│   │       ├── Settings.vue      # 设置页面
+│   │       ├── TestNotificationPage.vue # 通知测试页面
+│   │       ├── UserDetail.vue    # 用户详情
+│   │       └── Video.vue         # 视频页面
+│   ├── public/                   # 静态资源
+│   │   └── favicon.ico           # 网站图标
+│   ├── package.json              # 项目依赖配置
+│   ├── package-lock.json         # 依赖锁定文件
+│   ├── vite.config.js            # Vite构建配置
+│   └── jsconfig.json             # JavaScript配置
+├── mvnw                         # Maven Wrapper (Linux/Mac)
+├── mvnw.cmd                     # Maven Wrapper (Windows)
+├── pom.xml                      # Maven项目配置
+├── package.json                 # Node.js项目配置
+├── package-lock.json            # Node.js依赖锁定
+└── README.md                    # 项目文档
 ---
 
 ## API 文档
