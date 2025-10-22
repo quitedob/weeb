@@ -1,5 +1,6 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.ArticleCommentMapper;
 import com.web.model.ArticleComment;
 import com.web.service.ArticleCommentService;
@@ -25,7 +26,7 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
     @Override
     public List<ArticleComment> getCommentsByArticleId(Long articleId) {
         if (!ValidationUtils.validateId(articleId, "文章ID")) {
-            throw new IllegalArgumentException("文章ID无效");
+            throw new WeebException("文章ID无效");
         }
         return articleCommentMapper.getCommentsByArticleId(articleId);
     }
@@ -34,16 +35,16 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
     public Long addComment(Long articleId, ArticleCommentVo commentVo, Long userId) {
         // 参数验证
         if (commentVo == null) {
-            throw new IllegalArgumentException("评论内容不能为空");
+            throw new WeebException("评论内容不能为空");
         }
         if (!ValidationUtils.validateId(articleId, "文章ID")) {
-            throw new IllegalArgumentException("文章ID无效");
+            throw new WeebException("文章ID无效");
         }
         if (!ValidationUtils.validateId(userId, "用户ID")) {
-            throw new IllegalArgumentException("用户ID无效");
+            throw new WeebException("用户ID无效");
         }
         if (!ValidationUtils.validateCommentContent(commentVo.getContent())) {
-            throw new IllegalArgumentException("评论内容不符合要求");
+            throw new WeebException("评论内容不符合要求");
         }
         
         ArticleComment comment = new ArticleComment();
@@ -64,10 +65,10 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
     @Override
     public boolean deleteComment(Long commentId, Long userId) {
         if (!ValidationUtils.validateId(commentId, "评论ID")) {
-            throw new IllegalArgumentException("评论ID无效");
+            throw new WeebException("评论ID无效");
         }
         if (!ValidationUtils.validateId(userId, "用户ID")) {
-            throw new IllegalArgumentException("用户ID无效");
+            throw new WeebException("用户ID无效");
         }
         
         int result = articleCommentMapper.deleteComment(commentId, userId);
@@ -77,7 +78,7 @@ public class ArticleCommentServiceImpl implements ArticleCommentService {
     @Override
     public int getCommentCount(Long articleId) {
         if (!ValidationUtils.validateId(articleId, "文章ID")) {
-            throw new IllegalArgumentException("文章ID无效");
+            throw new WeebException("文章ID无效");
         }
         return articleCommentMapper.countCommentsByArticleId(articleId);
     }

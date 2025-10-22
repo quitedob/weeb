@@ -3,12 +3,17 @@ package com.web.Controller;
 import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.service.AIService;
+import com.web.vo.ai.ArticleSummaryRequestVo;
+import com.web.vo.ai.TextRefineRequestVo;
+import com.web.vo.ai.TitleSuggestionRequestVo;
+import com.web.vo.ai.SentimentAnalysisRequestVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
@@ -31,10 +36,10 @@ public class AIController {
     @PostMapping("/article/summary")
     @PreAuthorize("hasPermission(null, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<String>> generateArticleSummary(
-            @RequestBody Map<String, Object> request) {
+            @RequestBody @Valid ArticleSummaryRequestVo summaryRequest) {
         try {
-            String content = (String) request.get("content");
-            Integer maxLength = (Integer) request.getOrDefault("maxLength", 200);
+            String content = summaryRequest.getContent();
+            Integer maxLength = summaryRequest.getMaxLength();
 
             if (content == null || content.trim().isEmpty()) {
                 return ResponseEntity.badRequest()

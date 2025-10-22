@@ -559,4 +559,213 @@ public class ValidationUtils {
 
         return true;
     }
+
+    /**
+     * 验证用户名（别名方法，与validateUsername相同）
+     */
+    public static boolean isValidUsername(String username) {
+        return validateUsername(username);
+    }
+
+    /**
+     * 验证密码（别名方法，与validatePassword相同）
+     */
+    public static boolean isValidPassword(String password) {
+        return validatePassword(password);
+    }
+
+    /**
+     * 验证角色名称
+     */
+    public static boolean isValidRoleName(String roleName) {
+        if (roleName == null || roleName.trim().isEmpty()) {
+            log.warn("角色名称验证失败：角色名称为空");
+            return false;
+        }
+
+        String trimmedRoleName = roleName.trim();
+        // 角色名称应该以ROLE_开头，只包含大写字母、数字和下划线
+        if (!trimmedRoleName.startsWith("ROLE_")) {
+            log.warn("角色名称验证失败：必须以ROLE_开头 - {}", trimmedRoleName);
+            return false;
+        }
+
+        if (trimmedRoleName.length() < 5 || trimmedRoleName.length() > 50) {
+            log.warn("角色名称验证失败：长度不符合要求 - {}", trimmedRoleName.length());
+            return false;
+        }
+
+        if (!trimmedRoleName.matches("^[A-Z0-9_]+$")) {
+            log.warn("角色名称验证失败：格式不符合要求 - {}", trimmedRoleName);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 清理搜索关键词，防止SQL注入
+     */
+    public static String sanitizeSearchKeyword(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return "";
+        }
+
+        String sanitized = keyword.trim();
+        if (sanitized.length() > 100) {
+            sanitized = sanitized.substring(0, 100);
+        }
+
+        // 移除潜在的SQL注入字符
+        sanitized = sanitized.replaceAll("[';\"\\-\\-\\*/\\\\]", "");
+
+        return sanitized;
+    }
+
+    /**
+     * 清理用户名
+     */
+    public static String sanitizeUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return "";
+        }
+
+        String sanitized = username.trim();
+        if (sanitized.length() > 50) {
+            sanitized = sanitized.substring(0, 50);
+        }
+
+        // 移除特殊字符，只保留字母、数字、下划线
+        sanitized = sanitized.replaceAll("[^a-zA-Z0-9_]", "");
+
+        return sanitized;
+    }
+
+    /**
+     * 清理邮箱地址
+     */
+    public static String sanitizeEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return "";
+        }
+
+        String sanitized = email.trim().toLowerCase();
+        if (sanitized.length() > 100) {
+            sanitized = sanitized.substring(0, 100);
+        }
+
+        // 移除潜在的脚本注入字符
+        sanitized = sanitized.replaceAll("['\"<>\\/&]", "");
+
+        return sanitized;
+    }
+
+    /**
+     * 清理手机号
+     */
+    public static String sanitizePhone(String phone) {
+        if (phone == null || phone.trim().isEmpty()) {
+            return "";
+        }
+
+        String sanitized = phone.trim();
+        // 只保留数字、+号、-号
+        sanitized = sanitized.replaceAll("[^0-9+\\-]", "");
+
+        return sanitized;
+    }
+
+    /**
+     * 清理角色名称
+     */
+    public static String sanitizeRoleName(String roleName) {
+        if (roleName == null || roleName.trim().isEmpty()) {
+            return "";
+        }
+
+        String sanitized = roleName.trim().toUpperCase();
+        if (sanitized.length() > 50) {
+            sanitized = sanitized.substring(0, 50);
+        }
+
+        // 只保留字母、数字、下划线
+        sanitized = sanitized.replaceAll("[^A-Z0-9_]", "");
+
+        return sanitized;
+    }
+
+    /**
+     * 清理权限名称
+     */
+    public static String sanitizePermission(String permission) {
+        if (permission == null || permission.trim().isEmpty()) {
+            return "";
+        }
+
+        String sanitized = permission.trim();
+        if (sanitized.length() > 100) {
+            sanitized = sanitized.substring(0, 100);
+        }
+
+        // 移除潜在的注入字符
+        sanitized = sanitized.replaceAll("[';\"\\-\\-\\*/\\\\]", "");
+
+        return sanitized;
+    }
+
+    /**
+     * 清理资源名称
+     */
+    public static String sanitizeResourceName(String resource) {
+        if (resource == null || resource.trim().isEmpty()) {
+            return "";
+        }
+
+        String sanitized = resource.trim().toLowerCase();
+        if (sanitized.length() > 50) {
+            sanitized = sanitized.substring(0, 50);
+        }
+
+        // 只保留字母、数字、下划线
+        sanitized = sanitized.replaceAll("[^a-z0-9_]", "");
+
+        return sanitized;
+    }
+
+    /**
+     * 清理动作名称
+     */
+    public static String sanitizeActionName(String action) {
+        if (action == null || action.trim().isEmpty()) {
+            return "";
+        }
+
+        String sanitized = action.trim().toLowerCase();
+        if (sanitized.length() > 50) {
+            sanitized = sanitized.substring(0, 50);
+        }
+
+        // 只保留字母
+        sanitized = sanitized.replaceAll("[^a-z]", "");
+
+        return sanitized;
+    }
+
+    
+    /**
+     * 验证分页参数
+     */
+    public static boolean validatePaginationParams(Integer page, Integer pageSize, int maxPageSize) {
+        if (page == null || page < 1) {
+            log.warn("分页参数验证失败：页码必须大于0");
+            return false;
+        }
+
+        if (pageSize == null || pageSize < 1 || pageSize > maxPageSize) {
+            log.warn("分页参数验证失败：页面大小必须在1-{}之间", maxPageSize);
+            return false;
+        }
+
+        return true;
+    }
 }

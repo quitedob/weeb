@@ -238,4 +238,18 @@ public interface UserService {
      * @return 是否是所有者
      */
     boolean isGroupOwner(Long userId, Long groupId);
+
+    /**
+     * 获取用户权限列表
+     * @param userId 用户ID
+     * @return 用户权限列表
+     */
+    List<Permission> getUserPermissions(Long userId);
+
+    /**
+     * 获取用户角色列表
+     * @param userId 用户ID
+     * @return 用户角色列表
+     */
+    List<String> getUserRoles(Long userId);
 }

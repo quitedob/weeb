@@ -1,11 +1,10 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
 import com.web.mapper.ArticleMapper;
 import com.web.mapper.ArticleCategoryMapper;
 import com.web.model.Article;
 import com.web.model.ArticleCategory;
 import com.web.service.ArticleService;
-import com.web.util.SqlInjectionUtils;
 import com.web.exception.WeebException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

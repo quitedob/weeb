@@ -1,11 +1,13 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.MessageMapper;
 import com.web.mapper.MessageReactionMapper;
 import com.web.model.Message;
 import com.web.model.MessageReaction;
 import com.web.service.MessageService;
 import com.web.vo.message.ReactionVo;
+import com.web.util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,19 +61,19 @@ public class MessageServiceImpl implements MessageService {
         // 先查询消息是否存在且属于当前用户
         Message message = messageMapper.selectMessageById(msgId);
         if (message == null || !message.getSenderId().equals(userId)) {
-            throw new RuntimeException("消息不存在或无权限撤回");
+            throw new WeebException("消息不存在或无权限撤回");
         }
         
         // 检查消息是否已经被撤回
         if (message.getIsRecalled() != null && message.getIsRecalled() == 1) {
-            throw new RuntimeException("消息已经被撤回");
+            throw new WeebException("消息已经被撤回");
         }
         
         // 检查撤回时间限制（例如：只能撤回2分钟内的消息）
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime sendTime = message.getCreatedAt().toLocalDateTime();
         if (sendTime.plusMinutes(2).isBefore(now)) {
-            throw new RuntimeException("超过撤回时间限制");
+            throw new WeebException("超过撤回时间限制");
         }
         
         // 标记消息为已撤回
@@ -81,7 +83,7 @@ public class MessageServiceImpl implements MessageService {
             return message;
         }
         
-        throw new RuntimeException("撤回消息失败");
+        throw new WeebException("撤回消息失败");
     }
 
     @Override
@@ -100,7 +102,7 @@ public class MessageServiceImpl implements MessageService {
             return messageBody;
         }
         
-        throw new RuntimeException("发送群组消息失败");
+        throw new WeebException("发送群组消息失败");
     }
 
     @Override
@@ -114,7 +116,7 @@ public class MessageServiceImpl implements MessageService {
             return messageBody;
         }
         
-        throw new RuntimeException("发送私聊消息失败");
+        throw new WeebException("发送私聊消息失败");
     }
 
     @Override
@@ -122,7 +124,7 @@ public class MessageServiceImpl implements MessageService {
         // 检查消息是否存在
         Message message = messageMapper.selectMessageById(reactionVo.getMessageId());
         if (message == null) {
-            throw new RuntimeException("消息不存在");
+            throw new WeebException("消息不存在");
         }
         
         // 检查用户是否已经对该消息有反应
@@ -150,7 +152,7 @@ public class MessageServiceImpl implements MessageService {
                 messageReactionMapper.deleteByMessageIdAndUserId(reactionVo.getMessageId(), userId);
             }
         } else {
-            throw new RuntimeException("不支持的反应操作");
+            throw new WeebException("不支持的反应操作");
         }
     }
 }

@@ -4,7 +4,7 @@ import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.model.Message;
 import com.web.service.MessageService;
-import com.web.util.SecurityUtil;
+import com.web.security.SecurityUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -68,7 +68,7 @@ public class WebSocketMessageController {
             // 构建消息对象
             Map<String, Object> chatMessage = new HashMap<>();
             chatMessage.put("id", System.currentTimeMillis()); // 临时ID，应该由数据库生成
-            chatMessage.put("fromId", SecurityUtil.getCurrentUserId());
+            chatMessage.put("fromId", SecurityUtils.getCurrentUserId());
             chatMessage.put("fromName", principal.getName());
             chatMessage.put("content", message.get("content"));
             chatMessage.put("roomId", roomId);
@@ -166,7 +166,7 @@ public class WebSocketMessageController {
 
             Map<String, Object> privateMessage = new HashMap<>();
             privateMessage.put("type", "private");
-            privateMessage.put("fromId", SecurityUtil.getCurrentUserId());
+            privateMessage.put("fromId", SecurityUtils.getCurrentUserId());
             privateMessage.put("fromName", principal.getName());
             privateMessage.put("toUser", targetUser);
             privateMessage.put("content", content);

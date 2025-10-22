@@ -1,5 +1,8 @@
 package com.web.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.web.service.AIService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -27,6 +30,9 @@ public class AIServiceImpl implements AIService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Value("${ai.chat.context.ttl:30}")
     private int chatContextTtlMinutes;
@@ -456,22 +462,37 @@ public class AIServiceImpl implements AIService {
     }
 
     private Map<String, Object> parseSentimentAnalysis(String response) {
-        // 简化的JSON解析，实际应该使用专门的JSON解析库
-        Map<String, Object> result = new HashMap<>();
-        result.put("sentiment", "neutral");
-        result.put("confidence", 0.7);
-        result.put("emotions", List.of("neutral"));
-        result.put("explanation", response);
-        return result;
+        try {
+            // 使用 Jackson 解析 JSON 响应
+            return objectMapper.readValue(response, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException e) {
+            log.error("解析情感分析JSON响应失败: {}", response, e);
+            // 解析失败，返回一个包含错误信息的默认结果
+            return Map.of(
+                    "sentiment", "unknown",
+                    "confidence", 0.0,
+                    "emotions", List.of(),
+                    "explanation", "Failed to parse AI response.",
+                    "rawResponse", response
+            );
+        }
     }
 
     private Map<String, Object> parseComplianceCheck(String response) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("isCompliant", true);
-        result.put("riskLevel", "low");
-        result.put("issues", List.of());
-        result.put("suggestions", List.of());
-        return result;
+        try {
+            // 使用 Jackson 解析 JSON 响应
+            return objectMapper.readValue(response, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException e) {
+            log.error("解析合规性检查JSON响应失败: {}", response, e);
+            // 解析失败，返回一个包含错误信息的默认结果
+            return Map.of(
+                    "isCompliant", false,
+                    "riskLevel", "unknown",
+                    "issues", List.of("Failed to parse AI response."),
+                    "suggestions", List.of(),
+                    "rawResponse", response
+            );
+        }
     }
 
     private List<String> parseReplySuggestions(String response) {
@@ -483,29 +504,55 @@ public class AIServiceImpl implements AIService {
     }
 
     private Map<String, Object> parseContentSuggestions(String response) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("title", "建议标题");
-        result.put("outline", "内容大纲");
-        result.put("keywords", List.of());
-        result.put("targetAudience", "目标受众");
-        return result;
+        try {
+            // 使用 Jackson 解析 JSON 响应
+            return objectMapper.readValue(response, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException e) {
+            log.error("解析内容建议JSON响应失败: {}", response, e);
+            // 解析失败，返回一个包含错误信息的默认结果
+            return Map.of(
+                    "title", "生成失败",
+                    "outline", "生成失败",
+                    "keywords", List.of(),
+                    "targetAudience", "未知",
+                    "tips", List.of("解析AI响应失败"),
+                    "rawResponse", response
+            );
+        }
     }
 
     private Map<String, Object> parseProofreadResult(String response) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("correctedText", response);
-        result.put("errors", List.of());
-        result.put("suggestions", List.of());
-        result.put("score", 8);
-        return result;
+        try {
+            // 使用 Jackson 解析 JSON 响应
+            return objectMapper.readValue(response, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException e) {
+            log.error("解析文本校对JSON响应失败: {}", response, e);
+            // 解析失败，返回一个包含错误信息的默认结果
+            return Map.of(
+                    "correctedText", response,
+                    "errors", List.of("解析AI响应失败"),
+                    "suggestions", List.of(),
+                    "score", 0,
+                    "rawResponse", response
+            );
+        }
     }
 
     private Map<String, Object> parseContentOutline(String response) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("title", "内容标题");
-        result.put("sections", List.of());
-        result.put("estimatedLength", 1000);
-        return result;
+        try {
+            // 使用 Jackson 解析 JSON 响应
+            return objectMapper.readValue(response, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException e) {
+            log.error("解析内容大纲JSON响应失败: {}", response, e);
+            // 解析失败，返回一个包含错误信息的默认结果
+            return Map.of(
+                    "title", "生成失败",
+                    "sections", List.of(),
+                    "estimatedLength", 0,
+                    "targetWordCount", 0,
+                    "rawResponse", response
+            );
+        }
     }
 
     private InMemoryChatMemory getOrCreateChatMemory(String sessionId) {

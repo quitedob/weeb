@@ -1,5 +1,6 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.ContentReportMapper;
 import com.web.model.ContentReport;
 import com.web.service.ContentReportService;
@@ -29,7 +30,7 @@ public class ContentReportServiceImpl implements ContentReportService {
         try {
             // 检查用户是否已经举报过该内容
             if (contentReportMapper.hasUserReportedContent(report.getReporterId(), report.getContentType(), report.getContentId())) {
-                throw new RuntimeException("您已经举报过此内容");
+                throw new WeebException("您已经举报过此内容");
             }
 
             // 检查该内容是否已经有待处理的举报，如果有则增加计数
@@ -57,12 +58,12 @@ public class ContentReportServiceImpl implements ContentReportService {
 
                 return report;
             } else {
-                throw new RuntimeException("创建内容举报失败");
+                throw new WeebException("创建内容举报失败");
             }
         } catch (Exception e) {
             log.error("创建内容举报失败: reporterId={}, contentType={}, contentId={}",
                     report.getReporterId(), report.getContentType(), report.getContentId(), e);
-            throw new RuntimeException("创建内容举报失败: " + e.getMessage());
+            throw new WeebException("创建内容举报失败: " + e.getMessage());
         }
     }
 
@@ -83,7 +84,7 @@ public class ContentReportServiceImpl implements ContentReportService {
             return result;
         } catch (Exception e) {
             log.error("获取待处理举报列表失败", e);
-            throw new RuntimeException("获取待处理举报列表失败: " + e.getMessage());
+            throw new WeebException("获取待处理举报列表失败: " + e.getMessage());
         }
     }
 
@@ -92,11 +93,11 @@ public class ContentReportServiceImpl implements ContentReportService {
         try {
             ContentReport report = contentReportMapper.selectById(reportId);
             if (report == null) {
-                throw new RuntimeException("举报记录不存在");
+                throw new WeebException("举报记录不存在");
             }
 
             if (!"pending".equals(report.getStatus())) {
-                throw new RuntimeException("该举报已被处理");
+                throw new WeebException("该举报已被处理");
             }
 
             // 更新举报状态
@@ -117,11 +118,11 @@ public class ContentReportServiceImpl implements ContentReportService {
 
                 return true;
             } else {
-                throw new RuntimeException("处理举报失败");
+                throw new WeebException("处理举报失败");
             }
         } catch (Exception e) {
             log.error("处理举报失败: reportId={}, reviewerId={}", reportId, reviewerId, e);
-            throw new RuntimeException("处理举报失败: " + e.getMessage());
+            throw new WeebException("处理举报失败: " + e.getMessage());
         }
     }
 
@@ -152,7 +153,7 @@ public class ContentReportServiceImpl implements ContentReportService {
             return result;
         } catch (Exception e) {
             log.error("批量处理举报失败: contentType={}, contentId={}", contentType, contentId, e);
-            throw new RuntimeException("批量处理举报失败: " + e.getMessage());
+            throw new WeebException("批量处理举报失败: " + e.getMessage());
         }
     }
 
@@ -186,7 +187,7 @@ public class ContentReportServiceImpl implements ContentReportService {
             return result;
         } catch (Exception e) {
             log.error("获取用户举报历史失败: reporterId={}", reporterId, e);
-            throw new RuntimeException("获取用户举报历史失败: " + e.getMessage());
+            throw new WeebException("获取用户举报历史失败: " + e.getMessage());
         }
     }
 
@@ -196,7 +197,7 @@ public class ContentReportServiceImpl implements ContentReportService {
             return contentReportMapper.selectReportsByContent(contentType, contentId);
         } catch (Exception e) {
             log.error("获取内容举报详情失败: contentType={}, contentId={}", contentType, contentId, e);
-            throw new RuntimeException("获取内容举报详情失败: " + e.getMessage());
+            throw new WeebException("获取内容举报详情失败: " + e.getMessage());
         }
     }
 
@@ -214,7 +215,7 @@ public class ContentReportServiceImpl implements ContentReportService {
             return statistics;
         } catch (Exception e) {
             log.error("获取举报统计失败", e);
-            throw new RuntimeException("获取举报统计失败: " + e.getMessage());
+            throw new WeebException("获取举报统计失败: " + e.getMessage());
         }
     }
 
@@ -224,7 +225,7 @@ public class ContentReportServiceImpl implements ContentReportService {
             return contentReportMapper.selectTopReportedContent(limit);
         } catch (Exception e) {
             log.error("获取热门举报内容失败", e);
-            throw new RuntimeException("获取热门举报内容失败: " + e.getMessage());
+            throw new WeebException("获取热门举报内容失败: " + e.getMessage());
         }
     }
 
@@ -234,7 +235,7 @@ public class ContentReportServiceImpl implements ContentReportService {
             return contentReportMapper.selectReviewerStats(reviewerId, days);
         } catch (Exception e) {
             log.error("获取管理员处理统计失败", e);
-            throw new RuntimeException("获取管理员处理统计失败: " + e.getMessage());
+            throw new WeebException("获取管理员处理统计失败: " + e.getMessage());
         }
     }
 
@@ -243,15 +244,15 @@ public class ContentReportServiceImpl implements ContentReportService {
         try {
             ContentReport report = contentReportMapper.selectById(reportId);
             if (report == null) {
-                throw new RuntimeException("举报记录不存在");
+                throw new WeebException("举报记录不存在");
             }
 
             if (!report.getReporterId().equals(reporterId)) {
-                throw new RuntimeException("您只能撤销自己的举报");
+                throw new WeebException("您只能撤销自己的举报");
             }
 
             if (!"pending".equals(report.getStatus())) {
-                throw new RuntimeException("只能撤销待处理的举报");
+                throw new WeebException("只能撤销待处理的举报");
             }
 
             report.setStatus("dismissed");
@@ -262,11 +263,11 @@ public class ContentReportServiceImpl implements ContentReportService {
                 log.info("撤销举报成功: reportId={}, reporterId={}", reportId, reporterId);
                 return true;
             } else {
-                throw new RuntimeException("撤销举报失败");
+                throw new WeebException("撤销举报失败");
             }
         } catch (Exception e) {
             log.error("撤销举报失败: reportId={}, reporterId={}", reportId, reporterId, e);
-            throw new RuntimeException("撤销举报失败: " + e.getMessage());
+            throw new WeebException("撤销举报失败: " + e.getMessage());
         }
     }
 
@@ -275,7 +276,7 @@ public class ContentReportServiceImpl implements ContentReportService {
         try {
             ContentReport report = contentReportMapper.selectById(reportId);
             if (report == null) {
-                throw new RuntimeException("举报记录不存在");
+                throw new WeebException("举报记录不存在");
             }
 
             report.setIsUrgent(true);
@@ -287,11 +288,11 @@ public class ContentReportServiceImpl implements ContentReportService {
                 sendUrgentReportNotification(report);
                 return true;
             } else {
-                throw new RuntimeException("标记举报为紧急失败");
+                throw new WeebException("标记举报为紧急失败");
             }
         } catch (Exception e) {
             log.error("标记举报为紧急失败: reportId={}, reviewerId={}", reportId, reviewerId, e);
-            throw new RuntimeException("标记举报为紧急失败: " + e.getMessage());
+            throw new WeebException("标记举报为紧急失败: " + e.getMessage());
         }
     }
 
@@ -300,7 +301,7 @@ public class ContentReportServiceImpl implements ContentReportService {
         try {
             ContentReport report = contentReportMapper.selectById(reportId);
             if (report == null) {
-                throw new RuntimeException("举报记录不存在");
+                throw new WeebException("举报记录不存在");
             }
 
             Map<String, Object> details = new HashMap<>();
@@ -310,7 +311,7 @@ public class ContentReportServiceImpl implements ContentReportService {
             return details;
         } catch (Exception e) {
             log.error("获取举报详情失败: reportId={}", reportId, e);
-            throw new RuntimeException("获取举报详情失败: " + e.getMessage());
+            throw new WeebException("获取举报详情失败: " + e.getMessage());
         }
     }
 
@@ -339,7 +340,7 @@ public class ContentReportServiceImpl implements ContentReportService {
             return deletedCount;
         } catch (Exception e) {
             log.error("删除内容相关举报失败: contentType={}, contentId={}", contentType, contentId, e);
-            throw new RuntimeException("删除内容相关举报失败: " + e.getMessage());
+            throw new WeebException("删除内容相关举报失败: " + e.getMessage());
         }
     }
 

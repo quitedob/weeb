@@ -82,6 +82,9 @@ public class SystemPermissionInitializer implements CommandLineRunner {
         permissions.add(new Permission("USER_BAN_ANY", "封禁/解封用户", "user", "ban", "ANY", 1, 0, "用户管理"));
         permissions.add(new Permission("USER_RESET_PASSWORD_ANY", "重置任意用户密码", "user", "reset_password", "ANY", 1, 0, "用户管理"));
 
+        // 用户关系权限
+        permissions.add(new Permission("USER_FOLLOW_OWN", "关注用户", "user", "follow", "OWN", 1, 1, "用户管理"));
+
         return permissions;
     }
 
@@ -112,6 +115,12 @@ public class SystemPermissionInitializer implements CommandLineRunner {
         // 评论管理权限
         permissions.add(new Permission("ARTICLE_COMMENT_DELETE_ANY", "删除任意评论", "article", "comment_delete", "ANY", 1, 0, "内容管理"));
 
+        // 文章版本权限
+        permissions.add(new Permission("ARTICLE_VERSION_READ_OWN", "查看文章版本", "article", "version_read", "OWN", 1, 1, "内容管理"));
+        permissions.add(new Permission("ARTICLE_VERSION_CREATE_OWN", "创建文章版本", "article", "version_create", "OWN", 1, 1, "内容管理"));
+        permissions.add(new Permission("ARTICLE_VERSION_ROLLBACK_OWN", "回滚文章版本", "article", "version_rollback", "OWN", 1, 1, "内容管理"));
+        permissions.add(new Permission("ARTICLE_VERSION_DELETE_ANY", "删除文章版本", "article", "version_delete", "ANY", 1, 0, "内容管理"));
+
         return permissions;
     }
 
@@ -131,6 +140,17 @@ public class SystemPermissionInitializer implements CommandLineRunner {
         permissions.add(new Permission("MESSAGE_READ_ANY", "查看任意消息", "message", "read", "ANY", 1, 0, "消息管理"));
         permissions.add(new Permission("MESSAGE_DELETE_ANY", "删除任意消息", "message", "delete", "ANY", 1, 0, "消息管理"));
         permissions.add(new Permission("MESSAGE_SEARCH_ANY", "搜索消息", "message", "search", "ANY", 1, 0, "消息管理"));
+
+        // 消息线索权限
+        permissions.add(new Permission("MESSAGE_THREAD_CREATE_OWN", "创建消息线索", "message_thread", "create", "OWN", 1, 1, "消息管理"));
+        permissions.add(new Permission("MESSAGE_THREAD_READ_OWN", "查看消息线索", "message_thread", "read", "OWN", 1, 1, "消息管理"));
+        permissions.add(new Permission("MESSAGE_THREAD_REPLY_OWN", "回复消息线索", "message_thread", "reply", "OWN", 1, 1, "消息管理"));
+        permissions.add(new Permission("MESSAGE_THREAD_MANAGE_OWN", "管理自己的消息线索", "message_thread", "manage", "OWN", 1, 1, "消息管理"));
+
+        // 链接预览权限
+        permissions.add(new Permission("LINK_PREVIEW_CREATE_OWN", "创建链接预览", "link_preview", "create", "OWN", 1, 1, "内容管理"));
+        permissions.add(new Permission("LINK_PREVIEW_READ_OWN", "查看链接预览", "link_preview", "read", "OWN", 1, 1, "内容管理"));
+        permissions.add(new Permission("LINK_PREVIEW_MANAGE_OWN", "管理自己的链接预览", "link_preview", "manage", "OWN", 1, 1, "内容管理"));
 
         return permissions;
     }
@@ -187,6 +207,9 @@ public class SystemPermissionInitializer implements CommandLineRunner {
         permissions.add(new Permission("SYSTEM_LOG_READ", "查看系统日志", "system", "log_read", "ANY", 1, 0, "系统管理"));
 
         // 文件管理
+        permissions.add(new Permission("FILE_UPLOAD_OWN", "上传文件", "file", "upload", "OWN", 1, 1, "文件管理"));
+        permissions.add(new Permission("FILE_READ_OWN", "查看自己的文件", "file", "read", "OWN", 1, 1, "文件管理"));
+        permissions.add(new Permission("FILE_DELETE_OWN", "删除自己的文件", "file", "delete", "OWN", 1, 1, "文件管理"));
         permissions.add(new Permission("FILE_READ_ANY", "查看任意文件", "file", "read", "ANY", 1, 0, "文件管理"));
         permissions.add(new Permission("FILE_DELETE_ANY", "删除任意文件", "file", "delete", "ANY", 1, 0, "文件管理"));
 
@@ -194,6 +217,20 @@ public class SystemPermissionInitializer implements CommandLineRunner {
         permissions.add(new Permission("CONTENT_MODERATE_ANY", "审核内容", "content", "moderate", "ANY", 1, 0, "内容管理"));
         permissions.add(new Permission("CONTENT_REPORT_READ", "查看举报内容", "content", "report_read", "ANY", 1, 0, "内容管理"));
         permissions.add(new Permission("CONTENT_REPORT_PROCESS", "处理举报", "content", "report_process", "ANY", 1, 0, "内容管理"));
+
+        // AI服务权限
+        permissions.add(new Permission("AI_CHAT_OWN", "AI对话", "ai", "chat", "OWN", 1, 1, "AI服务"));
+        permissions.add(new Permission("AI_MANAGE_ANY", "管理AI服务", "ai", "manage", "ANY", 1, 0, "AI服务"));
+
+        // SSH终端权限
+        permissions.add(new Permission("SSH_EXECUTE_OWN", "执行SSH命令", "ssh", "execute", "OWN", 1, 0, "系统管理"));
+        permissions.add(new Permission("SSH_MANAGE_ANY", "管理SSH服务", "ssh", "manage", "ANY", 1, 0, "系统管理"));
+
+        // 认证权限
+        permissions.add(new Permission("AUTH_REGISTER_OWN", "用户注册", "auth", "register", "OWN", 1, 1, "认证管理"));
+        permissions.add(new Permission("AUTH_LOGIN_OWN", "用户登录", "auth", "login", "OWN", 1, 1, "认证管理"));
+        permissions.add(new Permission("AUTH_LOGOUT_OWN", "用户登出", "auth", "logout", "OWN", 1, 1, "认证管理"));
+        permissions.add(new Permission("AUTH_PASSWORD_CHANGE_OWN", "修改密码", "auth", "password_change", "OWN", 1, 1, "认证管理"));
 
         return permissions;
     }

@@ -1,5 +1,6 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.UserMapper;
 import com.web.mapper.UserStatsMapper;
 import com.web.model.Permission;
@@ -8,6 +9,7 @@ import com.web.model.UserStats;
 import com.web.model.UserWithStats;
 import com.web.service.PermissionService;
 import com.web.service.UserService;
+import com.web.util.ValidationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,28 +48,59 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserWithStats getUserProfile(Long userId) {
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
         return userMapper.selectUserWithStatsById(userId);
     }
 
     @Override
     public List<UserWithStats> getUserProfiles(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            throw new WeebException("用户ID列表不能为空");
+        }
+        for (Long userId : userIds) {
+            if (userId == null || userId <= 0) {
+                throw new WeebException("用户ID必须为正数");
+            }
+        }
         return userMapper.selectUsersWithStatsByIds(userIds);
     }
 
     @Override
     public boolean updateUserBasicInfo(User user) {
+        if (user == null) {
+            throw new WeebException("用户信息不能为空");
+        }
+        if (user.getId() == null || user.getId() <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
         int result = userMapper.updateUser(user);
         return result > 0;
     }
 
     @Override
     public boolean updateUserStats(UserStats userStats) {
+        if (userStats == null) {
+            throw new WeebException("用户统计信息不能为空");
+        }
+        if (userStats.getUserId() == null || userStats.getUserId() <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
         int result = userStatsMapper.updateUserStats(userStats);
         return result > 0;
     }
 
     @Override
+    @Transactional
     public boolean updateUserProfile(UserWithStats userWithStats) {
+        if (userWithStats == null) {
+            throw new WeebException("用户信息不能为空");
+        }
+        if (userWithStats.getId() == null || userWithStats.getId() <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+
         try {
             // 更新用户基本信息
             User user = new User();
@@ -84,26 +117,37 @@ public class UserServiceImpl implements UserService {
                 user.setUserEmail(sourceUser.getUserEmail());
                 user.setBio(sourceUser.getBio());
             }
-            
+
             userMapper.updateUser(user);
-            
+
             // 更新统计数据
             if (userWithStats.getUserStats() != null) {
                 userStatsMapper.updateUserStats(userWithStats.getUserStats());
             }
-            
+
             return true;
         } catch (Exception e) {
-            throw new RuntimeException("更新用户信息失败", e);
+            throw new WeebException("更新用户信息失败", e);
         }
     }
 
     @Override
+    @Transactional
     public UserWithStats createUser(User user) {
+        if (user == null) {
+            throw new WeebException("用户信息不能为空");
+        }
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+            throw new WeebException("用户名不能为空");
+        }
+        if (!ValidationUtils.isValidUsername(user.getUsername())) {
+            throw new WeebException("用户名格式不正确");
+        }
+
         try {
             // 插入用户基本信息
             userMapper.insert(user);
-            
+
             // 创建对应的统计记录
             UserStats userStats = new UserStats();
             userStats.setUserId(user.getId());
@@ -113,18 +157,23 @@ public class UserServiceImpl implements UserService {
             userStats.setTotalSponsorship(0L);
             userStats.setTotalArticleExposure(0L);
             userStats.setWebsiteCoins(0L);
-            
+
             userStatsMapper.insertUserStats(userStats);
-            
+
             // 返回完整的用户信息
             return getUserProfile(user.getId());
         } catch (Exception e) {
-            throw new RuntimeException("创建用户失败", e);
+            throw new WeebException("创建用户失败", e);
         }
     }
 
     @Override
+    @Transactional
     public boolean deleteUser(Long userId) {
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+
         try {
             // 删除统计数据
             userStatsMapper.deleteByUserId(userId);
@@ -132,29 +181,51 @@ public class UserServiceImpl implements UserService {
             int result = userMapper.deleteById(userId);
             return result > 0;
         } catch (Exception e) {
-            throw new RuntimeException("删除用户失败", e);
+            throw new WeebException("删除用户失败", e);
         }
     }
 
     @Override
+    @Transactional
     public boolean followUser(Long followerId, Long followedId) {
+        if (followerId == null || followerId <= 0) {
+            throw new WeebException("关注者ID必须为正数");
+        }
+        if (followedId == null || followedId <= 0) {
+            throw new WeebException("被关注者ID必须为正数");
+        }
+        if (followerId.equals(followedId)) {
+            throw new WeebException("不能关注自己");
+        }
+
         try {
             // 增加被关注用户的粉丝数
             int result = userStatsMapper.incrementFansCount(followedId);
             return result > 0;
         } catch (Exception e) {
-            return false;
+            throw new WeebException("关注用户失败", e);
         }
     }
 
     @Override
+    @Transactional
     public boolean unfollowUser(Long followerId, Long followedId) {
+        if (followerId == null || followerId <= 0) {
+            throw new WeebException("关注者ID必须为正数");
+        }
+        if (followedId == null || followedId <= 0) {
+            throw new WeebException("被关注者ID必须为正数");
+        }
+        if (followerId.equals(followedId)) {
+            throw new WeebException("不能取消关注自己");
+        }
+
         try {
             // 减少被关注用户的粉丝数
             int result = userStatsMapper.decrementFansCount(followedId);
             return result > 0;
         } catch (Exception e) {
-            return false;
+            throw new WeebException("取消关注用户失败", e);
         }
     }
 
@@ -296,24 +367,36 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Map<String, Object> getUsersWithPaging(int page, int pageSize, String keyword) {
+        if (page <= 0) {
+            throw new WeebException("页码必须为正数");
+        }
+        if (pageSize <= 0 || pageSize > 100) {
+            throw new WeebException("页面大小必须在1-100之间");
+        }
+
         try {
             Map<String, Object> result = new HashMap<>();
 
             // 计算偏移量
             int offset = (page - 1) * pageSize;
 
-            // 查询用户列表
+            // 查询用户列表 - 使用安全的搜索参数
             List<UserWithStats> users;
+            String safeKeyword = null;
             if (keyword != null && !keyword.trim().isEmpty()) {
-                users = userMapper.selectUsersWithStatsByKeyword(keyword.trim(), offset, pageSize);
+                safeKeyword = ValidationUtils.sanitizeSearchKeyword(keyword.trim());
+                if (safeKeyword.length() > 50) {
+                    throw new WeebException("搜索关键词长度不能超过50个字符");
+                }
+                users = userMapper.selectUsersWithStatsByKeyword(safeKeyword, offset, pageSize);
             } else {
                 users = userMapper.selectUsersWithStatsWithPaging(offset, pageSize);
             }
 
             // 查询总数量
             int total;
-            if (keyword != null && !keyword.trim().isEmpty()) {
-                total = userMapper.countUsersByKeyword(keyword.trim());
+            if (safeKeyword != null) {
+                total = userMapper.countUsersByKeyword(safeKeyword);
             } else {
                 total = userMapper.countUsers();
             }
@@ -327,17 +410,22 @@ public class UserServiceImpl implements UserService {
             return result;
         } catch (Exception e) {
             log.error("分页查询用户失败: page={}, pageSize={}, keyword={}", page, pageSize, keyword, e);
-            throw new RuntimeException("分页查询用户失败: " + e.getMessage());
+            throw new WeebException("分页查询用户失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public boolean banUser(Long userId) {
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+
         try {
             // 检查用户是否存在
             User user = userMapper.selectById(userId);
             if (user == null) {
-                throw new RuntimeException("用户不存在: " + userId);
+                throw new WeebException("用户不存在: " + userId);
             }
 
             // 设置用户状态为禁用
@@ -349,21 +437,26 @@ public class UserServiceImpl implements UserService {
                 log.info("封禁用户成功: userId={}", userId);
                 return true;
             } else {
-                throw new RuntimeException("封禁用户失败");
+                throw new WeebException("封禁用户失败");
             }
         } catch (Exception e) {
             log.error("封禁用户失败: userId={}", userId, e);
-            throw new RuntimeException("封禁用户失败: " + e.getMessage());
+            throw new WeebException("封禁用户失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public boolean unbanUser(Long userId) {
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+
         try {
             // 检查用户是否存在
             User user = userMapper.selectById(userId);
             if (user == null) {
-                throw new RuntimeException("用户不存在: " + userId);
+                throw new WeebException("用户不存在: " + userId);
             }
 
             // 设置用户状态为启用
@@ -375,26 +468,35 @@ public class UserServiceImpl implements UserService {
                 log.info("解封用户成功: userId={}", userId);
                 return true;
             } else {
-                throw new RuntimeException("解封用户失败");
+                throw new WeebException("解封用户失败");
             }
         } catch (Exception e) {
             log.error("解封用户失败: userId={}", userId, e);
-            throw new RuntimeException("解封用户失败: " + e.getMessage());
+            throw new WeebException("解封用户失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public boolean resetUserPassword(Long userId, String newPassword) {
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new WeebException("新密码不能为空");
+        }
+        if (newPassword.length() < 6 || newPassword.length() > 50) {
+            throw new WeebException("密码长度必须在6-50个字符之间");
+        }
+        if (!ValidationUtils.isValidPassword(newPassword)) {
+            throw new WeebException("密码格式不正确");
+        }
+
         try {
             // 检查用户是否存在
             User user = userMapper.selectById(userId);
             if (user == null) {
-                throw new RuntimeException("用户不存在: " + userId);
-            }
-
-            // 检查新密码是否有效
-            if (newPassword == null || newPassword.trim().isEmpty()) {
-                throw new RuntimeException("新密码不能为空");
+                throw new WeebException("用户不存在: " + userId);
             }
 
             // 加密新密码
@@ -409,11 +511,11 @@ public class UserServiceImpl implements UserService {
                 log.info("重置用户密码成功: userId={}", userId);
                 return true;
             } else {
-                throw new RuntimeException("重置用户密码失败");
+                throw new WeebException("重置用户密码失败");
             }
         } catch (Exception e) {
             log.error("重置用户密码失败: userId={}", userId, e);
-            throw new RuntimeException("重置用户密码失败: " + e.getMessage());
+            throw new WeebException("重置用户密码失败: " + e.getMessage());
         }
     }
 
@@ -452,32 +554,44 @@ public class UserServiceImpl implements UserService {
             return stats;
         } catch (Exception e) {
             log.error("获取系统统计信息失败", e);
-            throw new RuntimeException("获取系统统计信息失败: " + e.getMessage());
+            throw new WeebException("获取系统统计信息失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public boolean changePassword(Long userId, String currentPassword, String newPassword) {
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (currentPassword == null || currentPassword.trim().isEmpty()) {
+            throw new WeebException("当前密码不能为空");
+        }
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new WeebException("新密码不能为空");
+        }
+        if (newPassword.length() < 6 || newPassword.length() > 50) {
+            throw new WeebException("密码长度必须在6-50个字符之间");
+        }
+        if (!ValidationUtils.isValidPassword(newPassword)) {
+            throw new WeebException("密码格式不正确");
+        }
+
         try {
             // 检查用户是否存在
             User user = userMapper.selectById(userId);
             if (user == null) {
-                throw new RuntimeException("用户不存在: " + userId);
+                throw new WeebException("用户不存在: " + userId);
             }
 
             // 验证当前密码
             if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-                throw new RuntimeException("当前密码不正确");
-            }
-
-            // 检查新密码是否有效
-            if (newPassword == null || newPassword.trim().isEmpty()) {
-                throw new RuntimeException("新密码不能为空");
+                throw new WeebException("当前密码不正确");
             }
 
             // 检查新密码是否与旧密码相同
             if (passwordEncoder.matches(newPassword, user.getPassword())) {
-                throw new RuntimeException("新密码不能与旧密码相同");
+                throw new WeebException("新密码不能与旧密码相同");
             }
 
             // 加密新密码
@@ -492,11 +606,11 @@ public class UserServiceImpl implements UserService {
                 log.info("修改密码成功: userId={}", userId);
                 return true;
             } else {
-                throw new RuntimeException("修改密码失败");
+                throw new WeebException("修改密码失败");
             }
         } catch (Exception e) {
             log.error("修改密码失败: userId={}", userId, e);
-            throw new RuntimeException("修改密码失败: " + e.getMessage());
+            throw new WeebException("修改密码失败: " + e.getMessage());
         }
     }
 
@@ -565,6 +679,29 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             log.error("检查群组所有权失败: userId={}, groupId={}", userId, groupId, e);
             return false;
+        }
+    }
+
+    @Override
+    public List<String> getUserRoles(Long userId) {
+        try {
+            if (userId == null) {
+                return List.of();
+            }
+
+            // 从权限中提取角色信息
+            List<Permission> permissions = getUserPermissions(userId);
+
+            // 获取以ROLE_开头的权限作为角色
+            return permissions.stream()
+                    .map(Permission::getName)
+                    .filter(permission -> permission.startsWith("ROLE_"))
+                    .distinct()
+                    .collect(java.util.stream.Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("获取用户角色失败: userId={}", userId, e);
+            return List.of();
         }
     }
 }

@@ -1,5 +1,6 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.LinkPreviewMapper;
 import com.web.mapper.MessageMapper;
 import com.web.mapper.UserMapper;
@@ -7,8 +8,8 @@ import com.web.model.LinkPreview;
 import com.web.model.Message;
 import com.web.model.User;
 import com.web.service.LinkPreviewService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +30,6 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class LinkPreviewServiceImpl implements LinkPreviewService {
 
     private final LinkPreviewMapper linkPreviewMapper;
@@ -43,10 +43,14 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
         Pattern.CASE_INSENSITIVE
     );
 
-    public LinkPreviewServiceImpl() {
+    @Autowired
+    public LinkPreviewServiceImpl(LinkPreviewMapper linkPreviewMapper, MessageMapper messageMapper, UserMapper userMapper) {
+        this.linkPreviewMapper = linkPreviewMapper;
+        this.messageMapper = messageMapper;
+        this.userMapper = userMapper;
         this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(java.time.Duration.ofSeconds(10))
-            .build();
+                .connectTimeout(java.time.Duration.ofSeconds(10))
+                .build();
     }
 
     @Override
@@ -55,21 +59,32 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
         log.info("创建链接预览: url={}, messageId={}, createdBy={}", originalUrl, messageId, createdBy);
 
         try {
+            // 输入验证
+            if (originalUrl == null || originalUrl.trim().isEmpty()) {
+                throw new WeebException("URL不能为空");
+            }
+            if (messageId == null || messageId <= 0) {
+                throw new WeebException("无效的消息ID");
+            }
+            if (createdBy == null || createdBy <= 0) {
+                throw new WeebException("无效的用户ID");
+            }
+
             // 验证URL有效性
             if (!validateUrl(originalUrl)) {
-                throw new IllegalArgumentException("无效的URL: " + originalUrl);
+                throw new WeebException("无效的URL: " + originalUrl);
             }
 
             // 验证消息是否存在
             Message message = messageMapper.findById(messageId);
             if (message == null) {
-                throw new IllegalArgumentException("消息不存在: " + messageId);
+                throw new WeebException("消息不存在: " + messageId);
             }
 
             // 验证用户是否存在
             User creator = userMapper.findById(createdBy);
             if (creator == null) {
-                throw new IllegalArgumentException("用户不存在: " + createdBy);
+                throw new WeebException("用户不存在: " + createdBy);
             }
 
             // 检查是否已存在相同的预览
@@ -94,7 +109,7 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
 
         } catch (Exception e) {
             log.error("创建链接预览失败: {}", e.getMessage(), e);
-            throw new RuntimeException("创建链接预览失败: " + e.getMessage(), e);
+            throw new com.web.exception.WeebException("创建链接预览失败: " + e.getMessage());
         }
     }
 
@@ -158,7 +173,7 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
 
         LinkPreview preview = linkPreviewMapper.findById(previewId);
         if (preview == null) {
-            throw new IllegalArgumentException("预览不存在: " + previewId);
+            throw new WeebException("预览不存在: " + previewId);
         }
 
         return preview;
@@ -205,7 +220,7 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
 
             // 只有创建者可以刷新预览
             if (!preview.getCreatedBy().equals(userId)) {
-                throw new IllegalArgumentException("只有创建者可以刷新预览");
+                throw new WeebException("只有创建者可以刷新预览");
             }
 
             // 重置状态并重新生成
@@ -235,7 +250,7 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
 
             // 只有创建者可以禁用预览
             if (!preview.getCreatedBy().equals(userId)) {
-                throw new IllegalArgumentException("只有创建者可以禁用预览");
+                throw new WeebException("只有创建者可以禁用预览");
             }
 
             preview.disable();
@@ -260,7 +275,7 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
 
             // 只有创建者可以启用预览
             if (!preview.getCreatedBy().equals(userId)) {
-                throw new IllegalArgumentException("只有创建者可以启用预览");
+                throw new WeebException("只有创建者可以启用预览");
             }
 
             preview.enable();
@@ -285,7 +300,7 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
 
             // 只有创建者可以删除预览
             if (!preview.getCreatedBy().equals(userId)) {
-                throw new IllegalArgumentException("只有创建者可以删除预览");
+                throw new WeebException("只有创建者可以删除预览");
             }
 
             linkPreviewMapper.deleteById(previewId);
@@ -381,6 +396,19 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
     @Override
     public Map<String, Object> searchPreviews(String keyword, int page, int pageSize) {
         log.debug("搜索预览: keyword={}, page={}, pageSize={}", keyword, page, pageSize);
+
+        // 输入验证防止SQL注入
+        if (keyword != null) {
+            // 限制关键词长度并移除特殊字符
+            keyword = keyword.trim();
+            if (keyword.length() > 100) {
+                keyword = keyword.substring(0, 100);
+            }
+            // 移除潜在的危险字符
+            keyword = keyword.replaceAll("[';\"\\-\\-]", "");
+        }
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
         int offset = (page - 1) * pageSize;
 
@@ -484,7 +512,7 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
 
             // 只有创建者可以评分
             if (!preview.getCreatedBy().equals(userId)) {
-                throw new IllegalArgumentException("只有创建者可以评分");
+                throw new WeebException("只有创建者可以评分");
             }
 
             preview.setUserRating(rating);
@@ -509,7 +537,7 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
 
             // 只有创建者可以延长过期时间
             if (!preview.getCreatedBy().equals(userId)) {
-                throw new IllegalArgumentException("只有创建者可以延长过期时间");
+                throw new WeebException("只有创建者可以延长过期时间");
             }
 
             preview.extendExpiration(hours);

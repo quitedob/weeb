@@ -1,5 +1,6 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.UserMapper;
 import com.web.mapper.UserStatsMapper;
 import com.web.mapper.ArticleMapper;
@@ -7,6 +8,7 @@ import com.web.model.User;
 import com.web.model.UserStats;
 import com.web.model.UserWithStats;
 import com.web.service.UserTransactionService;
+import com.web.util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,7 +58,7 @@ public class UserTransactionServiceImpl implements UserTransactionService {
                 result.add(userWithStats);
                 
             } catch (Exception e) {
-                throw new RuntimeException("批量创建用户失败: " + e.getMessage(), e);
+                throw new WeebException("批量创建用户失败: " + e.getMessage(), e);
             }
         }
         

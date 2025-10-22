@@ -110,6 +110,14 @@ public class SecurityAuditUtils {
     }
 
     /**
+     * 记录访问拒绝事件
+     */
+    public static void logAccessDenied(String username, String method, String requestUri, String ip, String reason) {
+        String message = String.format("访问被拒绝 - 用户: %s, 方法: %s, URI: %s, IP: %s, 原因: %s", username, method, requestUri, ip, reason);
+        log.warn("SECURITY_AUDIT: {}", message);
+    }
+
+    /**
      * 记录SQL注入尝试事件
      */
     public static void logSqlInjectionAttempt(String input, String paramName, String ip, String userAgent) {

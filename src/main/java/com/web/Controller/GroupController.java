@@ -4,7 +4,7 @@ import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.model.Group;
 import com.web.service.GroupService;
-import com.web.util.SecurityUtil;
+import com.web.security.SecurityUtils;
 import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
 import com.web.vo.group.GroupKickVo;
