@@ -1,6 +1,7 @@
 package com.web.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.web.exception.WeebException;
 import com.web.mapper.GroupMapper;
 import com.web.mapper.GroupMemberMapper;
 import com.web.mapper.UserMapper;
@@ -8,6 +9,7 @@ import com.web.model.Group;
 import com.web.model.GroupMember;
 import com.web.model.User;
 import com.web.service.GroupService;
+import com.web.util.ValidationUtils;
 import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
 import com.web.vo.group.GroupKickVo;
@@ -52,7 +54,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         // 保存群组
         boolean saved = save(group);
         if (!saved) {
-            throw new RuntimeException("创建群组失败");
+            throw new WeebException("创建群组失败");
         }
         
         // 将创建者添加为群主
@@ -72,7 +74,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         // 检查用户是否有权限邀请（是否为群主或管理员）
         GroupMember inviter = groupMemberMapper.findByGroupAndUser(inviteVo.getGroupId(), userId);
         if (inviter == null || inviter.getRole() < 1) {
-            throw new RuntimeException("无权限邀请成员");
+            throw new WeebException("无权限邀请成员");
         }
         
         // 邀请用户加入群组
@@ -95,18 +97,18 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         // 检查操作者是否有权限踢人（是否为群主或管理员）
         GroupMember operator = groupMemberMapper.findByGroupAndUser(kickVo.getGroupId(), userId);
         if (operator == null || operator.getRole() < 1) {
-            throw new RuntimeException("无权限踢出成员");
+            throw new WeebException("无权限踢出成员");
         }
         
         // 检查被踢用户是否为群成员
         GroupMember targetMember = groupMemberMapper.findByGroupAndUser(kickVo.getGroupId(), kickVo.getKickedUserId());
         if (targetMember == null) {
-            throw new RuntimeException("用户不是群成员");
+            throw new WeebException("用户不是群成员");
         }
         
         // 不能踢出群主
         if (targetMember.getRole() >= 2) {
-            throw new RuntimeException("不能踢出群主");
+            throw new WeebException("不能踢出群主");
         }
         
         // 移除群成员
@@ -123,11 +125,11 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         // 检查用户是否为群主
         Group group = getById(groupId);
         if (group == null) {
-            throw new RuntimeException("群组不存在");
+            throw new WeebException("群组不存在");
         }
         
         if (!group.getOwnerId().equals(userId)) {
-            throw new RuntimeException("只有群主可以解散群组");
+            throw new WeebException("只有群主可以解散群组");
         }
         
         // 删除所有群成员
@@ -148,12 +150,12 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         // 检查用户是否为群成员
         GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
         if (member == null) {
-            throw new RuntimeException("用户不是群成员");
+            throw new WeebException("用户不是群成员");
         }
         
         // 群主不能直接退出，需要先转让群主或解散群组
         if (member.getRole() >= 2) {
-            throw new RuntimeException("群主不能退出群组，请先转让群主或解散群组");
+            throw new WeebException("群主不能退出群组，请先转让群主或解散群组");
         }
         
         // 移除群成员
@@ -218,13 +220,13 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         // 检查用户是否有权限更新群组信息（是否为群主或管理员）
         GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
         if (member == null || member.getRole() < 1) {
-            throw new RuntimeException("无权限更新群组信息");
+            throw new WeebException("无权限更新群组信息");
         }
         
         // 获取现有群组信息
         Group existingGroup = getById(groupId);
         if (existingGroup == null) {
-            throw new RuntimeException("群组不存在");
+            throw new WeebException("群组不存在");
         }
         
         // 更新群组信息
@@ -246,12 +248,12 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         // 检查群组是否存在
         Group group = getById(applyVo.getGroupId());
         if (group == null) {
-            throw new RuntimeException("群组不存在");
+            throw new WeebException("群组不存在");
         }
         
         // 检查用户是否已经是群成员
         if (groupMemberMapper.isMember(applyVo.getGroupId(), userId)) {
-            throw new RuntimeException("您已经是该群组的成员");
+            throw new WeebException("您已经是该群组的成员");
         }
         
         // 直接加入群组（简化实现，实际项目中可能需要审核流程）

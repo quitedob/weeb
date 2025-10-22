@@ -1,5 +1,6 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.PermissionMapper;
 import com.web.model.Permission;
 import com.web.service.PermissionService;
@@ -28,7 +29,7 @@ public class PermissionServiceImpl implements PermissionService {
         try {
             // 检查权限名称是否已存在
             if (permissionMapper.existsByName(permission.getName())) {
-                throw new RuntimeException("权限名称已存在: " + permission.getName());
+                throw new WeebException("权限名称已存在: " + permission.getName());
             }
 
             // 设置默认值
@@ -50,11 +51,11 @@ public class PermissionServiceImpl implements PermissionService {
                 log.info("创建权限成功: {}", permission.getName());
                 return permission;
             } else {
-                throw new RuntimeException("创建权限失败");
+                throw new WeebException("创建权限失败");
             }
         } catch (Exception e) {
             log.error("创建权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("创建权限失败: " + e.getMessage());
+            throw new WeebException("创建权限失败: " + e.getMessage());
         }
     }
 
@@ -64,13 +65,13 @@ public class PermissionServiceImpl implements PermissionService {
             // 检查权限是否存在
             Permission existingPermission = permissionMapper.selectById(permission.getId());
             if (existingPermission == null) {
-                throw new RuntimeException("权限不存在: " + permission.getId());
+                throw new WeebException("权限不存在: " + permission.getId());
             }
 
             // 检查权限名称是否与其他权限冲突
             Permission sameNamePermission = permissionMapper.selectByName(permission.getName());
             if (sameNamePermission != null && !sameNamePermission.getId().equals(permission.getId())) {
-                throw new RuntimeException("权限名称已存在: " + permission.getName());
+                throw new WeebException("权限名称已存在: " + permission.getName());
             }
 
             // 更新权限
@@ -80,11 +81,11 @@ public class PermissionServiceImpl implements PermissionService {
                 log.info("更新权限成功: {}", permission.getName());
                 return permission;
             } else {
-                throw new RuntimeException("更新权限失败");
+                throw new WeebException("更新权限失败");
             }
         } catch (Exception e) {
             log.error("更新权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("更新权限失败: " + e.getMessage());
+            throw new WeebException("更新权限失败: " + e.getMessage());
         }
     }
 
@@ -94,7 +95,7 @@ public class PermissionServiceImpl implements PermissionService {
             // 检查权限是否存在
             Permission permission = permissionMapper.selectById(permissionId);
             if (permission == null) {
-                throw new RuntimeException("权限不存在: " + permissionId);
+                throw new WeebException("权限不存在: " + permissionId);
             }
 
             // 软删除：设置状态为禁用
@@ -106,11 +107,11 @@ public class PermissionServiceImpl implements PermissionService {
                 log.info("删除权限成功: {}", permissionId);
                 return true;
             } else {
-                throw new RuntimeException("删除权限失败");
+                throw new WeebException("删除权限失败");
             }
         } catch (Exception e) {
             log.error("删除权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("删除权限失败: " + e.getMessage());
+            throw new WeebException("删除权限失败: " + e.getMessage());
         }
     }
 
@@ -119,12 +120,12 @@ public class PermissionServiceImpl implements PermissionService {
         try {
             Permission permission = permissionMapper.selectById(permissionId);
             if (permission == null || permission.getStatus() == 0) {
-                throw new RuntimeException("权限不存在或已禁用: " + permissionId);
+                throw new WeebException("权限不存在或已禁用: " + permissionId);
             }
             return permission;
         } catch (Exception e) {
             log.error("获取权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取权限失败: " + e.getMessage());
+            throw new WeebException("获取权限失败: " + e.getMessage());
         }
     }
 
@@ -133,12 +134,12 @@ public class PermissionServiceImpl implements PermissionService {
         try {
             Permission permission = permissionMapper.selectByName(name);
             if (permission == null) {
-                throw new RuntimeException("权限不存在: " + name);
+                throw new WeebException("权限不存在: " + name);
             }
             return permission;
         } catch (Exception e) {
             log.error("获取权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取权限失败: " + e.getMessage());
+            throw new WeebException("获取权限失败: " + e.getMessage());
         }
     }
 
@@ -148,7 +149,7 @@ public class PermissionServiceImpl implements PermissionService {
             return permissionMapper.selectPermissionsWithPaging(null, 0, Integer.MAX_VALUE);
         } catch (Exception e) {
             log.error("获取所有权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取所有权限失败: " + e.getMessage());
+            throw new WeebException("获取所有权限失败: " + e.getMessage());
         }
     }
 
@@ -175,7 +176,7 @@ public class PermissionServiceImpl implements PermissionService {
             return result;
         } catch (Exception e) {
             log.error("分页查询权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("分页查询权限失败: " + e.getMessage());
+            throw new WeebException("分页查询权限失败: " + e.getMessage());
         }
     }
 
@@ -185,7 +186,7 @@ public class PermissionServiceImpl implements PermissionService {
             return permissionMapper.existsByName(name);
         } catch (Exception e) {
             log.error("检查权限名称是否存在失败: {}", e.getMessage(), e);
-            throw new RuntimeException("检查权限名称是否存在失败: " + e.getMessage());
+            throw new WeebException("检查权限名称是否存在失败: " + e.getMessage());
         }
     }
 
@@ -194,12 +195,12 @@ public class PermissionServiceImpl implements PermissionService {
         try {
             Permission permission = permissionMapper.selectByResourceAndAction(resource, action);
             if (permission == null) {
-                throw new RuntimeException("权限不存在: " + resource + "." + action);
+                throw new WeebException("权限不存在: " + resource + "." + action);
             }
             return permission;
         } catch (Exception e) {
             log.error("获取权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取权限失败: " + e.getMessage());
+            throw new WeebException("获取权限失败: " + e.getMessage());
         }
     }
 
@@ -209,7 +210,7 @@ public class PermissionServiceImpl implements PermissionService {
             return permissionMapper.selectPermissionGroups();
         } catch (Exception e) {
             log.error("获取权限组失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取权限组失败: " + e.getMessage());
+            throw new WeebException("获取权限组失败: " + e.getMessage());
         }
     }
 
@@ -219,7 +220,7 @@ public class PermissionServiceImpl implements PermissionService {
             return permissionMapper.selectByGroup(group);
         } catch (Exception e) {
             log.error("获取权限组权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取权限组权限失败: " + e.getMessage());
+            throw new WeebException("获取权限组权限失败: " + e.getMessage());
         }
     }
 
@@ -230,13 +231,13 @@ public class PermissionServiceImpl implements PermissionService {
             Set<String> permissionNames = new HashSet<>();
             for (Permission permission : permissions) {
                 if (permissionNames.contains(permission.getName())) {
-                    throw new RuntimeException("权限名称重复: " + permission.getName());
+                    throw new WeebException("权限名称重复: " + permission.getName());
                 }
                 permissionNames.add(permission.getName());
 
                 // 检查权限是否已存在
                 if (permissionMapper.existsByName(permission.getName())) {
-                    throw new RuntimeException("权限名称已存在: " + permission.getName());
+                    throw new WeebException("权限名称已存在: " + permission.getName());
                 }
 
                 // 设置默认值
@@ -259,7 +260,7 @@ public class PermissionServiceImpl implements PermissionService {
             return result;
         } catch (Exception e) {
             log.error("批量创建权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("批量创建权限失败: " + e.getMessage());
+            throw new WeebException("批量创建权限失败: " + e.getMessage());
         }
     }
 

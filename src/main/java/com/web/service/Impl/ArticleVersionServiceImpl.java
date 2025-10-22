@@ -40,6 +40,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
     private ArticleService articleService;
 
     @Override
+    @Transactional
     public ArticleVersion createVersion(ArticleVersion articleVersion) {
         try {
             // 获取下一个版本号
@@ -91,11 +92,11 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
                         articleVersion.getArticleId(), articleVersion.getVersionNumber());
                 return articleVersion;
             } else {
-                throw new RuntimeException("创建文章版本失败");
+                throw new com.web.exception.WeebException("创建文章版本失败");
             }
         } catch (Exception e) {
             log.error("创建文章版本失败: articleId={}", articleVersion.getArticleId(), e);
-            throw new RuntimeException("创建文章版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("创建文章版本失败: " + e.getMessage());
         }
     }
 
@@ -105,7 +106,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return articleVersionMapper.selectVersionsByArticleId(articleId);
         } catch (Exception e) {
             log.error("获取文章版本列表失败: articleId={}", articleId, e);
-            throw new RuntimeException("获取文章版本列表失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取文章版本列表失败: " + e.getMessage());
         }
     }
 
@@ -114,12 +115,12 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
         try {
             Map<String, Object> version = articleVersionMapper.selectArticleVersion(articleId, versionNumber);
             if (version == null) {
-                throw new RuntimeException("版本不存在: articleId=" + articleId + ", version=" + versionNumber);
+                throw new com.web.exception.WeebException("版本不存在: articleId=" + articleId + ", version=" + versionNumber);
             }
             return version;
         } catch (Exception e) {
             log.error("获取文章版本失败: articleId={}, version={}", articleId, versionNumber, e);
-            throw new RuntimeException("获取文章版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取文章版本失败: " + e.getMessage());
         }
     }
 
@@ -128,12 +129,12 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
         try {
             Integer latestVersion = articleVersionMapper.selectLatestVersionNumber(articleId);
             if (latestVersion == null) {
-                throw new RuntimeException("文章不存在版本: articleId=" + articleId);
+                throw new com.web.exception.WeebException("文章不存在版本: articleId=" + articleId);
             }
             return getArticleVersion(articleId, latestVersion);
         } catch (Exception e) {
             log.error("获取文章最新版本失败: articleId={}", articleId, e);
-            throw new RuntimeException("获取文章最新版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取文章最新版本失败: " + e.getMessage());
         }
     }
 
@@ -142,12 +143,12 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
         try {
             Integer latestPublishedVersion = articleVersionMapper.selectLatestPublishedVersionNumber(articleId);
             if (latestPublishedVersion == null) {
-                throw new RuntimeException("文章不存在发布版本: articleId=" + articleId);
+                throw new com.web.exception.WeebException("文章不存在发布版本: articleId=" + articleId);
             }
             return getArticleVersion(articleId, latestPublishedVersion);
         } catch (Exception e) {
             log.error("获取文章最新发布版本失败: articleId={}", articleId, e);
-            throw new RuntimeException("获取文章最新发布版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取文章最新发布版本失败: " + e.getMessage());
         }
     }
 
@@ -157,11 +158,12 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return articleVersionMapper.selectMajorVersionsByArticleId(articleId);
         } catch (Exception e) {
             log.error("获取文章主要版本失败: articleId={}", articleId, e);
-            throw new RuntimeException("获取文章主要版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取文章主要版本失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public boolean rollbackToVersion(Long articleId, Integer versionNumber, Long userId, String rollbackNote) {
         try {
             // 获取目标版本
@@ -202,7 +204,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return false;
         } catch (Exception e) {
             log.error("文章回滚失败: articleId={}, version={}", articleId, versionNumber, e);
-            throw new RuntimeException("文章回滚失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("文章回滚失败: " + e.getMessage());
         }
     }
 
@@ -251,7 +253,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return createdVersion != null ? createdVersion.getVersionNumber() : null;
         } catch (Exception e) {
             log.error("创建主要版本失败: articleId={}", articleId, e);
-            throw new RuntimeException("创建主要版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("创建主要版本失败: " + e.getMessage());
         }
     }
 
@@ -291,7 +293,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return comparison;
         } catch (Exception e) {
             log.error("比较版本失败: articleId={}, from={}, to={}", articleId, fromVersion, toVersion, e);
-            throw new RuntimeException("比较版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("比较版本失败: " + e.getMessage());
         }
     }
 
@@ -301,7 +303,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return articleVersionMapper.selectRecentVersionsByUser(userId, limit);
         } catch (Exception e) {
             log.error("获取用户最近版本失败: userId={}", userId, e);
-            throw new RuntimeException("获取用户最近版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取用户最近版本失败: " + e.getMessage());
         }
     }
 
@@ -327,11 +329,12 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return statistics;
         } catch (Exception e) {
             log.error("获取版本统计失败: articleId={}", articleId, e);
-            throw new RuntimeException("获取版本统计失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取版本统计失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public int cleanupOldVersions(Long articleId, int keepCount) {
         try {
             int deletedCount = articleVersionMapper.cleanupOldVersions(articleId, keepCount);
@@ -339,11 +342,12 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return deletedCount;
         } catch (Exception e) {
             log.error("清理旧版本失败: articleId={}", articleId, e);
-            throw new RuntimeException("清理旧版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("清理旧版本失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public int deleteAllVersions(Long articleId) {
         try {
             int deletedCount = articleVersionMapper.deleteVersionsByArticleId(articleId);
@@ -351,17 +355,30 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return deletedCount;
         } catch (Exception e) {
             log.error("删除所有版本失败: articleId={}", articleId, e);
-            throw new RuntimeException("删除所有版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("删除所有版本失败: " + e.getMessage());
         }
     }
 
     @Override
     public List<Map<String, Object>> searchVersions(Long articleId, String keyword) {
         try {
+            // 输入验证防止SQL注入
+            if (articleId == null || articleId <= 0) {
+                throw new com.web.exception.WeebException("无效的文章ID");
+            }
+            if (keyword != null) {
+                keyword = keyword.trim();
+                if (keyword.length() > 100) {
+                    keyword = keyword.substring(0, 100);
+                }
+                // 移除潜在的危险字符
+                keyword = keyword.replaceAll("[';\"\\-\\-]", "");
+            }
+
             return articleVersionMapper.searchVersionsByKeyword(articleId, keyword, 50);
         } catch (Exception e) {
             log.error("搜索版本失败: articleId={}, keyword={}", articleId, keyword, e);
-            throw new RuntimeException("搜索版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("搜索版本失败: " + e.getMessage());
         }
     }
 
@@ -373,7 +390,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("获取自动保存版本失败: articleId={}, hours={}", articleId, hours, e);
-            throw new RuntimeException("获取自动保存版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取自动保存版本失败: " + e.getMessage());
         }
     }
 
@@ -393,7 +410,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return articleVersionMapper.selectChangeStatistics(articleId);
         } catch (Exception e) {
             log.error("获取变更统计失败: articleId={}", articleId, e);
-            throw new RuntimeException("获取变更统计失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取变更统计失败: " + e.getMessage());
         }
     }
 
@@ -410,11 +427,11 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
                 case "txt":
                     return exportAsText(versions);
                 default:
-                    throw new RuntimeException("不支持的导出格式: " + format);
+                    throw new com.web.exception.WeebException("不支持的导出格式: " + format);
             }
         } catch (Exception e) {
             log.error("导出版本历史失败: articleId={}, format={}", articleId, format, e);
-            throw new RuntimeException("导出版本历史失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("导出版本历史失败: " + e.getMessage());
         }
     }
 
@@ -423,7 +440,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
         try {
             ArticleVersion version = articleVersionMapper.selectById(versionId);
             if (version == null) {
-                throw new RuntimeException("版本不存在: versionId=" + versionId);
+                throw new com.web.exception.WeebException("版本不存在: versionId=" + versionId);
             }
 
             // 这里可以实现恢复逻辑，比如将版本状态从deleted改为正常
@@ -431,7 +448,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
             return true;
         } catch (Exception e) {
             log.error("恢复版本失败: versionId={}", versionId, e);
-            throw new RuntimeException("恢复版本失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("恢复版本失败: " + e.getMessage());
         }
     }
 
@@ -455,7 +472,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
                     .collect(Collectors.toList());
         } catch (Exception e) {
             log.error("获取版本时间线失败: articleId={}", articleId, e);
-            throw new RuntimeException("获取版本时间线失败: " + e.getMessage());
+            throw new com.web.exception.WeebException("获取版本时间线失败: " + e.getMessage());
         }
     }
 

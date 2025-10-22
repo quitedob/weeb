@@ -1,10 +1,12 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.PermissionMapper;
 import com.web.mapper.RoleMapper;
 import com.web.model.Permission;
 import com.web.model.Role;
 import com.web.service.RoleService;
+import com.web.util.ValidationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,12 +31,35 @@ public class RoleServiceImpl implements RoleService {
     private PermissionMapper permissionMapper;
 
     @Override
+    @Transactional
     public Role createRole(Role role) {
+        if (role == null) {
+            throw new WeebException("角色信息不能为空");
+        }
+        if (role.getName() == null || role.getName().trim().isEmpty()) {
+            throw new WeebException("角色名称不能为空");
+        }
+        if (role.getName().length() > 50) {
+            throw new WeebException("角色名称长度不能超过50个字符");
+        }
+        if (!ValidationUtils.isValidRoleName(role.getName())) {
+            throw new WeebException("角色名称格式不正确");
+        }
+        if (role.getDescription() != null && role.getDescription().length() > 200) {
+            throw new WeebException("角色描述长度不能超过200个字符");
+        }
+
         try {
+            // 验证并清理角色名称
+            String safeName = ValidationUtils.sanitizeRoleName(role.getName().trim());
+
             // 检查角色名称是否已存在
-            if (roleMapper.existsByName(role.getName())) {
-                throw new RuntimeException("角色名称已存在: " + role.getName());
+            if (roleMapper.existsByName(safeName)) {
+                throw new WeebException("角色名称已存在: " + safeName);
             }
+
+            // 设置清理后的角色名称
+            role.setName(safeName);
 
             // 设置默认值
             if (role.getStatus() == null) {
@@ -58,33 +83,56 @@ public class RoleServiceImpl implements RoleService {
                 log.info("创建角色成功: {}", role.getName());
                 return role;
             } else {
-                throw new RuntimeException("创建角色失败");
+                throw new WeebException("创建角色失败");
             }
         } catch (Exception e) {
             log.error("创建角色失败: {}", e.getMessage(), e);
-            throw new RuntimeException("创建角色失败: " + e.getMessage());
+            throw new WeebException("创建角色失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public Role updateRole(Role role) {
+        if (role == null) {
+            throw new WeebException("角色信息不能为空");
+        }
+        if (role.getId() == null || role.getId() <= 0) {
+            throw new WeebException("角色ID必须为正数");
+        }
+        if (role.getName() == null || role.getName().trim().isEmpty()) {
+            throw new WeebException("角色名称不能为空");
+        }
+        if (role.getName().length() > 50) {
+            throw new WeebException("角色名称长度不能超过50个字符");
+        }
+        if (role.getDescription() != null && role.getDescription().length() > 200) {
+            throw new WeebException("角色描述长度不能超过200个字符");
+        }
+
         try {
+            // 验证并清理角色名称
+            String safeName = ValidationUtils.sanitizeRoleName(role.getName().trim());
+
             // 检查角色是否存在
             Role existingRole = roleMapper.selectById(role.getId());
             if (existingRole == null) {
-                throw new RuntimeException("角色不存在: " + role.getId());
+                throw new WeebException("角色不存在: " + role.getId());
             }
 
             // 检查角色名称是否与其他角色冲突
-            Role sameNameRole = roleMapper.selectByName(role.getName());
+            Role sameNameRole = roleMapper.selectByName(safeName);
             if (sameNameRole != null && !sameNameRole.getId().equals(role.getId())) {
-                throw new RuntimeException("角色名称已存在: " + role.getName());
+                throw new WeebException("角色名称已存在: " + safeName);
             }
 
             // 系统角色不能修改类型
             if (existingRole.getType() == 0 && role.getType() != 0) {
-                throw new RuntimeException("系统角色不能修改类型");
+                throw new WeebException("系统角色不能修改类型");
             }
+
+            // 设置清理后的角色名称
+            role.setName(safeName);
 
             // 更新角色
             role.setUpdatedAt(LocalDateTime.now());
@@ -93,26 +141,31 @@ public class RoleServiceImpl implements RoleService {
                 log.info("更新角色成功: {}", role.getName());
                 return role;
             } else {
-                throw new RuntimeException("更新角色失败");
+                throw new WeebException("更新角色失败");
             }
         } catch (Exception e) {
             log.error("更新角色失败: {}", e.getMessage(), e);
-            throw new RuntimeException("更新角色失败: " + e.getMessage());
+            throw new WeebException("更新角色失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public boolean deleteRole(Long roleId) {
+        if (roleId == null || roleId <= 0) {
+            throw new WeebException("角色ID必须为正数");
+        }
+
         try {
             // 检查角色是否存在
             Role role = roleMapper.selectById(roleId);
             if (role == null) {
-                throw new RuntimeException("角色不存在: " + roleId);
+                throw new WeebException("角色不存在: " + roleId);
             }
 
             // 系统角色不能删除
             if (role.getType() == 0) {
-                throw new RuntimeException("系统角色不能删除: " + role.getName());
+                throw new WeebException("系统角色不能删除: " + role.getName());
             }
 
             // 软删除：设置状态为禁用
@@ -124,11 +177,11 @@ public class RoleServiceImpl implements RoleService {
                 log.info("删除角色成功: {}", roleId);
                 return true;
             } else {
-                throw new RuntimeException("删除角色失败");
+                throw new WeebException("删除角色失败");
             }
         } catch (Exception e) {
             log.error("删除角色失败: {}", e.getMessage(), e);
-            throw new RuntimeException("删除角色失败: " + e.getMessage());
+            throw new WeebException("删除角色失败: " + e.getMessage());
         }
     }
 
@@ -137,7 +190,7 @@ public class RoleServiceImpl implements RoleService {
         try {
             Role role = roleMapper.selectRoleWithPermissions(roleId);
             if (role == null || role.getStatus() == 0) {
-                throw new RuntimeException("角色不存在或已禁用: " + roleId);
+                throw new WeebException("角色不存在或已禁用: " + roleId);
             }
 
             // 加载权限列表
@@ -156,7 +209,7 @@ public class RoleServiceImpl implements RoleService {
             return role;
         } catch (Exception e) {
             log.error("获取角色失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取角色失败: " + e.getMessage());
+            throw new WeebException("获取角色失败: " + e.getMessage());
         }
     }
 
@@ -165,7 +218,7 @@ public class RoleServiceImpl implements RoleService {
         try {
             Role role = roleMapper.selectByName(name);
             if (role == null) {
-                throw new RuntimeException("角色不存在: " + name);
+                throw new WeebException("角色不存在: " + name);
             }
 
             // 加载权限列表
@@ -184,7 +237,7 @@ public class RoleServiceImpl implements RoleService {
             return role;
         } catch (Exception e) {
             log.error("获取角色失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取角色失败: " + e.getMessage());
+            throw new WeebException("获取角色失败: " + e.getMessage());
         }
     }
 
@@ -211,20 +264,36 @@ public class RoleServiceImpl implements RoleService {
             return roles;
         } catch (Exception e) {
             log.error("获取所有角色失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取所有角色失败: " + e.getMessage());
+            throw new WeebException("获取所有角色失败: " + e.getMessage());
         }
     }
 
     @Override
     public Map<String, Object> getRolesWithPaging(int page, int pageSize, String keyword) {
+        if (page <= 0) {
+            throw new WeebException("页码必须为正数");
+        }
+        if (pageSize <= 0 || pageSize > 100) {
+            throw new WeebException("页面大小必须在1-100之间");
+        }
+
         try {
             Map<String, Object> result = new HashMap<>();
 
             // 计算偏移量
             int offset = (page - 1) * pageSize;
 
+            // 验证搜索关键词
+            String safeKeyword = null;
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                safeKeyword = ValidationUtils.sanitizeSearchKeyword(keyword.trim());
+                if (safeKeyword.length() > 50) {
+                    throw new WeebException("搜索关键词长度不能超过50个字符");
+                }
+            }
+
             // 查询角色列表
-            List<Role> roles = roleMapper.selectRolesWithPaging(keyword, offset, pageSize);
+            List<Role> roles = roleMapper.selectRolesWithPaging(safeKeyword, offset, pageSize);
 
             // 为每个角色加载权限
             for (Role role : roles) {
@@ -242,7 +311,7 @@ public class RoleServiceImpl implements RoleService {
             }
 
             // 查询总数量
-            int total = roleMapper.countRoles(keyword);
+            int total = roleMapper.countRoles(safeKeyword);
 
             result.put("roles", roles);
             result.put("total", total);
@@ -253,7 +322,7 @@ public class RoleServiceImpl implements RoleService {
             return result;
         } catch (Exception e) {
             log.error("分页查询角色失败: {}", e.getMessage(), e);
-            throw new RuntimeException("分页查询角色失败: " + e.getMessage());
+            throw new WeebException("分页查询角色失败: " + e.getMessage());
         }
     }
 
@@ -263,7 +332,7 @@ public class RoleServiceImpl implements RoleService {
             return roleMapper.existsByName(name);
         } catch (Exception e) {
             log.error("检查角色名称是否存在失败: {}", e.getMessage(), e);
-            throw new RuntimeException("检查角色名称是否存在失败: " + e.getMessage());
+            throw new WeebException("检查角色名称是否存在失败: " + e.getMessage());
         }
     }
 
@@ -273,14 +342,14 @@ public class RoleServiceImpl implements RoleService {
             // 检查角色是否存在
             Role role = roleMapper.selectById(roleId);
             if (role == null || role.getStatus() == 0) {
-                throw new RuntimeException("角色不存在或已禁用: " + roleId);
+                throw new WeebException("角色不存在或已禁用: " + roleId);
             }
 
             // 检查权限是否存在
             for (Long permissionId : permissionIds) {
                 Permission permission = permissionMapper.selectById(permissionId);
                 if (permission == null || permission.getStatus() == 0) {
-                    throw new RuntimeException("权限不存在或已禁用: " + permissionId);
+                    throw new WeebException("权限不存在或已禁用: " + permissionId);
                 }
             }
 
@@ -290,11 +359,11 @@ public class RoleServiceImpl implements RoleService {
                 log.info("为角色分配权限成功: roleId={}, permissionCount={}", roleId, permissionIds.size());
                 return true;
             } else {
-                throw new RuntimeException("分配权限失败");
+                throw new WeebException("分配权限失败");
             }
         } catch (Exception e) {
             log.error("分配权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("分配权限失败: " + e.getMessage());
+            throw new WeebException("分配权限失败: " + e.getMessage());
         }
     }
 
@@ -304,7 +373,7 @@ public class RoleServiceImpl implements RoleService {
             // 检查角色是否存在
             Role role = roleMapper.selectById(roleId);
             if (role == null || role.getStatus() == 0) {
-                throw new RuntimeException("角色不存在或已禁用: " + roleId);
+                throw new WeebException("角色不存在或已禁用: " + roleId);
             }
 
             // 移除权限
@@ -313,11 +382,11 @@ public class RoleServiceImpl implements RoleService {
                 log.info("从角色移除权限成功: roleId={}, permissionCount={}", roleId, permissionIds.size());
                 return true;
             } else {
-                throw new RuntimeException("移除权限失败");
+                throw new WeebException("移除权限失败");
             }
         } catch (Exception e) {
             log.error("移除权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("移除权限失败: " + e.getMessage());
+            throw new WeebException("移除权限失败: " + e.getMessage());
         }
     }
 
@@ -327,7 +396,7 @@ public class RoleServiceImpl implements RoleService {
             return roleMapper.selectPermissionNamesByRoleId(roleId);
         } catch (Exception e) {
             log.error("获取角色权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取角色权限失败: " + e.getMessage());
+            throw new WeebException("获取角色权限失败: " + e.getMessage());
         }
     }
 
@@ -338,7 +407,7 @@ public class RoleServiceImpl implements RoleService {
             return new HashSet<>(permissionNames);
         } catch (Exception e) {
             log.error("获取角色权限名称失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取角色权限名称失败: " + e.getMessage());
+            throw new WeebException("获取角色权限名称失败: " + e.getMessage());
         }
     }
 
@@ -349,10 +418,10 @@ public class RoleServiceImpl implements RoleService {
             Role sourceRole = roleMapper.selectById(sourceRoleId);
             Role targetRole = roleMapper.selectById(targetRoleId);
             if (sourceRole == null || sourceRole.getStatus() == 0) {
-                throw new RuntimeException("源角色不存在或已禁用: " + sourceRoleId);
+                throw new WeebException("源角色不存在或已禁用: " + sourceRoleId);
             }
             if (targetRole == null || targetRole.getStatus() == 0) {
-                throw new RuntimeException("目标角色不存在或已禁用: " + targetRoleId);
+                throw new WeebException("目标角色不存在或已禁用: " + targetRoleId);
             }
 
             // 清空目标角色的现有权限
@@ -365,11 +434,11 @@ public class RoleServiceImpl implements RoleService {
                         sourceRoleId, targetRoleId, result);
                 return true;
             } else {
-                throw new RuntimeException("复制权限失败");
+                throw new WeebException("复制权限失败");
             }
         } catch (Exception e) {
             log.error("复制角色权限失败: {}", e.getMessage(), e);
-            throw new RuntimeException("复制角色权限失败: " + e.getMessage());
+            throw new WeebException("复制角色权限失败: " + e.getMessage());
         }
     }
 
@@ -454,7 +523,7 @@ public class RoleServiceImpl implements RoleService {
             return roleMapper.selectRolesByUserId(userId);
         } catch (Exception e) {
             log.error("获取用户角色失败: {}", e.getMessage(), e);
-            throw new RuntimeException("获取用户角色失败: " + e.getMessage());
+            throw new WeebException("获取用户角色失败: " + e.getMessage());
         }
     }
 
@@ -464,7 +533,7 @@ public class RoleServiceImpl implements RoleService {
             return roleMapper.isSystemRole(roleId);
         } catch (Exception e) {
             log.error("检查系统角色失败: {}", e.getMessage(), e);
-            throw new RuntimeException("检查系统角色失败: " + e.getMessage());
+            throw new WeebException("检查系统角色失败: " + e.getMessage());
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.AuthMapper;
 import com.web.mapper.UserMapper;
 import com.web.model.User;
@@ -71,43 +72,82 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public void register(User user) {
         // 参数验证
         if (user == null) {
-            throw new RuntimeException("用户信息不能为空");
+            throw new WeebException("用户信息不能为空");
+        }
+        if (user.getUsername() == null || user.getUsername().trim().isEmpty()) {
+            throw new WeebException("用户名不能为空");
+        }
+        if (user.getUsername().length() < 3 || user.getUsername().length() > 20) {
+            throw new WeebException("用户名长度必须在3-20个字符之间");
         }
         if (!ValidationUtils.validateUsername(user.getUsername())) {
-            throw new RuntimeException("用户名不符合要求：" + SecurityConfig.UsernamePolicy.REQUIREMENT);
+            throw new WeebException("用户名不符合要求：" + SecurityConfig.UsernamePolicy.REQUIREMENT);
+        }
+        if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
+            throw new WeebException("密码不能为空");
+        }
+        if (user.getPassword().length() < 6 || user.getPassword().length() > 50) {
+            throw new WeebException("密码长度必须在6-50个字符之间");
         }
         if (!ValidationUtils.validatePassword(user.getPassword())) {
-            throw new RuntimeException("密码不符合要求：" + SecurityConfig.PasswordPolicy.REQUIREMENT);
+            throw new WeebException("密码不符合要求：" + SecurityConfig.PasswordPolicy.REQUIREMENT);
+        }
+        if (user.getUserEmail() == null || user.getUserEmail().trim().isEmpty()) {
+            throw new WeebException("邮箱不能为空");
+        }
+        if (user.getUserEmail().length() > 100) {
+            throw new WeebException("邮箱长度不能超过100个字符");
         }
         if (!ValidationUtils.validateEmail(user.getUserEmail())) {
-            throw new RuntimeException("邮箱格式不正确：" + SecurityConfig.EmailPolicy.REQUIREMENT);
+            throw new WeebException("邮箱格式不正确：" + SecurityConfig.EmailPolicy.REQUIREMENT);
         }
         if (user.getPhoneNumber() != null && !user.getPhoneNumber().trim().isEmpty()) {
+            if (user.getPhoneNumber().length() > 20) {
+                throw new WeebException("手机号长度不能超过20个字符");
+            }
             if (!ValidationUtils.validatePhone(user.getPhoneNumber())) {
-                throw new RuntimeException("手机号格式不正确：" + SecurityConfig.PhonePolicy.REQUIREMENT);
+                throw new WeebException("手机号格式不正确：" + SecurityConfig.PhonePolicy.REQUIREMENT);
             }
         }
-        
+        if (user.getNickname() != null && user.getNickname().length() > 50) {
+            throw new WeebException("昵称长度不能超过50个字符");
+        }
+        if (user.getBio() != null && user.getBio().length() > 200) {
+            throw new WeebException("个人简介长度不能超过200个字符");
+        }
+
+        // 验证并清理输入
+        String safeUsername = ValidationUtils.sanitizeUsername(user.getUsername().trim());
+        String safeEmail = ValidationUtils.sanitizeEmail(user.getUserEmail().trim());
+        String safePhone = user.getPhoneNumber() != null ?
+                ValidationUtils.sanitizePhone(user.getPhoneNumber().trim()) : null;
+
         // 检查用户名是否已存在
-        User existingUser = authMapper.findByUsername(user.getUsername().trim());
+        User existingUser = authMapper.findByUsername(safeUsername);
         if (existingUser != null) {
-            throw new RuntimeException("用户名已存在");
+            throw new WeebException("用户名已存在");
         }
-        
+
         // 检查邮箱是否已存在
-        Long existingEmailCount = authMapper.countByEmail(user.getUserEmail().trim());
+        Long existingEmailCount = authMapper.countByEmail(safeEmail);
         if (existingEmailCount != null && existingEmailCount > 0) {
-            throw new RuntimeException("邮箱已被注册");
+            throw new WeebException("邮箱已被注册");
         }
-        
+
         // 记录注册事件
         Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
-        SecurityAuditUtils.logRegistration(user.getUsername(), user.getUserEmail(), 
+        SecurityAuditUtils.logRegistration(safeUsername, safeEmail,
                 requestInfo.get("ip"), requestInfo.get("userAgent"));
-        
+
+        // 设置清理后的数据
+        user.setUsername(safeUsername);
+        user.setUserEmail(safeEmail);
+        user.setPhoneNumber(safePhone);
+
         // 加密密码
         user.setPassword(passwordEncoder.encode(user.getPassword().trim()));
         // 设置注册时间
@@ -116,62 +156,72 @@ public class AuthServiceImpl implements AuthService {
         user.setOnlineStatus(UserOnlineStatus.OFFLINE.getCode());
         // 设置默认用户状态为启用
         user.setStatus(1);
-        
+
         authMapper.insertUser(user);
     }
 
     @Override
+    @Transactional
     public String login(String username, String password) {
         // 参数验证
         if (username == null || username.trim().isEmpty()) {
             Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
-            SecurityAuditUtils.logLoginFailure("", requestInfo.get("ip"), 
+            SecurityAuditUtils.logLoginFailure("", requestInfo.get("ip"),
                     requestInfo.get("userAgent"), "用户名为空");
-            throw new RuntimeException("用户名不能为空");
+            throw new WeebException("用户名不能为空");
         }
         if (password == null || password.trim().isEmpty()) {
             Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
-            SecurityAuditUtils.logLoginFailure(username, requestInfo.get("ip"), 
+            SecurityAuditUtils.logLoginFailure(username, requestInfo.get("ip"),
                     requestInfo.get("userAgent"), "密码为空");
-            throw new RuntimeException("密码不能为空");
+            throw new WeebException("密码不能为空");
         }
-        
-        // 检查账号是否被锁定
-        if (SecurityAuditUtils.isAccountLocked(username)) {
+        if (username.length() > 50 || password.length() > 100) {
             Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
-            SecurityAuditUtils.logLoginFailure(username, requestInfo.get("ip"), 
-                    requestInfo.get("userAgent"), "账号已被锁定");
-            throw new RuntimeException("账号已被锁定，请稍后再试");
+            SecurityAuditUtils.logLoginFailure(username, requestInfo.get("ip"),
+                    requestInfo.get("userAgent"), "用户名或密码过长");
+            throw new WeebException("用户名或密码长度超出限制");
         }
-        
+
+        // 验证并清理输入
+        String safeUsername = ValidationUtils.sanitizeUsername(username.trim());
+
+        // 检查账号是否被锁定
+        if (SecurityAuditUtils.isAccountLocked(safeUsername)) {
+            Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
+            SecurityAuditUtils.logLoginFailure(safeUsername, requestInfo.get("ip"),
+                    requestInfo.get("userAgent"), "账号已被锁定");
+            throw new WeebException("账号已被锁定，请稍后再试");
+        }
+
         // 查找用户
-        User user = authMapper.findByUsername(username.trim());
+        User user = authMapper.findByUsername(safeUsername);
         if (user == null) {
             Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
-            SecurityAuditUtils.logLoginFailure(username, requestInfo.get("ip"), 
+            SecurityAuditUtils.logLoginFailure(safeUsername, requestInfo.get("ip"),
                     requestInfo.get("userAgent"), "用户不存在");
-            throw new RuntimeException("用户不存在");
+            throw new WeebException("用户不存在");
         }
-        
+
         // 检查用户状态
         if (user.getStatus() != null && user.getStatus() == 0) {
             Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
-            SecurityAuditUtils.logLoginFailure(username, requestInfo.get("ip"), 
+            SecurityAuditUtils.logLoginFailure(safeUsername, requestInfo.get("ip"),
                     requestInfo.get("userAgent"), "用户账号已被禁用");
-            throw new RuntimeException("用户账号已被禁用");
+            throw new WeebException("用户账号已被禁用");
         }
-        
+
         // 验证密码
         if (!passwordEncoder.matches(password.trim(), user.getPassword())) {
             Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
-            SecurityAuditUtils.logLoginFailure(username, requestInfo.get("ip"), 
+            SecurityAuditUtils.logLoginFailure(safeUsername, requestInfo.get("ip"),
                     requestInfo.get("userAgent"), "密码错误");
-            throw new RuntimeException("密码错误");
+            throw new WeebException("密码错误");
         }
 
         // 记录登录成功事件
         Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
-        SecurityAuditUtils.logLoginSuccess(username, requestInfo.get("ip"), 
+        SecurityAuditUtils.logLoginSuccess(safeUsername, requestInfo.get("ip"),
                 requestInfo.get("userAgent"));
 
         // 生成真正的JWT令牌
@@ -179,27 +229,35 @@ public class AuthServiceImpl implements AuthService {
 
         // 将用户信息存储到Redis（用于快速查询）
         redisTemplate.opsForValue().set(USER_TOKEN_PREFIX + token, user, TOKEN_EXPIRE_TIME, TimeUnit.SECONDS);
-        
+
         // 更新登录时间
         user.setLoginTime(new Date());
         authMapper.updateUser(user);
-        
+
         // 设置用户在线状态
         online(user.getId());
-        
+
         return token;
     }
 
     @Override
+    @Transactional
     public void logout(String token) {
+        if (token == null || token.trim().isEmpty()) {
+            throw new WeebException("token不能为空");
+        }
+        if (token.length() > 500) {
+            throw new WeebException("token长度超出限制");
+        }
+
         // 从Redis获取用户信息
         User user = (User) redisTemplate.opsForValue().get(USER_TOKEN_PREFIX + token);
         if (user != null) {
             // 记录登出事件
             Map<String, String> requestInfo = SecurityAuditUtils.getCurrentRequestInfo();
-            SecurityAuditUtils.logSessionManagement(user.getUsername(), "logout", 
+            SecurityAuditUtils.logSessionManagement(user.getUsername(), "logout",
                     requestInfo.get("ip"), requestInfo.get("userAgent"));
-            
+
             // 设置用户离线状态
             offline(user.getId());
             // 删除Redis中的token
@@ -239,6 +297,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void online(Long userId) {
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
         // 更新数据库中的在线状态
         userMapper.updateOnlineStatus(userId, UserOnlineStatus.ONLINE.getCode());
         // 将用户ID添加到Redis在线用户集合
@@ -247,6 +308,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void offline(Long userId) {
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
         // 更新数据库中的在线状态
         userMapper.updateOnlineStatus(userId, UserOnlineStatus.OFFLINE.getCode());
         // 从Redis在线用户集合中移除用户ID
@@ -298,8 +362,27 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public com.web.model.UserWithStats getUserWithStats(Long userId) {
-        // TODO: 实现获取用户统计信息的逻辑
-        // 这里需要根据实际需求实现，可能需要关联查询user_stats表
-        return null;
+        try {
+            if (userId == null || userId <= 0) {
+                throw new WeebException("用户ID必须为正数");
+            }
+
+            // 获取用户基本信息和统计信息
+            com.web.model.UserWithStats userWithStats = authMapper.selectUserWithStatsById(userId);
+
+            if (userWithStats == null) {
+                throw new WeebException("用户不存在: " + userId);
+            }
+
+            // 不返回密码信息
+            userWithStats.setPassword(null);
+
+            return userWithStats;
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取用户统计信息失败: userId={}", userId, e);
+            throw new WeebException("获取用户统计信息失败: " + e.getMessage());
+        }
     }
 }

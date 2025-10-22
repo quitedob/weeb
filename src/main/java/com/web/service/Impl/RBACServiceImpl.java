@@ -1,9 +1,11 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.UserRoleMapper;
 import com.web.model.Role;
 import com.web.service.RBACService;
 import com.web.service.RoleService;
+import com.web.util.ValidationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -39,7 +41,17 @@ public class RBACServiceImpl implements RBACService {
     @Override
     public boolean hasPermission(Long userId, String permission) {
         try {
-            if (userId == null || permission == null || permission.trim().isEmpty()) {
+            if (userId == null || userId <= 0) {
+                return false;
+            }
+            if (permission == null || permission.trim().isEmpty()) {
+                return false;
+            }
+
+            // 验证权限格式
+            String safePermission = ValidationUtils.sanitizePermission(permission.trim());
+            if (safePermission.length() > 100) {
+                log.warn("权限名称过长: {}", permission);
                 return false;
             }
 
@@ -54,7 +66,7 @@ public class RBACServiceImpl implements RBACService {
                 redisTemplate.opsForValue().set(cacheKey, userPermissions, CACHE_EXPIRE_HOURS, TimeUnit.HOURS);
             }
 
-            return userPermissions.contains(permission);
+            return userPermissions.contains(safePermission);
         } catch (Exception e) {
             log.error("检查用户权限失败: userId={}, permission={}", userId, permission, e);
             return false;
@@ -158,12 +170,27 @@ public class RBACServiceImpl implements RBACService {
     @Override
     public boolean hasPermissionForResource(Long userId, String resource, String action) {
         try {
-            if (userId == null || resource == null || action == null) {
+            if (userId == null || userId <= 0) {
+                return false;
+            }
+            if (resource == null || resource.trim().isEmpty()) {
+                return false;
+            }
+            if (action == null || action.trim().isEmpty()) {
+                return false;
+            }
+
+            // 验证并清理资源名称和操作
+            String safeResource = ValidationUtils.sanitizeResourceName(resource.trim());
+            String safeAction = ValidationUtils.sanitizeActionName(action.trim());
+
+            if (safeResource.length() > 50 || safeAction.length() > 50) {
+                log.warn("资源名称或操作名称过长: resource={}, action={}", resource, action);
                 return false;
             }
 
             // 构建权限名称：RESOURCE_ACTION
-            String permission = resource.toUpperCase() + "_" + action.toUpperCase();
+            String permission = safeResource.toUpperCase() + "_" + safeAction.toUpperCase();
             return hasPermission(userId, permission);
         } catch (Exception e) {
             log.error("检查用户资源权限失败: userId={}, resource={}, action={}", userId, resource, action, e);
@@ -202,12 +229,16 @@ public class RBACServiceImpl implements RBACService {
     }
 
     @Override
+    @Transactional
     public boolean assignRoleToUser(Long userId, Long roleId) {
-        try {
-            if (userId == null || roleId == null) {
-                throw new RuntimeException("用户ID和角色ID不能为空");
-            }
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (roleId == null || roleId <= 0) {
+            throw new WeebException("角色ID必须为正数");
+        }
 
+        try {
             // 检查用户是否已经拥有该角色
             if (userRoleMapper.hasRole(userId, roleId)) {
                 log.warn("用户已拥有该角色: userId={}, roleId={}", userId, roleId);
@@ -222,21 +253,25 @@ public class RBACServiceImpl implements RBACService {
                 log.info("为用户分配角色成功: userId={}, roleId={}", userId, roleId);
                 return true;
             } else {
-                throw new RuntimeException("分配角色失败");
+                throw new WeebException("分配角色失败");
             }
         } catch (Exception e) {
             log.error("为用户分配角色失败: userId={}, roleId={}", userId, roleId, e);
-            throw new RuntimeException("分配角色失败: " + e.getMessage());
+            throw new WeebException("分配角色失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public boolean removeRoleFromUser(Long userId, Long roleId) {
-        try {
-            if (userId == null || roleId == null) {
-                throw new RuntimeException("用户ID和角色ID不能为空");
-            }
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (roleId == null || roleId <= 0) {
+            throw new WeebException("角色ID必须为正数");
+        }
 
+        try {
             // 检查用户是否拥有该角色
             if (!userRoleMapper.hasRole(userId, roleId)) {
                 log.warn("用户不拥有该角色: userId={}, roleId={}", userId, roleId);
@@ -251,11 +286,11 @@ public class RBACServiceImpl implements RBACService {
                 log.info("从用户移除角色成功: userId={}, roleId={}", userId, roleId);
                 return true;
             } else {
-                throw new RuntimeException("移除角色失败");
+                throw new WeebException("移除角色失败");
             }
         } catch (Exception e) {
             log.error("从用户移除角色失败: userId={}, roleId={}", userId, roleId, e);
-            throw new RuntimeException("移除角色失败: " + e.getMessage());
+            throw new WeebException("移除角色失败: " + e.getMessage());
         }
     }
 
@@ -298,7 +333,7 @@ public class RBACServiceImpl implements RBACService {
             log.info("刷新所有用户权限缓存成功");
         } catch (Exception e) {
             log.error("刷新所有用户权限缓存失败", e);
-            throw new RuntimeException("刷新权限缓存失败: " + e.getMessage());
+            throw new WeebException("刷新权限缓存失败: " + e.getMessage());
         }
     }
 

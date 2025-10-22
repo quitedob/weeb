@@ -1,10 +1,12 @@
 package com.web.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.web.exception.WeebException;
 import com.web.mapper.ChatListMapper;
 import com.web.model.ChatList;
 import com.web.model.Message;
 import com.web.service.ChatListService;
+import com.web.util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,7 +49,7 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
             
             int result = chatListMapper.insertChatList(groupChat);
             if (result <= 0) {
-                throw new RuntimeException("创建群聊记录失败");
+                throw new WeebException("创建群聊记录失败");
             }
         }
         
@@ -77,7 +79,7 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
             return chatList;
         }
         
-        throw new RuntimeException("创建聊天记录失败");
+        throw new WeebException("创建聊天记录失败");
     }
 
     @Override

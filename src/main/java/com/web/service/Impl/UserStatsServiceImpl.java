@@ -1,6 +1,7 @@
 package com.web.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.web.exception.WeebException;
 import com.web.mapper.UserStatsMapper;
 import com.web.model.UserStats;
 import com.web.model.UserWithStats;
@@ -42,7 +43,7 @@ public class UserStatsServiceImpl extends ServiceImpl<UserStatsMapper, UserStats
         if (result > 0) {
             return userStats;
         }
-        throw new RuntimeException("创建用户统计数据失败");
+        throw new WeebException("创建用户统计数据失败");
     }
 
     @Override

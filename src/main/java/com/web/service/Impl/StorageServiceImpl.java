@@ -1,6 +1,8 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.service.StorageService;
+import com.web.util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -52,7 +54,7 @@ public class StorageServiceImpl implements StorageService {
             return baseUrl + directoryPath + uniqueFilename;
 
         } catch (IOException e) {
-            throw new RuntimeException("文件上传失败: " + e.getMessage(), e);
+            throw new WeebException("文件上传失败: " + e.getMessage(), e);
         }
     }
 
@@ -84,7 +86,7 @@ public class StorageServiceImpl implements StorageService {
             return baseUrl + directoryPath + uniqueFilename;
 
         } catch (IOException e) {
-            throw new RuntimeException("文件上传失败: " + e.getMessage(), e);
+            throw new WeebException("文件上传失败: " + e.getMessage(), e);
         }
     }
 

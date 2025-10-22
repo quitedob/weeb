@@ -5,8 +5,10 @@ import com.web.mapper.GroupMapper;
 import com.web.model.User;
 import com.web.model.Group;
 import com.web.service.SearchService;
+import com.web.exception.WeebException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.Map;
  * 处理用户、群组等搜索功能
  */
 @Service
+@Transactional
 public class SearchServiceImpl implements SearchService {
 
     @Autowired
@@ -27,55 +30,87 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public Map<String, Object> searchGroups(String keyword, int page, int size) {
-        // 参数验证
-        if (keyword == null || keyword.trim().isEmpty()) {
+        try {
+            // 输入验证
+            if (keyword == null || keyword.trim().isEmpty()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("list", List.of());
+                result.put("total", 0L);
+                return result;
+            }
+
+            // SQL注入防护
+            keyword = keyword.trim();
+            if (keyword.length() > 100) {
+                keyword = keyword.substring(0, 100);
+            }
+            // 移除潜在的危险字符
+            keyword = keyword.replaceAll("[';\"\\-\\-]", "");
+
+            // 分页参数验证
+            if (page < 0) page = 0;
+            if (size <= 0 || size > 100) size = 20;
+
+            // 计算偏移量
+            int offset = page * size;
+
+            // 使用专门的搜索方法进行数据库级别的分页查询
+            List<Group> groups = groupMapper.searchGroups(keyword, offset, size);
+            long total = groupMapper.countSearchGroups(keyword);
+
             Map<String, Object> result = new HashMap<>();
-            result.put("list", List.of());
-            result.put("total", 0L);
+            result.put("list", groups);
+            result.put("total", total);
+
             return result;
+        } catch (Exception e) {
+            throw new WeebException("搜索群组失败: " + e.getMessage());
         }
-
-        // 计算偏移量
-        int offset = page * size;
-
-        // 使用专门的搜索方法进行数据库级别的分页查询
-        List<Group> groups = groupMapper.searchGroups(keyword.trim(), offset, size);
-        long total = groupMapper.countSearchGroups(keyword.trim());
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("list", groups);
-        result.put("total", total);
-
-        return result;
     }
 
     @Override
     public Map<String, Object> searchUsers(String keyword, int page, int size) {
-        // 参数验证
-        if (keyword == null || keyword.trim().isEmpty()) {
+        try {
+            // 输入验证
+            if (keyword == null || keyword.trim().isEmpty()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("list", List.of());
+                result.put("total", 0L);
+                return result;
+            }
+
+            // SQL注入防护
+            keyword = keyword.trim();
+            if (keyword.length() > 100) {
+                keyword = keyword.substring(0, 100);
+            }
+            // 移除潜在的危险字符
+            keyword = keyword.replaceAll("[';\"\\-\\-]", "");
+
+            // 分页参数验证
+            if (page < 0) page = 0;
+            if (size <= 0 || size > 100) size = 20;
+
+            // 计算偏移量
+            int offset = page * size;
+
+            // 使用专门的搜索方法进行数据库级别的分页查询
+            List<User> users = userMapper.searchUsers(keyword, offset, size);
+            long total = userMapper.countSearchUsers(keyword);
+
+            // 过滤敏感信息（不返回密码等）
+            users.forEach(user -> {
+                user.setPassword(null); // 不返回密码
+            });
+
             Map<String, Object> result = new HashMap<>();
-            result.put("list", List.of());
-            result.put("total", 0L);
+            result.put("list", users);
+            result.put("total", total);
+
             return result;
+        } catch (Exception e) {
+            throw new WeebException("搜索用户失败: " + e.getMessage());
         }
-
-        // 计算偏移量
-        int offset = page * size;
-
-        // 使用专门的搜索方法进行数据库级别的分页查询
-        List<User> users = userMapper.searchUsers(keyword.trim(), offset, size);
-        long total = userMapper.countSearchUsers(keyword.trim());
-
-        // 过滤敏感信息（不返回密码等）
-        users.forEach(user -> {
-            user.setPassword(null); // 不返回密码
-        });
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("list", users);
-        result.put("total", total);
-
-        return result;
     }
 
     @Override

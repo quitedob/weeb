@@ -4,12 +4,15 @@ import com.web.common.ApiResponse;
 import com.web.model.User;
 import com.web.service.RBACService;
 import com.web.service.UserService;
+import com.web.vo.auth.PasswordChangeVo;
+import com.web.vo.auth.TwoFactorRequestVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -223,9 +226,8 @@ public class SecurityController {
     @PostMapping("/disable-2fa")
     public ResponseEntity<ApiResponse<Boolean>> disable2FA(
             HttpServletRequest request,
-            @RequestBody Map<String, String> requestData) {
+            @RequestBody @Valid TwoFactorRequestVo twoFactorRequest) {
 
-        String verificationCode = requestData.get("verificationCode");
         Long userId = getCurrentUserId(request);
 
         // 这里需要调用两因素认证服务禁用2FA
@@ -243,9 +245,8 @@ public class SecurityController {
     @PostMapping("/verify-2fa")
     public ResponseEntity<ApiResponse<Boolean>> verify2FA(
             HttpServletRequest request,
-            @RequestBody Map<String, String> requestData) {
+            @RequestBody @Valid TwoFactorRequestVo twoFactorRequest) {
 
-        String verificationCode = requestData.get("verificationCode");
         Long userId = getCurrentUserId(request);
 
         // 这里需要调用两因素认证服务验证验证码
@@ -263,14 +264,14 @@ public class SecurityController {
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<Boolean>> changePassword(
             HttpServletRequest request,
-            @RequestBody Map<String, String> passwordData) {
+            @RequestBody @Valid PasswordChangeVo passwordChangeVo) {
 
-        String currentPassword = passwordData.get("currentPassword");
-        String newPassword = passwordData.get("newPassword");
         Long userId = getCurrentUserId(request);
 
         // 这里需要调用用户服务修改密码
-        boolean changed = userService.changePassword(userId, currentPassword, newPassword);
+        boolean changed = userService.changePassword(userId,
+                passwordChangeVo.getCurrentPassword(),
+                passwordChangeVo.getNewPassword());
 
         return ResponseEntity.ok(ApiResponse.success(changed));
     }

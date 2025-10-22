@@ -81,14 +81,53 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
      * 检查用户是否有指定类型的权限
      *
      * @param authentication 当前认证用户
-     * @param targetType 目标对象类型
+     * @param targetId 目标ID
      * @param permission 权限名称
      * @return 是否有权限
      */
     @Override
-    public boolean hasPermission(Authentication authentication, Serializable targetType, Object permission) {
-        // 这种方法签名用于类型级别的权限检查，我们可以委托给上面的方法
-        return hasPermission(authentication, targetType, permission);
+    public boolean hasPermission(Authentication authentication, Serializable targetId, String permission, Object targetObject) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+
+        try {
+            String username = authentication.getName();
+            User user = userService.findByUsername(username);
+
+            if (user == null) {
+                logger.warn("User not found: {}", username);
+                return false;
+            }
+
+            String permissionStr = permission.toString();
+
+            // 如果有目标对象，可以基于对象进行更细粒度的权限检查
+            if (targetObject != null) {
+                return checkObjectPermission(user, targetObject, permissionStr);
+            }
+
+            // 简单权限检查
+            return hasSimplePermission(user, permissionStr);
+
+        } catch (Exception e) {
+            logger.error("Error checking permission", e);
+            return false;
+        }
+    }
+
+    /**
+     * 检查用户对特定对象的权限
+     */
+    private boolean checkObjectPermission(User user, Object targetDomainObject, String permissionStr) {
+        // 根据目标对象类型进行不同的权限检查
+        if (targetDomainObject instanceof String) {
+            // 如果是字符串，可能是资源类型的标识
+            return hasSimplePermission(user, permissionStr);
+        }
+
+        // 其他类型的对象权限检查可以在这里扩展
+        return hasSimplePermission(user, permissionStr);
     }
 
     /**

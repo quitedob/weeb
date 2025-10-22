@@ -1,4 +1,4 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
 import com.web.mapper.UserMentionMapper;
 import com.web.mapper.UserMapper;
@@ -42,22 +42,42 @@ public class UserMentionServiceImpl implements UserMentionService {
                 messageId, mentionerId, mentionedUserId);
 
         try {
+            // 输入验证
+            if (messageId == null || messageId <= 0) {
+                throw new com.web.exception.WeebException("无效的消息ID");
+            }
+            if (mentionerId == null || mentionerId <= 0) {
+                throw new com.web.exception.WeebException("无效的提及者ID");
+            }
+            if (mentionedUserId == null || mentionedUserId <= 0) {
+                throw new com.web.exception.WeebException("无效的被提及用户ID");
+            }
+            if (mentionText != null && mentionText.length() > 500) {
+                throw new com.web.exception.WeebException("提及文本过长");
+            }
+            if (startPosition != null && startPosition < 0) {
+                throw new com.web.exception.WeebException("起始位置不能为负数");
+            }
+            if (endPosition != null && endPosition < 0) {
+                throw new com.web.exception.WeebException("结束位置不能为负数");
+            }
+
             // 验证消息是否存在
             Message message = messageMapper.findById(messageId);
             if (message == null) {
-                throw new IllegalArgumentException("消息不存在: " + messageId);
+                throw new com.web.exception.WeebException("消息不存在: " + messageId);
             }
 
             // 验证提及者是否存在
             User mentioner = userMapper.findById(mentionerId);
             if (mentioner == null) {
-                throw new IllegalArgumentException("提及者不存在: " + mentionerId);
+                throw new com.web.exception.WeebException("提及者不存在: " + mentionerId);
             }
 
             // 验证被提及用户是否存在
             User mentionedUser = userMapper.findById(mentionedUserId);
             if (mentionedUser == null) {
-                throw new IllegalArgumentException("被提及用户不存在: " + mentionedUserId);
+                throw new com.web.exception.WeebException("被提及用户不存在: " + mentionedUserId);
             }
 
             // 创建提及
@@ -176,12 +196,12 @@ public class UserMentionServiceImpl implements UserMentionService {
         try {
             UserMention mention = userMentionMapper.findById(mentionId);
             if (mention == null) {
-                throw new IllegalArgumentException("提及不存在: " + mentionId);
+                throw new com.web.exception.WeebException("提及不存在: " + mentionId);
             }
 
             // 只有被提及用户可以标记为已读
             if (!mention.getMentionedUserId().equals(userId)) {
-                throw new IllegalArgumentException("只有被提及用户可以标记为已读");
+                throw new com.web.exception.WeebException("只有被提及用户可以标记为已读");
             }
 
             mention.markAsRead();
@@ -319,12 +339,12 @@ public class UserMentionServiceImpl implements UserMentionService {
         try {
             UserMention mention = userMentionMapper.findById(mentionId);
             if (mention == null) {
-                throw new IllegalArgumentException("提及不存在: " + mentionId);
+                throw new com.web.exception.WeebException("提及不存在: " + mentionId);
             }
 
             // 只有提及者可以删除提及
             if (!mention.getMentionerId().equals(userId)) {
-                throw new IllegalArgumentException("只有提及者可以删除提及");
+                throw new com.web.exception.WeebException("只有提及者可以删除提及");
             }
 
             userMentionMapper.deleteById(mentionId);
@@ -370,7 +390,7 @@ public class UserMentionServiceImpl implements UserMentionService {
 
         UserMention mention = userMentionMapper.findById(mentionId);
         if (mention == null) {
-            throw new IllegalArgumentException("提及不存在: " + mentionId);
+            throw new com.web.exception.WeebException("提及不存在: " + mentionId);
         }
 
         // 获取消息信息

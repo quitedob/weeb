@@ -1,5 +1,6 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.MessageThreadMapper;
 import com.web.mapper.MessageMapper;
 import com.web.mapper.UserMapper;
@@ -34,16 +35,24 @@ public class MessageThreadServiceImpl implements MessageThreadService {
         log.info("创建消息线索: rootMessageId={}, title={}, createdBy={}", rootMessageId, title, createdBy);
 
         try {
+            // 输入验证
+            if (rootMessageId == null || rootMessageId <= 0) {
+                throw new WeebException("无效的根消息ID");
+            }
+            if (createdBy == null || createdBy <= 0) {
+                throw new WeebException("无效的创建者ID");
+            }
+
             // 验证根消息是否存在
             Message rootMessage = messageMapper.findById(rootMessageId);
             if (rootMessage == null) {
-                throw new IllegalArgumentException("根消息不存在: " + rootMessageId);
+                throw new WeebException("根消息不存在: " + rootMessageId);
             }
 
             // 验证用户是否存在
             User creator = userMapper.findById(createdBy);
             if (creator == null) {
-                throw new IllegalArgumentException("创建者不存在: " + createdBy);
+                throw new WeebException("创建者不存在: " + createdBy);
             }
 
             // 创建线索
@@ -60,7 +69,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
         } catch (Exception e) {
             log.error("创建消息线索失败: {}", e.getMessage(), e);
-            throw new RuntimeException("创建消息线索失败: " + e.getMessage(), e);
+            throw new com.web.exception.WeebException("创建消息线索失败: " + e.getMessage(), e);
         }
     }
 
@@ -70,7 +79,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
         MessageThread thread = messageThreadMapper.findById(threadId);
         if (thread == null) {
-            throw new IllegalArgumentException("线索不存在: " + threadId);
+            throw new WeebException("线索不存在: " + threadId);
         }
 
         return thread;
@@ -119,7 +128,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
             // 验证线索是否存在且可回复
             MessageThread thread = getThreadById(threadId);
             if (!thread.canReply(userId)) {
-                throw new IllegalArgumentException("线索不可回复");
+                throw new WeebException("线索不可回复");
             }
 
             // 创建回复消息
@@ -134,9 +143,12 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
             // 更新线索最后回复信息
             User replier = userMapper.findById(userId);
+            if (replier == null) {
+                throw new WeebException("回复用户不存在: " + userId);
+            }
             thread.setLastReplyAt(LocalDateTime.now());
             thread.setLastReplyBy(userId);
-            thread.setLastReplyByUsername(replier != null ? replier.getUsername() : "未知用户");
+            thread.setLastReplyByUsername(replier.getUsername());
             messageThreadMapper.update(thread);
 
             log.info("线索回复成功: threadId={}, messageId={}", threadId, reply.getId());
@@ -149,7 +161,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
         } catch (Exception e) {
             log.error("回复线索失败: {}", e.getMessage(), e);
-            throw new RuntimeException("回复线索失败: " + e.getMessage(), e);
+            throw new com.web.exception.WeebException("回复线索失败: " + e.getMessage(), e);
         }
     }
 
@@ -224,7 +236,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
             // 只有创建者可以归档线索
             if (!thread.isCreatedBy(userId)) {
-                throw new IllegalArgumentException("只有线索创建者可以归档线索");
+                throw new WeebException("只有线索创建者可以归档线索");
             }
 
             thread.setStatus(MessageThread.Status.ARCHIVED);
@@ -249,7 +261,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
             // 只有创建者可以关闭线索
             if (!thread.isCreatedBy(userId)) {
-                throw new IllegalArgumentException("只有线索创建者可以关闭线索");
+                throw new WeebException("只有线索创建者可以关闭线索");
             }
 
             thread.setStatus(MessageThread.Status.CLOSED);
@@ -274,7 +286,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
             // 只有创建者可以置顶线索
             if (!thread.isCreatedBy(userId)) {
-                throw new IllegalArgumentException("只有线索创建者可以置顶线索");
+                throw new WeebException("只有线索创建者可以置顶线索");
             }
 
             thread.setIsPinned(isPinned);
@@ -299,7 +311,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
             // 只有创建者可以锁定线索
             if (!thread.isCreatedBy(userId)) {
-                throw new IllegalArgumentException("只有线索创建者可以锁定线索");
+                throw new WeebException("只有线索创建者可以锁定线索");
             }
 
             thread.setIsLocked(isLocked);
@@ -392,6 +404,18 @@ public class MessageThreadServiceImpl implements MessageThreadService {
     @Override
     public Map<String, Object> searchThreads(String keyword, int page, int pageSize) {
         log.debug("搜索线索: keyword={}, page={}, pageSize={}", keyword, page, pageSize);
+
+        // 输入验证防止SQL注入
+        if (keyword != null) {
+            keyword = keyword.trim();
+            if (keyword.length() > 100) {
+                keyword = keyword.substring(0, 100);
+            }
+            // 移除潜在的危险字符
+            keyword = keyword.replaceAll("[';\"\\-\\-]", "");
+        }
+        if (page < 1) page = 1;
+        if (pageSize < 1 || pageSize > 100) pageSize = 20;
 
         int offset = (page - 1) * pageSize;
 

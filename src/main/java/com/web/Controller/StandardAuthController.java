@@ -4,6 +4,8 @@ import com.web.common.ApiResponse;
 import com.web.model.User;
 import com.web.service.AuthService;
 import com.web.util.JwtUtil;
+import com.web.vo.auth.LoginVo;
+import com.web.vo.auth.RegistrationVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -37,35 +39,33 @@ public class StandardAuthController {
      * POST /api/auth/register
      */
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> register(@RequestBody @Valid Map<String, String> registrationRequest) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> register(@RequestBody @Valid RegistrationVo registrationVo) {
         try {
-            String username = registrationRequest.get("username");
-            String password = registrationRequest.get("password");
-            String email = registrationRequest.get("email");
-            String phone = registrationRequest.get("phone");
-
-            if (username == null || password == null) {
+            // 验证密码和确认密码是否一致
+            if (!registrationVo.getPassword().equals(registrationVo.getConfirmPassword())) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("用户名和密码不能为空"));
+                        .body(ApiResponse.error("密码和确认密码不一致"));
             }
 
             // 检查用户名是否已存在
-            if (authService.findByUsername(username) != null) {
+            if (authService.findByUsername(registrationVo.getUsername()) != null) {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("用户名已存在"));
             }
 
             // 创建用户
             User user = new User();
-            user.setUsername(username);
-            user.setPassword(passwordEncoder.encode(password));
-            user.setEmail(email);
-            user.setPhone(phone);
+            user.setUsername(registrationVo.getUsername());
+            user.setPassword(passwordEncoder.encode(registrationVo.getPassword()));
+            user.setEmail(registrationVo.getEmail());
+            user.setPhone(registrationVo.getPhone());
+            user.setNickname(registrationVo.getNickname());
+            user.setBio(registrationVo.getBio());
 
             User registeredUser = authService.register(user);
             if (registeredUser != null) {
                 // 生成JWT令牌
-                String token = jwtUtil.generateToken(registeredUser.getUsername());
+                String token = jwtUtil.generateToken(registeredUser.getId());
 
                 Map<String, Object> result = new HashMap<>();
                 result.put("user", registeredUser);
@@ -89,21 +89,13 @@ public class StandardAuthController {
      * POST /api/auth/login
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> login(@RequestBody @Valid Map<String, String> loginRequest) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> login(@RequestBody @Valid LoginVo loginVo) {
         try {
-            String username = loginRequest.get("username");
-            String password = loginRequest.get("password");
-
-            if (username == null || password == null) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("用户名和密码不能为空"));
-            }
-
             // 验证用户凭据
-            User user = authService.authenticate(username, password);
+            User user = authService.authenticate(loginVo.getUsername(), loginVo.getPassword());
             if (user != null) {
                 // 生成JWT令牌
-                String token = jwtUtil.generateToken(user.getUsername());
+                String token = jwtUtil.generateToken(user.getId());
 
                 Map<String, Object> result = new HashMap<>();
                 result.put("user", user);

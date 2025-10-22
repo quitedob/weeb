@@ -1,10 +1,12 @@
 package com.web.service.impl;
 
+import com.web.exception.WeebException;
 import com.web.mapper.ChatListMapper;
 import com.web.mapper.MessageMapper;
 import com.web.model.ChatList;
 import com.web.model.Message;
 import com.web.service.ChatService;
+import com.web.util.ValidationUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,7 +105,7 @@ public class ChatServiceImpl implements ChatService {
         // 检查消息是否存在
         Message message = messageMapper.selectMessageById(messageId);
         if (message == null) {
-            throw new RuntimeException("消息不存在");
+            throw new WeebException("消息不存在");
         }
 
         // 添加或取消反应（这里简化处理，实际应该有专门的反应表）
