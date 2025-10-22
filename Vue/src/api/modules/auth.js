@@ -2,81 +2,49 @@
 import axiosInstance from '../axiosInstance';
 
 export default {
-  // 用户登录 - 使用LoginVo格式
+  // 用户登录
   login(data) {
-    // 确保数据格式符合LoginVo
     const loginVo = {
       username: data.username,
       password: data.password,
       rememberMe: data.rememberMe || false
     };
-    return axiosInstance.post('/api/login', loginVo);
+    return axiosInstance.post('/api/auth/login', loginVo);
   },
 
   // 用户注册
   register(data) {
-    return axiosInstance.post('/api/register', data);
+    return axiosInstance.post('/api/auth/register', data);
   },
 
   // 用户登出
   logout() {
-    return axiosInstance.post('/api/logout');
+    return axiosInstance.post('/api/auth/logout');
   },
 
-  // 获取用户信息 - 修复路径匹配
+  // 获取当前用户信息
   getUserInfo() {
     return axiosInstance.get('/api/user/info');
   },
 
-  // 更新用户信息 - 使用UpdateUserVo格式
+  // 更新当前用户信息
   updateUserInfo(data) {
-    // 确保数据格式符合UpdateUserVo
-    const updateVo = {
-      username: data.username,
-      userEmail: data.userEmail,
-      phoneNumber: data.phoneNumber,
-      sex: data.sex,
-      nickname: data.nickname,
-      bio: data.bio,
-      avatar: data.avatar
-    };
-    return axiosInstance.put('/api/user/info', updateVo);
+    return axiosInstance.put('/api/user/info', data);
   },
 
-  // 获取验证码
+  // 获取验证码 (mock)
   getCaptcha() {
-    return axiosInstance.get('/api/captcha');
+    return axiosInstance.get('/api/auth/captcha');
   },
 
-  // 忘记密码
-  forgotPassword(data) {
-    return axiosInstance.post('/api/forget', data);
+  // 忘记密码 (发送重置请求)
+  forgotPassword(email) {
+    return axiosInstance.post('/api/auth/forgot-password', { email });
   },
 
-  // 重置密码
+  // 重置密码 (使用令牌完成重置)
   resetPassword(data) {
-    return axiosInstance.post('/api/reset', data);
-  },
-
-  // 发送密码重置链接
-  sendPasswordResetLink(email) {
-    return axiosInstance.post('/api/forgot-password', { email });
-  },
-
-  // 验证重置令牌
-  validateResetToken(token) {
-    return axiosInstance.get('/api/validate-reset-token', {
-      params: { token }
-    });
-  },
-
-  // 执行密码重置（前端页面调用的接口）
-  executePasswordReset(data) {
-    return axiosInstance.post('/api/password/execute-reset', data);
-  },
-
-  // 重置密码（原有的接口）
-  resetPasswordOld(data) {
-    return axiosInstance.post('/api/reset-password', data);
+    // data expected to contain: token, newPassword
+    return axiosInstance.post('/api/auth/reset-password', data);
   }
 };

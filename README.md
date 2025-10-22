@@ -125,7 +125,7 @@ WEEB 是一个功能全面的现代化即时通信与内容管理系统，专为
 - 🔔 **通知系统**: 实时通知、消息提醒、系统公告、邮件通知
 - 📊 **数据统计**: 用户数据、文章统计、访问分析、性能监控
 - 🔒 **安全防护**: SQL注入防护、XSS防护、输入验证、安全审计日志
-- 🤖 **AI聊天**: AI对话服务 (AiChatService)
+- 🤖 **AI聊天**: AI对话服务 (AiChatService)，后端统一路由，支持多种模型提供商 (Ollama, DeepSeek)
 - 🖥️ **SSH终端**: 远程命令执行和终端交互功能
 - 💬 **高级聊天功能**: 消息线索、用户提及、链接预览等现代化聊天体验
 
@@ -377,21 +377,25 @@ mvn spring-boot:run
 
 ## 项目结构
 weeb/
-├── src/main/java/com/web/          # 后端主包 (270个Java文件)
-│   ├── annotation/                 # 自定义注解 (6个)
+├── src/main/java/com/web/          # 后端主包 (282个Java文件)
+│   ├── annotation/                 # 自定义注解 (7个)
+│   │   ├── AdminLog.java          # 管理员操作日志注解
 │   │   ├── CommandInfo.java       # 命令信息注解
 │   │   ├── UrlFree.java           # URL免登录注解
 │   │   ├── UrlLimit.java          # URL限流注解
 │   │   ├── UrlResource.java       # URL资源注解
 │   │   ├── Userid.java            # 用户ID注解
 │   │   └── UserIp.java            # 用户IP注解
-│   ├── aop/                        # 面向切面编程 (2个)
+│   ├── aop/                        # 面向切面编程 (3个)
+│   │   ├── AdminLogAspect.java    # 管理员日志切面
 │   │   ├── MessageRateLimitAspect.java # 消息限流切面
 │   │   └── UrlLimitAspect.java     # URL限流切面
 │   ├── common/                     # 公共类 (1个)
 │   │   └── ApiResponse.java       # 统一API响应格式
-│   ├── Config/                     # 配置类 (21个)
+│   ├── Config/                     # 配置类 (23个)
+│   │   ├── AiProperties.java      # AI配置属性
 │   │   ├── AIConfig.java          # AI功能配置
+│   │   ├── AppConfig.java         # 应用Bean配置 (RestTemplate)
 │   │   ├── AsyncConfig.java       # 异步配置
 │   │   ├── CacheConfig.java       # 缓存配置
 │   │   ├── CorsConfig.java        # CORS跨域配置
@@ -427,7 +431,7 @@ weeb/
 │   │   ├── UserOnlineStatus.java  # 用户在线状态
 │   │   ├── UserType.java          # 用户类型
 │   │   └── WsContentType.java     # WebSocket内容类型
-│   ├── Controller/                 # REST控制器 (30个)
+│   ├── Controller/                 # REST控制器 (25个)
 │   │   ├── AdminController.java   # 管理员控制器
 │   │   ├── AIController.java      # AI功能控制器
 │   │   ├── ArticleCenterController.java # 文章中心控制器
@@ -453,7 +457,6 @@ weeb/
 │   │   ├── UserController.java    # 用户控制器
 │   │   ├── UserFollowController.java # 用户关注控制器
 │   │   └── WebSocketMessageController.java # WebSocket消息控制器
-│   ├── WeebApplication.java       # Spring Boot主启动类
 │   ├── dto/                        # 数据传输对象 (4个)
 │   │   ├── NotifyDto.java         # 通知DTO
 │   │   ├── RedisBroadcastMsg.java # Redis广播消息
@@ -464,7 +467,7 @@ weeb/
 │   │   └── WeebException.java     # 自定义异常
 │   ├── filter/                     # 过滤器 (1个)
 │   │   └── JwtAuthenticationFilter.java # JWT认证过滤器
-│   ├── mapper/                     # MyBatis Mapper接口 (30个)
+│   ├── mapper/                     # MyBatis Mapper接口 (31个)
 │   │   ├── ArticleCategoryMapper.java # 文章分类Mapper
 │   │   ├── ArticleCommentMapper.java # 文章评论Mapper
 │   │   ├── ArticleMapper.java     # 文章Mapper
@@ -486,6 +489,7 @@ weeb/
 │   │   ├── NotificationMapper.java # 通知Mapper
 │   │   ├── PermissionMapper.java  # 权限Mapper
 │   │   ├── RoleMapper.java        # 角色Mapper
+│   │   ├── SystemLogMapper.java   # 系统日志Mapper
 │   │   ├── UserFollowMapper.java  # 用户关注Mapper
 │   │   ├── UserMapper.java        # 用户Mapper
 │   │   ├── UserMentionMapper.java # 用户提及Mapper
@@ -495,7 +499,7 @@ weeb/
 │   │   ├── DatabaseMigrationExecutor.java # 数据库迁移执行器
 │   │   ├── MigrationRunner.java   # 迁移运行器
 │   │   └── MigrationValidator.java # 迁移验证器
-│   ├── model/                      # 数据模型 (29个)
+│   ├── model/                      # 数据模型 (30个)
 │   │   ├── Article.java           # 文章模型
 │   │   ├── ArticleCategory.java   # 文章分类模型
 │   │   ├── ArticleComment.java    # 文章评论模型
@@ -516,6 +520,7 @@ weeb/
 │   │   ├── Notification.java      # 通知模型
 │   │   ├── Permission.java        # 权限模型
 │   │   ├── Role.java              # 角色模型
+│   │   ├── SystemLog.java         # 系统日志模型
 │   │   ├── User.java              # 用户模型
 │   │   ├── UserFollow.java        # 用户关注模型
 │   │   ├── UserMention.java       # 用户提及模型
@@ -532,7 +537,7 @@ weeb/
 │   │   └── ExpiredClearTask.java  # 过期清理任务
 │   ├── security/                   # 安全模块 (1个)
 │   │   └── CustomPermissionEvaluator.java # 自定义权限评估器
-│   ├── service/                    # 业务逻辑层 (57个)
+│   ├── service/                    # 业务逻辑层 (59个)
 │   │   ├── AIService.java         # AI服务接口
 │   │   ├── ArticleService.java    # 文章服务接口
 │   │   ├── ArticleVersionService.java # 文章版本服务接口
@@ -545,6 +550,7 @@ weeb/
 │   │   ├── FileService.java       # 文件服务接口
 │   │   ├── GroupService.java      # 群组服务接口
 │   │   ├── LinkPreviewService.java # 链接预览服务接口
+│   │   ├── LogService.java        # 日志服务接口
 │   │   ├── MessageService.java    # 消息服务接口
 │   │   ├── MessageThreadService.java # 消息线索服务接口
 │   │   ├── NotificationService.java # 通知服务接口
@@ -560,7 +566,7 @@ weeb/
 │   │   ├── UserStatsService.java  # 用户统计服务接口
 │   │   ├── UserTransactionService.java # 用户事务服务接口
 │   │   ├── WebSocketService.java  # WebSocket服务接口
-│   │   └── Impl/                  # 服务实现类 (32个)
+│   │   └── Impl/                  # 服务实现类 (33个)
 │   │       ├── AIServiceImpl.java # AI服务实现
 │   │       ├── ArticleServiceImpl.java # 文章服务实现
 │   │       ├── ArticleVersionServiceImpl.java # 文章版本服务实现
@@ -573,6 +579,7 @@ weeb/
 │   │       ├── FileServiceImpl.java # 文件服务实现
 │   │       ├── GroupServiceImpl.java # 群组服务实现
 │   │       ├── LinkPreviewServiceImpl.java # 链接预览服务实现
+│   │       ├── LogServiceImpl.java  # 日志服务实现
 │   │       ├── MessageServiceImpl.java # 消息服务实现
 │   │       ├── MessageThreadServiceImpl.java # 消息线索服务实现
 │   │       ├── NotificationServiceImpl.java # 通知服务实现
@@ -606,7 +613,8 @@ weeb/
 │   │   ├── UrlPermitUtil.java     # URL权限工具
 │   │   ├── UserStatsUtil.java     # 用户统计工具
 │   │   └── ValidationUtils.java   # 输入验证工具
-│   └── vo/                         # 视图对象 (39个)
+│   └── vo/                         # 视图对象 (43个)
+│       ├── ai/                     # AI相关VO
 │       ├── article/                # 文章相关VO
 │       ├── auth/                   # 认证相关VO
 │       ├── chat/                   # 聊天相关VO
@@ -642,6 +650,7 @@ weeb/
 │   │   ├── NotificationMapper.xml  # 通知Mapper映射
 │   │   ├── PermissionMapper.xml    # 权限Mapper映射
 │   │   ├── RoleMapper.xml          # 角色Mapper映射
+│   │   ├── SystemLogMapper.xml    # 系统日志Mapper映射
 │   │   ├── UserFollowMapper.xml    # 用户关注Mapper映射
 │   │   ├── UserMapper.xml          # 用户Mapper映射
 │   │   ├── UserRoleMapper.xml      # 用户角色Mapper映射
@@ -670,12 +679,14 @@ weeb/
 │       ├── PerformanceBenchmarkTest.java # 性能基准测试
 │       └── PerformanceTestSuite.java # 性能测试套件
 ├── Vue/                           # 前端Vue项目
-│   ├── src/                      # 源代码目录
+│   ├── src/                      # 源代码目录 (54个Vue和JS文件)
 │   │   ├── api/                  # API接口封装
 │   │   │   ├── API_DOCUMENTATION.md # API文档
 │   │   │   ├── axiosInstance.js  # Axios实例配置
 │   │   │   ├── index.js          # API统一导出
-│   │   │   └── modules/          # API模块 (11个)
+│   │   │   └── modules/          # API模块 (12个)
+│   │   │       ├── admin.js      # 管理员API
+│   │   │       ├── ai.js         # AI API
 │   │   │       ├── article.js    # 文章API
 │   │   │       ├── auth.js       # 认证API
 │   │   │       ├── comment.js    # 评论API
@@ -736,7 +747,7 @@ weeb/
 │   │   │   └── value.vue         # 值组件
 │   │   ├── video/                # 视频组件
 │   │   │   └── Video.vue         # 视频播放器
-│   │   └── views/                # 视图页面 (20个)
+│   │   └── views/                # 视图页面 (21个)
 │   │       ├── admin/            # 管理员页面 (4个)
 │   │       │   ├── Dashboard.vue # 管理仪表板
 │   │       │   ├── PermissionManagement.vue # 权限管理
@@ -776,13 +787,13 @@ weeb/
 ## API 文档
 
 ### 🔐 认证接口
-- `POST /register` - 用户注册
-- `POST /login` - 用户登录
-- `POST /logout` - 用户登出
-- `GET /user` - 获取用户信息
-- `GET /user/info` - 获取用户详细信息
-- `PUT /user/info` - 更新用户信息
-- `GET /list` - 获取用户列表
+- `POST /api/auth/register` - 用户注册
+- `POST /api/auth/login` - 用户登录
+- `POST /api/auth/logout` - 用户登出
+- `POST /api/auth/forgot-password` - 发送密码重置请求
+- `POST /api/auth/reset-password` - 使用令牌重置密码
+- `GET /api/user/info` - 获取当前用户信息
+- `PUT /api/user/info` - 更新当前用户信息
 
 ### 💬 聊天接口
 - `POST /send` - 发送消息
@@ -1312,13 +1323,30 @@ cd Vue && npm run test:e2e
 
 > **WEEB Team** ❤️ 为现代化即时通信与内容管理系统而努力
 >
-> 最后更新时间：2025年10月 - 安全增强与功能完善版本
+> 最后更新时间：2025年10月23日 - 完整功能实现与系统优化版本
+>
+> **版本亮点**: 完成所有todo.txt任务，实现标准化API、增强RBAC权限、优化用户体验、统一错误处理
 
 ---
 
-## 🔒 安全增强更新
+## 🔒 最新系统更新 (2025年10月)
 
-### 最新安全特性 (2025年10月)
+### 🚀 核心功能完善
+
+- ✅ **API统一化**: 完成群组管理API整合，统一使用StandardGroupController RESTful接口
+- ✅ **错误处理标准化**: 全系统控制器统一使用ApiResponseUtil进行标准化错误处理
+- ✅ **RBAC权限增强**: 实现细粒度资源访问控制，支持资源所有权验证
+- ✅ **文章分享功能**: 新增跨平台文章分享，支持Clipboard API和Web Share API
+- ✅ **Markdown渲染优化**: 使用专业marked库替换基础字符串替换，支持完整Markdown语法
+
+### 🎨 前端体验提升
+
+- ✅ **管理后台动态化**: Dashboard.vue集成真实API数据，显示实时系统状态和活动日志
+- ✅ **帮助中心完善**: HelpCenter.vue提供完整的创作者等级、内容曝光和审核标准说明
+- ✅ **用户资料管理**: 修复用户头像占位符问题，实现真实头像数据加载
+- ✅ **注册验证增强**: Register.vue实现全面客户端验证，匹配后端ValidationUtils规则
+
+### 🔐 安全与架构优化
 
 - ✅ **SQL注入防护**: 新增 `SqlInjectionUtils` 工具类，动态检测和防止SQL注入攻击
 - ✅ **输入验证系统**: 实现 `ValidationUtils` 统一验证框架，覆盖所有敏感输入字段
@@ -1327,13 +1355,42 @@ cd Vue && npm run test:e2e
 - ✅ **XSS防护**: 增强输入内容过滤，防止跨站脚本攻击
 - ✅ **敏感词过滤**: 内置内容审核机制，维护社区健康环境
 - ✅ **文件上传安全**: 严格验证文件类型、大小和内容安全性
-- ✅ **增强认证**: 改进用户注册和登录流程，增加多重验证
-- ✅ **文章系统完善**: 新增评论、收藏、分类、搜索等完整社交功能
-- ✅ **性能优化**: 只读操作添加事务优化，提升系统响应速度
-- ✅ **AI功能集成**: 新增AiChatService，支持智能对话功能
+
+### 🤖 智能功能集成
+
+- ✅ **AI服务完善**: 完整实现情感分析、关键词提取、文本翻译等AI功能端点
 - ✅ **SSH终端功能**: 集成Apache SSHD，支持远程命令执行和终端交互
-- ✅ **文件分享系统**: 完善文件上传、管理和分享功能
+- ✅ **搜索功能增强**: Elasticsearch全文搜索与数据库搜索双重支持
 - ✅ **用户关注系统**: 实现用户互相关注和社交网络功能
+
+### 📊 系统性能与可靠性
+
+- ✅ **控制器标准化**: 5个主要控制器完成错误处理统一化，提升系统稳定性
+- ✅ **数据库优化**: 添加索引和查询优化，提升数据访问性能
+- ✅ **缓存策略**: 合理使用Redis缓存，减少数据库压力
+- ✅ **事务优化**: 只读操作添加事务优化，提升系统响应速度
+- ✅ **连接池优化**: 数据库连接池配置优化，支持高并发访问
+
+### 📝 代码质量提升
+
+- ✅ **TODO清理**: 完成所有todo.txt中标记的待办事项，消除技术债务
+- ✅ **占位符清理**: 移除所有硬编码占位符数据，实现真实数据集成
+- ✅ **API冗余消除**: 删除重复GroupController，统一API接口规范
+- ✅ **文档同步**: 更新API文档和功能说明，确保与实际实现一致
+
+### 📚 用户体验改进
+
+- ✅ **帮助系统**: 完整的帮助中心内容，涵盖创作者权益、内容曝光和审核标准
+- ✅ **通知系统**: 实时消息通知和系统公告功能
+- ✅ **文件分享**: 完善的文件上传、管理和分享功能
+- ✅ **社交互动**: 点赞、收藏、评论系统完整实现
+
+### 🔧 开发者体验
+
+- ✅ **错误追踪**: 统一错误处理，提供唯一事件ID便于问题定位
+- ✅ **API文档**: 完整的RESTful API文档和示例
+- ✅ **环境配置**: 开发/生产环境配置分离，支持一键启动
+- ✅ **数据库初始化**: 智能数据库初始化，自动创建表结构和测试数据
 
 ### 📝 文档更新 (2025年10月)
 
@@ -1349,3 +1406,4 @@ cd Vue && npm run test:e2e
 - 📊 **数据库优化**: 添加索引和查询优化，提升数据访问性能
 - 🔄 **缓存策略**: 合理使用Redis缓存，减少数据库压力
 - 📝 **日志系统**: 结构化日志输出，支持安全事件追踪和性能监控
+- 🔧 **工具类完善**: 新增多个工具类，提升代码复用性和维护性

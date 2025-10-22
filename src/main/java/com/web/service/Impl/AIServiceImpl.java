@@ -57,30 +57,35 @@ public class AIServiceImpl implements AIService {
 
     @Override
     public String chat(ChatRequestVo requestVo, Long userId) {
-        String model = requestVo.getModel();
-        if (model.startsWith("ollama")) {
-            // Extract actual model name, e.g., "ollama-llama3" -> "llama3"
-            String ollamaModel = model.substring("ollama-".length());
-            requestVo.setModel(ollamaModel);
+        String provider = aiProperties.getProvider();
+
+        if ("ollama".equalsIgnoreCase(provider)) {
             return chatWithOllama(requestVo);
-        } else if (model.startsWith("deepseek")) {
+        } else if ("deepseek".equalsIgnoreCase(provider)) {
             return chatWithDeepSeek(requestVo);
         } else {
-            // Fallback to default Spring AI provider if configured
+            // Fallback to default Spring AI provider if configured and no specific provider matches
             if (chatClient != null) {
+                log.warn("未知的 AI 提供商 '{}'，回退到默认的 Spring AI ChatClient", provider);
                 String sessionId = "session_for_user_" + userId;
                 String lastMessage = requestVo.getMessages().get(requestVo.getMessages().size() - 1).getContent();
                 return chatWithAI(lastMessage, sessionId);
             }
-            return "不支持的模型: " + model;
+            throw new IllegalStateException("AI provider not configured correctly. Please check 'ai.provider' in application.yml");
         }
     }
 
     private String chatWithOllama(ChatRequestVo requestVo) {
         String url = aiProperties.getOllama().getBaseUrl() + "/api/chat";
-        HttpEntity<ChatRequestVo> entity = new HttpEntity<>(requestVo);
-        // Assuming non-streaming for simplicity, as controller expects a single String response
-        requestVo.setStream(false);
+        
+        // 构建符合Ollama API的请求体
+        Map<String, Object> ollamaRequest = new HashMap<>();
+        ollamaRequest.put("model", aiProperties.getOllama().getChatModel());
+        ollamaRequest.put("messages", requestVo.getMessages());
+        ollamaRequest.put("stream", false); // 强制非流式
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(ollamaRequest);
+        
         Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
         if (response != null && response.get("message") instanceof Map) {
             @SuppressWarnings("unchecked")
@@ -96,12 +101,14 @@ public class AIServiceImpl implements AIService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(aiProperties.getDeepseek().getApiKey());
 
-        // Use the model name configured in application.yml for deepseek
-        requestVo.setModel(aiProperties.getDeepseek().getChatModel());
+        // 构建符合DeepSeek API的请求体
+        Map<String, Object> deepseekRequest = new HashMap<>();
+        deepseekRequest.put("model", aiProperties.getDeepseek().getChatModel());
+        deepseekRequest.put("messages", requestVo.getMessages());
+        deepseekRequest.put("stream", false); // 强制非流式
 
-        HttpEntity<ChatRequestVo> entity = new HttpEntity<>(requestVo, headers);
-        // Assuming non-streaming for simplicity
-        requestVo.setStream(false);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(deepseekRequest, headers);
+        
         Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
 
         if (response != null && response.get("choices") instanceof List) {

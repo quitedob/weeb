@@ -392,7 +392,67 @@ const toggleComments = () => {
 };
 
 const shareArticle = () => {
-  ElMessage.info('分享功能待实现');
+  // 构建分享链接
+  const shareUrl = `${window.location.origin}/article/${articleId}`;
+
+  // 复制到剪贴板
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      ElMessage.success('分享链接已复制到剪贴板');
+    }).catch(err => {
+      console.error('复制失败:', err);
+      // 降级方案：显示分享对话框
+      showShareDialog(shareUrl);
+    });
+  } else {
+    // 降级方案：对于不支持 Clipboard API 的浏览器
+    showShareDialog(shareUrl);
+  }
+};
+
+// 显示分享对话框
+const showShareDialog = (url) => {
+  const shareData = {
+    title: article.value.title || '精彩文章',
+    text: article.value.summary || `快来看看这篇精彩的文章：${article.value.title}`,
+    url: url
+  };
+
+  // 检查是否支持 Web Share API
+  if (navigator.share) {
+    navigator.share(shareData)
+      .then(() => {
+        ElMessage.success('分享成功');
+      })
+      .catch(err => {
+        console.log('分享取消或失败:', err);
+      });
+  } else {
+    // 降级方案：创建一个临时的输入框来复制链接
+    copyToClipboard(url);
+  }
+};
+
+// 降级的复制到剪贴板方法
+const copyToClipboard = (text) => {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-999999px';
+  textArea.style.top = '-999999px';
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    document.execCommand('copy');
+    ElMessage.success('分享链接已复制到剪贴板');
+  } catch (err) {
+    console.error('复制失败:', err);
+    ElMessage.error('复制失败，请手动复制链接');
+  }
+
+  document.body.removeChild(textArea);
 };
 
 onMounted(() => {

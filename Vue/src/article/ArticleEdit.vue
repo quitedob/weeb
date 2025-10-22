@@ -128,6 +128,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { getArticleById, updateArticle, getCategories } from '@/api/modules/article';
 import { useAuthStore } from '@/stores/authStore';
 import { ElMessage } from 'element-plus';
+import { marked } from 'marked';
 
 const route = useRoute();
 const router = useRouter();
@@ -151,22 +152,12 @@ const form = reactive({
   articleContent: '' // 新增文章内容字段
 });
 
-// 预览内容（Markdown格式处理）
+// 预览内容（使用marked库进行Markdown渲染）
 const previewContent = computed(() => {
   if (!form.articleContent) return '';
-  
-  // 简单的Markdown渲染
-  return form.articleContent
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **粗体**
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *斜体*
-    .replace(/`(.*?)`/g, '<code>$1</code>')            // `代码`
-    .replace(/#{3}\s+(.*)/g, '<h3>$1</h3>')            // ### 三级标题
-    .replace(/#{2}\s+(.*)/g, '<h2>$1</h2>')            // ## 二级标题
-    .replace(/#{1}\s+(.*)/g, '<h1>$1</h1>')            // # 一级标题
-    .replace(/^- (.+)/gm, '<li>$1</li>')               // - 列表项
-    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')         // 包装列表
-    .replace(/^> (.+)/gm, '<blockquote>$1</blockquote>'); // 引用
+
+  // 使用marked库进行专业的Markdown渲染
+  return marked(form.articleContent);
 });
 
 const rules = {

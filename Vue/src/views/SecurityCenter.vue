@@ -171,46 +171,7 @@
           </el-card>
         </el-tab-pane>
 
-        <!-- 两因素认证 -->
-        <el-tab-pane label="两因素认证" name="2fa">
-          <el-card>
-            <div class="two-factor-section">
-              <div class="two-factor-status">
-                <h3>两因素认证 (2FA)</h3>
-                <el-switch
-                  v-model="twoFactorEnabled"
-                  :active-value="true"
-                  :inactive-value="false"
-                  @change="toggleTwoFactor"
-                />
-                <span class="status-text">
-                  {{ twoFactorEnabled ? '已启用' : '未启用' }}
-                </span>
-              </div>
-
-              <div v-if="!twoFactorEnabled" class="enable-2fa">
-                <p class="enable-tip">
-                  启用两因素认证可以为您的账户提供额外的安全保护。
-                  启用后，每次登录都需要输入验证码。
-                </p>
-                <el-button type="primary" @click="enableTwoFactor">
-                  启用两因素认证
-                </el-button>
-              </div>
-
-              <div v-else class="disable-2fa">
-                <p class="disable-tip">
-                  您已经启用了两因素认证。如果您丢失了设备，
-                  请使用备用代码进行登录。
-                </p>
-                <el-button type="warning" @click="showDisableDialog = true">
-                  禁用两因素认证
-                </el-button>
-              </div>
-            </div>
-          </el-card>
-        </el-tab-pane>
-
+  
         <!-- 密码修改 -->
         <el-tab-pane label="密码修改" name="password">
           <el-card>
@@ -316,87 +277,7 @@
       </el-tabs>
     </div>
 
-    <!-- 禁用2FA确认对话框 -->
-    <el-dialog
-      v-model="showDisableDialog"
-      title="禁用两因素认证"
-      width="400px"
-      :close-on-click-modal="false"
-    >
-      <div class="disable-2fa-dialog">
-        <p>禁用两因素认证将降低账户安全性。您确定要继续吗？</p>
-        <el-form ref="disableFormRef" :model="disableForm" label-width="80px">
-          <el-form-item label="验证码" prop="verificationCode">
-            <el-input
-              v-model="disableForm.verificationCode"
-              placeholder="请输入验证码"
-              maxlength="6"
-            />
-          </el-form-item>
-        </el-form>
-      </div>
-
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showDisableDialog = false">取消</el-button>
-          <el-button type="danger" @click="confirmDisable2FA">确定禁用</el-button>
-        </span>
-      </template>
-    </el-dialog>
-
-    <!-- 启用2FA对话框 -->
-    <el-dialog
-      v-model="showEnableDialog"
-      title="启用两因素认证"
-      width="500px"
-      :close-on-click-modal="false"
-    >
-      <div class="enable-2fa-dialog">
-        <div class="qr-code-section">
-          <p class="step-title">第一步：扫描二维码</p>
-          <div class="qr-code-placeholder">
-            <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="QR Code" />
-            <div v-else class="qr-loading">生成二维码中...</div>
-          </div>
-          <p class="qr-tip">使用Google Authenticator或其他认证器应用扫描此二维码</p>
-        </div>
-
-        <div class="backup-codes-section">
-          <p class="step-title">第二步：保存备用代码</p>
-          <div class="backup-codes">
-            <div
-              v-for="(code, index) in backupCodes"
-              :key="index"
-              class="backup-code"
-            >
-              {{ code }}
-            </div>
-          </div>
-          <p class="backup-tip">请将这些备用代码保存在安全的地方。如果您丢失了设备，可以使用这些代码登录。</p>
-        </div>
-
-        <div class="verification-section">
-          <p class="step-title">第三步：验证设置</p>
-          <el-form ref="verifyFormRef" :model="verifyForm" label-width="80px">
-            <el-form-item label="验证码" prop="verificationCode">
-              <el-input
-                v-model="verifyForm.verificationCode"
-                placeholder="请输入验证码"
-                maxlength="6"
-              />
-            </el-form-item>
-          </el-form>
-        </div>
-      </div>
-
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="showEnableDialog = false">取消</el-button>
-          <el-button type="primary" @click="verifyAndEnable2FA">完成设置</el-button>
-        </span>
-      </template>
-    </el-dialog>
-  </div>
+    </div>
 </template>
 
 <script setup>
@@ -413,11 +294,6 @@ const loginHistory = ref([])
 const securityEvents = ref([])
 const userPermissions = ref([])
 const userRoles = ref([])
-const twoFactorEnabled = ref(false)
-const showDisableDialog = ref(false)
-const showEnableDialog = ref(false)
-const qrCodeUrl = ref('')
-const backupCodes = ref([])
 
 const historyPagination = reactive({
   current: 1,
@@ -437,13 +313,6 @@ const passwordForm = reactive({
   confirmPassword: ''
 })
 
-const disableForm = reactive({
-  verificationCode: ''
-})
-
-const verifyForm = reactive({
-  verificationCode: ''
-})
 
 // 密码强度相关
 const passwordStrength = ref(0)
@@ -592,66 +461,6 @@ const logoutAllSessions = async () => {
   })
 }
 
-// 启用两因素认证
-const enableTwoFactor = async () => {
-  try {
-    const response = await axiosInstance.post('/api/security/enable-2fa')
-    if (response.data.success) {
-      const data = response.data.data
-      qrCodeUrl.value = data.qrCodeUrl
-      backupCodes.value = data.backupCodes
-      showEnableDialog.value = true
-    } else {
-      ElMessage.error('启用失败')
-    }
-  } catch (error) {
-    ElMessage.error('启用失败')
-  }
-}
-
-// 验证并启用2FA
-const verifyAndEnable2FA = async () => {
-  try {
-    await verifyFormRef.value.validate()
-
-    const response = await axiosInstance.post('/api/security/verify-2fa', {
-      verificationCode: verifyForm.value.verificationCode
-    })
-
-    if (response.data.success) {
-      ElMessage.success('两因素认证已启用')
-      twoFactorEnabled.value = true
-      showEnableDialog.value = false
-      loadSecurityScore() // 刷新安全评分
-    } else {
-      ElMessage.error('验证失败')
-    }
-  } catch (error) {
-    ElMessage.error('验证失败')
-  }
-}
-
-// 禁用两因素认证
-const confirmDisable2FA = async () => {
-  try {
-    await disableFormRef.value.validate()
-
-    const response = await axiosInstance.post('/api/security/disable-2fa', {
-      verificationCode: disableForm.value.verificationCode
-    })
-
-    if (response.data.success) {
-      ElMessage.success('两因素认证已禁用')
-      twoFactorEnabled.value = false
-      showDisableDialog.value = false
-      loadSecurityScore() // 刷新安全评分
-    } else {
-      ElMessage.error('禁用失败')
-    }
-  } catch (error) {
-    ElMessage.error('禁用失败')
-  }
-}
 
 // 修改密码
 const changePassword = async () => {
@@ -931,41 +740,6 @@ onMounted(() => {
   color: #7f8c8d;
 }
 
-/* 两因素认证样式 */
-.two-factor-section {
-  max-width: 600px;
-}
-
-.two-factor-status {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.two-factor-status h3 {
-  margin: 0 0 8px 0;
-  color: #2c3e50;
-  font-size: 18px;
-}
-
-.status-text {
-  font-size: 14px;
-  color: #606266;
-}
-
-.enable-tip, .disable-tip {
-  color: #606266;
-  margin: 0 0 16px 0;
-  line-height: 1.5;
-}
-
-.enable-2fa, .disable-2fa {
-  padding: 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border-left: 4px solid #409eff;
-}
 
 /* 权限和角色样式 */
 .permissions-section {
@@ -995,71 +769,6 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 
-/* 2FA对话框样式 */
-.enable-2fa-dialog {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.step-title {
-  margin: 0 0 12px 0;
-  color: #2c3e50;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.qr-code-placeholder {
-  width: 200px;
-  height: 200px;
-  margin: 0 auto 16px;
-  border: 2px dashed #dcdfe6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f8f9fa;
-}
-
-.qr-code-placeholder img {
-  max-width: 100%;
-  max-height: 100%;
-}
-
-.qr-loading {
-  color: #909399;
-  font-size: 14px;
-}
-
-.qr-tip {
-  text-align: center;
-  color: #606266;
-  font-size: 14px;
-  margin: 0;
-}
-
-.backup-codes {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.backup-code {
-  padding: 8px 12px;
-  background: #f0f9ff;
-  border: 1px solid #e0f2fe;
-  border-radius: 4px;
-  font-family: monospace;
-  font-size: 14px;
-  text-align: center;
-  color: #0369a1;
-}
-
-.backup-tip {
-  color: #606266;
-  font-size: 12px;
-  margin: 0;
-  line-height: 1.4;
-}
 
 .pagination-container {
   margin-top: 20px;

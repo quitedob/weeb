@@ -3,6 +3,7 @@ package com.web.Controller;
 import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.service.AIService;
+import com.web.util.ApiResponseUtil;
 import com.web.vo.ai.ArticleSummaryRequestVo;
 import com.web.vo.ai.ChatRequestVo;
 import com.web.vo.ai.TextRefineRequestVo;
@@ -42,17 +43,19 @@ public class AIController {
             String content = summaryRequest.getContent();
             Integer maxLength = summaryRequest.getMaxLength();
 
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("文章内容不能为空"));
+            ApiResponseUtil.validateNotBlank(content, "文章内容");
+
+            if (maxLength != null && maxLength < 10) {
+                return ApiResponseUtil.badRequest("摘要长度不能小于10个字符");
+            }
+            if (maxLength != null && maxLength > 1000) {
+                return ApiResponseUtil.badRequest("摘要长度不能超过1000个字符");
             }
 
             String summary = aiService.generateArticleSummary(content, maxLength);
-            return ResponseEntity.ok(ApiResponse.success("摘要生成成功", summary));
+            return ApiResponseUtil.success(summary, "摘要生成成功");
         } catch (Exception e) {
-            log.error("生成文章摘要失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("生成摘要失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "生成文章摘要");
         }
     }
 
@@ -66,11 +69,9 @@ public class AIController {
             @RequestBody @Valid TextRefineRequestVo request) {
         try {
             String refinedText = aiService.refineText(request.getContent(), request.getTone());
-            return ResponseEntity.ok(ApiResponse.success("文本润色成功", refinedText));
+            return ApiResponseUtil.success(refinedText, "文本润色成功");
         } catch (Exception e) {
-            log.error("润色文本失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("润色失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "润色文本");
         }
     }
 
@@ -86,17 +87,12 @@ public class AIController {
             String content = (String) request.get("content");
             Integer count = (Integer) request.getOrDefault("count", 5);
 
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("文章内容不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(content, "文章内容");
 
             List<String> titles = aiService.generateTitleSuggestions(content, count);
-            return ResponseEntity.ok(ApiResponse.success("标题建议生成成功", titles));
+            return ApiResponseUtil.success(titles, "标题建议生成成功");
         } catch (Exception e) {
-            log.error("生成标题建议失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("生成标题建议失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "生成标题建议");
         }
     }
 
@@ -114,11 +110,9 @@ public class AIController {
             String lastMessageContent = request.getMessages().get(request.getMessages().size() - 1).getContent();
             String sessionId = "session_for_user_" + userId; // 示例 sessionId
             String response = aiService.chatWithAI(lastMessageContent, sessionId);
-            return ResponseEntity.ok(ApiResponse.success(response));
+            return ApiResponseUtil.success(response);
         } catch (Exception e) {
-            log.error("AI聊天失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("AI聊天失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "AI聊天", userId);
         }
     }
 
@@ -133,17 +127,12 @@ public class AIController {
         try {
             String content = request.get("content");
 
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("分析内容不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(content, "分析内容");
 
             Map<String, Object> analysis = aiService.analyzeSentiment(content);
-            return ResponseEntity.ok(ApiResponse.success("情感分析完成", analysis));
+            return ApiResponseUtil.success(analysis, "情感分析完成");
         } catch (Exception e) {
-            log.error("情感分析失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("情感分析失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "情感分析");
         }
     }
 
@@ -159,17 +148,12 @@ public class AIController {
             String content = (String) request.get("content");
             Integer count = (Integer) request.getOrDefault("count", 10);
 
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("提取内容不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(content, "提取内容");
 
             List<String> keywords = aiService.extractKeywords(content, count);
-            return ResponseEntity.ok(ApiResponse.success("关键词提取成功", keywords));
+            return ApiResponseUtil.success(keywords, "关键词提取成功");
         } catch (Exception e) {
-            log.error("关键词提取失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("关键词提取失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "关键词提取");
         }
     }
 
@@ -185,22 +169,13 @@ public class AIController {
             String content = request.get("content");
             String targetLanguage = request.get("targetLanguage");
 
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("翻译内容不能为空"));
-            }
-
-            if (targetLanguage == null || targetLanguage.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("目标语言不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(content, "翻译内容");
+            ApiResponseUtil.validateNotBlank(targetLanguage, "目标语言");
 
             String translation = aiService.translateText(content, targetLanguage);
-            return ResponseEntity.ok(ApiResponse.success("翻译成功", translation));
+            return ApiResponseUtil.success(translation, "翻译成功");
         } catch (Exception e) {
-            log.error("文本翻译失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("翻译失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "文本翻译");
         }
     }
 
@@ -216,17 +191,12 @@ public class AIController {
             String content = (String) request.get("content");
             Integer count = (Integer) request.getOrDefault("count", 5);
 
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("文章内容不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(content, "文章内容");
 
             List<String> tags = aiService.generateArticleTags(content, count);
-            return ResponseEntity.ok(ApiResponse.success("标签生成成功", tags));
+            return ApiResponseUtil.success(tags, "标签生成成功");
         } catch (Exception e) {
-            log.error("生成文章标签失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("生成标签失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "生成文章标签");
         }
     }
 
@@ -241,17 +211,12 @@ public class AIController {
         try {
             String content = request.get("content");
 
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("检查内容不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(content, "检查内容");
 
             Map<String, Object> compliance = aiService.checkContentCompliance(content);
-            return ResponseEntity.ok(ApiResponse.success("合规性检查完成", compliance));
+            return ApiResponseUtil.success(compliance, "合规性检查完成");
         } catch (Exception e) {
-            log.error("内容合规性检查失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("合规性检查失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "内容合规性检查");
         }
     }
 
@@ -267,17 +232,12 @@ public class AIController {
             String originalMessage = request.get("originalMessage");
             String context = request.getOrDefault("context", "");
 
-            if (originalMessage == null || originalMessage.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("原始消息不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(originalMessage, "原始消息");
 
             List<String> suggestions = aiService.generateReplySuggestions(originalMessage, context);
-            return ResponseEntity.ok(ApiResponse.success("回复建议生成成功", suggestions));
+            return ApiResponseUtil.success(suggestions, "回复建议生成成功");
         } catch (Exception e) {
-            log.error("生成回复建议失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("生成回复建议失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "生成回复建议");
         }
     }
 
@@ -295,16 +255,13 @@ public class AIController {
             Integer maxLength = (Integer) request.getOrDefault("maxLength", 200);
 
             if (messages == null || messages.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("对话消息不能为空"));
+                return ApiResponseUtil.badRequest("对话消息不能为空");
             }
 
             String summary = aiService.summarizeConversation(messages, maxLength);
-            return ResponseEntity.ok(ApiResponse.success("对话总结成功", summary));
+            return ApiResponseUtil.success(summary, "对话总结成功");
         } catch (Exception e) {
-            log.error("对话总结失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("对话总结失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "对话总结");
         }
     }
 
@@ -320,17 +277,12 @@ public class AIController {
             String topic = request.get("topic");
             String contentType = request.getOrDefault("contentType", "article");
 
-            if (topic == null || topic.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("主题不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(topic, "主题");
 
             Map<String, Object> suggestions = aiService.generateContentSuggestions(topic, contentType);
-            return ResponseEntity.ok(ApiResponse.success("创作建议生成成功", suggestions));
+            return ApiResponseUtil.success(suggestions, "创作建议生成成功");
         } catch (Exception e) {
-            log.error("生成内容创作建议失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("生成创作建议失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "生成内容创作建议");
         }
     }
 
@@ -345,17 +297,12 @@ public class AIController {
         try {
             String content = request.get("content");
 
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("校对内容不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(content, "校对内容");
 
             Map<String, Object> result = aiService.proofreadText(content);
-            return ResponseEntity.ok(ApiResponse.success("文本校对完成", result));
+            return ApiResponseUtil.success(result, "文本校对完成");
         } catch (Exception e) {
-            log.error("文本校对失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("文本校对失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "文本校对");
         }
     }
 
@@ -371,17 +318,12 @@ public class AIController {
             String topic = request.get("topic");
             String structure = request.getOrDefault("structure", "introduction-body-conclusion");
 
-            if (topic == null || topic.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("主题不能为空"));
-            }
+            ApiResponseUtil.validateNotBlank(topic, "主题");
 
             Map<String, Object> outline = aiService.generateContentOutline(topic, structure);
-            return ResponseEntity.ok(ApiResponse.success("内容大纲生成成功", outline));
+            return ApiResponseUtil.success(outline, "内容大纲生成成功");
         } catch (Exception e) {
-            log.error("生成内容大纲失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("生成内容大纲失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "生成内容大纲");
         }
     }
 }

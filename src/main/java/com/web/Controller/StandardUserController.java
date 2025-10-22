@@ -5,6 +5,7 @@ import com.web.common.ApiResponse;
 import com.web.model.User;
 import com.web.model.UserWithStats;
 import com.web.service.UserService;
+import com.web.util.ApiResponseUtil;
 import com.web.vo.user.UpdateUserVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,13 +39,11 @@ public class StandardUserController {
         try {
             UserWithStats userProfile = userService.getUserProfile(userId);
             if (userProfile == null) {
-                return ResponseEntity.notFound().build();
+                return ApiResponseUtil.notFound("资源未找到");
             }
-            return ResponseEntity.ok(ApiResponse.success(userProfile));
+            return ApiResponseUtil.success(userProfile);
         } catch (Exception e) {
-            log.error("获取当前用户信息失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取用户信息失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取当前用户信息", userId);
         }
     }
 
@@ -70,15 +69,12 @@ public class StandardUserController {
             if (updated) {
                 User updatedUser = userService.getUserBasicInfo(userId);
                 updatedUser.setPassword(null); // 安全起见，不返回密码
-                return ResponseEntity.ok(ApiResponse.success("用户信息更新成功", updatedUser));
+                return ApiResponseUtil.success(updatedUser, "用户信息更新成功");
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("用户信息更新失败"));
+                return ApiResponseUtil.badRequest("用户信息更新失败");
             }
         } catch (Exception e) {
-            log.error("更新当前用户信息失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("更新用户信息失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "更新当前用户信息", userId);
         }
     }
 
@@ -92,13 +88,11 @@ public class StandardUserController {
         try {
             UserWithStats userProfile = userService.getUserProfile(userId);
             if (userProfile == null) {
-                return ResponseEntity.notFound().build();
+                return ApiResponseUtil.notFound("资源未找到");
             }
-            return ResponseEntity.ok(ApiResponse.success(userProfile));
+            return ApiResponseUtil.success(userProfile);
         } catch (Exception e) {
-            log.error("获取用户信息失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取用户信息失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取用户信息", userId);
         }
     }
 
@@ -114,11 +108,9 @@ public class StandardUserController {
             @RequestParam(required = false) String keyword) {
         try {
             Map<String, Object> result = userService.getUsersWithPaging(page, pageSize, keyword);
-            return ResponseEntity.ok(ApiResponse.success(result));
+            return ApiResponseUtil.success(result);
         } catch (Exception e) {
-            log.error("获取用户列表失败", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取用户列表失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取用户列表", page, pageSize, keyword);
         }
     }
 
@@ -134,11 +126,9 @@ public class StandardUserController {
         try {
             // 这里需要实现搜索逻辑，目前简化处理
             Map<String, Object> searchResult = userService.getUsersWithPaging(1, limit, keyword);
-            return ResponseEntity.ok(ApiResponse.success(searchResult));
+            return ApiResponseUtil.success(searchResult);
         } catch (Exception e) {
-            log.error("搜索用户失败: keyword={}", keyword, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("搜索用户失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "搜索用户", keyword, limit);
         }
     }
 
@@ -152,11 +142,9 @@ public class StandardUserController {
         try {
             // 这里需要实现获取用户群组的逻辑
             // 暂时返回空列表，实际需要调用GroupService
-            return ResponseEntity.ok(ApiResponse.success("获取用户群组成功"));
+            return ApiResponseUtil.success("获取用户群组成功");
         } catch (Exception e) {
-            log.error("获取用户群组失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取用户群组失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取用户群组", userId);
         }
     }
 
@@ -170,15 +158,12 @@ public class StandardUserController {
         try {
             boolean banned = userService.banUser(userId);
             if (banned) {
-                return ResponseEntity.ok(ApiResponse.success("用户封禁成功"));
+                return ApiResponseUtil.success("用户封禁成功");
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("用户封禁失败"));
+                return ApiResponseUtil.badRequest("用户封禁失败");
             }
         } catch (Exception e) {
-            log.error("封禁用户失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("封禁用户失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "封禁用户", userId);
         }
     }
 
@@ -192,15 +177,12 @@ public class StandardUserController {
         try {
             boolean unbanned = userService.unbanUser(userId);
             if (unbanned) {
-                return ResponseEntity.ok(ApiResponse.success("用户解封成功"));
+                return ApiResponseUtil.success("用户解封成功");
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("用户解封失败"));
+                return ApiResponseUtil.badRequest("用户解封失败");
             }
         } catch (Exception e) {
-            log.error("解封用户失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("解封用户失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "解封用户", userId);
         }
     }
 
@@ -216,21 +198,17 @@ public class StandardUserController {
         try {
             String newPassword = request.get("newPassword");
             if (newPassword == null || newPassword.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("新密码不能为空"));
+                return ApiResponseUtil.badRequest("新密码不能为空");
             }
 
             boolean reset = userService.resetUserPassword(userId, newPassword.trim());
             if (reset) {
-                return ResponseEntity.ok(ApiResponse.success("密码重置成功"));
+                return ApiResponseUtil.success("密码重置成功");
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("密码重置失败"));
+                return ApiResponseUtil.badRequest("密码重置失败");
             }
         } catch (Exception e) {
-            log.error("重置用户密码失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("重置密码失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "重置用户密码", userId);
         }
     }
 
@@ -246,15 +224,12 @@ public class StandardUserController {
         try {
             boolean followed = userService.followUser(currentUserId, userId);
             if (followed) {
-                return ResponseEntity.ok(ApiResponse.success("关注成功"));
+                return ApiResponseUtil.success("关注成功");
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("关注失败"));
+                return ApiResponseUtil.badRequest("关注失败");
             }
         } catch (Exception e) {
-            log.error("关注用户失败: followerId={}, followedId={}", currentUserId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("关注失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "关注用户", currentUserId, userId);
         }
     }
 
@@ -270,15 +245,12 @@ public class StandardUserController {
         try {
             boolean unfollowed = userService.unfollowUser(currentUserId, userId);
             if (unfollowed) {
-                return ResponseEntity.ok(ApiResponse.success("取消关注成功"));
+                return ApiResponseUtil.success("取消关注成功");
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("取消关注失败"));
+                return ApiResponseUtil.badRequest("取消关注失败");
             }
         } catch (Exception e) {
-            log.error("取消关注用户失败: followerId={}, followedId={}", currentUserId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("取消关注失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "取消关注用户", currentUserId, userId);
         }
     }
 
@@ -294,11 +266,9 @@ public class StandardUserController {
             @RequestParam(defaultValue = "20") int pageSize) {
         try {
             // 这里需要实现获取关注列表的逻辑
-            return ResponseEntity.ok(ApiResponse.success("获取关注列表成功"));
+            return ApiResponseUtil.success("获取关注列表成功");
         } catch (Exception e) {
-            log.error("获取用户关注列表失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取关注列表失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取用户关注列表", userId, page, pageSize);
         }
     }
 
@@ -314,11 +284,9 @@ public class StandardUserController {
             @RequestParam(defaultValue = "20") int pageSize) {
         try {
             // 这里需要实现获取粉丝列表的逻辑
-            return ResponseEntity.ok(ApiResponse.success("获取粉丝列表成功"));
+            return ApiResponseUtil.success("获取粉丝列表成功");
         } catch (Exception e) {
-            log.error("获取用户粉丝列表失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取粉丝列表失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取用户粉丝列表", userId, page, pageSize);
         }
     }
 
@@ -333,11 +301,9 @@ public class StandardUserController {
             @Userid Long currentUserId) {
         try {
             // 这里需要实现检查关注状态的逻辑
-            return ResponseEntity.ok(ApiResponse.success(false)); // 暂时返回false
+            return ApiResponseUtil.success(false); // 暂时返回false
         } catch (Exception e) {
-            log.error("检查关注状态失败: followerId={}, followedId={}", currentUserId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("检查关注状态失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "检查关注状态", currentUserId, userId);
         }
     }
 }

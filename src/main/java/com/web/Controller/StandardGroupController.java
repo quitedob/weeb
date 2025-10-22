@@ -5,6 +5,7 @@ import com.web.common.ApiResponse;
 import com.web.model.Group;
 import com.web.model.GroupMember;
 import com.web.service.GroupService;
+import com.web.util.ApiResponseUtil;
 import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
 import lombok.extern.slf4j.Slf4j;
@@ -43,9 +44,7 @@ public class StandardGroupController {
             return ResponseEntity.status(201)
                     .body(ApiResponse.success("群组创建成功", group));
         } catch (Exception e) {
-            log.error("创建群组失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("创建群组失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "创建群组", userId);
         }
     }
 
@@ -59,13 +58,11 @@ public class StandardGroupController {
         try {
             Group group = groupService.getGroupById(groupId);
             if (group == null) {
-                return ResponseEntity.notFound().build();
+                return ApiResponseUtil.notFound("群组不存在");
             }
-            return ResponseEntity.ok(ApiResponse.success(group));
+            return ApiResponseUtil.success(group);
         } catch (Exception e) {
-            log.error("获取群组详情失败: groupId={}", groupId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取群组详情失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取群组详情", groupId);
         }
     }
 
@@ -82,13 +79,11 @@ public class StandardGroupController {
         try {
             Group group = groupService.updateGroup(groupId, updateVo, userId);
             if (group == null) {
-                return ResponseEntity.notFound().build();
+                return ApiResponseUtil.notFound("群组不存在");
             }
-            return ResponseEntity.ok(ApiResponse.success("群组更新成功", group));
+            return ApiResponseUtil.success(group, "群组更新成功");
         } catch (Exception e) {
-            log.error("更新群组失败: groupId={}, userId={}", groupId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("更新群组失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "更新群组", groupId, userId);
         }
     }
 
@@ -106,13 +101,10 @@ public class StandardGroupController {
             if (deleted) {
                 return ResponseEntity.noContent().build();
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("删除群组失败"));
+                return ApiResponseUtil.badRequest("删除群组失败");
             }
         } catch (Exception e) {
-            log.error("删除群组失败: groupId={}, userId={}", groupId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("删除群组失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "删除群组", groupId, userId);
         }
     }
 
@@ -125,11 +117,9 @@ public class StandardGroupController {
     public ResponseEntity<ApiResponse<List<GroupMember>>> getGroupMembers(@PathVariable Long groupId) {
         try {
             List<GroupMember> members = groupService.getGroupMembers(groupId);
-            return ResponseEntity.ok(ApiResponse.success(members));
+            return ApiResponseUtil.success(members);
         } catch (Exception e) {
-            log.error("获取群组成员失败: groupId={}", groupId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取群组成员失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取群组成员", groupId);
         }
     }
 
@@ -149,13 +139,10 @@ public class StandardGroupController {
                 return ResponseEntity.status(201)
                         .body(ApiResponse.success("邀请发送成功"));
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("邀请发送失败"));
+                return ApiResponseUtil.badRequest("邀请发送失败");
             }
         } catch (Exception e) {
-            log.error("邀请用户加入群组失败: groupId={}, userId={}", groupId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("邀请失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "邀请用户加入群组", groupId, userId);
         }
     }
 
@@ -173,13 +160,10 @@ public class StandardGroupController {
             if (left) {
                 return ResponseEntity.noContent().build();
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("退出群组失败"));
+                return ApiResponseUtil.badRequest("退出群组失败");
             }
         } catch (Exception e) {
-            log.error("退出群组失败: groupId={}, userId={}", groupId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("退出群组失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "退出群组", groupId, userId);
         }
     }
 
@@ -198,13 +182,10 @@ public class StandardGroupController {
             if (removed) {
                 return ResponseEntity.noContent().build();
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("移除成员失败"));
+                return ApiResponseUtil.badRequest("移除成员失败");
             }
         } catch (Exception e) {
-            log.error("移除群组成员失败: groupId={}, userId={}", groupId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("移除成员失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "移除群组成员", groupId, userId);
         }
     }
 
@@ -225,13 +206,10 @@ public class StandardGroupController {
                 return ResponseEntity.status(201)
                         .body(ApiResponse.success("申请已提交"));
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("申请提交失败"));
+                return ApiResponseUtil.badRequest("申请提交失败");
             }
         } catch (Exception e) {
-            log.error("申请加入群组失败: groupId={}, userId={}", groupId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("申请失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "申请加入群组", groupId, userId);
         }
     }
 
@@ -244,11 +222,9 @@ public class StandardGroupController {
     public ResponseEntity<ApiResponse<Object>> getGroupApplications(@PathVariable Long groupId) {
         try {
             // 这里需要实现获取群组申请的逻辑
-            return ResponseEntity.ok(ApiResponse.success("获取申请列表成功"));
+            return ApiResponseUtil.success("获取申请列表成功");
         } catch (Exception e) {
-            log.error("获取群组申请失败: groupId={}", groupId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取申请列表失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取群组申请", groupId);
         }
     }
 
@@ -268,8 +244,7 @@ public class StandardGroupController {
             String reason = decision.getOrDefault("reason", "");
 
             if (!"approve".equals(action) && !"reject".equals(action)) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("无效的操作类型"));
+                return ApiResponseUtil.badRequest("无效的操作类型");
             }
 
             boolean processed = "approve".equals(action)
@@ -277,15 +252,12 @@ public class StandardGroupController {
                 : groupService.rejectApplication(applicationId, userId, reason);
 
             if (processed) {
-                return ResponseEntity.ok(ApiResponse.success("申请处理成功"));
+                return ApiResponseUtil.success("申请处理成功");
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("申请处理失败"));
+                return ApiResponseUtil.badRequest("申请处理失败");
             }
         } catch (Exception e) {
-            log.error("处理群组申请失败: groupId={}, applicationId={}", groupId, applicationId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("处理申请失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "处理群组申请", groupId, applicationId);
         }
     }
 
@@ -303,21 +275,17 @@ public class StandardGroupController {
         try {
             String role = roleRequest.get("role");
             if (role == null || role.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("角色不能为空"));
+                return ApiResponseUtil.badRequest("角色不能为空");
             }
 
             boolean updated = groupService.setMemberRole(groupId, userId, role, currentUserId);
             if (updated) {
-                return ResponseEntity.ok(ApiResponse.success("角色设置成功"));
+                return ApiResponseUtil.success("角色设置成功");
             } else {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("角色设置失败"));
+                return ApiResponseUtil.badRequest("角色设置失败");
             }
         } catch (Exception e) {
-            log.error("设置成员角色失败: groupId={}, userId={}", groupId, userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("设置角色失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "设置成员角色", groupId, userId);
         }
     }
 
@@ -332,11 +300,9 @@ public class StandardGroupController {
             @RequestParam(defaultValue = "10") int limit) {
         try {
             List<Group> groups = groupService.searchGroups(keyword, limit);
-            return ResponseEntity.ok(ApiResponse.success(groups));
+            return ApiResponseUtil.success(groups);
         } catch (Exception e) {
-            log.error("搜索群组失败: keyword={}", keyword, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("搜索群组失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "搜索群组", keyword, limit);
         }
     }
 
@@ -349,11 +315,9 @@ public class StandardGroupController {
     public ResponseEntity<ApiResponse<List<Group>>> getMyGroups(@Userid Long userId) {
         try {
             List<Group> groups = groupService.getUserGroups(userId);
-            return ResponseEntity.ok(ApiResponse.success(groups));
+            return ApiResponseUtil.success(groups);
         } catch (Exception e) {
-            log.error("获取用户群组失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取用户群组失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取用户群组", userId);
         }
     }
 
@@ -366,11 +330,9 @@ public class StandardGroupController {
     public ResponseEntity<ApiResponse<List<Group>>> getMyCreatedGroups(@Userid Long userId) {
         try {
             List<Group> groups = groupService.getUserCreatedGroups(userId);
-            return ResponseEntity.ok(ApiResponse.success(groups));
+            return ApiResponseUtil.success(groups);
         } catch (Exception e) {
-            log.error("获取用户创建的群组失败: userId={}", userId, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.systemError("获取创建的群组失败: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取用户创建的群组", userId);
         }
     }
 }

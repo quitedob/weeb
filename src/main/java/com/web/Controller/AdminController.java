@@ -51,9 +51,11 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getPermissions(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String resource,
+            @RequestParam(required = false) String status) {
 
-        Map<String, Object> data = permissionService.getPermissionsWithPaging(page, pageSize, keyword);
+        Map<String, Object> data = permissionService.getPermissionsWithPaging(page, pageSize, keyword, resource, status);
 
         return ResponseEntity.ok(ApiResponse.success(data));
     }
@@ -107,9 +109,10 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getRoles(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status) {
 
-        Map<String, Object> data = roleService.getRolesWithPaging(page, pageSize, keyword);
+        Map<String, Object> data = roleService.getRolesWithPaging(page, pageSize, keyword, status);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 

@@ -10,7 +10,6 @@ import axiosInstance from '../axiosInstance';
 /**
  * 通用 AI 聊天接口
  * @param {object} payload - 请求数据
- * @param {string} payload.model - 要使用的模型 (e.g., 'deepseek-chat', 'ollama-llama3')
  * @param {Array<object>} payload.messages - 对话历史
  * @param {boolean} [payload.stream=false] - 是否使用流式响应
  * @returns {Promise}

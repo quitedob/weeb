@@ -1,6 +1,7 @@
 package com.web.Controller;
 
 import com.web.common.ApiResponse;
+import com.web.util.ApiResponseUtil;
 import com.web.util.DatabaseMigrationUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -27,16 +28,14 @@ public class MigrationController {
     public ResponseEntity<ApiResponse<DatabaseMigrationUtil.MigrationValidationReport>> validatePreMigration() {
         try {
             DatabaseMigrationUtil.MigrationValidationReport report = migrationUtil.validatePreMigration();
-            
+
             if (report.isValid()) {
-                return ResponseEntity.ok(ApiResponse.success("Pre-migration validation passed", report));
+                return ApiResponseUtil.success(report, "Pre-migration validation passed");
             } else {
-                return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(1001, "Pre-migration validation failed", report));
+                return ApiResponseUtil.badRequest("Pre-migration validation failed");
             }
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                .body(ApiResponse.error("Validation error: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "Pre-migration validation");
         }
     }
 
@@ -48,16 +47,14 @@ public class MigrationController {
     public ResponseEntity<ApiResponse<DatabaseMigrationUtil.MigrationValidationReport>> validatePostMigration() {
         try {
             DatabaseMigrationUtil.MigrationValidationReport report = migrationUtil.validatePostMigration();
-            
+
             if (report.isValid()) {
-                return ResponseEntity.ok(ApiResponse.success("Post-migration validation passed", report));
+                return ApiResponseUtil.success(report, "Post-migration validation passed");
             } else {
-                return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(1001, "Post-migration validation failed", report));
+                return ApiResponseUtil.badRequest("Post-migration validation failed");
             }
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                .body(ApiResponse.error("Validation error: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "Post-migration validation");
         }
     }
 
@@ -69,13 +66,12 @@ public class MigrationController {
     public ResponseEntity<ApiResponse<String>> createMissingUserStats() {
         try {
             int createdCount = migrationUtil.createMissingUserStats();
-            
+
             String message = String.format("Successfully created %d user stats records", createdCount);
-            return ResponseEntity.ok(ApiResponse.success(message));
-            
+            return ApiResponseUtil.success(message);
+
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                .body(ApiResponse.error("Failed to create missing stats: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "创建缺失用户统计数据");
         }
     }
 
@@ -87,7 +83,7 @@ public class MigrationController {
     public ResponseEntity<ApiResponse<MigrationStatus>> getMigrationStatus() {
         try {
             DatabaseMigrationUtil.MigrationValidationReport report = migrationUtil.validatePostMigration();
-            
+
             MigrationStatus status = new MigrationStatus();
             status.setUserStatsTableExists(report.isUserStatsTableExists());
             status.setUserCount(report.getUserCount());
@@ -95,7 +91,7 @@ public class MigrationController {
             status.setDataIntegrityValid(report.isValid());
             status.setErrorCount(report.getErrors().size());
             status.setWarningCount(report.getWarnings().size());
-            
+
             // 确定整体迁移状态
             if (!report.isUserStatsTableExists()) {
                 status.setOverallStatus("NOT_STARTED");
@@ -104,12 +100,11 @@ public class MigrationController {
             } else {
                 status.setOverallStatus("COMPLETED");
             }
-            
-            return ResponseEntity.ok(ApiResponse.success(status));
-            
+
+            return ApiResponseUtil.success(status);
+
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                .body(ApiResponse.error("Failed to get migration status: " + e.getMessage()));
+            return ApiResponseUtil.handleServiceException(e, "获取迁移状态");
         }
     }
 

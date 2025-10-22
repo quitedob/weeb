@@ -1,88 +1,75 @@
 // File path: /Vue/src/api/modules/group.js
+// 统一使用StandardGroupController的RESTful API端点
 import axiosInstance from '../axiosInstance';
 
 export default {
-  // getUserJoinedGroups was used in Groups.vue, maps to /group/my-list
+  // 获取用户加入的群组列表 - 对应 GET /api/groups
   getUserJoinedGroups() {
-    // 后端真实路径为 /api/group/my-list，这里保持 baseURL 指向域根，路径使用 /api 前缀
-    return axiosInstance.get('/api/group/my-list');
+    return axiosInstance.get('/api/groups');
   },
 
-  // getUserOwnedGroups gets groups where user is owner
+  // 获取用户拥有的群组列表 - 对应 GET /api/groups/owned
   getUserOwnedGroups() {
-    // 后端真实路径为 /api/group/owned
-    return axiosInstance.get('/api/group/owned');
+    return axiosInstance.get('/api/groups/owned');
   },
 
-  // createGroup was used in Groups.vue. Backend GroupController @PostMapping("/create")
-  // The user's api/index.js example for createGroup was instance.post('/group/create', data)
-  // However, GroupController's @RequestMapping is /api/group, and create is @PostMapping("/create")
-  // So, /api/group/create is correct. The instance's baseURL is /api. So path should be /group/create
+  // 创建群组 - 对应 POST /api/groups
   createGroup(data) {
-    return axiosInstance.post('/api/group/create', data);
+    return axiosInstance.post('/api/groups', data);
   },
 
-  // getGroupDetails was used in GroupDetail.vue
-  // Backend: GroupController needs a @GetMapping("/{groupId}")
-  // Assuming GroupController has @GetMapping("/{groupId}") for this.
-  // If GroupController has /api/group base, then this is /api/group/{groupId}
+  // 获取群组详情 - 对应 GET /api/groups/{groupId}
   getGroupDetails(groupId) {
-    return axiosInstance.get(`/api/group/${groupId}`);
+    return axiosInstance.get(`/api/groups/${groupId}`);
   },
 
-  // getGroupMembers was used in GroupDetail.vue
-  // Backend: GroupController needs a @GetMapping("/members/{groupId}") or similar
-  // Assuming /api/group/members/{groupId}
+  // 获取群组成员列表 - 对应 GET /api/groups/{groupId}/members
   getGroupMembers(groupId) {
-    return axiosInstance.get(`/api/group/members/${groupId}`);
+    return axiosInstance.get(`/api/groups/${groupId}/members`);
   },
 
-  // updateGroup was used in GroupDetail.vue
-  // Backend: GroupController needs a @PutMapping or @PostMapping for update.
-  // User example: instance.put('/group', groupData); implies GroupController @PutMapping("/")
-  // This expects groupData to contain the groupId for identification by the backend.
+  // 更新群组信息 - 对应 PUT /api/groups/{groupId}
   updateGroup(groupData) {
-    // 后端为 PUT /api/group/{groupId}
-    return axiosInstance.put(`/api/group/${groupData.id}`, groupData);
+    return axiosInstance.put(`/api/groups/${groupData.id}`, groupData);
   },
 
-  // inviteMembers was used in GroupDetail.vue
-  // Backend: GroupController @PostMapping("/invite")
-  // Path: /api/group/invite
+  // 邀请成员加入群组 - 对应 POST /api/groups/{groupId}/invite
   inviteMembers(payload) { // payload: { groupId: string, userIds: string[] }
-    return axiosInstance.post(`/api/group/${payload.groupId}/invite`, payload);
+    return axiosInstance.post(`/api/groups/${payload.groupId}/invite`, payload);
   },
 
-  // kickMember was used in GroupDetail.vue
-  // Backend: GroupController @PostMapping("/kick")
-  // Path: /api/group/kick
+  // 移除群组成员 - 对应 DELETE /api/groups/{groupId}/members/{userId}
   kickMember(payload) { // payload: { groupId: string, userIdToKick: string }
-    return axiosInstance.post(`/api/group/${payload.groupId}/kick`, payload);
+    return axiosInstance.delete(`/api/groups/${payload.groupId}/members/${payload.userIdToKick}`);
   },
 
-  // leaveGroup was used in GroupDetail.vue
-  // Backend: GroupController @PostMapping("/leave/{groupId}")
-  // The user's code uses DELETE /api/group/quit/{groupId}
-  // Let's stick to the user's API design for leaveGroup.
-  // GroupController has @PostMapping("/leave/{groupId}")
-  // If user's API module is the source of truth for frontend, then backend might need adjustment or this is an alias.
-  // For now, using user's definition: DELETE /api/group/quit/{groupId}
-  // This implies GroupController should have a @DeleteMapping("/quit/{groupId}")
+  // 退出群组 - 对应 POST /api/groups/{groupId}/leave
   leaveGroup(groupId) {
-    return axiosInstance.delete(`/api/group/quit/${groupId}`);
+    return axiosInstance.post(`/api/groups/${groupId}/leave`);
   },
 
-  // disbandGroup was used in GroupDetail.vue
-  // User example: instance.delete('/group/{groupId}');
-  // This implies GroupController should have a @DeleteMapping("/{groupId}")
+  // 解散群组 - 对应 DELETE /api/groups/{groupId}
   disbandGroup(groupId) {
-    return axiosInstance.delete(`/api/group/${groupId}`);
+    return axiosInstance.delete(`/api/groups/${groupId}`);
   },
 
-  // applyToJoinGroup - new functionality for applying to join a group
+  // 申请加入群组 - 对应 POST /api/groups/join
   applyToJoinGroup(data) {
-    return axiosInstance.post('/api/group/apply', data);
-  }
+    return axiosInstance.post('/api/groups/join', data);
+  },
 
-  // searchGroups is handled by search.js module as per user's overall api/index.js structure.
+  // 搜索群组 - 对应 GET /api/groups/search?keyword=xxx
+  searchGroups(keyword) {
+    return axiosInstance.get('/api/groups/search', { params: { keyword } });
+  },
+
+  // 获取群组统计信息 - 对应 GET /api/groups/{groupId}/stats
+  getGroupStats(groupId) {
+    return axiosInstance.get(`/api/groups/${groupId}/stats`);
+  },
+
+  // 获取用户在群组中的权限 - 对应 GET /api/groups/{groupId}/permissions
+  getUserGroupPermissions(groupId) {
+    return axiosInstance.get(`/api/groups/${groupId}/permissions`);
+  }
 };

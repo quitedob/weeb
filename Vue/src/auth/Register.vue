@@ -12,6 +12,7 @@
               v-model="username"
               placeholder="请输入用户名"
               class="register-form__input"
+              @input="validateUsername"
               required
           />
           <p v-if="usernameError" class="register-form__error">{{ usernameError }}</p>
@@ -132,34 +133,65 @@ export default {
 
     // 简化的注册处理 - 依赖后端进行详细验证
 
-    // 简化的即时验证 - 仅保留基本反馈
+    // 增强的客户端验证，匹配后端ValidationUtils规则
+
+    // 用户名验证：只能包含字母、数字和下划线，长度在3-50个字符之间
+    const validateUsername = () => {
+      if (!username.value) {
+        usernameError.value = "用户名不能为空";
+      } else if (username.value.length < 3 || username.value.length > 50) {
+        usernameError.value = "用户名长度必须在3-50个字符之间";
+      } else if (!/^[a-zA-Z0-9_]{3,50}$/.test(username.value)) {
+        usernameError.value = "用户名只能包含字母、数字和下划线";
+      } else {
+        usernameError.value = "";
+      }
+    };
+
+    // 密码验证：必须包含至少一个字母和一个数字，长度在6-100个字符之间
     const validatePassword = () => {
       if (!password.value) {
         passwordError.value = "密码不能为空";
-      } else if (password.value.length < 6) {
-        passwordError.value = "密码至少需要6位";
+      } else if (password.value.length < 6 || password.value.length > 100) {
+        passwordError.value = "密码长度必须在6-100个字符之间";
+      } else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{6,}$/.test(password.value)) {
+        passwordError.value = "密码必须包含至少一个字母和一个数字";
       } else {
         passwordError.value = "";
       }
     };
 
-    // 简化的电话号码验证 - 仅检查基本格式
+    // 电话号码验证：中国手机号格式，11位数字，以1开头，第二位3-9
     const validatePhone = () => {
       if (!phone.value) {
         phoneError.value = "电话号码不能为空";
-      } else if (!/^\d+$/.test(phone.value)) {
-        phoneError.value = "电话号码只能包含数字";
+      } else if (countryCode.value === "+86") {
+        // 中国手机号验证
+        if (!/^1[3-9]\d{9}$/.test(phone.value)) {
+          phoneError.value = "请输入有效的11位中国手机号码";
+        } else {
+          phoneError.value = "";
+        }
       } else {
-        phoneError.value = "";
+        // 其他国家的基本验证（至少6位数字）
+        if (!/^\d{6,}$/.test(phone.value)) {
+          phoneError.value = "电话号码必须为至少6位数字";
+        } else {
+          phoneError.value = "";
+        }
       }
     };
 
-    // 简化的邮箱验证 - 仅检查基本格式
+    // 邮箱验证：标准邮箱格式
     const validateEmail = () => {
-      if (email.value && !email.value.includes("@")) {
-        emailError.value = "请输入有效的邮箱地址";
+      if (email.value && email.value.trim()) {
+        if (!/^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/.test(email.value)) {
+          emailError.value = "请输入有效的邮箱地址";
+        } else {
+          emailError.value = "";
+        }
       } else {
-        emailError.value = "";
+        emailError.value = ""; // 邮箱是选填的，空值不报错
       }
     };
 
@@ -228,6 +260,7 @@ export default {
       phoneError,
       emailError,
       genderError,
+      validateUsername,
       validatePassword,
       validatePhone,
       validateEmail,

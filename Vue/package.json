@@ -17,6 +17,7 @@
     "dayjs": "^1.11.18",
     "element-plus": "^2.7.8",
     "lodash-es": "^4.17.21",
+    "marked": "^16.4.1",
     "pinia": "^2.1.7",
     "pinia-plugin-persistedstate": "^2.4.0",
     "quill": "^2.0.3",

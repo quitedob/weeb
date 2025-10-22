@@ -76,7 +76,14 @@ public class ContactServiceImpl implements ContactService {
 
     @Override
     public List<UserDto> getContacts(Long userId, ContactStatus status) {
-        return contactMapper.selectContactsByUserAndStatus(userId, status.getCode());
+        // 根据todo.txt的要求，对于待处理的好友申请，需要查询发送给当前用户的请求
+        // 即 friend_id = currentUserId 且 status = PENDING
+        if (status == ContactStatus.PENDING) {
+            return contactMapper.selectPendingContactsReceivedByUser(userId);
+        } else {
+            // 对于其他状态（如已接受的好友），查询用户自己的联系人列表
+            return contactMapper.selectContactsByUserAndStatus(userId, status.getCode());
+        }
     }
 
     @Override

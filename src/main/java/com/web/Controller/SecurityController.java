@@ -5,7 +5,6 @@ import com.web.model.User;
 import com.web.service.RBACService;
 import com.web.service.UserService;
 import com.web.vo.auth.PasswordChangeVo;
-import com.web.vo.auth.TwoFactorRequestVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -197,64 +196,7 @@ public class SecurityController {
         return ResponseEntity.ok(ApiResponse.success(events));
     }
 
-    /**
-     * 启用两因素认证
-     * @param request HTTP请求对象
-     * @return 两因素认证配置信息
-     */
-    @PostMapping("/enable-2fa")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> enable2FA(HttpServletRequest request) {
-        Long userId = getCurrentUserId(request);
-
-        // 这里需要调用两因素认证服务启用2FA
-        Map<String, Object> twoFAData = Map.of(
-            "enabled", true,
-            "qrCodeUrl", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
-            "secret", "JBSWY3DPEHPK3PXP",
-            "backupCodes", List.of("1111-2222", "3333-4444", "5555-6666")
-        );
-
-        return ResponseEntity.ok(ApiResponse.success(twoFAData));
-    }
-
-    /**
-     * 禁用两因素认证
-     * @param request HTTP请求对象
-     * @param verificationCode 验证码
-     * @return 禁用结果
-     */
-    @PostMapping("/disable-2fa")
-    public ResponseEntity<ApiResponse<Boolean>> disable2FA(
-            HttpServletRequest request,
-            @RequestBody @Valid TwoFactorRequestVo twoFactorRequest) {
-
-        Long userId = getCurrentUserId(request);
-
-        // 这里需要调用两因素认证服务禁用2FA
-        boolean disabled = true; // 假设禁用成功
-
-        return ResponseEntity.ok(ApiResponse.success(disabled));
-    }
-
-    /**
-     * 验证两因素认证码
-     * @param request HTTP请求对象
-     * @param verificationCode 验证码
-     * @return 验证结果
-     */
-    @PostMapping("/verify-2fa")
-    public ResponseEntity<ApiResponse<Boolean>> verify2FA(
-            HttpServletRequest request,
-            @RequestBody @Valid TwoFactorRequestVo twoFactorRequest) {
-
-        Long userId = getCurrentUserId(request);
-
-        // 这里需要调用两因素认证服务验证验证码
-        boolean verified = true; // 假设验证成功
-
-        return ResponseEntity.ok(ApiResponse.success(verified));
-    }
-
+  
     /**
      * 修改密码
      * @param request HTTP请求对象
@@ -342,12 +284,11 @@ public class SecurityController {
             "score", 85,
             "level", "良好",
             "suggestions", List.of(
-                "建议启用两因素认证",
                 "建议定期修改密码",
-                "建议检查登录设备"
+                "建议检查登录设备",
+                "建议保持密码强度"
             ),
             "checks", Map.of(
-                "has2FA", false,
                 "passwordStrength", "强",
                 "recentLogin", true,
                 "multipleDevices", true

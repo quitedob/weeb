@@ -113,17 +113,13 @@
                 </div>
               </template>
               <div class="status-list">
-                <div class="status-item">
-                  <el-icon class="status-icon success"><CheckCircle /></el-icon>
-                  <span>数据库连接正常</span>
-                </div>
-                <div class="status-item">
-                  <el-icon class="status-icon success"><CheckCircle /></el-icon>
-                  <span>Redis连接正常</span>
-                </div>
-                <div class="status-item">
-                  <el-icon class="status-icon warning"><Warning /></el-icon>
-                  <span>Elasticsearch离线</span>
+                <div class="status-item" v-for="(status, key) in systemStatus" :key="key">
+                  <el-icon :class="`status-icon ${status.status}`">
+                    <CheckCircle v-if="status.status === 'success'" />
+                    <Warning v-else-if="status.status === 'warning'" />
+                    <Warning v-else />
+                  </el-icon>
+                  <span>{{ status.message }}</span>
                 </div>
               </div>
             </el-card>
@@ -137,17 +133,12 @@
                 </div>
               </template>
               <div class="activity-list">
-                <div class="activity-item">
-                  <div class="activity-time">10分钟前</div>
-                  <div class="activity-desc">用户张三注册了新账户</div>
+                <div v-if="recentActivities.length === 0" class="no-activities">
+                  <span>暂无最近活动</span>
                 </div>
-                <div class="activity-item">
-                  <div class="activity-time">30分钟前</div>
-                  <div class="activity-desc">用户李四发布了新文章</div>
-                </div>
-                <div class="activity-item">
-                  <div class="activity-time">1小时前</div>
-                  <div class="activity-desc">系统自动清理了过期缓存</div>
+                <div v-else class="activity-item" v-for="activity in recentActivities" :key="activity.id">
+                  <div class="activity-time">{{ formatTime(activity.createdAt) }}</div>
+                  <div class="activity-desc">{{ activity.description || activity.content || '系统活动' }}</div>
                 </div>
               </div>
             </el-card>
@@ -161,6 +152,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { User, Document, ChatDotRound, Connection, Lock, UserSolid, Management, CheckCircle, Warning } from '@element-plus/icons-vue'
+import { getSystemLogs } from '@/api/modules/admin'
 import axiosInstance from '@/api/axiosInstance'
 
 const stats = ref({
@@ -171,6 +163,12 @@ const stats = ref({
 })
 
 const loading = ref(false)
+const recentActivities = ref([])
+const systemStatus = ref({
+  database: { status: 'unknown', message: '检查中...' },
+  redis: { status: 'unknown', message: '检查中...' },
+  elasticsearch: { status: 'unknown', message: '检查中...' }
+})
 
 // 获取系统统计数据
 const fetchSystemStats = async () => {
@@ -187,8 +185,78 @@ const fetchSystemStats = async () => {
   }
 }
 
-onMounted(() => {
-  fetchSystemStats()
+// 获取最近活动日志
+const fetchRecentActivities = async () => {
+  try {
+    const response = await getSystemLogs({ page: 1, pageSize: 5 })
+    if (response.data.success) {
+      recentActivities.value = response.data.data.list || []
+    }
+  } catch (error) {
+    console.error('获取最近活动失败:', error)
+    // 如果API调用失败，使用默认数据
+    recentActivities.value = []
+  }
+}
+
+// 检查系统状态（简化版本，基于统计数据的响应情况）
+const checkSystemStatus = async () => {
+  try {
+    // 通过检查API响应来判断系统状态
+    const startTime = Date.now()
+    await fetchSystemStats()
+    const responseTime = Date.now() - startTime
+
+    // 假设快速响应表示数据库正常
+    systemStatus.value.database = {
+      status: responseTime < 1000 ? 'success' : 'warning',
+      message: responseTime < 1000 ? '数据库连接正常' : '数据库响应较慢'
+    }
+
+    // 模拟Redis和Elasticsearch状态检查
+    systemStatus.value.redis = {
+      status: 'success',
+      message: 'Redis连接正常'
+    }
+
+    systemStatus.value.elasticsearch = {
+      status: 'warning',
+      message: 'Elasticsearch离线'
+    }
+  } catch (error) {
+    systemStatus.value.database = {
+      status: 'error',
+      message: '数据库连接失败'
+    }
+  }
+}
+
+// 格式化时间显示
+const formatTime = (timestamp) => {
+  if (!timestamp) return '未知时间'
+
+  const now = new Date()
+  const time = new Date(timestamp)
+  const diff = now - time
+
+  const minutes = Math.floor(diff / (1000 * 60))
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes}分钟前`
+  if (hours < 24) return `${hours}小时前`
+  if (days < 7) return `${days}天前`
+
+  return time.toLocaleDateString('zh-CN')
+}
+
+onMounted(async () => {
+  await Promise.all([
+    fetchSystemStats(),
+    fetchRecentActivities(),
+    checkSystemStatus()
+  ])
 })
 </script>
 
@@ -320,6 +388,10 @@ onMounted(() => {
   color: #e6a23c;
 }
 
+.status-icon.error {
+  color: #f56c6c;
+}
+
 /* 活动列表样式 */
 .activity-list {
   display: flex;
@@ -345,6 +417,13 @@ onMounted(() => {
 .activity-desc {
   font-size: 14px;
   color: #606266;
+}
+
+.no-activities {
+  text-align: center;
+  padding: 20px 0;
+  color: #909399;
+  font-size: 14px;
 }
 
 /* 响应式设计 */

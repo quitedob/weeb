@@ -58,9 +58,10 @@ public interface RoleService {
      * @param page 页码
      * @param pageSize 每页大小
      * @param keyword 搜索关键词（可选）
+     * @param status 状态筛选（可选）
      * @return 角色列表和总数
      */
-    Map<String, Object> getRolesWithPaging(int page, int pageSize, String keyword);
+    Map<String, Object> getRolesWithPaging(int page, int pageSize, String keyword, String status);
 
     /**
      * 根据角色名称检查角色是否存在
