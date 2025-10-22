@@ -4,10 +4,12 @@ import com.web.common.ApiResponse;
 import com.web.model.Permission;
 import com.web.model.Role;
 import com.web.model.User;
+import com.web.annotation.AdminLog;
 import com.web.service.PermissionService;
 import com.web.service.RBACService;
 import com.web.service.RoleService;
 import com.web.service.UserService;
+import com.web.service.LogService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +40,9 @@ public class AdminController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private LogService logService;
+
     /**
      * 获取权限管理页面数据
      * @return 权限列表和统计信息
@@ -59,6 +64,7 @@ public class AdminController {
      * @return 创建结果
      */
     @PostMapping("/permissions")
+    @AdminLog(action = "CREATE_PERMISSION")
     public ResponseEntity<ApiResponse<Permission>> createPermission(@Valid @RequestBody Permission permission) {
         Permission created = permissionService.createPermission(permission);
         return ResponseEntity.ok(ApiResponse.success(created));
@@ -71,6 +77,7 @@ public class AdminController {
      * @return 更新结果
      */
     @PutMapping("/permissions/{permissionId}")
+    @AdminLog(action = "UPDATE_PERMISSION")
     public ResponseEntity<ApiResponse<Permission>> updatePermission(
             @PathVariable Long permissionId,
             @Valid @RequestBody Permission permission) {
@@ -86,6 +93,7 @@ public class AdminController {
      * @return 删除结果
      */
     @DeleteMapping("/permissions/{permissionId}")
+    @AdminLog(action = "DELETE_PERMISSION")
     public ResponseEntity<ApiResponse<Boolean>> deletePermission(@PathVariable Long permissionId) {
         boolean deleted = permissionService.deletePermission(permissionId);
         return ResponseEntity.ok(ApiResponse.success(deleted));
@@ -111,6 +119,7 @@ public class AdminController {
      * @return 创建结果
      */
     @PostMapping("/roles")
+    @AdminLog(action = "CREATE_ROLE")
     public ResponseEntity<ApiResponse<Role>> createRole(@Valid @RequestBody Role role) {
         Role created = roleService.createRole(role);
         return ResponseEntity.ok(ApiResponse.success(created));
@@ -123,6 +132,7 @@ public class AdminController {
      * @return 更新结果
      */
     @PutMapping("/roles/{roleId}")
+    @AdminLog(action = "UPDATE_ROLE")
     public ResponseEntity<ApiResponse<Role>> updateRole(
             @PathVariable Long roleId,
             @Valid @RequestBody Role role) {
@@ -138,6 +148,7 @@ public class AdminController {
      * @return 删除结果
      */
     @DeleteMapping("/roles/{roleId}")
+    @AdminLog(action = "DELETE_ROLE")
     public ResponseEntity<ApiResponse<Boolean>> deleteRole(@PathVariable Long roleId) {
         boolean deleted = roleService.deleteRole(roleId);
         return ResponseEntity.ok(ApiResponse.success(deleted));
@@ -150,6 +161,7 @@ public class AdminController {
      * @return 分配结果
      */
     @PostMapping("/roles/{roleId}/permissions")
+    @AdminLog(action = "ASSIGN_PERMISSIONS_TO_ROLE")
     public ResponseEntity<ApiResponse<Boolean>> assignPermissionsToRole(
             @PathVariable Long roleId,
             @RequestBody List<Long> permissionIds) {
@@ -165,6 +177,7 @@ public class AdminController {
      * @return 移除结果
      */
     @DeleteMapping("/roles/{roleId}/permissions")
+    @AdminLog(action = "REMOVE_PERMISSIONS_FROM_ROLE")
     public ResponseEntity<ApiResponse<Boolean>> removePermissionsFromRole(
             @PathVariable Long roleId,
             @RequestBody List<Long> permissionIds) {
@@ -227,6 +240,7 @@ public class AdminController {
      * @return 封禁结果
      */
     @PostMapping("/users/{userId}/ban")
+    @AdminLog(action = "BAN_USER")
     public ResponseEntity<ApiResponse<Boolean>> banUser(@PathVariable Long userId) {
         // 这里需要调用用户服务的封禁方法
         boolean banned = userService.banUser(userId);
@@ -239,6 +253,7 @@ public class AdminController {
      * @return 解封结果
      */
     @PostMapping("/users/{userId}/unban")
+    @AdminLog(action = "UNBAN_USER")
     public ResponseEntity<ApiResponse<Boolean>> unbanUser(@PathVariable Long userId) {
         boolean unbanned = userService.unbanUser(userId);
         return ResponseEntity.ok(ApiResponse.success(unbanned));
@@ -251,6 +266,7 @@ public class AdminController {
      * @return 重置结果
      */
     @PostMapping("/users/{userId}/reset-password")
+    @AdminLog(action = "RESET_USER_PASSWORD")
     public ResponseEntity<ApiResponse<Boolean>> resetUserPassword(
             @PathVariable Long userId,
             @RequestBody Map<String, String> passwordData) {
@@ -267,6 +283,7 @@ public class AdminController {
      * @return 分配结果
      */
     @PostMapping("/users/{userId}/roles/{roleId}")
+    @AdminLog(action = "ASSIGN_ROLE_TO_USER")
     public ResponseEntity<ApiResponse<Boolean>> assignRoleToUser(
             @PathVariable Long userId,
             @PathVariable Long roleId) {
@@ -282,6 +299,7 @@ public class AdminController {
      * @return 移除结果
      */
     @DeleteMapping("/users/{userId}/roles/{roleId}")
+    @AdminLog(action = "REMOVE_ROLE_FROM_USER")
     public ResponseEntity<ApiResponse<Boolean>> removeRoleFromUser(
             @PathVariable Long userId,
             @PathVariable Long roleId) {
@@ -321,12 +339,7 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSystemLogs(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-
-        // 这里需要调用日志服务的相关方法
-        Map<String, Object> logs = Map.of(
-            "list", List.of(),
-            "total", 0L
-        );
+        Map<String, Object> logs = logService.getSystemLogs(page, pageSize);
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
@@ -335,6 +348,7 @@ public class AdminController {
      * @return 刷新结果
      */
     @PostMapping("/refresh-cache")
+    @AdminLog(action = "REFRESH_PERMISSION_CACHE")
     public ResponseEntity<ApiResponse<Boolean>> refreshPermissionCache() {
         rbacService.refreshAllPermissionCache();
         return ResponseEntity.ok(ApiResponse.success(true));

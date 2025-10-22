@@ -1,6 +1,7 @@
 package com.web.mapper;
 
 import com.web.model.Article;
+import com.web.vo.article.ArticleSearchAdvancedVo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
@@ -267,61 +268,12 @@ public interface ArticleMapper {
     int countSearchResultsWithFilters(@Param("query") String query, @Param("startDate") String startDate,
                                     @Param("endDate") String endDate);
 
-    /**
-     * 高级搜索文章（支持多维度过滤）
-     * @param keyword 搜索关键词
-     * @param offset 偏移量
-     * @param limit 限制数量
-     * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param categoryIds 分类ID列表
-     * @param authorId 作者ID
-     * @param status 文章状态
-     * @param minLikes 最小点赞数
-     * @param maxLikes 最大点赞数
-     * @param minExposure 最小曝光数
-     * @param maxExposure 最大曝光数
-     * @param sortBy 排序字段
-     * @param sortOrder 排序方向
-     * @return 文章列表
-     */
-    List<Article> searchArticlesAdvanced(@Param("keyword") String keyword,
-                                        @Param("offset") int offset,
-                                        @Param("limit") int limit,
-                                        @Param("startDate") String startDate,
-                                        @Param("endDate") String endDate,
-                                        @Param("categoryIds") List<Long> categoryIds,
-                                        @Param("authorId") Long authorId,
-                                        @Param("status") Integer status,
-                                        @Param("minLikes") Long minLikes,
-                                        @Param("maxLikes") Long maxLikes,
-                                        @Param("minExposure") Long minExposure,
-                                        @Param("maxExposure") Long maxExposure,
-                                        @Param("sortBy") String sortBy,
-                                        @Param("sortOrder") String sortOrder);
+    List<Article> searchArticlesAdvanced(
+            @Param("searchVo") ArticleSearchAdvancedVo searchVo,
+            @Param("offset") int offset
+    );
 
-    /**
-     * 统计高级搜索文章数量
-     * @param keyword 搜索关键词
-     * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param categoryIds 分类ID列表
-     * @param authorId 作者ID
-     * @param status 文章状态
-     * @param minLikes 最小点赞数
-     * @param maxLikes 最大点赞数
-     * @param minExposure 最小曝光数
-     * @param maxExposure 最大曝光数
-     * @return 总数
-     */
-    long countSearchArticlesAdvanced(@Param("keyword") String keyword,
-                                    @Param("startDate") String startDate,
-                                    @Param("endDate") String endDate,
-                                    @Param("categoryIds") List<Long> categoryIds,
-                                    @Param("authorId") Long authorId,
-                                    @Param("status") Integer status,
-                                    @Param("minLikes") Long minLikes,
-                                    @Param("maxLikes") Long maxLikes,
-                                    @Param("minExposure") Long minExposure,
-                                    @Param("maxExposure") Long maxExposure);
+    int countAdvancedSearchResults(
+            @Param("searchVo") ArticleSearchAdvancedVo searchVo
+    );
 }

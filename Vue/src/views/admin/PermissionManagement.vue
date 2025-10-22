@@ -169,7 +169,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import axiosInstance from '@/api/axiosInstance'
+import adminApi from '@/api/modules/admin'
 
 // 响应式数据
 const loading = ref(false)
@@ -223,15 +223,14 @@ const fetchPermissions = async () => {
       page: pagination.current,
       pageSize: pagination.size,
       keyword: searchForm.name || undefined,
-      resource: searchForm.resource || undefined,
-      status: searchForm.status
+      // 后端暂不支持 resource 和 status 筛选
+      // resource: searchForm.resource || undefined,
+      // status: searchForm.status
     }
 
-    const response = await axiosInstance.get('/api/admin/permissions', { params })
-    if (response.data.success) {
-      permissionList.value = response.data.data.list || []
-      pagination.total = response.data.data.total || 0
-    }
+    const response = await adminApi.getPermissions(params)
+    permissionList.value = response.data.list || []
+    pagination.total = response.data.total || 0
   } catch (error) {
     console.error('获取权限列表失败:', error)
     ElMessage.error('获取权限列表失败')
@@ -272,15 +271,8 @@ const handleCurrentChange = (current) => {
 // 状态改变
 const handleStatusChange = async (row) => {
   try {
-    const response = await axiosInstance.put(`/api/admin/permissions/${row.id}`, {
-      status: row.status
-    })
-    if (response.data.success) {
-      ElMessage.success('状态更新成功')
-    } else {
-      row.status = row.status === 1 ? 0 : 1 // 回滚状态
-      ElMessage.error('状态更新失败')
-    }
+    await adminApi.updatePermission(row.id, { status: row.status })
+    ElMessage.success('状态更新成功')
   } catch (error) {
     row.status = row.status === 1 ? 0 : 1 // 回滚状态
     ElMessage.error('状态更新失败')
@@ -295,28 +287,26 @@ const handleEdit = (row) => {
 }
 
 // 删除权限
-const handleDelete = (row) => {
-  ElMessageBox.confirm(
-    `确定要删除权限"${row.name}"吗？此操作不可撤销。`,
-    '删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  ).then(async () => {
-    try {
-      const response = await axiosInstance.delete(`/api/admin/permissions/${row.id}`)
-      if (response.data.success) {
-        ElMessage.success('删除成功')
-        fetchPermissions()
-      } else {
-        ElMessage.error('删除失败')
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除权限"${row.name}"吗？此操作不可撤销。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
       }
-    } catch (error) {
+    )
+    
+    await adminApi.deletePermission(row.id)
+    ElMessage.success('删除成功')
+    fetchPermissions()
+  } catch (error) {
+    if (error !== 'cancel') {
       ElMessage.error('删除失败')
     }
-  })
+  }
 }
 
 // 提交表单
@@ -324,30 +314,18 @@ const handleSubmit = async () => {
   try {
     await formRef.value.validate()
 
-    const submitData = { ...form }
-    delete submitData.id // 删除id字段，避免更新时传递
-
-    let response
     if (isEdit.value) {
-      response = await axiosInstance.put(`/api/admin/permissions/${form.id}`, submitData)
+      await adminApi.updatePermission(form.id, form)
     } else {
-      response = await axiosInstance.post('/api/admin/permissions', submitData)
+      await adminApi.createPermission(form)
     }
 
-    if (response.data.success) {
-      ElMessage.success(isEdit.value ? '更新成功' : '创建成功')
-      showCreateDialog.value = false
-      resetForm()
-      fetchPermissions()
-    } else {
-      ElMessage.error(response.data.message || '操作失败')
-    }
+    ElMessage.success(isEdit.value ? '更新成功' : '创建成功')
+    showCreateDialog.value = false
+    resetForm()
+    fetchPermissions()
   } catch (error) {
-    if (error.response?.data?.message) {
-      ElMessage.error(error.response.data.message)
-    } else {
-      ElMessage.error('操作失败')
-    }
+    ElMessage.error('操作失败')
   }
 }
 

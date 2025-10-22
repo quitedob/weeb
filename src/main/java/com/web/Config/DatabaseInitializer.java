@@ -237,7 +237,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"article_tag_relation", "id,article_id,tag_id,created_at"},
             {"file_record", "id,user_id,file_name,stored_name,file_path,file_size,mime_type,file_hash,is_public,created_at,updated_at"},
             {"user_follow", "id,follower_id,followee_id,created_at"},
-            {"file_share", "id,file_id,sharer_id,shared_to_user_id,share_token,permission,expires_at,status,access_count,created_at,updated_at"}
+            {"file_share", "id,file_id,sharer_id,shared_to_user_id,share_token,permission,expires_at,status,access_count,created_at,updated_at"},
+            {"system_logs", "id,operator_id,action,details,ip_address,created_at"}
         };
 
         boolean allTablesValid = true;
@@ -362,6 +363,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         createFileRecordTable();
         createUserFollowTable();
         createFileShareTable();
+        createSystemLogTable(); // 新增调用
 
         log.info("✅ 所有表创建完成");
     }
@@ -1166,6 +1168,34 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建文件分享表失败", e);
             throw new RuntimeException("创建文件分享表失败", e);
+        }
+    }
+
+    private void createSystemLogTable() {
+        log.info("创建系统日志表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `system_logs` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+                `operator_id` BIGINT COMMENT '操作员ID',
+                `action` VARCHAR(100) NOT NULL COMMENT '操作类型 (e.g., BAN_USER, CREATE_ROLE)',
+                `details` TEXT COMMENT '操作详情',
+                `ip_address` VARCHAR(45) COMMENT '操作员IP地址',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                PRIMARY KEY (`id`),
+                KEY `idx_operator_id` (`operator_id`),
+                KEY `idx_action` (`action`),
+                KEY `idx_created_at` (`created_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='系统操作日志表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 系统日志表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建系统日志表失败", e);
+            throw new RuntimeException("创建系统日志表失败", e);
         }
     }
 }

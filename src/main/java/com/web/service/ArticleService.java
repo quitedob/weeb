@@ -2,6 +2,7 @@ package com.web.service;
 
 import com.web.model.Article;
 import com.web.model.ArticleCategory;
+import com.web.vo.article.ArticleSearchAdvancedVo;
 
 import java.util.List;
 import java.util.Map;
@@ -110,26 +111,10 @@ public interface ArticleService {
     /**
      * 高级搜索文章（支持多维度过滤）
      *
-     * @param query 搜索关键词
-     * @param page 页码
-     * @param pageSize 每页大小
-     * @param startDate 开始日期 (可选)
-     * @param endDate 结束日期 (可选)
-     * @param categoryIds 分类ID列表 (可选)
-     * @param authorId 作者ID (可选)
-     * @param status 文章状态 (可选)
-     * @param minLikes 最小点赞数 (可选)
-     * @param maxLikes 最大点赞数 (可选)
-     * @param minExposure 最小曝光数 (可选)
-     * @param maxExposure 最大曝光数 (可选)
-     * @param sortBy 排序字段
-     * @param sortOrder 排序方向（asc/desc）
+     * @param searchVo 包含搜索条件的 ArticleSearchAdvancedVo 对象
      * @return 包含搜索结果和总数的Map
      */
-    Map<String, Object> searchArticlesAdvanced(String query, int page, int pageSize, String startDate, String endDate,
-                                             List<Long> categoryIds, Long authorId, Integer status,
-                                             Long minLikes, Long maxLikes, Long minExposure, Long maxExposure,
-                                             String sortBy, String sortOrder);
+    Map<String, Object> searchArticlesAdvanced(ArticleSearchAdvancedVo searchVo);
 
     /**
      * 为指定文章增加金币或赞助金额。

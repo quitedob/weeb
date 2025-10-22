@@ -112,7 +112,7 @@ java -jar weeb.jar --spring.profiles.active=prod
 
 ## 项目概述
 
-WEEB 是一个现代化的即时通信与内容管理系统，专为团队协作和内容创作而设计。系统集成了实时聊天、群组管理、文章发布、文件共享等核心功能，提供完整的企业级解决方案。
+WEEB 是一个功能全面的现代化即时通信与内容管理系统，专为团队协作和内容创作而设计。系统集成了实时聊天、群组管理、文章发布、文件共享等核心功能，提供完整的企业级解决方案。
 
 ### 核心功能
 - 👥 **用户管理**: 注册登录、个人资料管理、安全认证、账户锁定保护、用户关注系统
@@ -1000,6 +1000,19 @@ npm run dev
 
 ## 常见问题
 
+### 🚀 快速开始
+
+**Q: 我是新用户，如何快速启动项目？**
+A:
+1. 确保已安装 JDK 17+、Node.js 16+、MySQL 8.0+
+2. 克隆项目：`git clone <repository-url>`
+3. 启动后端：`mvn spring-boot:run`
+4. 启动前端：`cd Vue && npm install && npm run dev`
+5. 访问 http://localhost:5173 开始使用
+
+**Q: 项目会自动创建数据库吗？**
+A: 是的，项目内置DatabaseInitializer，会自动创建数据库和表结构，无需手动配置。
+
 ### 🚀 启动相关
 
 **Q: 启动时提示数据库连接失败？**
@@ -1024,6 +1037,9 @@ A: 启动应用时查看控制台输出，包含详细的创建过程和结果�
 
 **Q: 数据库表结构在哪里查看？**
 A: 查看 `DatabaseInitializer.java` 中的建表SQL，或使用 `src/main/resources/sql/` 目录下的脚本。
+
+**Q: 如何重置数据库？**
+A: 重启应用，DatabaseInitializer会自动检测并重建不完整的数据库结构。注意：这会清空所有数据！
 
 **Q: 如何修改数据库配置？**
 A: 通过环境变量或修改application.yml文件。DatabaseInitializer会使用相同的配置。
@@ -1105,6 +1121,17 @@ A: 使用API `/api/search/messages?q=关键词` 进行消息搜索。支持中�
 **Q: 如果搜索服务停止会怎样？**
 A: 不会影响核心聊天功能，应用会继续正常运行，只是搜索功能暂时不可用。
 
+### 🔧 开发工具相关
+
+**Q: 如何在开发环境中使用热重载？**
+A: 后端支持Spring Boot DevTools自动重载，前端支持Vite热重载，修改代码后会自动刷新。
+
+**Q: 如何开启调试模式？**
+A: 后端可以通过IDE的Debug模式启动，或在application.yml中设置debug: true。前端可以通过浏览器开发者工具进行调试。
+
+**Q: 如何查看数据库连接状态？**
+A: 检查应用启动日志中的数据库连接信息，或通过Spring Boot Actuator的/health端点查看。
+
 ### 🔒 安全相关
 
 **Q: 如何配置账户锁定机制？**
@@ -1177,6 +1204,12 @@ docker-compose ps
 
 # 查看日志
 docker-compose logs -f weeb-app
+
+# 停止服务
+docker-compose down
+
+# 重新构建并启动
+docker-compose up -d --build
 ```
 
 ### 📦 JAR包部署
@@ -1187,6 +1220,12 @@ mvn clean package -DskipTests
 
 # 运行JAR包
 java -jar target/weeb-*.jar --spring.profiles.active=prod
+
+# 后台运行（Linux）
+nohup java -jar target/weeb-*.jar --spring.profiles.active=prod > app.log 2>&1 &
+
+# 查看运行状态
+ps aux | grep weeb
 ```
 
 ### 🌐 Nginx 配置
@@ -1295,6 +1334,14 @@ cd Vue && npm run test:e2e
 - ✅ **SSH终端功能**: 集成Apache SSHD，支持远程命令执行和终端交互
 - ✅ **文件分享系统**: 完善文件上传、管理和分享功能
 - ✅ **用户关注系统**: 实现用户互相关注和社交网络功能
+
+### 📝 文档更新 (2025年10月)
+
+- ✅ **新增快速开始指南**: 为新用户提供更清晰的入门指导
+- ✅ **完善FAQ章节**: 增加开发工具和常见问题的详细解答
+- ✅ **增强部署指南**: 补充Docker和JAR包部署的完整命令
+- ✅ **更新安全配置**: 明确生产环境的安全要求和配置步骤
+- ✅ **优化项目结构说明**: 提供更清晰的代码组织结构描述
 
 ### 架构改进
 

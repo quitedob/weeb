@@ -111,11 +111,7 @@ public class GroupController {
      */
     @GetMapping("/owned")
     public ResponseEntity<ApiResponse<List<Group>>> getUserOwnedGroups(@Userid Long userId) {
-        List<Group> groups = groupService.getUserJoinedGroups(userId);
-        // 筛选出用户作为群主的群组
-        List<Group> ownedGroups = groups.stream()
-            .filter(group -> group.getOwnerId().equals(userId))
-            .toList();
+        List<Group> ownedGroups = groupService.getUserOwnedGroups(userId);
         return ResponseEntity.ok(ApiResponse.success(ownedGroups));
     }
 

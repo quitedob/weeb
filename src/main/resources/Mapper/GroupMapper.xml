@@ -8,6 +8,10 @@
         WHERE gm.user_id = #{userId}
     </select>
 
+    <select id="findGroupsByOwnerId" resultType="com.web.model.Group" parameterType="java.lang.Long">
+        SELECT * FROM `group` WHERE owner_id = #{ownerId}
+    </select>
+
     <select id="searchGroups" resultType="com.web.model.Group">
         SELECT * FROM `group`
         WHERE group_name LIKE CONCAT('%', #{keyword}, '%')

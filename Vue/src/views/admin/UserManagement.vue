@@ -237,7 +237,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, UserSolid } from '@element-plus/icons-vue'
-import axiosInstance from '@/api/axiosInstance'
+import adminApi from '@/api/modules/admin'
 
 // 响应式数据
 const loading = ref(false)
@@ -274,18 +274,17 @@ const fetchUsers = async () => {
     const params = {
       page: pagination.current,
       pageSize: pagination.size,
-      username: searchForm.username || undefined,
-      type: searchForm.type,
-      onlineStatus: searchForm.onlineStatus,
-      startDate: searchForm.dateRange?.[0] || undefined,
-      endDate: searchForm.dateRange?.[1] || undefined
+      keyword: searchForm.username || undefined,
+      // 注意：后端的getUsersWithPaging目前只支持keyword，其他筛选条件需要后端实现
+      // type: searchForm.type,
+      // onlineStatus: searchForm.onlineStatus,
+      // startDate: searchForm.dateRange?.[0] || undefined,
+      // endDate: searchForm.dateRange?.[1] || undefined
     }
 
-    const response = await axiosInstance.get('/api/admin/users', { params })
-    if (response.data.success) {
-      userList.value = response.data.data.list || []
-      pagination.total = response.data.data.total || 0
-    }
+    const response = await adminApi.getUsers(params)
+    userList.value = response.data.list || []
+    pagination.total = response.data.total || 0
   } catch (error) {
     console.error('获取用户列表失败:', error)
     ElMessage.error('获取用户列表失败')
@@ -297,10 +296,9 @@ const fetchUsers = async () => {
 // 获取可用角色列表
 const fetchRoles = async () => {
   try {
-    const response = await axiosInstance.get('/api/admin/roles')
-    if (response.data.success) {
-      availableRoles.value = response.data.data.list || []
-    }
+    // 获取所有角色用于分配，可以不分页或设置一个较大的pageSize
+    const response = await adminApi.getRoles({ page: 1, pageSize: 1000 })
+    availableRoles.value = response.data.list || []
   } catch (error) {
     console.error('获取角色列表失败:', error)
   }
@@ -350,28 +348,30 @@ const handleView = (row) => {
 // 封禁/解封用户
 const handleBan = async (row) => {
   const action = row.banned ? '解封' : '封禁'
-  ElMessageBox.confirm(
-    `确定要${action}用户"${row.username}"吗？`,
-    `${action}确认`,
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  ).then(async () => {
-    try {
-      const endpoint = row.banned ? '/unban' : '/ban'
-      const response = await axiosInstance.post(`/api/admin/users/${row.id}${endpoint}`)
-      if (response.data.success) {
-        ElMessage.success(`${action}成功`)
-        fetchUsers()
-      } else {
-        ElMessage.error(`${action}失败`)
+  try {
+    await ElMessageBox.confirm(
+      `确定要${action}用户"${row.username}"吗？`,
+      `${action}确认`,
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
       }
-    } catch (error) {
+    )
+    
+    if (row.banned) {
+      await adminApi.unbanUser(row.id)
+    } else {
+      await adminApi.banUser(row.id)
+    }
+    
+    ElMessage.success(`${action}成功`)
+    fetchUsers()
+  } catch (error) {
+    if (error !== 'cancel') {
       ElMessage.error(`${action}失败`)
     }
-  })
+  }
 }
 
 // 角色分配
@@ -401,7 +401,7 @@ const handleBatchAssign = async () => {
   try {
     const userIds = selectedUsers.value.map(u => u.id)
     for (const userId of userIds) {
-      await axiosInstance.post(`/api/admin/users/${userId}/roles/${batchForm.roleId}`)
+      await adminApi.assignRoleToUser(userId, batchForm.roleId)
     }
     ElMessage.success('批量分配角色成功')
     showBatchAssignDialog.value = false
@@ -414,16 +414,20 @@ const handleBatchAssign = async () => {
 // 单个用户角色分配
 const handleRoleAssign = async () => {
   try {
-    // 先移除所有现有角色
-    if (currentUser.value.roles) {
-      for (const role of currentUser.value.roles) {
-        await axiosInstance.delete(`/api/admin/users/${currentUser.value.id}/roles/${role.id}`)
-      }
+    const currentRoleIds = currentUser.value.roles?.map(r => r.id) || []
+    const newRoleIds = assignedRoleIds.value
+    
+    // 需要移除的角色
+    const rolesToRemove = currentRoleIds.filter(id => !newRoleIds.includes(id))
+    // 需要新增的角色
+    const rolesToAdd = newRoleIds.filter(id => !currentRoleIds.includes(id))
+
+    for (const roleId of rolesToRemove) {
+      await adminApi.removeRoleFromUser(currentUser.value.id, roleId)
     }
 
-    // 再分配新角色
-    for (const roleId of assignedRoleIds.value) {
-      await axiosInstance.post(`/api/admin/users/${currentUser.value.id}/roles/${roleId}`)
+    for (const roleId of rolesToAdd) {
+      await adminApi.assignRoleToUser(currentUser.value.id, roleId)
     }
 
     ElMessage.success('角色分配成功')

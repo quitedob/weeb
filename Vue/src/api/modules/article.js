@@ -106,6 +106,12 @@ export const searchArticles = (params) => {
     return axiosInstance.get('/api/articles/search', { params });
 };
 
+// 高级搜索文章
+export const searchArticlesAdvanced = (params) => {
+    // 参数可以是: query, page, pageSize, startDate, endDate, categoryIds, authorId, status, minLikes, maxLikes, minExposure, maxExposure, sortBy, sortOrder
+    return axiosInstance.get('/api/articles/search/advanced', { params });
+};
+
 // 收藏文章
 export const favoriteArticle = (articleId) => {
     return axiosInstance.post(`/api/articles/${articleId}/favorite`);
@@ -162,6 +168,7 @@ export default {
     getCategories,  // 添加获取分类API
     getRecommendedArticles,  // 添加获取推荐文章API
     searchArticles,  // 添加搜索文章API
+    searchArticlesAdvanced,  // 添加高级搜索文章API
     favoriteArticle,  // 添加收藏文章API
     unfavoriteArticle,  // 添加取消收藏API
     checkFavoriteStatus,  // 添加检查收藏状态API
