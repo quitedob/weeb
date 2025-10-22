@@ -125,7 +125,7 @@ ai:
   provider: ollama # 默认AI提供商: ollama 或 deepseek
   ollama:
     base-url: "http://localhost:11434" # Ollama API基础URL
-    chat-model: "llama3.1" # 默认聊天模型
+    chat-model: "gemma3:4b" # 默认聊天模型
   deepseek:
     base-url: "https://api.deepseek.com" # DeepSeek API基础URL
     api-key: "your_deepseek_api_key_here" # DeepSeek API Key (请替换为您的真实Key)

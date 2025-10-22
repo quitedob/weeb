@@ -99,16 +99,13 @@
                   <button type="submit" class="save-btn">保存修改</button>
                 </form>
               </div>
-              <!-- 右侧头像上传区域（不涉及更新信息，本部分保持不变） -->
+              <!-- 右侧头像显示区域 -->
               <div class="profile-right">
-                <div class="avatar-upload">
-                  <h3>上传头像</h3>
-                  <div class="avatar-wrapper" @click="triggerUpload">
+                <div class="avatar-display">
+                  <h3>用户头像</h3>
+                  <div class="avatar-wrapper">
                     <img :src="profile.avatar" alt="avatar" class="avatar" />
-                    <div class="upload-overlay">点击上传头像</div>
                   </div>
-                  <input type="file" ref="fileInput" @change="uploadAvatar" hidden />
-                  <button @click="clearAvatar">清除头像</button>
                 </div>
               </div>
             </div>
@@ -152,7 +149,7 @@ const userProfile = computed(() => authStore.currentUser)
 // 本地表单数据（基于authStore数据）
 const profile = ref({
   username: "",
-  avatar: "https://via.placeholder.com/100"
+  avatar: ""
 })
 
 // 单独定义的字段（与后端对应的更新字段）
@@ -192,6 +189,7 @@ const fetchProfile = async () => {
     if (response.code === 0 && response.data) {
       const info = response.data
       profile.value.username = info.username || ""
+      profile.value.avatar = info.userAvatar || ""
       email.value = info.userEmail || ""
       phone.value = info.phoneNumber || ""
       gender.value = info.sex === 1 ? "male" : "female"
@@ -231,25 +229,6 @@ const saveProfile = async () => {
 }
 
 // 头像上传相关方法
-const fileInput = ref(null)
-
-const triggerUpload = () => {
-  fileInput.value?.click()
-}
-
-const uploadAvatar = (event) => {
-  const file = event.target.files[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    profile.value.avatar = e.target.result
-  }
-  reader.readAsDataURL(file)
-}
-
-const clearAvatar = () => {
-  profile.value.avatar = "https://via.placeholder.com/100"
-}
 
 const setGender = (value) => {
   gender.value = value
@@ -395,15 +374,14 @@ select {
   cursor: pointer;
 }
 
-/* 头像上传区域样式 */
-.avatar-upload {
+/* 头像显示区域样式 */
+.avatar-display {
   margin-bottom: 20px;
 }
 
 .avatar-wrapper {
   position: relative;
   display: inline-block;
-  cursor: pointer;
   margin-top: 10px;
 }
 
@@ -414,25 +392,6 @@ select {
   border: 2px solid #ccc;
 }
 
-.upload-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100px; /* 固定宽度 */
-  height: 100px; /* 高度与宽度相同 */
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.avatar-wrapper:hover .upload-overlay {
-  opacity: 1;
-}
 
 /* 个人资料左右布局 */
 .profile-container {

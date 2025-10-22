@@ -78,14 +78,7 @@ public class Permissions {
     public static final String SEARCH_GROUP = "SEARCH_GROUP";
     public static final String SEARCH_ADVANCED = "SEARCH_ADVANCED";
 
-    // 文件管理权限
-    public static final String FILE_UPLOAD = "FILE_UPLOAD";
-    public static final String FILE_DOWNLOAD = "FILE_DOWNLOAD";
-    public static final String FILE_DELETE = "FILE_DELETE";
-    public static final String FILE_DELETE_OWN = "FILE_DELETE_OWN";
-    public static final String FILE_DELETE_ANY = "FILE_DELETE_ANY";
-    public static final String FILE_MANAGE = "FILE_MANAGE";
-
+  
     // 消息权限
     public static final String MESSAGE_SEND = "MESSAGE_SEND";
     public static final String MESSAGE_READ = "MESSAGE_READ";
@@ -107,7 +100,6 @@ public class Permissions {
     public static final String SECURITY_CONFIG = "SECURITY_CONFIG";
     public static final String SECURITY_SESSION = "SECURITY_SESSION";
     public static final String SECURITY_SESSION_KILL = "SECURITY_SESSION_KILL";
-    public static final String SECURITY_2FA = "SECURITY_2FA";
     public static final String SECURITY_PASSWORD = "SECURITY_PASSWORD";
 
     // API权限
@@ -153,9 +145,6 @@ public class Permissions {
             // 搜索
             SEARCH_USER, SEARCH_ARTICLE, SEARCH_GROUP, SEARCH_ADVANCED,
 
-            // 文件管理
-            FILE_UPLOAD, FILE_DOWNLOAD, FILE_DELETE, FILE_DELETE_OWN, FILE_DELETE_ANY, FILE_MANAGE,
-
             // 消息
             MESSAGE_SEND, MESSAGE_READ, MESSAGE_DELETE, MESSAGE_DELETE_OWN, MESSAGE_DELETE_ANY,
             MESSAGE_RECALL, MESSAGE_RECALL_OWN, MESSAGE_RECALL_ANY,
@@ -165,7 +154,7 @@ public class Permissions {
 
             // 安全
             SECURITY_AUDIT, SECURITY_CONFIG, SECURITY_SESSION, SECURITY_SESSION_KILL,
-            SECURITY_2FA, SECURITY_PASSWORD,
+            SECURITY_PASSWORD,
 
             // API
             API_ACCESS, API_ADMIN, API_WEBHOOK

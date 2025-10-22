@@ -54,4 +54,14 @@
           AND status = #{status}
     </select>
 
+    <!-- 查询发送给指定用户的待处理好友申请列表 -->
+    <select id="selectPendingContactsReceivedByUser" resultType="com.web.dto.UserDto">
+        SELECT u.id, u.username, u.avatar, c.create_time as contactTime, c.remarks
+        FROM contact c
+        LEFT JOIN user u ON c.user_id = u.id
+        WHERE c.friend_id = #{userId}
+          AND c.status = 0  <!-- PENDING status code (ContactStatus.PENDING.getCode()) -->
+        ORDER BY c.create_time DESC
+    </select>
+
 </mapper>

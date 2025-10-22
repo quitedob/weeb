@@ -58,9 +58,11 @@ public interface PermissionService {
      * @param page 页码
      * @param pageSize 每页大小
      * @param keyword 搜索关键词（可选）
+     * @param resource 资源类型筛选（可选）
+     * @param status 状态筛选（可选）
      * @return 权限列表和总数
      */
-    Map<String, Object> getPermissionsWithPaging(int page, int pageSize, String keyword);
+    Map<String, Object> getPermissionsWithPaging(int page, int pageSize, String keyword, String resource, String status);
 
     /**
      * 根据权限名称检查权限是否存在

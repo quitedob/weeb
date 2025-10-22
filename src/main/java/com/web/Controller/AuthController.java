@@ -28,7 +28,7 @@ import java.util.Random;
  * 如果项目启动时扫描不到该包，请在主应用类中使用 @ComponentScan(basePackages = {"com.web.Controller", ...})
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/auth")
 public class AuthController {
 
     @Autowired
@@ -124,20 +124,6 @@ public class AuthController {
     }
 
     /**
-     * 获取用户信息接口，需要提供 Authorization: Bearer <token>
-     * 此接口用于快速获取部分信息（如 id, username）
-     */
-    @GetMapping("/user")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserInfo(@RequestHeader("Authorization") String authorizationHeader) {
-        String token = extractToken(authorizationHeader);
-        User user = authService.getUserInfo(token);
-        Map<String, Object> data = new HashMap<>();
-        data.put("id", user.getId());
-        data.put("username", user.getUsername());
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
-    /**
      * 用户登出接口，需要提供 Authorization: Bearer <token>
      * @param authorizationHeader 从请求头中获取的令牌
      * @return 返回登出结果
@@ -162,70 +148,24 @@ public class AuthController {
     }
 
     /**
-     * 发送密码重置链接（安全实现）
+     * 发送密码重置链接（统一接口）
      */
     @PostMapping("/forgot-password")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> sendPasswordResetLink(@RequestBody Map<String, Object> payload) {
-        String email = (String) payload.get("email");
-
-        Map<String, Object> result = passwordResetService.sendPasswordResetLink(email);
-
-        if ((Boolean) result.get("success")) {
-            return ResponseEntity.ok(ApiResponse.success((String) result.get("message"), result));
-        } else {
-            throw new IllegalArgumentException((String) result.get("message"));
-        }
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestBody Map<String, String> payload) {
+        String email = payload.get("email");
+        passwordResetService.sendPasswordResetLink(email);
+        return ResponseEntity.ok(ApiResponse.success("密码重置链接已发送，请检查您的邮箱。"));
     }
 
     /**
-     * 验证重置令牌
-     */
-    @GetMapping("/validate-reset-token")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> validateResetToken(@RequestParam String token) {
-        Map<String, Object> result = passwordResetService.validateResetToken(token);
-
-        if ((Boolean) result.get("valid")) {
-            return ResponseEntity.ok(ApiResponse.success((String) result.get("message"), result));
-        } else {
-            throw new IllegalArgumentException((String) result.get("message"));
-        }
-    }
-
-    /**
-     * 重置密码（安全实现：通过令牌验证）
+     * 重置密码（统一接口）
      */
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> resetPassword(@RequestBody Map<String, Object> payload) {
-        String token = (String) payload.get("token");
-        String newPassword = (String) payload.get("newPassword");
-        String confirmPassword = (String) payload.get("confirmPassword");
-
-        Map<String, Object> result = passwordResetService.resetPassword(token, newPassword, confirmPassword);
-
-        if ((Boolean) result.get("success")) {
-            return ResponseEntity.ok(ApiResponse.success((String) result.get("message"), result));
-        } else {
-            throw new IllegalArgumentException((String) result.get("message"));
-        }
-    }
-
-    /**
-     * 执行密码重置（前端页面调用的接口）
-     * @param payload 包含令牌和新密码的数据
-     * @return 操作结果
-     */
-    @PostMapping("/password/execute-reset")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> executePasswordReset(@RequestBody Map<String, Object> payload) {
-        String token = (String) payload.get("token");
-        String newPassword = (String) payload.get("newPassword");
-
-        Map<String, Object> result = passwordResetService.resetPassword(token, newPassword, newPassword);
-
-        if ((Boolean) result.get("success")) {
-            return ResponseEntity.ok(ApiResponse.success((String) result.get("message"), result));
-        } else {
-            return ResponseEntity.badRequest().body(ApiResponse.error(1, (String) result.get("message")));
-        }
+    public ResponseEntity<ApiResponse<String>> resetPassword(@RequestBody Map<String, String> payload) {
+        String token = payload.get("token");
+        String newPassword = payload.get("newPassword");
+        passwordResetService.resetPassword(token, newPassword, newPassword);
+        return ResponseEntity.ok(ApiResponse.success("密码重置成功。"));
     }
 
     /**
