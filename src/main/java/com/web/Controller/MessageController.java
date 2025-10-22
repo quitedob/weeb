@@ -6,6 +6,9 @@ import com.web.common.ApiResponse;
 import com.web.model.Message;
 import com.web.service.MessageService;
 import com.web.vo.message.SendMessageVo;
+import com.web.vo.message.RecordRequestVo;
+import com.web.vo.message.RecallRequestVo;
+import com.web.vo.message.ReactionVo;
 import com.web.vo.message.TextMessageContent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -97,7 +100,7 @@ public class MessageController {
     @UrlLimit // 使用默认的请求频率限制
     @PostMapping("/record") // 将该方法映射到 POST 请求 /record 上
     public ResponseEntity<ApiResponse<List<Message>>> record(@Userid Long userId,             // 通过 @Userid 注解获取当前用户ID
-                                                             @RequestBody @Valid RecordRequest recordReq) { // 从请求体中获取并校验 RecordRequest 对象
+                                                             @RequestBody @Valid RecordRequestVo recordReq) { // 从请求体中获取并校验 RecordRequestVo 对象
         // 调用消息服务获取当前用户与目标用户的聊天记录
         List<Message> result = messageService.record(userId,
                 recordReq.getTargetId(),
@@ -120,7 +123,7 @@ public class MessageController {
     @UrlLimit // 使用默认的请求频率限制
     @PostMapping("/recall") // 将该方法映射到 POST 请求 /recall 上
     public ResponseEntity<ApiResponse<Message>> recall(@Userid Long userId,             // 通过 @Userid 注解获取当前用户ID
-                                                       @RequestBody @Valid RecallRequest recallReq) { // 从请求体中获取并校验 RecallRequest 对象
+                                                       @RequestBody @Valid RecallRequestVo recallReq) { // 从请求体中获取并校验 RecallRequestVo 对象
         // 调用消息服务撤回消息，并获取操作后的结果
         Message result = messageService.recall(userId, recallReq.getMsgId()); // 调用撤回消息的业务逻辑方法
 
@@ -139,61 +142,9 @@ public class MessageController {
      * @return 操作结果
      */
     @PostMapping("/react")
-    public ResponseEntity<ApiResponse<String>> handleReaction(@RequestBody @Valid com.web.vo.message.ReactionVo reactionVo, @Userid Long userId) {
+    public ResponseEntity<ApiResponse<String>> handleReaction(@RequestBody @Valid ReactionVo reactionVo, @Userid Long userId) {
         messageService.handleReaction(reactionVo, userId);
         return ResponseEntity.ok(ApiResponse.success("反应操作成功"));
     }
 
-    /**
-     * 聊天记录请求体类，用于获取聊天记录时接收请求数据
-     */
-    public static class RecordRequest {
-        @NotNull(message = "目标ID不能为空")
-        private Long targetId; // 目标聊天对象的ID
-
-        private int index; // 分页查询的起始索引
-
-        @jakarta.validation.constraints.Max(value = 100, message = "查询条数不能超过100条")
-        private int num; // 查询条数
-
-        public Long getTargetId() {
-            return targetId;
-        }
-
-        public void setTargetId(Long targetId) {
-            this.targetId = targetId;
-        }
-
-        public int getIndex() {
-            return index;
-        }
-
-        public void setIndex(int index) {
-            this.index = index;
-        }
-
-        public int getNum() {
-            return num;
-        }
-
-        public void setNum(int num) {
-            this.num = num;
-        }
-    }
-
-    /**
-     * 撤回消息请求体类，用于撤回消息时接收请求数据
-     */
-    public static class RecallRequest {
-        @NotNull(message = "消息ID不能为空")
-        private Long msgId; // 要撤回的消息ID
-
-        public Long getMsgId() {
-            return msgId;
-        }
-
-        public void setMsgId(Long msgId) {
-            this.msgId = msgId;
-        }
-    }
 }

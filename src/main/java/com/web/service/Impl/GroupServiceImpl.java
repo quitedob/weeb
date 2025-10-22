@@ -185,6 +185,11 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     }
 
     @Override
+    public List<Group> getUserOwnedGroups(Long userId) {
+        return groupMapper.findGroupsByOwnerId(userId);
+    }
+
+    @Override
     public Group getGroupDetails(Long groupId) {
         return getById(groupId);
     }

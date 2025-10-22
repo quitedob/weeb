@@ -3,7 +3,9 @@ package com.web.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.web.Config.AiProperties;
 import com.web.service.AIService;
+import com.web.vo.ai.ChatRequestVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -11,7 +13,11 @@ import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 import java.util.*;
@@ -26,6 +32,12 @@ import java.util.concurrent.TimeUnit;
 public class AIServiceImpl implements AIService {
 
     @Autowired
+    private AiProperties aiProperties;
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @Autowired(required = false) // Spring AI is optional now
     private ChatClient chatClient;
 
     @Autowired
@@ -42,6 +54,67 @@ public class AIServiceImpl implements AIService {
 
     @Value("${ai.rate.limit.window:3600}")
     private int rateLimitWindowSeconds;
+
+    @Override
+    public String chat(ChatRequestVo requestVo, Long userId) {
+        String model = requestVo.getModel();
+        if (model.startsWith("ollama")) {
+            // Extract actual model name, e.g., "ollama-llama3" -> "llama3"
+            String ollamaModel = model.substring("ollama-".length());
+            requestVo.setModel(ollamaModel);
+            return chatWithOllama(requestVo);
+        } else if (model.startsWith("deepseek")) {
+            return chatWithDeepSeek(requestVo);
+        } else {
+            // Fallback to default Spring AI provider if configured
+            if (chatClient != null) {
+                String sessionId = "session_for_user_" + userId;
+                String lastMessage = requestVo.getMessages().get(requestVo.getMessages().size() - 1).getContent();
+                return chatWithAI(lastMessage, sessionId);
+            }
+            return "不支持的模型: " + model;
+        }
+    }
+
+    private String chatWithOllama(ChatRequestVo requestVo) {
+        String url = aiProperties.getOllama().getBaseUrl() + "/api/chat";
+        HttpEntity<ChatRequestVo> entity = new HttpEntity<>(requestVo);
+        // Assuming non-streaming for simplicity, as controller expects a single String response
+        requestVo.setStream(false);
+        Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+        if (response != null && response.get("message") instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> message = (Map<String, String>) response.get("message");
+            return message.get("content");
+        }
+        return "从Ollama获取响应失败";
+    }
+
+    private String chatWithDeepSeek(ChatRequestVo requestVo) {
+        String url = aiProperties.getDeepseek().getBaseUrl() + "/chat/completions";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(aiProperties.getDeepseek().getApiKey());
+
+        // Use the model name configured in application.yml for deepseek
+        requestVo.setModel(aiProperties.getDeepseek().getChatModel());
+
+        HttpEntity<ChatRequestVo> entity = new HttpEntity<>(requestVo, headers);
+        // Assuming non-streaming for simplicity
+        requestVo.setStream(false);
+        Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+
+        if (response != null && response.get("choices") instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+            if (!choices.isEmpty() && choices.get(0).get("message") instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, String> message = (Map<String, String>) choices.get(0).get("message");
+                return message.get("content");
+            }
+        }
+        return "从DeepSeek获取响应失败";
+    }
 
     /**
      * 生成文章摘要

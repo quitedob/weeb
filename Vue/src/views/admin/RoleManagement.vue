@@ -197,7 +197,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import axiosInstance from '@/api/axiosInstance'
+import adminApi from '@/api/modules/admin'
 
 // 响应式数据
 const loading = ref(false)
@@ -264,14 +264,12 @@ const fetchRoles = async () => {
       page: pagination.current,
       pageSize: pagination.size,
       keyword: searchForm.name || undefined,
-      status: searchForm.status
+      // status: searchForm.status //  后端暂不支持status筛选
     }
 
-    const response = await axiosInstance.get('/api/admin/roles', { params })
-    if (response.data.success) {
-      roleList.value = response.data.data.list || []
-      pagination.total = response.data.data.total || 0
-    }
+    const response = await adminApi.getRoles(params)
+    roleList.value = response.data.list || []
+    pagination.total = response.data.total || 0
   } catch (error) {
     console.error('获取角色列表失败:', error)
     ElMessage.error('获取角色列表失败')
@@ -283,10 +281,9 @@ const fetchRoles = async () => {
 // 获取权限列表（用于权限分配）
 const fetchPermissions = async () => {
   try {
-    const response = await axiosInstance.get('/api/admin/permissions')
-    if (response.data.success) {
-      permissionList.value = response.data.data.list || []
-    }
+    // 获取所有权限用于分配，可以不分页或设置一个较大的pageSize
+    const response = await adminApi.getPermissions({ page: 1, pageSize: 1000 })
+    permissionList.value = response.data.list || []
   } catch (error) {
     console.error('获取权限列表失败:', error)
   }
@@ -323,15 +320,8 @@ const handleCurrentChange = (current) => {
 // 状态改变
 const handleStatusChange = async (row) => {
   try {
-    const response = await axiosInstance.put(`/api/admin/roles/${row.id}`, {
-      status: row.status
-    })
-    if (response.data.success) {
-      ElMessage.success('状态更新成功')
-    } else {
-      row.status = row.status === 1 ? 0 : 1 // 回滚状态
-      ElMessage.error('状态更新失败')
-    }
+    await adminApi.updateRole(row.id, { status: row.status })
+    ElMessage.success('状态更新成功')
   } catch (error) {
     row.status = row.status === 1 ? 0 : 1 // 回滚状态
     ElMessage.error('状态更新失败')
@@ -352,10 +342,12 @@ const handlePermission = async (row) => {
 
   // 获取当前角色的权限
   try {
-    const response = await axiosInstance.get(`/api/admin/roles/${row.id}/permissions`)
-    if (response.data.success) {
-      selectedPermissions.value = response.data.data.map(p => p.id || p)
-    }
+    const response = await adminApi.getRolePermissions(row.id)
+    // 后端返回的是权限name列表，我们需要id列表
+    const rolePermissionNames = response.data || []
+    selectedPermissions.value = permissionList.value
+      .filter(p => rolePermissionNames.includes(p.name))
+      .map(p => p.id)
   } catch (error) {
     selectedPermissions.value = []
   }
@@ -369,33 +361,31 @@ const handlePermission = async (row) => {
 }
 
 // 删除角色
-const handleDelete = (row) => {
+const handleDelete = async (row) => {
   if (row.type === 0) {
     ElMessage.warning('系统角色不能删除')
     return
   }
 
-  ElMessageBox.confirm(
-    `确定要删除角色"${row.name}"吗？此操作不可撤销。`,
-    '删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  ).then(async () => {
-    try {
-      const response = await axiosInstance.delete(`/api/admin/roles/${row.id}`)
-      if (response.data.success) {
-        ElMessage.success('删除成功')
-        fetchRoles()
-      } else {
-        ElMessage.error('删除失败')
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除角色"${row.name}"吗？此操作不可撤销。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
       }
-    } catch (error) {
+    )
+    
+    await adminApi.deleteRole(row.id)
+    ElMessage.success('删除成功')
+    fetchRoles()
+  } catch (error) {
+    if (error !== 'cancel') {
       ElMessage.error('删除失败')
     }
-  })
+  }
 }
 
 // 提交表单
@@ -403,43 +393,27 @@ const handleSubmit = async () => {
   try {
     await formRef.value.validate()
 
-    const submitData = { ...form }
-    delete submitData.id // 删除id字段，避免更新时传递
-
-    let response
     if (isEdit.value) {
-      response = await axiosInstance.put(`/api/admin/roles/${form.id}`, submitData)
+      await adminApi.updateRole(form.id, form)
     } else {
-      response = await axiosInstance.post('/api/admin/roles', submitData)
+      await adminApi.createRole(form)
     }
 
-    if (response.data.success) {
-      ElMessage.success(isEdit.value ? '更新成功' : '创建成功')
-      showCreateDialog.value = false
-      resetForm()
-      fetchRoles()
-    } else {
-      ElMessage.error(response.data.message || '操作失败')
-    }
+    ElMessage.success(isEdit.value ? '更新成功' : '创建成功')
+    showCreateDialog.value = false
+    resetForm()
+    fetchRoles()
   } catch (error) {
-    if (error.response?.data?.message) {
-      ElMessage.error(error.response.data.message)
-    } else {
-      ElMessage.error('操作失败')
-    }
+    ElMessage.error('操作失败')
   }
 }
 
 // 提交权限分配
 const handlePermissionSubmit = async () => {
   try {
-    const response = await axiosInstance.post(`/api/admin/roles/${currentRole.value.id}/permissions`, selectedPermissions.value)
-    if (response.data.success) {
-      ElMessage.success('权限分配成功')
-      showPermissionDialog.value = false
-    } else {
-      ElMessage.error('权限分配失败')
-    }
+    await adminApi.assignPermissionsToRole(currentRole.value.id, selectedPermissions.value)
+    ElMessage.success('权限分配成功')
+    showPermissionDialog.value = false
   } catch (error) {
     ElMessage.error('权限分配失败')
   }

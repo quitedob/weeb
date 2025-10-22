@@ -4,6 +4,7 @@ import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.service.AIService;
 import com.web.vo.ai.ArticleSummaryRequestVo;
+import com.web.vo.ai.ChatRequestVo;
 import com.web.vo.ai.TextRefineRequestVo;
 import com.web.vo.ai.TitleSuggestionRequestVo;
 import com.web.vo.ai.SentimentAnalysisRequestVo;
@@ -62,17 +63,9 @@ public class AIController {
     @PostMapping("/text/refine")
     @PreAuthorize("hasPermission(null, 'ARTICLE_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<String>> refineText(
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid TextRefineRequestVo request) {
         try {
-            String content = request.get("content");
-            String tone = request.getOrDefault("tone", "professional");
-
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("文本内容不能为空"));
-            }
-
-            String refinedText = aiService.refineText(content, tone);
+            String refinedText = aiService.refineText(request.getContent(), request.getTone());
             return ResponseEntity.ok(ApiResponse.success("文本润色成功", refinedText));
         } catch (Exception e) {
             log.error("润色文本失败", e);
@@ -108,24 +101,19 @@ public class AIController {
     }
 
     /**
-     * AI 聊天对话
+     * AI 聊天对话 (新的统一接口)
      * POST /api/ai/chat
      */
     @PostMapping("/chat")
     @PreAuthorize("hasPermission(null, 'AI_CHAT_OWN')")
-    public ResponseEntity<ApiResponse<String>> chatWithAI(
-            @RequestBody Map<String, String> request,
+    public ResponseEntity<ApiResponse<String>> chat(
+            @RequestBody @Valid ChatRequestVo request,
             @Userid Long userId) {
         try {
-            String message = request.get("message");
-            String sessionId = request.getOrDefault("sessionId", "default_" + userId);
-
-            if (message == null || message.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("消息内容不能为空"));
-            }
-
-            String response = aiService.chatWithAI(message, sessionId);
+            // 此处暂时保留简单实现，后续将在Service层扩展
+            String lastMessageContent = request.getMessages().get(request.getMessages().size() - 1).getContent();
+            String sessionId = "session_for_user_" + userId; // 示例 sessionId
+            String response = aiService.chatWithAI(lastMessageContent, sessionId);
             return ResponseEntity.ok(ApiResponse.success(response));
         } catch (Exception e) {
             log.error("AI聊天失败: userId={}", userId, e);

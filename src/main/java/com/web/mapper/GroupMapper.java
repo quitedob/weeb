@@ -23,6 +23,13 @@ public interface GroupMapper extends BaseMapper<Group> {
     List<Group> findGroupsByUserId(Long userId); // 修改为Long类型以匹配数据库BIGINT
 
     /**
+     * 根据群主ID查找其拥有的所有群组
+     * @param ownerId 群主ID
+     * @return 群组列表
+     */
+    List<Group> findGroupsByOwnerId(@Param("ownerId") Long ownerId);
+
+    /**
      * 搜索群组（按群组名称模糊搜索）
      * @param keyword 关键词
      * @param offset 偏移量

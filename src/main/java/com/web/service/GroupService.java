@@ -9,6 +9,10 @@ import com.web.vo.group.GroupApplyVo;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 群组服务接口
+ * 简化注释：群组服务
+ */
 public interface GroupService extends IService<Group> {
     Group createGroup(GroupCreateVo createVo, Long userId); // Return type Group, userId as Long
 
@@ -61,6 +65,13 @@ public interface GroupService extends IService<Group> {
      * @return 用户加入的群组列表
      */
     List<Group> getUserJoinedGroups(Long userId);
+
+    /**
+     * 获取用户拥有的群组列表
+     * @param userId 用户ID
+     * @return 用户拥有的群组列表
+     */
+    List<Group> getUserOwnedGroups(Long userId);
 
     /**
      * 获取群组详情

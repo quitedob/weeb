@@ -1,5 +1,7 @@
 package com.web.service;
 
+import com.web.vo.ai.ChatRequestVo;
+
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +42,14 @@ public interface AIService {
      * @return AI 回复
      */
     String chatWithAI(String message, String sessionId);
+
+    /**
+     * 与AI进行通用聊天对话 (新)
+     * @param requestVo 包含模型、消息历史和流式标志的请求对象
+     * @param userId 当前用户ID
+     * @return AI的回复
+     */
+    String chat(ChatRequestVo requestVo, Long userId);
 
     /**
      * 分析内容情感

@@ -8,6 +8,7 @@ import com.web.service.AuthService;
 import com.web.service.ArticleService;
 import com.web.vo.article.ArticleCreateVo;
 import com.web.vo.article.ArticleUpdateVo;
+import com.web.vo.article.ArticleSearchAdvancedVo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;  // 注意导入
@@ -421,6 +422,23 @@ public class ArticleCenterController {
             return ResponseEntity.ok(ApiResponse.success(searchResult));
         } catch (Exception e) {
             logger.error("搜索文章失败，关键词: {}", query, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 高级搜索文章
+     * GET /articles/search/advanced?query=...&page=1&pageSize=10...
+     */
+    @GetMapping("/search/advanced")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchArticlesAdvanced(
+            @Valid ArticleSearchAdvancedVo searchVo) {
+        try {
+            Map<String, Object> searchResult = articleService.searchArticlesAdvanced(searchVo);
+            return ResponseEntity.ok(ApiResponse.success(searchResult));
+        } catch (Exception e) {
+            logger.error("高级搜索文章失败", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
         }

@@ -6,6 +6,7 @@ import com.web.model.Article;
 import com.web.model.ArticleCategory;
 import com.web.service.ArticleService;
 import com.web.exception.WeebException;
+import com.web.vo.article.ArticleSearchAdvancedVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -398,11 +399,26 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
-    public Map<String, Object> searchArticlesAdvanced(String query, int page, int pageSize, String startDate, String endDate,
-                                                    List<Long> categoryIds, Long authorId, Integer status,
-                                                    Long minLikes, Long maxLikes, Long minExposure, Long maxExposure,
-                                                    String sortBy, String sortOrder) {
-        // TODO: Implement advanced search logic
-        return Map.of("list", List.of(), "total", 0);
+    public Map<String, Object> searchArticlesAdvanced(ArticleSearchAdvancedVo searchVo) {
+        // 参数验证
+        String[] validatedSortParams = validateSortParams(searchVo.getSortBy(), searchVo.getSortOrder());
+        searchVo.setSortBy(validatedSortParams[0]);
+        searchVo.setSortOrder(validatedSortParams[1]);
+
+        int offset = (searchVo.getPage() - 1) * searchVo.getPageSize();
+
+        // 调用Mapper进行高级搜索
+        List<Article> articles = articleMapper.searchArticlesAdvanced(searchVo, offset);
+        int totalCount = articleMapper.countAdvancedSearchResults(searchVo);
+
+        // 组装返回结果
+        Map<String, Object> result = new HashMap<>();
+        result.put("list", articles);
+        result.put("total", totalCount);
+        result.put("currentPage", searchVo.getPage());
+        result.put("pageSize", searchVo.getPageSize());
+        result.put("totalPages", (int) Math.ceil((double) totalCount / searchVo.getPageSize()));
+
+        return result;
     }
 }
