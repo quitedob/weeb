@@ -34,7 +34,7 @@ public class StandardUserController {
      * GET /api/users/me
      */
     @GetMapping("/me")
-    @PreAuthorize("hasPermission(null, 'USER_READ_OWN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<UserWithStats>> getCurrentUser(@Userid Long userId) {
         try {
             UserWithStats userProfile = userService.getUserProfile(userId);

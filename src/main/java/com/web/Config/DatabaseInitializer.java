@@ -1085,61 +1085,9 @@ public class DatabaseInitializer implements CommandLineRunner {
                 log.info("角色数据已存在，跳过创建");
             }
 
-            // 检查是否已有权限数据
-            Integer permissionCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM permission", Integer.class);
-
-            if (permissionCount == null || permissionCount == 0) {
-                // 插入基础权限
-                jdbcTemplate.update("""
-                    INSERT INTO permission (name, description, resource, action, `condition`, status, type, `group`, sort_order, created_at, updated_at) VALUES
-                    -- 用户管理权限
-                    ('USER_READ', '查看用户信息', 'user', 'read', 'own', 1, 1, '用户管理', 1, NOW(), NOW()),
-                    ('USER_UPDATE', '更新用户信息', 'user', 'update', 'own', 1, 1, '用户管理', 2, NOW(), NOW()),
-                    ('USER_DELETE', '删除用户', 'user', 'delete', 'any', 1, 0, '用户管理', 3, NOW(), NOW()),
-                    ('USER_CREATE', '创建用户', 'user', 'create', 'any', 1, 0, '用户管理', 4, NOW(), NOW()),
-                    -- 聊天权限
-                    ('MESSAGE_READ', '查看消息', 'message', 'read', 'own', 1, 1, '聊天管理', 20, NOW(), NOW()),
-                    ('MESSAGE_CREATE', '发送消息', 'message', 'create', 'own', 1, 1, '聊天管理', 21, NOW(), NOW()),
-                    ('MESSAGE_UPDATE', '更新消息', 'message', 'update', 'own', 1, 1, '聊天管理', 22, NOW(), NOW()),
-                    ('MESSAGE_DELETE', '删除消息', 'message', 'delete', 'own', 1, 1, '聊天管理', 23, NOW(), NOW()),
-                    -- 好友权限
-                    ('CONTACT_READ', '查看联系人', 'contact', 'read', 'own', 1, 1, '好友管理', 30, NOW(), NOW()),
-                    ('CONTACT_CREATE', '添加好友', 'contact', 'create', 'own', 1, 1, '好友管理', 31, NOW(), NOW()),
-                    ('CONTACT_UPDATE', '更新联系人', 'contact', 'update', 'own', 1, 1, '好友管理', 32, NOW(), NOW()),
-                    ('CONTACT_DELETE', '删除好友', 'contact', 'delete', 'own', 1, 1, '好友管理', 33, NOW(), NOW()),
-                    ('FOLLOW_READ', '查看关注', 'follow', 'read', 'own', 1, 1, '好友管理', 34, NOW(), NOW()),
-                    ('FOLLOW_CREATE', '关注用户', 'follow', 'create', 'own', 1, 1, '好友管理', 35, NOW(), NOW()),
-                    ('FOLLOW_DELETE', '取消关注', 'follow', 'delete', 'own', 1, 1, '好友管理', 36, NOW(), NOW()),
-                    -- 群组权限
-                    ('GROUP_READ', '查看群组', 'group', 'read', 'member', 1, 1, '群组管理', 40, NOW(), NOW()),
-                    ('GROUP_CREATE', '创建群组', 'group', 'create', 'own', 1, 1, '群组管理', 41, NOW(), NOW()),
-                    ('GROUP_UPDATE', '更新群组', 'group', 'update', 'admin', 1, 1, '群组管理', 42, NOW(), NOW()),
-                    ('GROUP_DELETE', '删除群组', 'group', 'delete', 'owner', 1, 1, '群组管理', 43, NOW(), NOW()),
-                    ('GROUP_JOIN', '加入群组', 'group', 'join', 'any', 1, 1, '群组管理', 44, NOW(), NOW()),
-                    ('GROUP_INVITE', '邀请成员', 'group', 'invite', 'admin', 1, 1, '群组管理', 45, NOW(), NOW()),
-                    -- 文章权限
-                    ('ARTICLE_READ', '查看文章', 'article', 'read', 'any', 1, 1, '文章管理', 10, NOW(), NOW()),
-                    ('ARTICLE_CREATE', '创建文章', 'article', 'create', 'own', 1, 1, '文章管理', 11, NOW(), NOW()),
-                    ('ARTICLE_UPDATE', '更新文章', 'article', 'update', 'own', 1, 1, '文章管理', 12, NOW(), NOW()),
-                    ('ARTICLE_DELETE', '删除文章', 'article', 'delete', 'own', 1, 1, '文章管理', 13, NOW(), NOW()),
-                    ('ARTICLE_FAVORITE', '收藏文章', 'article', 'favorite', 'own', 1, 1, '文章管理', 14, NOW(), NOW()),
-                    ('ARTICLE_COMMENT', '评论文章', 'article', 'comment', 'own', 1, 1, '文章管理', 15, NOW(), NOW()),
-                    -- 文件权限
-                    ('FILE_READ', '查看文件', 'file', 'read', 'own', 1, 1, '文件管理', 50, NOW(), NOW()),
-                    ('FILE_UPLOAD', '上传文件', 'file', 'upload', 'own', 1, 1, '文件管理', 51, NOW(), NOW()),
-                    ('FILE_UPDATE', '更新文件', 'file', 'update', 'own', 1, 1, '文件管理', 52, NOW(), NOW()),
-                    ('FILE_DELETE', '删除文件', 'file', 'delete', 'own', 1, 1, '文件管理', 53, NOW(), NOW()),
-                    ('FILE_SHARE', '分享文件', 'file', 'share', 'own', 1, 1, '文件管理', 54, NOW(), NOW()),
-                    -- 系统管理权限
-                    ('SYSTEM_ADMIN', '系统管理', 'system', 'admin', 'any', 1, 0, '系统管理', 100, NOW(), NOW()),
-                    ('ROLE_MANAGE', '角色管理', 'role', 'manage', 'any', 1, 0, '系统管理', 101, NOW(), NOW())
-                    """);
-
-                log.info("✅ 基础权限创建成功");
-            } else {
-                log.info("权限数据已存在，跳过创建");
-            }
+            // 注意：权限的初始化已经委托给SystemPermissionInitializer处理
+            // 这里不再重复创建权限，避免冲突
+            log.info("权限初始化委托给SystemPermissionInitializer处理");
 
             // 为角色分配权限
             assignPermissionsToRoles();
@@ -1212,14 +1160,15 @@ public class DatabaseInitializer implements CommandLineRunner {
                     INSERT INTO role_permission (role_id, permission_id, created_at)
                     SELECT ?, id, NOW() FROM permission
                     WHERE name IN (
-                        'USER_READ', 'USER_UPDATE',                    -- 用户基本信息管理
-                        'MESSAGE_READ', 'MESSAGE_CREATE', 'MESSAGE_UPDATE', 'MESSAGE_DELETE',  -- 聊天功能
-                        'CONTACT_READ', 'CONTACT_CREATE', 'CONTACT_UPDATE', 'CONTACT_DELETE',  -- 好友管理
-                        'FOLLOW_READ', 'FOLLOW_CREATE', 'FOLLOW_DELETE',                       -- 关注功能
-                        'GROUP_READ', 'GROUP_CREATE', 'GROUP_JOIN',                           -- 群组基础功能
-                        'ARTICLE_READ', 'ARTICLE_CREATE', 'ARTICLE_UPDATE', 'ARTICLE_DELETE',  -- 文章管理
-                        'ARTICLE_FAVORITE', 'ARTICLE_COMMENT',                                -- 文章互动
-                        'FILE_READ', 'FILE_UPLOAD', 'FILE_UPDATE', 'FILE_DELETE', 'FILE_SHARE'  -- 文件管理
+                        'USER_READ_OWN', 'USER_UPDATE_OWN',              -- 用户基本信息管理（修复：使用OWN权限）
+                        'MESSAGE_READ_OWN', 'MESSAGE_CREATE_OWN', 'MESSAGE_UPDATE_OWN', 'MESSAGE_DELETE_OWN',  -- 聊天功能
+                        'CONTACT_READ_OWN', 'CONTACT_CREATE_OWN', 'CONTACT_UPDATE_OWN', 'CONTACT_DELETE_OWN',  -- 好友管理
+                        'GROUP_READ_OWN', 'GROUP_CREATE_OWN', 'GROUP_JOIN_OWN',                           -- 群组基础功能
+                        'ARTICLE_READ_OWN', 'ARTICLE_CREATE_OWN', 'ARTICLE_UPDATE_OWN', 'ARTICLE_DELETE_OWN',  -- 文章管理
+                        'ARTICLE_FAVORITE_OWN', 'ARTICLE_COMMENT_OWN',                                -- 文章互动
+                        'FILE_READ_OWN', 'FILE_UPLOAD_OWN', 'FILE_UPDATE_OWN', 'FILE_DELETE_OWN', 'FILE_SHARE_OWN',  -- 文件管理
+                        'FOLLOW_READ_OWN', 'FOLLOW_CREATE_OWN', 'FOLLOW_DELETE_OWN',                       -- 关注功能
+                        'AUTH_LOGIN_OWN', 'AUTH_LOGOUT_OWN', 'AUTH_PASSWORD_CHANGE_OWN'              -- 认证功能
                     )
                     """, userRoleId);
                 log.info("✅ 普通用户权限分配完成");
