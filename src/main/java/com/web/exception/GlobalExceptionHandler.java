@@ -9,6 +9,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -302,6 +303,24 @@ public class GlobalExceptionHandler {
                 eventId, path, e.getParameterName());
 
         ApiResponse<Object> response = ApiResponse.badRequest("缺少必需的请求参数: " + e.getParameterName())
+                .withPath(path);
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * 处理缺少请求头异常
+     */
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<Object>> handleMissingRequestHeaderException(
+            MissingRequestHeaderException e, WebRequest request) {
+        String eventId = logException("缺少请求头异常", e, request);
+        String path = getPath(request);
+
+        log.warn("缺少必需的请求头 eventId={}, path={}, header={}",
+                eventId, path, e.getHeaderName());
+
+        ApiResponse<Object> response = ApiResponse.badRequest("缺少必需的请求头: " + e.getHeaderName())
                 .withPath(path);
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);

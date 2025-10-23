@@ -65,7 +65,7 @@ public class StandardAuthController {
             User registeredUser = authService.findByUsername(user.getUsername());
             if (registeredUser != null) {
                 // 生成JWT令牌
-                String token = jwtUtil.generateToken(registeredUser.getId());
+                String token = jwtUtil.generateToken(registeredUser.getId(), registeredUser.getUsername());
 
                 Map<String, Object> result = new HashMap<>();
                 result.put("user", registeredUser);
@@ -110,7 +110,7 @@ public class StandardAuthController {
      * POST /api/auth/logout
      */
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<String>> logout(@RequestHeader("Authorization") String authorization) {
+    public ResponseEntity<ApiResponse<String>> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
         try {
             if (authorization != null && authorization.startsWith("Bearer ")) {
                 String token = authorization.substring(7);
@@ -180,7 +180,7 @@ public class StandardAuthController {
             }
 
             // 生成新令牌
-            String newToken = jwtUtil.generateToken(user.getId());
+            String newToken = jwtUtil.generateToken(user.getId(), user.getUsername());
 
             Map<String, Object> result = new HashMap<>();
             result.put("token", newToken);

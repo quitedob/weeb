@@ -84,15 +84,30 @@ public class JwtUtil {
 
     /**
      * 生成JWT令牌，subject为userId（Long类型，转为字符串）
+     * 同时写入自定义声明 username，便于过滤器按用户名加载用户
      * @param userId 用户唯一ID
+     * @param username 用户名
      * @return JWT令牌字符串
      */
-    public String generateToken(Long userId) {
+    public String generateToken(Long userId, String username) {
         return Jwts.builder()
                 .setSubject(String.valueOf(userId)) // 以userId为主体
+                .claim("username", username) // 附带用户名，供下游解析
                 .setIssuedAt(new Date()) // 签发时间
                 .setExpiration(new Date(System.currentTimeMillis() + expiration)) // 过期时间
                 .signWith(this.key) // 使用密钥签名
+                .compact();
+    }
+
+    /**
+     * 兼容旧签名：仅传入用户ID时生成token（不推荐，仅为兼容）
+     */
+    public String generateToken(Long userId) {
+        return Jwts.builder()
+                .setSubject(String.valueOf(userId))
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(this.key)
                 .compact();
     }
 
@@ -160,7 +175,9 @@ public class JwtUtil {
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-            return claims.getSubject();
+            // 优先读取自定义username声明；若不存在，回退为subject（兼容旧token）
+            String username = claims.get("username", String.class);
+            return (username != null && !username.isEmpty()) ? username : claims.getSubject();
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }

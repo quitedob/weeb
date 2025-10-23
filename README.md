@@ -286,12 +286,12 @@ mvn spring-boot:run
 - **权限**: 基础用户功能权限
 
 #### 🎭 额外测试用户
-系统还会自动创建以下测试用户（密码均为 `test123`）：
-- **alice** - 爱丽丝 (alice@weeb.com)
-- **bob** - 鲍勃 (bob@weeb.com)
-- **charlie** - 查理 (charlie@weeb.com)
-- **diana** - 戴安娜 (diana@weeb.com)
-- **eve** - 伊芙 (eve@weeb.com)
+系统还会自动创建以下测试用户（每个用户有独立的密码）：
+- **alice** - 爱丽丝 (alice@weeb.com) - 密码: `password100`
+- **bob** - 鲍勃 (bob@weeb.com) - 密码: `password200`
+- **charlie** - 查理 (charlie@weeb.com) - 密码: `password300`
+- **diana** - 戴安娜 (diana@weeb.com) - 密码: `password400`
+- **eve** - 伊芙 (eve@weeb.com) - 密码: `password500`
 
 > 💡 **提示**:
 > - 数据库自动初始化由 `DatabaseInitializer.java` 处理

@@ -1,4 +1,4 @@
-package com.web.config;
+package com.web.Config;
 
 import com.web.security.CustomPermissionEvaluator;
 import org.springframework.context.annotation.Bean;

@@ -266,8 +266,8 @@ public class AuthServiceImpl implements AuthService {
         SecurityAuditUtils.logLoginSuccess(safeUsername, requestInfo.get("ip"),
                 requestInfo.get("userAgent"));
 
-        // 生成真正的JWT令牌
-        String token = jwtUtil.generateToken(user.getId());
+        // 生成真正的JWT令牌（携带用户名声明，便于过滤器按用户名校验）
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername());
 
         // 将用户信息存储到Redis（用于快速查询）
         redisTemplate.opsForValue().set(USER_TOKEN_PREFIX + token, user, TOKEN_EXPIRE_TIME, TimeUnit.SECONDS);

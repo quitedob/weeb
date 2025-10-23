@@ -16,7 +16,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -34,7 +33,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final UserDetailsService userDetailsService;
+    private final CustomUserDetailsService customUserDetailsService;
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
 
@@ -44,7 +43,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
-        final String username;
 
         // 检查Authorization头
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -55,11 +53,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             // 提取JWT令牌
             jwt = authHeader.substring(7);
-            username = jwtUtil.extractUsername(jwt);
+            final Long userId = jwtUtil.getUserIdFromToken(jwt);
 
-            // 验证用户名和SecurityContext
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+            // 验证用户ID和SecurityContext
+            if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = this.customUserDetailsService.loadUserById(userId);
 
                 // 验证JWT令牌
                 if (jwtUtil.isTokenValid(jwt, userDetails.getUsername())) {
@@ -69,11 +67,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
 
                     // 记录成功的认证
-                    SecurityAuditUtils.logAuthenticationSuccess(username, request.getRemoteAddr());
+                    SecurityAuditUtils.logAuthenticationSuccess(userDetails.getUsername(), request.getRemoteAddr());
                 } else {
                     // 令牌无效
-                    log.warn("Invalid JWT token for user: {}", username);
-                    SecurityAuditUtils.logAuthenticationFailure(username, request.getRemoteAddr(), "Invalid token");
+                    log.warn("Invalid JWT token for user: {}", userDetails.getUsername());
+                    SecurityAuditUtils.logAuthenticationFailure(userDetails.getUsername(), request.getRemoteAddr(), "Invalid token");
                 }
             }
 
