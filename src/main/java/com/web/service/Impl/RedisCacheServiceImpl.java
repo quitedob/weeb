@@ -1,4 +1,4 @@
-package com.web.service.impl;
+package com.web.service.Impl;
 
 import com.web.model.User;
 import com.web.model.Article;

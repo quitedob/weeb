@@ -1,4 +1,4 @@
-package com.web.service.impl;
+package com.web.service.Impl;
 
 import com.web.exception.WeebException;
 import com.web.mapper.MessageMapper;

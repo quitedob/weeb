@@ -1,4 +1,4 @@
-package com.web.service.impl;
+package com.web.service.Impl;
 
 import com.web.dto.UserDetailsDTO;
 import com.web.mapper.AuthMapper;

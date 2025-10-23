@@ -1,4 +1,4 @@
-package com.web.service.impl;
+package com.web.service.Impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.web.mapper.NotificationMapper;

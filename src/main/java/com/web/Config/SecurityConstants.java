@@ -48,7 +48,7 @@ public class SecurityConstants {
      */
     public static class PhonePolicy {
         public static final String PATTERN = "^1[3-9]\\d{9}$";
-        public static final String REQUIREMENT = "请输入有效的11位手机号码";
+        public static final String REQUIREMENT = "请输入有效的手机号码（支持国际区号格式，如+8613800138000）";
     }
 
     /**

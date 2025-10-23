@@ -82,19 +82,41 @@ public class ValidationUtils {
 
     /**
      * 验证手机号
+     * 支持国际区号格式（如+8613800138000）和纯中国手机号格式（如13800138000）
      */
     public static boolean validatePhone(String phone) {
         if (phone == null || phone.trim().isEmpty()) {
             log.warn("手机号验证失败：手机号为空");
             return false;
         }
-        
+
         String trimmedPhone = phone.trim();
-        if (!trimmedPhone.matches(SecurityConstants.PhonePolicy.PATTERN)) {
-            log.warn("手机号验证失败：格式不符合要求 - {}", trimmedPhone);
-            return false;
+
+        // 如果包含国际区号，去掉区号后验证中国手机号
+        if (trimmedPhone.startsWith("+")) {
+            // 支持中国区号 +86
+            if (trimmedPhone.startsWith("+86")) {
+                String chinesePhone = trimmedPhone.substring(3); // 去掉+86
+                if (!chinesePhone.matches(SecurityConstants.PhonePolicy.PATTERN)) {
+                    log.warn("手机号验证失败：中国手机号格式不符合要求 - {}", trimmedPhone);
+                    return false;
+                }
+            } else {
+                // 其他国家的基本验证（至少6位数字）
+                String phoneNumber = trimmedPhone.substring(trimmedPhone.indexOf('+') + 1);
+                if (!phoneNumber.matches("^\\d{6,}$")) {
+                    log.warn("手机号验证失败：其他国家手机号格式不符合要求 - {}", trimmedPhone);
+                    return false;
+                }
+            }
+        } else {
+            // 不带区号，按中国手机号验证
+            if (!trimmedPhone.matches(SecurityConstants.PhonePolicy.PATTERN)) {
+                log.warn("手机号验证失败：格式不符合要求 - {}", trimmedPhone);
+                return false;
+            }
         }
-        
+
         return true;
     }
 

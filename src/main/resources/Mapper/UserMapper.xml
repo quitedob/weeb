@@ -130,9 +130,9 @@
 
     <!-- 获取用户列表（分页支持） -->
     <select id="selectUserList" resultMap="UserResultMap">
-        SELECT id, username, sex, phone_number, user_email,
+        SELECT id, username, password, sex, phone_number, user_email,
                unique_article_link, unique_video_link, registration_date,
-               ip_ownership, type, avatar, nickname, badge, 
+               ip_ownership, type, avatar, nickname, badge,
                login_time, bio, online_status
         FROM user 
         <where>
@@ -285,9 +285,9 @@
 
     <!-- 搜索用户（分页） -->
     <select id="searchUsers" resultMap="UserResultMap">
-        SELECT id, username, sex, phone_number, user_email,
+        SELECT id, username, password, sex, phone_number, user_email,
                unique_article_link, unique_video_link, registration_date,
-               ip_ownership, type, avatar, nickname, badge, 
+               ip_ownership, type, avatar, nickname, badge,
                login_time, bio, online_status
         FROM user 
         WHERE (username LIKE CONCAT('%', #{keyword}, '%') 

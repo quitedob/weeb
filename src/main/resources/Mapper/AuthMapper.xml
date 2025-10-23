@@ -79,7 +79,7 @@
 
     <!-- 根据用户ID查询用户信息 -->
     <select id="findByUserID" parameterType="long" resultType="com.web.model.User">
-        SELECT id, username, sex, phone_number, user_email,
+        SELECT id, username, password, sex, phone_number, user_email,
                unique_article_link, unique_video_link, registration_date,
                ip_ownership, type, avatar, nickname, badge, login_time, bio, online_status, status
         FROM user
@@ -116,6 +116,7 @@
         SELECT
             id,
             username,
+            password,
             sex,
             phone_number,
             user_email,
@@ -140,6 +141,7 @@
         SELECT
             id,
             username,
+            password,
             sex,
             phone_number,
             user_email,
@@ -164,6 +166,7 @@
         SELECT
             id,
             username,
+            password,
             sex,
             phone_number,
             user_email,
