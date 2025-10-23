@@ -196,22 +196,7 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    /**
-     * 处理所有其他异常
-     */
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Object>> handleException(Exception e, WebRequest request) {
-        String eventId = java.util.UUID.randomUUID().toString();
-        String path = request.getDescription(false).replace("uri=", "");
-
-        log.error("未处理的异常 eventId={}, path={}, type={}", eventId, path, e.getClass().getSimpleName(), e);
-
-        ApiResponse<Object> response = ApiResponse.systemError("系统异常，请联系管理员")
-                .withPath(path);
-
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
+    
     /**
      * 处理HTTP方法不支持异常
      */
