@@ -14,7 +14,18 @@ export default {
 
   // 用户注册
   register(data) {
-    return axiosInstance.post('/api/auth/register', data);
+    // 后端需要 RegistrationVo: username, password, confirmPassword, email, phone, nickname, bio
+    const payload = {
+      username: data.username,
+      password: data.password,
+      confirmPassword: data.confirmPassword || data.password, // 若未传则回填同密码，满足后端校验
+      email: data.email,
+      phone: data.phone,
+      nickname: data.nickname,
+      bio: data.bio
+      // gender 为前端字段，后端 RegistrationVo 未定义，故不传或由后端忽略
+    };
+    return axiosInstance.post('/api/auth/register', payload);
   },
 
   // 用户登出
