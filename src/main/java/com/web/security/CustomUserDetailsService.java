@@ -109,15 +109,43 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     /**
      * 根据用户ID加载用户详情
+     * 【核心修复三】直接根据用户ID构建UserDetails，避免二次查询
      */
     public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
         try {
+            log.debug("Loading user by ID: {}", userId);
+
+            // 直接使用AuthMapper根据ID查询用户
             User user = authMapper.findByUserID(userId);
             if (user == null) {
+                log.warn("User not found by ID: {}", userId);
                 throw new UsernameNotFoundException("用户不存在: " + userId);
             }
-            return loadUserByUsername(user.getUsername());
+
+            // 检查用户是否被禁用
+            if (user.getStatus() != null && user.getStatus() == 0) {
+                log.warn("User account is disabled for ID: {}", userId);
+                throw new UsernameNotFoundException("用户账户已被禁用: " + userId);
+            }
+
+            // 获取用户权限
+            List<SimpleGrantedAuthority> authorities = getUserAuthorities(user);
+
+            // 直接创建Spring Security User对象，不再调用loadUserByUsername
+            return org.springframework.security.core.userdetails.User.builder()
+                    .username(user.getUsername())
+                    .password(user.getPassword())
+                    .authorities(authorities)
+                    .accountExpired(false)
+                    .accountLocked(false)
+                    .credentialsExpired(false)
+                    .disabled(user.getStatus() == 0)
+                    .build();
+
+        } catch (UsernameNotFoundException e) {
+            throw e;
         } catch (Exception e) {
+            log.error("Error loading user details for userId: {}", userId, e);
             throw new UsernameNotFoundException("加载用户信息失败: " + userId, e);
         }
     }
