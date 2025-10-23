@@ -52,10 +52,10 @@ public class StandardAuthController {
                 return ApiResponseUtil.badRequestMap("用户名已存在");
             }
 
-            // 创建用户
+            // 创建用户（密码不在此处加密，交由服务层统一加密，避免二次加密）
             User user = new User();
             user.setUsername(registrationVo.getUsername());
-            user.setPassword(passwordEncoder.encode(registrationVo.getPassword()));
+            user.setPassword(registrationVo.getPassword());
             user.setUserEmail(registrationVo.getEmail());
             user.setPhoneNumber(registrationVo.getPhone());
             user.setNickname(registrationVo.getNickname());
