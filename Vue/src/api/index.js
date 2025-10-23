@@ -9,7 +9,6 @@ import article from './modules/article';
 import notification from './modules/notification';
 import message from './modules/message';
 import comment from './modules/comment';
-import fileManagement from './modules/fileManagement';
 import follow from './modules/follow';
 import contact from './modules/contact';
 
@@ -22,7 +21,6 @@ export default {
   notification,
   message,
   comment,
-  fileManagement,
   follow,
   contact,
 };

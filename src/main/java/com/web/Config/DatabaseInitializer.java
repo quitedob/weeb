@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -17,9 +18,8 @@ import java.sql.Statement;
 
 @Slf4j
 @Component
+@Order(1) // 设置最高优先级，确保最先执行
 public class DatabaseInitializer implements CommandLineRunner {
-
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(DatabaseInitializer.class);
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -460,6 +460,125 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建用户统计表失败", e);
             throw new RuntimeException("创建用户统计表失败", e);
+        }
+    }
+
+    private void createPermissionTable() {
+        log.info("创建权限表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `permission` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '权限ID',
+                `name` VARCHAR(100) NOT NULL COMMENT '权限名称（e.g., USER_CREATE）',
+                `description` VARCHAR(255) COMMENT '权限描述',
+                `resource` VARCHAR(100) NOT NULL COMMENT '资源 (e.g., user, article)',
+                `action` VARCHAR(100) NOT NULL COMMENT '操作 (e.g., create, read, update, delete)',
+                `condition` VARCHAR(255) COMMENT '条件 (e.g., own, any)',
+                `status` TINYINT DEFAULT 1 COMMENT '状态：0-禁用，1-启用',
+                `type` TINYINT DEFAULT 1 COMMENT '类型：0-系统权限，1-业务权限',
+                `group` VARCHAR(100) COMMENT '权限分组',
+                `sort_order` INT DEFAULT 0 COMMENT '排序号',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_name` (`name`),
+                KEY `idx_resource` (`resource`),
+                KEY `idx_action` (`action`),
+                KEY `idx_status` (`status`),
+                KEY `idx_type` (`type`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='系统权限表';
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 权限表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建权限表失败", e);
+            throw new RuntimeException("创建权限表失败", e);
+        }
+    }
+
+    private void createRoleTable() {
+        log.info("创建角色表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `role` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '角色ID',
+                `name` VARCHAR(100) NOT NULL COMMENT '角色名称',
+                `description` VARCHAR(255) COMMENT '角色描述',
+                `status` TINYINT DEFAULT 1 COMMENT '状态：0-禁用，1-启用',
+                `type` TINYINT DEFAULT 0 COMMENT '类型：0-系统角色，1-自定义角色',
+                `level` INT DEFAULT 100 COMMENT '角色等级（数字越小权限越大）',
+                `is_default` BOOLEAN DEFAULT FALSE COMMENT '是否为新用户默认角色',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_name` (`name`),
+                KEY `idx_status` (`status`),
+                KEY `idx_type` (`type`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='用户角色表';
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 角色表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建角色表失败", e);
+            throw new RuntimeException("创建角色表失败", e);
+        }
+    }
+
+    private void createRolePermissionTable() {
+        log.info("创建角色权限关联表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `role_permission` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT,
+                `role_id` BIGINT NOT NULL COMMENT '角色ID',
+                `permission_id` BIGINT NOT NULL COMMENT '权限ID',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_role_permission` (`role_id`, `permission_id`),
+                CONSTRAINT `fk_rp_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_rp_permission` FOREIGN KEY (`permission_id`) REFERENCES `permission` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='角色与权限关联表';
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 角色权限关联表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建角色权限关联表失败", e);
+            throw new RuntimeException("创建角色权限关联表失败", e);
+        }
+    }
+
+    private void createUserRoleTable() {
+        log.info("创建用户角色关联表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `user_role` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT,
+                `user_id` BIGINT NOT NULL COMMENT '用户ID',
+                `role_id` BIGINT NOT NULL COMMENT '角色ID',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_user_role` (`user_id`, `role_id`),
+                CONSTRAINT `fk_ur_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_ur_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            COMMENT='用户与角色关联表';
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 用户角色关联表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建用户角色关联表失败", e);
+            throw new RuntimeException("创建用户角色关联表失败", e);
         }
     }
 

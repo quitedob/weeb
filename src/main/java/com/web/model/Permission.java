@@ -1,5 +1,6 @@
 package com.web.model;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -38,6 +39,7 @@ public class Permission extends BaseEntity {
     /**
      * 权限条件（可选，用于更复杂的权限控制，如：own, any等）
      */
+    @TableField("`condition`")
     private String condition;
 
     /**
@@ -53,6 +55,7 @@ public class Permission extends BaseEntity {
     /**
      * 权限分组（如：用户管理, 内容管理等）
      */
+    @TableField("`group`")
     private String group;
 
     /**
