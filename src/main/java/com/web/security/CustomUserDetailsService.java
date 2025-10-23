@@ -1,7 +1,9 @@
 package com.web.security;
 
+import com.web.mapper.AuthMapper;
+import com.web.mapper.UserMapper;
+import com.web.model.Permission;
 import com.web.model.User;
-import com.web.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,20 +19,22 @@ import java.util.stream.Collectors;
 /**
  * 自定义用户详情服务
  * 为Spring Security提供用户认证信息
+ * 修复：统一使用AuthMapper以避免数据访问不一致问题
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserService userService;
+    private final AuthMapper authMapper;
+    private final UserMapper userMapper;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         try {
             log.debug("Loading user by username: {}", username);
 
-            User user = userService.findByUsername(username);
+            User user = authMapper.findByUsername(username);
             if (user == null) {
                 log.warn("User not found: {}", username);
                 throw new UsernameNotFoundException("用户不存在: " + username);
@@ -69,7 +73,8 @@ public class CustomUserDetailsService implements UserDetailsService {
      */
     private List<SimpleGrantedAuthority> getUserAuthorities(User user) {
         try {
-            List<com.web.model.Permission> permissions = userService.getUserPermissions(user.getId());
+            // 直接使用UserMapper获取权限，保持数据访问一致性
+            List<Permission> permissions = getUserPermissions(user.getId());
 
             List<SimpleGrantedAuthority> authorities = permissions.stream()
                     .filter(permission -> permission.getStatus() == 1) // 只启用状态的权限
@@ -90,11 +95,24 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     /**
+     * 获取用户权限（直接使用UserMapper）
+     */
+    private List<Permission> getUserPermissions(Long userId) {
+        try {
+            // 使用UserMapper的selectUserPermissions方法
+            return userMapper.selectUserPermissions(userId);
+        } catch (Exception e) {
+            log.error("Error loading permissions for userId: {}", userId, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
      * 根据用户ID加载用户详情
      */
     public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
         try {
-            User user = userService.getUserBasicInfo(userId);
+            User user = authMapper.findByUserID(userId);
             if (user == null) {
                 throw new UsernameNotFoundException("用户不存在: " + userId);
             }
