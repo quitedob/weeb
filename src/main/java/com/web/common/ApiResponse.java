@@ -182,6 +182,11 @@ public class ApiResponse<T> {
         return this;
     }
 
+    /** 设置路径 */
+    public void setPath(String path) {
+        this.path = path;
+    }
+
     /** 检查是否成功 */
     public boolean isSuccess() {
         return this.code == ErrorCode.SUCCESS;

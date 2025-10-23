@@ -4,6 +4,7 @@ import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.service.AIService;
 import com.web.util.ApiResponseUtil;
+import com.web.Config.AIConfig;
 import com.web.vo.ai.ArticleSummaryRequestVo;
 import com.web.vo.ai.ChatRequestVo;
 import com.web.vo.ai.TextRefineRequestVo;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +32,9 @@ public class AIController {
 
     @Autowired
     private AIService aiService;
+
+    @Autowired
+    private AIConfig aiConfig;
 
     /**
      * 生成文章摘要
@@ -46,16 +51,16 @@ public class AIController {
             ApiResponseUtil.validateNotBlank(content, "文章内容");
 
             if (maxLength != null && maxLength < 10) {
-                return ApiResponseUtil.badRequest("摘要长度不能小于10个字符");
+                return ApiResponseUtil.badRequestString("摘要长度不能小于10个字符");
             }
             if (maxLength != null && maxLength > 1000) {
-                return ApiResponseUtil.badRequest("摘要长度不能超过1000个字符");
+                return ApiResponseUtil.badRequestString("摘要长度不能超过1000个字符");
             }
 
             String summary = aiService.generateArticleSummary(content, maxLength);
             return ApiResponseUtil.success(summary, "摘要生成成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "生成文章摘要");
+            return ApiResponseUtil.handleServiceExceptionString(e, "生成文章摘要");
         }
     }
 
@@ -71,7 +76,7 @@ public class AIController {
             String refinedText = aiService.refineText(request.getContent(), request.getTone());
             return ApiResponseUtil.success(refinedText, "文本润色成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "润色文本");
+            return ApiResponseUtil.handleServiceExceptionString(e, "润色文本");
         }
     }
 
@@ -92,7 +97,7 @@ public class AIController {
             List<String> titles = aiService.generateTitleSuggestions(content, count);
             return ApiResponseUtil.success(titles, "标题建议生成成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "生成标题建议");
+            return ApiResponseUtil.handleServiceExceptionList(e, "生成标题建议");
         }
     }
 
@@ -110,9 +115,9 @@ public class AIController {
             String lastMessageContent = request.getMessages().get(request.getMessages().size() - 1).getContent();
             String sessionId = "session_for_user_" + userId; // 示例 sessionId
             String response = aiService.chatWithAI(lastMessageContent, sessionId);
-            return ApiResponseUtil.success(response);
+            return ApiResponseUtil.successString(response);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "AI聊天", userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "AI聊天", userId);
         }
     }
 
@@ -132,7 +137,7 @@ public class AIController {
             Map<String, Object> analysis = aiService.analyzeSentiment(content);
             return ApiResponseUtil.success(analysis, "情感分析完成");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "情感分析");
+            return ApiResponseUtil.handleServiceExceptionMap(e, "情感分析");
         }
     }
 
@@ -153,7 +158,7 @@ public class AIController {
             List<String> keywords = aiService.extractKeywords(content, count);
             return ApiResponseUtil.success(keywords, "关键词提取成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "关键词提取");
+            return ApiResponseUtil.handleServiceExceptionList(e, "关键词提取");
         }
     }
 
@@ -175,7 +180,7 @@ public class AIController {
             String translation = aiService.translateText(content, targetLanguage);
             return ApiResponseUtil.success(translation, "翻译成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "文本翻译");
+            return ApiResponseUtil.handleServiceExceptionString(e, "文本翻译");
         }
     }
 
@@ -196,7 +201,7 @@ public class AIController {
             List<String> tags = aiService.generateArticleTags(content, count);
             return ApiResponseUtil.success(tags, "标签生成成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "生成文章标签");
+            return ApiResponseUtil.handleServiceExceptionList(e, "生成文章标签");
         }
     }
 
@@ -216,7 +221,7 @@ public class AIController {
             Map<String, Object> compliance = aiService.checkContentCompliance(content);
             return ApiResponseUtil.success(compliance, "合规性检查完成");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "内容合规性检查");
+            return ApiResponseUtil.handleServiceExceptionMap(e, "内容合规性检查");
         }
     }
 
@@ -237,7 +242,7 @@ public class AIController {
             List<String> suggestions = aiService.generateReplySuggestions(originalMessage, context);
             return ApiResponseUtil.success(suggestions, "回复建议生成成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "生成回复建议");
+            return ApiResponseUtil.handleServiceExceptionList(e, "生成回复建议");
         }
     }
 
@@ -255,13 +260,13 @@ public class AIController {
             Integer maxLength = (Integer) request.getOrDefault("maxLength", 200);
 
             if (messages == null || messages.isEmpty()) {
-                return ApiResponseUtil.badRequest("对话消息不能为空");
+                return ApiResponseUtil.badRequestString("对话消息不能为空");
             }
 
             String summary = aiService.summarizeConversation(messages, maxLength);
-            return ApiResponseUtil.success(summary, "对话总结成功");
+            return ApiResponseUtil.successString(summary);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "对话总结");
+            return ApiResponseUtil.handleServiceExceptionString(e, "对话总结");
         }
     }
 
@@ -282,7 +287,7 @@ public class AIController {
             Map<String, Object> suggestions = aiService.generateContentSuggestions(topic, contentType);
             return ApiResponseUtil.success(suggestions, "创作建议生成成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "生成内容创作建议");
+            return ApiResponseUtil.handleServiceExceptionMap(e, "生成内容创作建议");
         }
     }
 
@@ -302,7 +307,7 @@ public class AIController {
             Map<String, Object> result = aiService.proofreadText(content);
             return ApiResponseUtil.success(result, "文本校对完成");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "文本校对");
+            return ApiResponseUtil.handleServiceExceptionMap(e, "文本校对");
         }
     }
 
@@ -323,7 +328,25 @@ public class AIController {
             Map<String, Object> outline = aiService.generateContentOutline(topic, structure);
             return ApiResponseUtil.success(outline, "内容大纲生成成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "生成内容大纲");
+            return ApiResponseUtil.handleServiceExceptionMap(e, "生成内容大纲");
+        }
+    }
+
+    /**
+     * 获取AI配置信息（提供给前端使用）
+     * GET /api/ai/config
+     */
+    @GetMapping("/config")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAiConfig() {
+        try {
+            Map<String, Object> config = new HashMap<>();
+            config.put("provider", aiConfig.getAiProvider());
+            config.put("model", aiConfig.getCurrentModel());
+            // 注意：不返回API key，保持安全
+            config.put("configured", true);
+            return ApiResponseUtil.successMap(config, "获取AI配置成功");
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionMap(e, "获取AI配置");
         }
     }
 }

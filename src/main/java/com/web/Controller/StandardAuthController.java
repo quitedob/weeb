@@ -44,24 +44,25 @@ public class StandardAuthController {
         try {
             // 验证密码和确认密码是否一致
             if (!registrationVo.getPassword().equals(registrationVo.getConfirmPassword())) {
-                return ApiResponseUtil.badRequest("密码和确认密码不一致");
+                return ApiResponseUtil.badRequestMap("密码和确认密码不一致");
             }
 
             // 检查用户名是否已存在
             if (authService.findByUsername(registrationVo.getUsername()) != null) {
-                return ApiResponseUtil.badRequest("用户名已存在");
+                return ApiResponseUtil.badRequestMap("用户名已存在");
             }
 
             // 创建用户
             User user = new User();
             user.setUsername(registrationVo.getUsername());
             user.setPassword(passwordEncoder.encode(registrationVo.getPassword()));
-            user.setEmail(registrationVo.getEmail());
-            user.setPhone(registrationVo.getPhone());
+            user.setUserEmail(registrationVo.getEmail());
+            user.setPhoneNumber(registrationVo.getPhone());
             user.setNickname(registrationVo.getNickname());
             user.setBio(registrationVo.getBio());
 
-            User registeredUser = authService.register(user);
+            authService.register(user);
+            User registeredUser = authService.findByUsername(user.getUsername());
             if (registeredUser != null) {
                 // 生成JWT令牌
                 String token = jwtUtil.generateToken(registeredUser.getId());
@@ -70,13 +71,12 @@ public class StandardAuthController {
                 result.put("user", registeredUser);
                 result.put("token", token);
 
-                return ResponseEntity.status(201)
-                        .body(ApiResponse.success("注册成功", result));
+                return ApiResponseUtil.successMap(result, "注册成功");
             } else {
-                return ApiResponseUtil.badRequest("注册失败");
+                return ApiResponseUtil.badRequestMap("注册失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "用户注册");
+            return ApiResponseUtil.handleServiceExceptionMap(e, "用户注册");
         }
     }
 
@@ -87,23 +87,21 @@ public class StandardAuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Map<String, Object>>> login(@RequestBody @Valid LoginVo loginVo) {
         try {
-            // 验证用户凭据
-            User user = authService.authenticate(loginVo.getUsername(), loginVo.getPassword());
+            // 验证用户凭据 - 通过登录获取用户和令牌
+            String token = authService.login(loginVo.getUsername(), loginVo.getPassword());
+            User user = authService.getUserInfo(token);
             if (user != null) {
-                // 生成JWT令牌
-                String token = jwtUtil.generateToken(user.getId());
-
                 Map<String, Object> result = new HashMap<>();
                 result.put("user", user);
                 result.put("token", token);
-                result.put("expiresIn", jwtUtil.getExpirationTime());
+                result.put("expiresIn", jwtUtil.getExpirationTimeSingle(token));
 
-                return ApiResponseUtil.success(result, "登录成功");
+                return ApiResponseUtil.successMap(result, "登录成功");
             } else {
-                return ApiResponseUtil.badRequest("用户名或密码错误");
+                return ApiResponseUtil.badRequestMap("用户名或密码错误");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "用户登录");
+            return ApiResponseUtil.handleServiceExceptionMap(e, "用户登录");
         }
     }
 
@@ -120,9 +118,9 @@ public class StandardAuthController {
                 jwtUtil.blacklistToken(token);
             }
 
-            return ApiResponseUtil.success("登出成功");
+            return ApiResponseUtil.successString("登出成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "用户登出");
+            return ApiResponseUtil.handleServiceExceptionString(e, "用户登出");
         }
     }
 
@@ -134,26 +132,26 @@ public class StandardAuthController {
     public ResponseEntity<ApiResponse<User>> getCurrentUser(@RequestHeader("Authorization") String authorization) {
         try {
             if (authorization == null || !authorization.startsWith("Bearer ")) {
-                return ApiResponseUtil.badRequest("缺少认证令牌");
+                return (ResponseEntity<ApiResponse<User>>) (Object) ApiResponseUtil.badRequestUser("缺少认证令牌");
             }
 
             String token = authorization.substring(7);
             String username = jwtUtil.extractUsername(token);
 
             if (jwtUtil.isTokenBlacklisted(token)) {
-                return ApiResponseUtil.unauthorized("令牌已失效");
+                return (ResponseEntity<ApiResponse<User>>) (Object) ApiResponseUtil.unauthorizedUser("令牌已失效");
             }
 
             User user = authService.findByUsername(username);
             if (user == null) {
-                return ApiResponseUtil.notFound("用户不存在");
+                return (ResponseEntity<ApiResponse<User>>) (Object) ApiResponseUtil.badRequestUser("用户不存在");
             }
 
             // 不返回密码
             user.setPassword(null);
-            return ApiResponseUtil.success(user);
+            return ApiResponseUtil.successUser(user);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取当前用户");
+            return ApiResponseUtil.handleServiceExceptionUser(e, "获取当前用户");
         }
     }
 
@@ -165,29 +163,35 @@ public class StandardAuthController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> refreshToken(@RequestHeader("Authorization") String authorization) {
         try {
             if (authorization == null || !authorization.startsWith("Bearer ")) {
-                return ApiResponseUtil.badRequest("缺少认证令牌");
+                return ApiResponseUtil.badRequestMap("缺少认证令牌");
             }
 
             String oldToken = authorization.substring(7);
             String username = jwtUtil.extractUsername(oldToken);
 
             if (jwtUtil.isTokenBlacklisted(oldToken) || jwtUtil.isTokenExpired(oldToken)) {
-                return ApiResponseUtil.unauthorized("令牌无效或已过期");
+                return ApiResponseUtil.unauthorizedMap("令牌无效或已过期");
+            }
+
+            // 根据用户名获取用户ID
+            User user = authService.findByUsername(username);
+            if (user == null) {
+                return ApiResponseUtil.notFoundMap("用户不存在");
             }
 
             // 生成新令牌
-            String newToken = jwtUtil.generateToken(username);
+            String newToken = jwtUtil.generateToken(user.getId());
 
             Map<String, Object> result = new HashMap<>();
             result.put("token", newToken);
-            result.put("expiresIn", jwtUtil.getExpirationTime());
+            result.put("expiresIn", jwtUtil.getExpirationTimeSingle(newToken));
 
             // 将旧令牌加入黑名单
             jwtUtil.blacklistToken(oldToken);
 
-            return ApiResponseUtil.success(result, "令牌刷新成功");
+            return ApiResponseUtil.successMap(result, "令牌刷新成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "刷新令牌");
+            return ApiResponseUtil.handleServiceExceptionMap(e, "刷新令牌");
         }
     }
 
@@ -199,7 +203,7 @@ public class StandardAuthController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> validateToken(@RequestHeader("Authorization") String authorization) {
         try {
             if (authorization == null || !authorization.startsWith("Bearer ")) {
-                return ApiResponseUtil.badRequest("缺少认证令牌");
+                return ApiResponseUtil.badRequestMap("缺少认证令牌");
             }
 
             String token = authorization.substring(7);
@@ -210,9 +214,9 @@ public class StandardAuthController {
             result.put("username", isValid ? jwtUtil.extractUsername(token) : null);
             result.put("expiresAt", isValid ? jwtUtil.getExpirationDate(token) : null);
 
-            return ApiResponseUtil.success(result);
+            return ApiResponseUtil.successMap(result);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "验证令牌");
+            return ApiResponseUtil.handleServiceExceptionMap(e, "验证令牌");
         }
     }
 
@@ -226,7 +230,7 @@ public class StandardAuthController {
             @RequestHeader("Authorization") String authorization) {
         try {
             if (authorization == null || !authorization.startsWith("Bearer ")) {
-                return ApiResponseUtil.badRequest("缺少认证令牌");
+                return ApiResponseUtil.badRequestString("缺少认证令牌");
             }
 
             String token = authorization.substring(7);
@@ -236,17 +240,17 @@ public class StandardAuthController {
             String newPassword = passwordRequest.get("newPassword");
 
             if (currentPassword == null || newPassword == null) {
-                return ApiResponseUtil.badRequest("当前密码和新密码不能为空");
+                return ApiResponseUtil.badRequestString("当前密码和新密码不能为空");
             }
 
             User user = authService.findByUsername(username);
             if (user == null) {
-                return ApiResponseUtil.notFound("用户不存在");
+                return ApiResponseUtil.notFoundString("用户不存在");
             }
 
             // 验证当前密码
             if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-                return ApiResponseUtil.badRequest("当前密码错误");
+                return ApiResponseUtil.badRequestString("当前密码错误");
             }
 
             // 更新密码
@@ -257,12 +261,12 @@ public class StandardAuthController {
                 // 将所有令牌加入黑名单，强制重新登录
                 jwtUtil.blacklistAllUserTokens(username);
 
-                return ApiResponseUtil.success("密码修改成功，请重新登录");
+                return ApiResponseUtil.successString("密码修改成功，请重新登录");
             } else {
-                return ApiResponseUtil.badRequest("密码修改失败");
+                return ApiResponseUtil.badRequestString("密码修改失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "修改密码");
+            return ApiResponseUtil.handleServiceExceptionString(e, "修改密码");
         }
     }
 
@@ -275,17 +279,17 @@ public class StandardAuthController {
         try {
             String email = request.get("email");
             if (email == null || email.trim().isEmpty()) {
-                return ApiResponseUtil.badRequest("邮箱不能为空");
+                return ApiResponseUtil.badRequestString("邮箱不能为空");
             }
 
             boolean sent = authService.sendPasswordResetEmail(email.trim());
             if (sent) {
-                return ApiResponseUtil.success("重置邮件已发送");
+                return ApiResponseUtil.successString("重置邮件已发送");
             } else {
-                return ApiResponseUtil.badRequest("发送重置邮件失败");
+                return ApiResponseUtil.badRequestString("发送重置邮件失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "发送重置邮件");
+            return ApiResponseUtil.handleServiceExceptionString(e, "发送重置邮件");
         }
     }
 
@@ -300,17 +304,17 @@ public class StandardAuthController {
             String newPassword = resetRequest.get("newPassword");
 
             if (token == null || newPassword == null) {
-                return ApiResponseUtil.badRequest("重置令牌和新密码不能为空");
+                return ApiResponseUtil.badRequestString("重置令牌和新密码不能为空");
             }
 
             boolean reset = authService.resetPassword(token, newPassword);
             if (reset) {
-                return ApiResponseUtil.success("密码重置成功");
+                return ApiResponseUtil.successString("密码重置成功");
             } else {
-                return ApiResponseUtil.badRequest("重置令牌无效或已过期");
+                return ApiResponseUtil.badRequestString("重置令牌无效或已过期");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "重置密码");
+            return ApiResponseUtil.handleServiceExceptionString(e, "重置密码");
         }
     }
 
@@ -322,13 +326,13 @@ public class StandardAuthController {
     public ResponseEntity<ApiResponse<Boolean>> verifyResetToken(@RequestParam String token) {
         try {
             if (token == null || token.trim().isEmpty()) {
-                return ApiResponseUtil.badRequest("重置令牌不能为空");
+                return ApiResponseUtil.badRequestBoolean("重置令牌不能为空");
             }
 
             boolean valid = authService.verifyResetToken(token.trim());
-            return ApiResponseUtil.success(valid);
+            return ApiResponseUtil.successBoolean(valid);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "验证重置令牌");
+            return ApiResponseUtil.handleServiceExceptionBoolean(e, "验证重置令牌");
         }
     }
 }

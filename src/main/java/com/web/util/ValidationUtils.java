@@ -1,6 +1,6 @@
 package com.web.util;
 
-import com.web.Config.SecurityConfig;
+import com.web.Config.SecurityConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -24,13 +24,13 @@ public class ValidationUtils {
         }
         
         String trimmedUsername = username.trim();
-        if (trimmedUsername.length() < SecurityConfig.UsernamePolicy.MIN_LENGTH || 
-            trimmedUsername.length() > SecurityConfig.UsernamePolicy.MAX_LENGTH) {
+        if (trimmedUsername.length() < SecurityConstants.UsernamePolicy.MIN_LENGTH ||
+            trimmedUsername.length() > SecurityConstants.UsernamePolicy.MAX_LENGTH) {
             log.warn("用户名验证失败：长度不符合要求 - {}", trimmedUsername.length());
             return false;
         }
         
-        if (!trimmedUsername.matches(SecurityConfig.UsernamePolicy.PATTERN)) {
+        if (!trimmedUsername.matches(SecurityConstants.UsernamePolicy.PATTERN)) {
             log.warn("用户名验证失败：格式不符合要求 - {}", trimmedUsername);
             return false;
         }
@@ -48,13 +48,13 @@ public class ValidationUtils {
         }
         
         String trimmedPassword = password.trim();
-        if (trimmedPassword.length() < SecurityConfig.PasswordPolicy.MIN_LENGTH || 
-            trimmedPassword.length() > SecurityConfig.PasswordPolicy.MAX_LENGTH) {
+        if (trimmedPassword.length() < SecurityConstants.PasswordPolicy.MIN_LENGTH ||
+            trimmedPassword.length() > SecurityConstants.PasswordPolicy.MAX_LENGTH) {
             log.warn("密码验证失败：长度不符合要求 - {}", trimmedPassword.length());
             return false;
         }
         
-        if (!trimmedPassword.matches(SecurityConfig.PasswordPolicy.PATTERN)) {
+        if (!trimmedPassword.matches(SecurityConstants.PasswordPolicy.PATTERN)) {
             log.warn("密码验证失败：强度不符合要求");
             return false;
         }
@@ -72,7 +72,7 @@ public class ValidationUtils {
         }
         
         String trimmedEmail = email.trim();
-        if (!trimmedEmail.matches(SecurityConfig.EmailPolicy.PATTERN)) {
+        if (!trimmedEmail.matches(SecurityConstants.EmailPolicy.PATTERN)) {
             log.warn("邮箱验证失败：格式不符合要求 - {}", trimmedEmail);
             return false;
         }
@@ -90,7 +90,7 @@ public class ValidationUtils {
         }
         
         String trimmedPhone = phone.trim();
-        if (!trimmedPhone.matches(SecurityConfig.PhonePolicy.PATTERN)) {
+        if (!trimmedPhone.matches(SecurityConstants.PhonePolicy.PATTERN)) {
             log.warn("手机号验证失败：格式不符合要求 - {}", trimmedPhone);
             return false;
         }
@@ -767,5 +767,76 @@ public class ValidationUtils {
         }
 
         return true;
+    }
+
+    /**
+     * 验证日期格式（YYYY-MM-DD）
+     * @param date 日期字符串
+     * @return 是否为有效日期格式
+     */
+    public static boolean isValidDate(String date) {
+        if (date == null || date.trim().isEmpty()) {
+            return true; // 空值允许，由调用方处理
+        }
+
+        String trimmedDate = date.trim();
+        String datePattern = "^\\d{4}-\\d{2}-\\d{2}$";
+
+        if (!trimmedDate.matches(datePattern)) {
+            log.warn("日期验证失败：格式不正确 - {}", trimmedDate);
+            return false;
+        }
+
+        try {
+            String[] parts = trimmedDate.split("-");
+            int year = Integer.parseInt(parts[0]);
+            int month = Integer.parseInt(parts[1]);
+            int day = Integer.parseInt(parts[2]);
+
+            // 基本日期验证
+            if (year < 1900 || year > 2100) {
+                log.warn("日期验证失败：年份超出范围 - {}", year);
+                return false;
+            }
+            if (month < 1 || month > 12) {
+                log.warn("日期验证失败：月份无效 - {}", month);
+                return false;
+            }
+            if (day < 1 || day > 31) {
+                log.warn("日期验证失败：日期无效 - {}", day);
+                return false;
+            }
+
+            return true;
+        } catch (Exception e) {
+            log.warn("日期验证失败：解析错误 - {}", trimmedDate);
+            return false;
+        }
+    }
+
+    /**
+     * 验证IP地址格式
+     * @param ipAddress IP地址字符串
+     * @return 是否为有效IP地址格式
+     */
+    public static boolean isValidIpAddress(String ipAddress) {
+        if (ipAddress == null || ipAddress.trim().isEmpty()) {
+            return true; // 空值允许，由调用方处理
+        }
+
+        String trimmedIp = ipAddress.trim();
+
+        // IPv4地址正则表达式
+        String ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+
+        // IPv6地址正则表达式（简化版）
+        String ipv6Pattern = "^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$";
+
+        if (trimmedIp.matches(ipv4Pattern) || trimmedIp.matches(ipv6Pattern)) {
+            return true;
+        }
+
+        log.warn("IP地址验证失败：格式不正确 - {}", trimmedIp);
+        return false;
     }
 }

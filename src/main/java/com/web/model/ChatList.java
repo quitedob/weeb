@@ -1,6 +1,7 @@
 package com.web.model;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.Objects;
 
 public class ChatList implements Serializable {
@@ -21,9 +22,9 @@ public class ChatList implements Serializable {
     // 会话类型（对应数据库 type 字段，varchar(255)）
     private String type;
     // 创建时间（对应数据库 create_time 字段，timestamp(3)，不允许为 null）
-    private String createTime;
+    private LocalDateTime createTime;
     // 最后更新时间（对应数据库 update_time 字段，timestamp(3)，不允许为 null）
-    private String updateTime;
+    private LocalDateTime updateTime;
     // 群组ID, for group chats
     private Long groupId;
 
@@ -33,7 +34,7 @@ public class ChatList implements Serializable {
 
     // 全参构造函数
     public ChatList(String id, Long userId, Long targetId, String targetInfo, Integer unreadCount, String lastMessage,
-                    String type, String createTime, String updateTime, Long groupId) {
+                    String type, LocalDateTime createTime, LocalDateTime updateTime, Long groupId) {
         this.id = id;
         this.userId = userId;
         this.targetId = targetId;
@@ -104,19 +105,19 @@ public class ChatList implements Serializable {
         this.type = type;
     }
 
-    public String getCreateTime() {
+    public LocalDateTime getCreateTime() {
         return createTime;
     }
 
-    public void setCreateTime(String createTime) {
+    public void setCreateTime(LocalDateTime createTime) {
         this.createTime = createTime;
     }
 
-    public String getUpdateTime() {
+    public LocalDateTime getUpdateTime() {
         return updateTime;
     }
 
-    public void setUpdateTime(String updateTime) {
+    public void setUpdateTime(LocalDateTime updateTime) {
         this.updateTime = updateTime;
     }
 
@@ -139,8 +140,8 @@ public class ChatList implements Serializable {
                 ", unreadCount=" + unreadCount +
                 ", lastMessage='" + lastMessage + '\'' +
                 ", type='" + type + '\'' +
-                ", createTime='" + createTime + '\'' +
-                ", updateTime='" + updateTime + '\'' +
+                ", createTime=" + createTime +
+                ", updateTime=" + updateTime +
                 ", groupId=" + groupId +
                 '}';
     }

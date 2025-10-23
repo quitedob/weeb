@@ -269,7 +269,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public Map<String, Object> getRolesWithPaging(int page, int pageSize, String keyword) {
+    public Map<String, Object> getRolesWithPaging(int page, int pageSize, String keyword, String status) {
         if (page <= 0) {
             throw new WeebException("页码必须为正数");
         }
@@ -292,26 +292,35 @@ public class RoleServiceImpl implements RoleService {
                 }
             }
 
-            // 查询角色列表
-            List<Role> roles = roleMapper.selectRolesWithPaging(safeKeyword, offset, pageSize);
-
-            // 为每个角色加载权限
-            for (Role role : roles) {
-                List<Long> permissionIds = roleMapper.selectPermissionIdsByRoleId(role.getId());
-                if (permissionIds != null && !permissionIds.isEmpty()) {
-                    List<Permission> permissions = new ArrayList<>();
-                    for (Long permissionId : permissionIds) {
-                        Permission permission = permissionMapper.selectById(permissionId);
-                        if (permission != null && permission.getStatus() == 1) {
-                            permissions.add(permission);
-                        }
-                    }
-                    role.setPermissions(permissions);
+            // 处理状态过滤
+            Integer statusFilter = null;
+            if (status != null && !status.trim().isEmpty()) {
+                switch (status.toLowerCase()) {
+                    case "active":
+                        statusFilter = 1; // 1表示启用状态
+                        break;
+                    case "inactive":
+                        statusFilter = 0; // 0表示禁用状态
+                        break;
+                    case "all":
+                        // 不设置状态过滤，查询所有角色
+                        break;
+                    default:
+                        throw new WeebException("无效的状态参数: " + status + "，支持的值: active, inactive, all");
                 }
             }
 
+            // 查询角色列表（带状态过滤）
+            List<Role> roles = roleMapper.selectRolesWithFilters(safeKeyword, statusFilter, offset, pageSize);
+
+            // 为每个角色加载权限
+            for (Role role : roles) {
+                List<Permission> permissions = permissionMapper.selectPermissionsByRoleId(role.getId());
+                role.setPermissions(permissions);
+            }
+
             // 查询总数量
-            int total = roleMapper.countRoles(safeKeyword);
+            int total = roleMapper.countRolesWithFilters(safeKeyword, statusFilter);
 
             result.put("roles", roles);
             result.put("total", total);

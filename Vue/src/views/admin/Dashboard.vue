@@ -199,34 +199,48 @@ const fetchRecentActivities = async () => {
   }
 }
 
-// 检查系统状态（简化版本，基于统计数据的响应情况）
+// 检查系统状态 - 使用真实的健康检查API
 const checkSystemStatus = async () => {
   try {
-    // 通过检查API响应来判断系统状态
-    const startTime = Date.now()
-    await fetchSystemStats()
-    const responseTime = Date.now() - startTime
+    const response = await axiosInstance.get('/api/admin/health')
+    if (response.data.success) {
+      const healthData = response.data.data
 
-    // 假设快速响应表示数据库正常
-    systemStatus.value.database = {
-      status: responseTime < 1000 ? 'success' : 'warning',
-      message: responseTime < 1000 ? '数据库连接正常' : '数据库响应较慢'
-    }
+      // 更新数据库状态
+      systemStatus.value.database = {
+        status: healthData.database?.status || 'unknown',
+        message: healthData.database?.message || '检查中...'
+      }
 
-    // 模拟Redis和Elasticsearch状态检查
-    systemStatus.value.redis = {
-      status: 'success',
-      message: 'Redis连接正常'
-    }
+      // 更新Redis状态
+      systemStatus.value.redis = {
+        status: healthData.redis?.status || 'unknown',
+        message: healthData.redis?.message || '检查中...'
+      }
 
-    systemStatus.value.elasticsearch = {
-      status: 'warning',
-      message: 'Elasticsearch离线'
+      // 更新Elasticsearch状态
+      systemStatus.value.elasticsearch = {
+        status: healthData.elasticsearch?.status || 'unknown',
+        message: healthData.elasticsearch?.message || '检查中...'
+      }
+    } else {
+      throw new Error('健康检查API返回失败')
     }
   } catch (error) {
+    console.error('系统健康检查失败:', error)
+
+    // 设置默认错误状态
     systemStatus.value.database = {
       status: 'error',
-      message: '数据库连接失败'
+      message: '健康检查失败'
+    }
+    systemStatus.value.redis = {
+      status: 'error',
+      message: '健康检查失败'
+    }
+    systemStatus.value.elasticsearch = {
+      status: 'error',
+      message: '健康检查失败'
     }
   }
 }

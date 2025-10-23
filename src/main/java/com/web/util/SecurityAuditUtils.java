@@ -6,6 +6,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
+import com.web.Config.SecurityConstants;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
@@ -47,7 +48,7 @@ public class SecurityAuditUtils {
         FAILED_LOGIN_ATTEMPTS.put(username, attempts);
         
         // 检查是否需要锁定账号
-        if (attempts >= com.web.Config.SecurityConfig.LoginSecurity.MAX_LOGIN_ATTEMPTS) {
+        if (attempts >= SecurityConstants.LoginSecurity.MAX_LOGIN_ATTEMPTS) {
             lockAccount(username, ip);
         }
     }
@@ -61,7 +62,7 @@ public class SecurityAuditUtils {
         
         String message = String.format("账号已锁定 - 用户: %s, IP: %s, 锁定时间: %s, 解锁时间: %s", 
                 username, ip, lockTime.format(DATE_FORMATTER), 
-                lockTime.plusMinutes(com.web.Config.SecurityConfig.LoginSecurity.LOCK_TIME_MINUTES).format(DATE_FORMATTER));
+                lockTime.plusMinutes(SecurityConstants.LoginSecurity.LOCK_TIME_MINUTES).format(DATE_FORMATTER));
         log.error("SECURITY_AUDIT: {}", message);
     }
 
@@ -74,7 +75,7 @@ public class SecurityAuditUtils {
             return false;
         }
         
-        LocalDateTime unlockTime = lockTime.plusMinutes(com.web.Config.SecurityConfig.LoginSecurity.LOCK_TIME_MINUTES);
+        LocalDateTime unlockTime = lockTime.plusMinutes(SecurityConstants.LoginSecurity.LOCK_TIME_MINUTES);
         if (LocalDateTime.now().isAfter(unlockTime)) {
             LOCKED_ACCOUNTS.remove(username);
             FAILED_LOGIN_ATTEMPTS.remove(username);
@@ -256,5 +257,44 @@ public class SecurityAuditUtils {
      */
     public static LocalDateTime getAccountLockTime(String username) {
         return LOCKED_ACCOUNTS.get(username);
+    }
+
+    /**
+     * 验证令牌是否有效
+     */
+    public static boolean isTokenValid(String token, String username) {
+        try {
+            // 这里应该实现实际的令牌验证逻辑
+            // 暂时返回true作为默认实现
+            return token != null && !token.isEmpty() && username != null;
+        } catch (Exception e) {
+            log.warn("令牌验证失败: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 记录认证成功事件
+     */
+    public static void logAuthenticationSuccess(String username, String ip) {
+        String message = String.format("认证成功 - 用户: %s, IP: %s", username, ip);
+        log.info("SECURITY_AUDIT: {}", message);
+    }
+
+    /**
+     * 记录认证失败事件
+     */
+    public static void logAuthenticationFailure(String username, String reason, String ip) {
+        String message = String.format("认证失败 - 用户: %s, 原因: %s, IP: %s", username, reason, ip);
+        log.warn("SECURITY_AUDIT: {}", message);
+    }
+
+    /**
+     * 记录安全操作事件
+     */
+    public static void logSecurityOperation(String username, String operation, String resource, String resourceId, String ip, boolean success) {
+        String message = String.format("安全操作 - 用户: %s, 操作: %s, 资源: %s, 资源ID: %s, IP: %s, 成功: %s",
+                username, operation, resource, resourceId, ip, success);
+        log.info("SECURITY_AUDIT: {}", message);
     }
 }

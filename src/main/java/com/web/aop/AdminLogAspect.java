@@ -4,7 +4,7 @@ import com.web.annotation.AdminLog;
 import com.web.model.SystemLog;
 import com.web.security.SecurityUtils;
 import com.web.service.LogService;
-import com.web.util.UserIpUtils;
+import com.web.util.IpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -39,7 +39,7 @@ public class AdminLogAspect {
 
             // 2. 获取IP地址
             HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-            systemLog.setIpAddress(UserIpUtils.getUserIp(request));
+            systemLog.setIpAddress(IpUtil.getIpAddr(request));
 
             // 3. 获取注解中的操作描述
             MethodSignature signature = (MethodSignature) joinPoint.getSignature();

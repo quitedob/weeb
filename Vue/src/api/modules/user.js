@@ -41,17 +41,17 @@ export function updateUser(updateData) {
 
 // 获取用户信息
 export function getUserInfo() {
-  return axiosInstance.get('/api/user/info');
+  return axiosInstance.get('/api/users/me');
 }
 
 // 更新用户信息（使用PUT）
 export function updateUserInfo(data) {
-  return axiosInstance.put('/api/user/info', data);
+  return axiosInstance.put('/api/users/me', data);
 }
 
 // 根据用户ID获取用户信息
 export function getUserInfoById(userId) {
-  return axiosInstance.get(`/api/user/${userId}`);
+  return axiosInstance.get(`/api/users/${userId}`);
 }
 
 export default {

@@ -160,12 +160,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router'; // Added useRouter
-import { getArticleById, increaseReadCount, likeArticle, 
+import { getArticleById, increaseReadCount, likeArticle,
          getArticleComments, addArticleComment, deleteArticleComment,
          checkFavoriteStatus as checkFavoriteStatusApi, favoriteArticle, unfavoriteArticle } from '../api/modules/article';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Star, View, Collection, Clock, Link, ArrowUp, ArrowDown, Share } from '@element-plus/icons-vue'; // Icon for like action
 import { useAuthStore } from '@/stores/authStore'; // Added useAuthStore
+import DOMPurify from 'dompurify'; // Import DOMPurify for HTML sanitization
 
 const route = useRoute();
 const router = useRouter(); // Added
@@ -194,9 +195,9 @@ const formatDate = (dateString) => {
 // Helper function to format article content (simple markdown-like formatting)
 const formatContent = (content) => {
   if (!content) return '';
-  
+
   // 简单的格式化：换行转换为<br>，支持基本的markdown语法
-  return content
+  const formattedContent = content
     .replace(/\n/g, '<br>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **粗体**
     .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *斜体*
@@ -204,6 +205,12 @@ const formatContent = (content) => {
     .replace(/#{3}\s+(.*)/g, '<h3>$1</h3>')            // ### 三级标题
     .replace(/#{2}\s+(.*)/g, '<h2>$1</h2>')            // ## 二级标题
     .replace(/#{1}\s+(.*)/g, '<h1>$1</h1>');           // # 一级标题
+
+  // 使用DOMPurify对HTML进行安全过滤，防止XSS攻击
+  return DOMPurify.sanitize(formattedContent, {
+    ALLOWED_TAGS: ['br', 'strong', 'em', 'code', 'h1', 'h2', 'h3'],
+    ALLOWED_ATTR: [] // 不允许任何属性
+  });
 };
 
 const fetchArticle = async () => {

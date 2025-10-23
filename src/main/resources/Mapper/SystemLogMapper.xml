@@ -20,4 +20,59 @@
         SELECT COUNT(*) FROM system_logs
     </select>
 
+    <!-- 分页查询系统日志（带过滤条件） -->
+    <select id="findLogsWithFilters" resultType="com.web.model.SystemLog">
+        SELECT id, operator_id, action, details, ip_address, created_at
+        FROM system_logs
+        <where>
+            <if test="operatorId != null">
+                AND operator_id = #{operatorId}
+            </if>
+            <if test="action != null and action != ''">
+                AND action = #{action}
+            </if>
+            <if test="ipAddress != null and ipAddress != ''">
+                AND ip_address = #{ipAddress}
+            </if>
+            <if test="startDate != null and startDate != ''">
+                AND DATE(created_at) >= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                AND DATE(created_at) &lt;= #{endDate}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (details LIKE CONCAT('%', #{keyword}, '%')
+                     OR action LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 统计带过滤条件的系统日志总数 -->
+    <select id="countLogsWithFilters" resultType="long">
+        SELECT COUNT(*) FROM system_logs
+        <where>
+            <if test="operatorId != null">
+                AND operator_id = #{operatorId}
+            </if>
+            <if test="action != null and action != ''">
+                AND action = #{action}
+            </if>
+            <if test="ipAddress != null and ipAddress != ''">
+                AND ip_address = #{ipAddress}
+            </if>
+            <if test="startDate != null and startDate != ''">
+                AND DATE(created_at) >= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                AND DATE(created_at) &lt;= #{endDate}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (details LIKE CONCAT('%', #{keyword}, '%')
+                     OR action LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
 </mapper>

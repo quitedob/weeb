@@ -44,8 +44,8 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
             groupChat.setType("1"); // "1"表示群聊
             groupChat.setUnreadCount(0);
             groupChat.setLastMessage("");
-            groupChat.setCreateTime(LocalDateTime.now().toString());
-            groupChat.setUpdateTime(LocalDateTime.now().toString());
+            groupChat.setCreateTime(LocalDateTime.now());
+            groupChat.setUpdateTime(LocalDateTime.now());
             
             int result = chatListMapper.insertChatList(groupChat);
             if (result <= 0) {
@@ -71,8 +71,8 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
         chatList.setType("0"); // "0"表示私聊
         chatList.setUnreadCount(0);
         chatList.setLastMessage("");
-        chatList.setCreateTime(LocalDateTime.now().toString());
-        chatList.setUpdateTime(LocalDateTime.now().toString());
+        chatList.setCreateTime(java.time.LocalDateTime.now());
+        chatList.setUpdateTime(java.time.LocalDateTime.now());
         
         int result = chatListMapper.insertChatList(chatList);
         if (result > 0) {
@@ -109,7 +109,7 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
                 }
                 
                 chatList.setLastMessage(lastMessage);
-                chatList.setUpdateTime(LocalDateTime.now().toString());
+                chatList.setUpdateTime(java.time.LocalDateTime.now());
                 
                 // 如果消息不是当前用户发送的，增加未读数
                 if (!message.getSenderId().equals(userId)) {

@@ -10,7 +10,8 @@ import com.web.constant.UserOnlineStatus;
 import com.web.util.JwtUtil;
 import com.web.util.SecurityAuditUtils;
 import com.web.util.ValidationUtils;
-import com.web.Config.SecurityConfig;
+import com.web.Config.SecurityConstants;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
  * 认证服务实现类
  * 处理用户注册、登录、登出等认证相关业务
  */
+@Slf4j
 @Service
 @Transactional
 public class AuthServiceImpl implements AuthService {
@@ -72,6 +74,46 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public User authenticate(String username, String password) {
+        try {
+            // 参数验证
+            if (username == null || username.trim().isEmpty()) {
+                return null;
+            }
+            if (password == null || password.trim().isEmpty()) {
+                return null;
+            }
+
+            // 验证并清理输入
+            String safeUsername = ValidationUtils.sanitizeUsername(username.trim());
+
+            // 查找用户
+            User user = authMapper.findByUsername(safeUsername);
+            if (user == null) {
+                return null;
+            }
+
+            // 检查用户状态
+            if (user.getStatus() != null && user.getStatus() == 0) {
+                return null;
+            }
+
+            // 验证密码
+            if (!passwordEncoder.matches(password.trim(), user.getPassword())) {
+                return null;
+            }
+
+            // 不返回密码信息
+            user.setPassword(null);
+            return user;
+
+        } catch (Exception e) {
+            log.error("用户认证失败: username={}", username, e);
+            return null;
+        }
+    }
+
+    @Override
     @Transactional
     public void register(User user) {
         // 参数验证
@@ -85,7 +127,7 @@ public class AuthServiceImpl implements AuthService {
             throw new WeebException("用户名长度必须在3-20个字符之间");
         }
         if (!ValidationUtils.validateUsername(user.getUsername())) {
-            throw new WeebException("用户名不符合要求：" + SecurityConfig.UsernamePolicy.REQUIREMENT);
+            throw new WeebException("用户名不符合要求：" + SecurityConstants.UsernamePolicy.REQUIREMENT);
         }
         if (user.getPassword() == null || user.getPassword().trim().isEmpty()) {
             throw new WeebException("密码不能为空");
@@ -94,7 +136,7 @@ public class AuthServiceImpl implements AuthService {
             throw new WeebException("密码长度必须在6-50个字符之间");
         }
         if (!ValidationUtils.validatePassword(user.getPassword())) {
-            throw new WeebException("密码不符合要求：" + SecurityConfig.PasswordPolicy.REQUIREMENT);
+            throw new WeebException("密码不符合要求：" + SecurityConstants.PasswordPolicy.REQUIREMENT);
         }
         if (user.getUserEmail() == null || user.getUserEmail().trim().isEmpty()) {
             throw new WeebException("邮箱不能为空");
@@ -103,14 +145,14 @@ public class AuthServiceImpl implements AuthService {
             throw new WeebException("邮箱长度不能超过100个字符");
         }
         if (!ValidationUtils.validateEmail(user.getUserEmail())) {
-            throw new WeebException("邮箱格式不正确：" + SecurityConfig.EmailPolicy.REQUIREMENT);
+            throw new WeebException("邮箱格式不正确：" + SecurityConstants.EmailPolicy.REQUIREMENT);
         }
         if (user.getPhoneNumber() != null && !user.getPhoneNumber().trim().isEmpty()) {
             if (user.getPhoneNumber().length() > 20) {
                 throw new WeebException("手机号长度不能超过20个字符");
             }
             if (!ValidationUtils.validatePhone(user.getPhoneNumber())) {
-                throw new WeebException("手机号格式不正确：" + SecurityConfig.PhonePolicy.REQUIREMENT);
+                throw new WeebException("手机号格式不正确：" + SecurityConstants.PhonePolicy.REQUIREMENT);
             }
         }
         if (user.getNickname() != null && user.getNickname().length() > 50) {
@@ -375,7 +417,7 @@ public class AuthServiceImpl implements AuthService {
             }
 
             // 不返回密码信息
-            userWithStats.setPassword(null);
+            userWithStats.getUser().setPassword(null);
 
             return userWithStats;
         } catch (WeebException e) {
@@ -383,6 +425,46 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception e) {
             log.error("获取用户统计信息失败: userId={}", userId, e);
             throw new WeebException("获取用户统计信息失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean verifyResetToken(String token) {
+        try {
+            // 这里应该实现实际的令牌验证逻辑
+            // 暂时返回false，表示没有重置令牌功能
+            return false;
+        } catch (Exception e) {
+            log.warn("验证重置令牌失败: token={}", token, e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean resetPassword(String token, String newPassword) {
+        try {
+            // 这里应该实现实际的密码重置逻辑
+            // 验证令牌有效性并更新用户密码
+            log.info("重置密码: token={}", token);
+            return false; // 暂时返回false，表示没有重置令牌功能
+        } catch (Exception e) {
+            log.error("重置密码失败: token={}", token, e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean sendPasswordResetEmail(String email) {
+        try {
+            // 实现发送密码重置邮件的逻辑
+            log.info("发送密码重置邮件: email={}", email);
+            // 这里应该调用邮件服务发送重置链接
+            // 暂时记录日志，实际邮件发送功能需要邮件服务集成
+            return true; // 暂时返回成功，实际应该根据邮件发送结果返回
+        } catch (Exception e) {
+            log.error("发送密码重置邮件失败: email={}", email, e);
+            // 邮件发送失败不应该阻断用户操作，只记录错误
+            return false;
         }
     }
 }

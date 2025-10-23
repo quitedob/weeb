@@ -436,4 +436,124 @@
         </if>
     </select>
 
+    <!-- 根据关键词搜索用户（包含统计数据，分页支持） -->
+    <select id="selectUsersWithStatsByKeyword" resultMap="UserWithStatsResultMap">
+        SELECT u.id, u.username, u.password, u.sex, u.phone_number, u.user_email,
+               u.unique_article_link, u.unique_video_link, u.registration_date,
+               u.ip_ownership, u.type, u.avatar, u.nickname, u.badge,
+               u.login_time, u.bio, u.online_status,
+               us.user_id as stats_user_id, us.fans_count, us.total_likes, us.total_favorites,
+               us.total_sponsorship, us.total_article_exposure, us.website_coins,
+               us.created_at as stats_created_at, us.updated_at as stats_updated_at
+        FROM user u
+        LEFT JOIN user_stats us ON u.id = us.user_id
+        WHERE (u.username LIKE CONCAT('%', #{keyword}, '%')
+               OR u.nickname LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY
+            CASE
+                WHEN u.username = #{keyword} THEN 1
+                WHEN u.nickname = #{keyword} THEN 2
+                WHEN u.username LIKE CONCAT(#{keyword}, '%') THEN 3
+                WHEN u.nickname LIKE CONCAT(#{keyword}, '%') THEN 4
+                ELSE 5
+            END,
+            u.id DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 根据关键词和状态搜索用户（包含统计数据，分页支持） -->
+    <select id="selectUsersWithStatsByKeywordAndStatus" resultMap="UserWithStatsResultMap">
+        SELECT u.id, u.username, u.password, u.sex, u.phone_number, u.user_email,
+               u.unique_article_link, u.unique_video_link, u.registration_date,
+               u.ip_ownership, u.type, u.avatar, u.nickname, u.badge,
+               u.login_time, u.bio, u.online_status,
+               us.user_id as stats_user_id, us.fans_count, us.total_likes, us.total_favorites,
+               us.total_sponsorship, us.total_article_exposure, us.website_coins,
+               us.created_at as stats_created_at, us.updated_at as stats_updated_at
+        FROM user u
+        LEFT JOIN user_stats us ON u.id = us.user_id
+        WHERE (u.username LIKE CONCAT('%', #{keyword}, '%')
+               OR u.nickname LIKE CONCAT('%', #{keyword}, '%'))
+        <if test="status != null">
+            AND u.status = #{status}
+        </if>
+        ORDER BY
+            CASE
+                WHEN u.username = #{keyword} THEN 1
+                WHEN u.nickname = #{keyword} THEN 2
+                WHEN u.username LIKE CONCAT(#{keyword}, '%') THEN 3
+                WHEN u.nickname LIKE CONCAT(#{keyword}, '%') THEN 4
+                ELSE 5
+            END,
+            u.id DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 获取用户列表（包含统计数据，分页支持） -->
+    <select id="selectUsersWithStatsWithPaging" resultMap="UserWithStatsResultMap">
+        SELECT u.id, u.username, u.password, u.sex, u.phone_number, u.user_email,
+               u.unique_article_link, u.unique_video_link, u.registration_date,
+               u.ip_ownership, u.type, u.avatar, u.nickname, u.badge,
+               u.login_time, u.bio, u.online_status,
+               us.user_id as stats_user_id, us.fans_count, us.total_likes, us.total_favorites,
+               us.total_sponsorship, us.total_article_exposure, us.website_coins,
+               us.created_at as stats_created_at, us.updated_at as stats_updated_at
+        FROM user u
+        LEFT JOIN user_stats us ON u.id = us.user_id
+        ORDER BY u.id DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 获取用户列表（包含统计数据，分页支持，带状态过滤） -->
+    <select id="selectUsersWithStatsWithPagingAndStatus" resultMap="UserWithStatsResultMap">
+        SELECT u.id, u.username, u.password, u.sex, u.phone_number, u.user_email,
+               u.unique_article_link, u.unique_video_link, u.registration_date,
+               u.ip_ownership, u.type, u.avatar, u.nickname, u.badge,
+               u.login_time, u.bio, u.online_status,
+               us.user_id as stats_user_id, us.fans_count, us.total_likes, us.total_favorites,
+               us.total_sponsorship, us.total_article_exposure, us.website_coins,
+               us.created_at as stats_created_at, us.updated_at as stats_updated_at
+        FROM user u
+        LEFT JOIN user_stats us ON u.id = us.user_id
+        <where>
+            <if test="status != null">
+                AND u.status = #{status}
+            </if>
+        </where>
+        ORDER BY u.id DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 根据关键词统计用户数量 -->
+    <select id="countUsersByKeyword" resultType="int">
+        SELECT COUNT(*) FROM user
+        WHERE (username LIKE CONCAT('%', #{keyword}, '%')
+               OR nickname LIKE CONCAT('%', #{keyword}, '%'))
+    </select>
+
+    <!-- 根据关键词和状态统计用户数量 -->
+    <select id="countUsersByKeywordAndStatus" resultType="int">
+        SELECT COUNT(*) FROM user
+        WHERE (username LIKE CONCAT('%', #{keyword}, '%')
+               OR nickname LIKE CONCAT('%', #{keyword}, '%'))
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+    </select>
+
+    <!-- 统计用户总数 -->
+    <select id="countUsers" resultType="int">
+        SELECT COUNT(*) FROM user
+    </select>
+
+    <!-- 根据状态统计用户数量 -->
+    <select id="countUsersByStatus" resultType="int">
+        SELECT COUNT(*) FROM user
+        <where>
+            <if test="status != null">
+                status = #{status}
+            </if>
+        </where>
+    </select>
+
 </mapper>

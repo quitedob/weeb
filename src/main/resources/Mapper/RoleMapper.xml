@@ -114,4 +114,32 @@
         SELECT COUNT(*) > 0 FROM role WHERE id = #{roleId} AND type = 0
     </select>
 
+    <!-- 根据条件分页查询角色列表 -->
+    <select id="selectRolesWithFilters" resultMap="RoleResultMap">
+        SELECT * FROM role
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (name LIKE CONCAT('%', #{keyword}, '%')
+                 OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY sort_order ASC, created_at DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 根据条件统计角色数量 -->
+    <select id="countRolesWithFilters" resultType="int">
+        SELECT COUNT(*) FROM role
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (name LIKE CONCAT('%', #{keyword}, '%')
+                 OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+    </select>
+
 </mapper>

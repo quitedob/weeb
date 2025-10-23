@@ -63,19 +63,19 @@ public class UserMentionServiceImpl implements UserMentionService {
             }
 
             // 验证消息是否存在
-            Message message = messageMapper.findById(messageId);
+            Message message = messageMapper.selectMessageById(messageId);
             if (message == null) {
                 throw new com.web.exception.WeebException("消息不存在: " + messageId);
             }
 
             // 验证提及者是否存在
-            User mentioner = userMapper.findById(mentionerId);
+            User mentioner = userMapper.selectById(mentionerId);
             if (mentioner == null) {
                 throw new com.web.exception.WeebException("提及者不存在: " + mentionerId);
             }
 
             // 验证被提及用户是否存在
-            User mentionedUser = userMapper.findById(mentionedUserId);
+            User mentionedUser = userMapper.selectById(mentionedUserId);
             if (mentionedUser == null) {
                 throw new com.web.exception.WeebException("被提及用户不存在: " + mentionedUserId);
             }
@@ -273,7 +273,7 @@ public class UserMentionServiceImpl implements UserMentionService {
                 int endPosition = matcher.end();
 
                 // 查找用户
-                User mentionedUser = userMapper.findByUsername(username);
+                User mentionedUser = userMapper.selectByUsername(username);
                 if (mentionedUser != null && !mentionedUser.getId().equals(senderId)) {
                     // 不能提及自己
                     UserMention mention = new UserMention();
@@ -394,7 +394,7 @@ public class UserMentionServiceImpl implements UserMentionService {
         }
 
         // 获取消息信息
-        Message message = messageMapper.findById(mention.getMessageId());
+        Message message = messageMapper.selectById(mention.getMessageId());
 
         Map<String, Object> context = new HashMap<>();
         context.put("mention", mention);
@@ -416,20 +416,20 @@ public class UserMentionServiceImpl implements UserMentionService {
             }
 
             // 验证消息是否存在
-            Message message = messageMapper.findById(mention.getMessageId());
+            Message message = messageMapper.selectById(mention.getMessageId());
             if (message == null) {
                 log.warn("提及关联的消息不存在: messageId={}", mention.getMessageId());
                 return false;
             }
 
             // 验证用户是否存在
-            User mentioner = userMapper.findById(mention.getMentionerId());
+            User mentioner = userMapper.selectById(mention.getMentionerId());
             if (mentioner == null) {
                 log.warn("提及者不存在: mentionerId={}", mention.getMentionerId());
                 return false;
             }
 
-            User mentionedUser = userMapper.findById(mention.getMentionedUserId());
+            User mentionedUser = userMapper.selectById(mention.getMentionedUserId());
             if (mentionedUser == null) {
                 log.warn("被提及用户不存在: mentionedUserId={}", mention.getMentionedUserId());
                 return false;

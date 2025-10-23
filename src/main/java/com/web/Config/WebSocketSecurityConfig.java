@@ -57,6 +57,7 @@ public class WebSocketSecurityConfig implements WebSocketMessageBrokerConfigurer
      * WebSocket 认证拦截器
      */
     private class WebSocketAuthInterceptor implements ChannelInterceptor {
+        private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(WebSocketAuthInterceptor.class);
 
         @Override
         public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -219,6 +220,11 @@ public class WebSocketSecurityConfig implements WebSocketMessageBrokerConfigurer
         @Override
         public Object getDetails() {
             return null;
+        }
+
+        @Override
+        public Object getPrincipal() {
+            return username;
         }
 
         @Override

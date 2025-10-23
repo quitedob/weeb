@@ -127,11 +127,21 @@ public class User implements Serializable {
         this.phoneNumber = phoneNumber; // 设置电话
     }
 
+    // Alias method for backward compatibility
+    public void setPhone(String phoneNumber) {
+        this.phoneNumber = phoneNumber; // 设置电话
+    }
+
     public String getUserEmail() {
         return userEmail; // 返回邮箱地址
     }
 
     public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail; // 设置邮箱地址
+    }
+
+    // Alias method for backward compatibility
+    public void setEmail(String userEmail) {
         this.userEmail = userEmail; // 设置邮箱地址
     }
 

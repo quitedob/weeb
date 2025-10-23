@@ -1,4 +1,4 @@
-package com.web.service.impl;
+package com.web.service.Impl;
 
 import com.web.exception.WeebException;
 import com.web.mapper.MessageThreadMapper;
@@ -7,6 +7,7 @@ import com.web.mapper.UserMapper;
 import com.web.model.MessageThread;
 import com.web.model.Message;
 import com.web.model.User;
+import com.web.vo.message.TextMessageContent;
 import com.web.service.MessageThreadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,13 +45,13 @@ public class MessageThreadServiceImpl implements MessageThreadService {
             }
 
             // 验证根消息是否存在
-            Message rootMessage = messageMapper.findById(rootMessageId);
+            Message rootMessage = messageMapper.selectById(rootMessageId);
             if (rootMessage == null) {
                 throw new WeebException("根消息不存在: " + rootMessageId);
             }
 
             // 验证用户是否存在
-            User creator = userMapper.findById(createdBy);
+            User creator = userMapper.selectById(createdBy);
             if (creator == null) {
                 throw new WeebException("创建者不存在: " + createdBy);
             }
@@ -69,7 +70,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
         } catch (Exception e) {
             log.error("创建消息线索失败: {}", e.getMessage(), e);
-            throw new com.web.exception.WeebException("创建消息线索失败: " + e.getMessage(), e);
+            throw new WeebException("创建消息线索失败: " + e.getMessage());
         }
     }
 
@@ -133,7 +134,9 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
             // 创建回复消息
             Message reply = new Message();
-            reply.setContent(replyMessage);
+            TextMessageContent content = new TextMessageContent();
+            content.setContent(replyMessage);
+            reply.setContent(content);
             reply.setUserId(userId);
             reply.setChatId(thread.getRootMessageId()); // 使用根消息的聊天ID
             reply.setReplyToId(thread.getRootMessageId()); // 标记为对根消息的回复
@@ -142,7 +145,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
             messageMapper.insert(reply);
 
             // 更新线索最后回复信息
-            User replier = userMapper.findById(userId);
+            User replier = userMapper.selectById(userId);
             if (replier == null) {
                 throw new WeebException("回复用户不存在: " + userId);
             }
@@ -161,7 +164,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
 
         } catch (Exception e) {
             log.error("回复线索失败: {}", e.getMessage(), e);
-            throw new com.web.exception.WeebException("回复线索失败: " + e.getMessage(), e);
+            throw new WeebException("回复线索失败: " + e.getMessage());
         }
     }
 
@@ -473,7 +476,7 @@ public class MessageThreadServiceImpl implements MessageThreadService {
         log.debug("获取消息线索上下文: messageId={}, userId={}", messageId, userId);
 
         // 获取消息
-        Message message = messageMapper.findById(messageId);
+        Message message = messageMapper.selectById(messageId);
         if (message == null) {
             throw new IllegalArgumentException("消息不存在: " + messageId);
         }
@@ -510,7 +513,8 @@ public class MessageThreadServiceImpl implements MessageThreadService {
      * 从消息内容生成标题
      */
     private String generateTitleFromMessage(Message message) {
-        String content = message.getContent();
+        TextMessageContent contentObj = message.getContent();
+        String content = contentObj != null ? contentObj.getContent() : null;
         if (content == null || content.trim().isEmpty()) {
             return "新对话线索";
         }
