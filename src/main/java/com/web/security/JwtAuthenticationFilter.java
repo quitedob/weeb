@@ -53,25 +53,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             // 提取JWT令牌
             jwt = authHeader.substring(7);
+
+            // 首先验证token是否有效（不依赖用户）
+            if (!jwtUtil.validateToken(jwt)) {
+                log.warn("Invalid JWT token format or signature");
+                SecurityAuditUtils.logAuthenticationFailure("unknown", request.getRemoteAddr(), "Invalid token format");
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             final Long userId = jwtUtil.getUserIdFromToken(jwt);
 
             // 验证用户ID和SecurityContext
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = this.customUserDetailsService.loadUserById(userId);
+                try {
+                    UserDetails userDetails = this.customUserDetailsService.loadUserById(userId);
 
-                // 验证JWT令牌
-                if (jwtUtil.isTokenValid(jwt, userDetails.getUsername())) {
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities());
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    // 验证JWT令牌与用户的匹配性
+                    String tokenUsername = jwtUtil.extractUsername(jwt);
+                    if (tokenUsername != null && tokenUsername.equals(userDetails.getUsername())) {
+                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                userDetails, null, userDetails.getAuthorities());
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                    // 记录成功的认证
-                    SecurityAuditUtils.logAuthenticationSuccess(userDetails.getUsername(), request.getRemoteAddr());
-                } else {
-                    // 令牌无效
-                    log.warn("Invalid JWT token for user: {}", userDetails.getUsername());
-                    SecurityAuditUtils.logAuthenticationFailure(userDetails.getUsername(), request.getRemoteAddr(), "Invalid token");
+                        // 记录成功的认证
+                        SecurityAuditUtils.logAuthenticationSuccess(userDetails.getUsername(), request.getRemoteAddr());
+                    } else {
+                        log.warn("Token username mismatch: token={}, user={}", tokenUsername, userDetails.getUsername());
+                        SecurityAuditUtils.logAuthenticationFailure(userDetails.getUsername(), request.getRemoteAddr(), "Username mismatch");
+                    }
+                } catch (UsernameNotFoundException e) {
+                    log.warn("User not found for token userId: {}", userId);
+                    SecurityAuditUtils.logAuthenticationFailure("unknown", request.getRemoteAddr(), "User not found");
+                    // 不抛出异常，继续处理请求，让后续的认证过滤器处理
                 }
             }
 
