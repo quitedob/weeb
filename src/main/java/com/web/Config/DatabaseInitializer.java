@@ -236,7 +236,11 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"file_record", "id,user_id,file_name,stored_name,file_path,file_size,mime_type,file_hash,is_public,created_at,updated_at"},
             {"user_follow", "id,follower_id,followee_id,created_at"},
             {"file_share", "id,file_id,sharer_id,shared_to_user_id,share_token,permission,expires_at,status,access_count,created_at,updated_at"},
-            {"system_logs", "id,operator_id,action,details,ip_address,created_at"}
+            {"system_logs", "id,operator_id,action,details,ip_address,created_at"},
+            {"permission", "id,name,description,resource,action,condition,status,type,group,sort_order,created_at,updated_at"},
+            {"role", "id,name,description,status,type,level,is_default,created_at,updated_at"},
+            {"role_permission", "id,role_id,permission_id,created_at"},
+            {"user_role", "id,user_id,role_id,created_at"}
         };
 
         boolean allTablesValid = true;
@@ -344,6 +348,10 @@ public class DatabaseInitializer implements CommandLineRunner {
         // 按依赖关系顺序创建表
         createUserTable();
         createUserStatsTable();
+        createPermissionTable(); // 权限表必须在角色表之前
+        createRoleTable();
+        createRolePermissionTable();
+        createUserRoleTable();
         createGroupTable();
         createGroupMemberTable();
         createContactTable();

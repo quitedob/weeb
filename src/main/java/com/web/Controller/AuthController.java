@@ -27,8 +27,8 @@ import java.util.Random;
  * 注意：当前包名为 com.web.Controller（首字母大写），
  * 如果项目启动时扫描不到该包，请在主应用类中使用 @ComponentScan(basePackages = {"com.web.Controller", ...})
  */
-@RestController
-@RequestMapping("/api/auth")
+// @RestController - Disabled to avoid conflicts with StandardAuthController
+// @RequestMapping("/api/auth") - Disabled to avoid conflicts with StandardAuthController
 public class AuthController {
 
     @Autowired

@@ -21,7 +21,6 @@ import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
 import com.web.model.elasticsearch.MessageDocument;
 import com.web.repository.MessageSearchRepository;
 import com.web.service.ElasticsearchSearchService;
-import com.web.service.MessageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -48,9 +47,7 @@ public class ElasticsearchSearchServiceImpl implements ElasticsearchSearchServic
     @Autowired
     private MessageSearchRepository messageSearchRepository;
 
-    @Autowired
-    private MessageService messageService;
-
+  
     private static final String MESSAGE_INDEX = "message";
 
     // ==================== 消息搜索 ====================

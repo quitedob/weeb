@@ -72,7 +72,12 @@ spring:
   # Elasticsearch配置（HTTP模式，无需认证）
   elasticsearch:
     uris: http://localhost:9200
-    enabled: false  # 暂时禁用Elasticsearch搜索功能
+    enabled: true # 暂时禁用Elasticsearch搜索功能
+
+  # Spring AI OpenAI配置 - 添加虚拟API key避免启动失败
+  ai:
+    openai:
+      api-key: "sk-fake-key-for-startup-only" # 虚拟API key，仅用于避免启动失败
 
 management:
   # 完全禁用 Redis 健康检查
@@ -104,6 +109,8 @@ weeb:
       - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
       - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
       - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration
+      # 禁用OpenAI自动配置，避免API key缺失导致的启动失败
+      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
 
   # Redis配置优化（已合并到上面的Redis配置中）
   # repositories.enabled已在上面配置
@@ -130,5 +137,5 @@ ai:
     chat-model: "gemma3:4b" # 默认聊天模型
   deepseek:
     base-url: "https://api.deepseek.com" # DeepSeek API基础URL
-    api-key: "your_deepseek_api_key_here" # DeepSeek API Key (请替换为您的真实Key)
+    api-key: "sk-bbbb66a040044cb6a097474791bf79d4" # DeepSeek API Key (请替换为您的真实Key)
     chat-model: "deepseek-chat" # 默认聊天模型
