@@ -72,7 +72,7 @@
     <!-- 批量插入权限 -->
     <insert id="batchInsert" parameterType="list">
         INSERT INTO permission (
-            name, description, resource, action, condition,
+            name, description, resource, action, `condition`,
             status, type, `group`, sort_order, created_at, updated_at
         ) VALUES
         <foreach collection="permissions" item="permission" separator=",">
@@ -124,7 +124,7 @@
     <!-- 根据角色ID查询权限列表 -->
     <select id="selectPermissionsByRoleId" resultMap="PermissionResultMap">
         SELECT p.* FROM permission p
-        INNER JOIN role_permissions rp ON p.id = rp.permission_id
+        INNER JOIN role_permission rp ON p.id = rp.permission_id
         WHERE rp.role_id = #{roleId} AND p.status = 1
         ORDER BY p.sort_order ASC
     </select>

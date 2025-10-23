@@ -2,10 +2,10 @@ package com.web.service.impl;
 
 import com.web.model.Permission;
 import com.web.service.PermissionService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -18,23 +18,27 @@ import java.util.Map;
  * 在应用启动时自动创建所有预定义的系统权限
  */
 @Component
+@Slf4j
+@Order(2) // 确保在DatabaseInitializer之后执行
 public class SystemPermissionInitializer implements CommandLineRunner {
 
-    private static final Logger logger = LoggerFactory.getLogger(SystemPermissionInitializer.class);
+    private final PermissionService permissionService;
 
     @Autowired
-    private PermissionService permissionService;
+    public SystemPermissionInitializer(PermissionService permissionService) {
+        this.permissionService = permissionService;
+    }
 
     @Override
     public void run(String... args) throws Exception {
-        logger.info("开始初始化系统权限...");
+        log.info("开始初始化系统权限...");
 
         Map<String, Object> result = permissionService.initializeSystemPermissions();
 
         int createdCount = (Integer) result.get("createdCount");
         int totalCount = (Integer) result.get("totalCount");
 
-        logger.info("系统权限初始化完成: 新创建 {} 个权限，总共 {} 个权限", createdCount, totalCount);
+        log.info("系统权限初始化完成: 新创建 {} 个权限，总共 {} 个权限", createdCount, totalCount);
     }
 
     /**
