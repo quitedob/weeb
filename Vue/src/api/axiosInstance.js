@@ -7,8 +7,14 @@ import { ElMessage } from 'element-plus';
 // 不再需要从这里导入 router
 import { useAuthStore } from '@/stores/authStore';
 
-// 使用环境变量配置 baseURL（Vite 环境）
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// 区分开发环境和生产环境的 baseURL
+// 1. 开发环境 (import.meta.env.DEV) 时，使用相对路径 '/'
+//    这样所有请求（如 /api/auth/login）都会发往 http://localhost:5173
+//    然后被 vite.config.js 中的 proxy 拦截并转发到 http://localhost:8080，完美避开CORS。
+// 2. 生产环境 (import.meta.env.PROD) 时，才使用 .env 文件中配置的 VITE_API_BASE_URL。
+const API_BASE_URL = import.meta.env.DEV
+  ? '/'
+  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'); // 生产环境的回退地址
 
 export const instance = axios.create({
   baseURL: API_BASE_URL,
