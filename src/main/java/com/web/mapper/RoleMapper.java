@@ -117,4 +117,25 @@ public interface RoleMapper extends BaseMapper<Role> {
      * @return 是否为系统角色
      */
     boolean isSystemRole(@Param("roleId") Long roleId);
+
+    /**
+     * 根据条件分页查询角色列表
+     * @param keyword 搜索关键词
+     * @param status 状态
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @return 角色列表
+     */
+    List<Role> selectRolesWithFilters(@Param("keyword") String keyword,
+                                      @Param("status") Integer status,
+                                      @Param("offset") int offset,
+                                      @Param("pageSize") int pageSize);
+
+    /**
+     * 根据条件统计角色数量
+     * @param keyword 搜索关键词
+     * @param status 状态
+     * @return 角色总数
+     */
+    int countRolesWithFilters(@Param("keyword") String keyword, @Param("status") Integer status);
 }

@@ -41,4 +41,54 @@ public class Message implements Serializable {
     private Timestamp updatedAt; // 更新时间
 
     private Long replyToMessageId; // 回复的消息ID
+
+    private Long threadId; // 话题ID，用于消息线程
+
+    /**
+     * 获取用户ID (别名方法，兼容性考虑)
+     * @return 用户ID
+     */
+    public Long getUserId() {
+        return this.senderId;
+    }
+
+    /**
+     * 设置用户ID (别名方法，兼容性考虑)
+     * @param userId 用户ID
+     */
+    public void setUserId(Long userId) {
+        this.senderId = userId;
+    }
+
+    /**
+     * 获取回复消息ID (别名方法，兼容性考虑)
+     * @return 回复消息ID
+     */
+    public Long getReplyToId() {
+        return this.replyToMessageId;
+    }
+
+    /**
+     * 设置回复消息ID (别名方法，兼容性考虑)
+     * @param replyToId 回复消息ID
+     */
+    public void setReplyToId(Long replyToId) {
+        this.replyToMessageId = replyToId;
+    }
+
+    /**
+     * 获取聊天列表ID (别名方法，兼容性考虑)
+     * @return 聊天列表ID
+     */
+    public Long getChatListId() {
+        return this.chatId;
+    }
+
+    /**
+     * 设置聊天列表ID (别名方法，兼容性考虑)
+     * @param chatListId 聊天列表ID
+     */
+    public void setChatListId(Long chatListId) {
+        this.chatId = chatListId;
+    }
 }

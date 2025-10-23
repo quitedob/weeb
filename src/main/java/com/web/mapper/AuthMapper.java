@@ -1,6 +1,7 @@
 package com.web.mapper;
 
 import com.web.model.User;
+import com.web.model.UserWithStats;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -99,4 +100,11 @@ public interface AuthMapper {
      * @return 受影响行数
      */
     int deleteByUserId(@Param("userId") Long userId);
+
+    /**
+     * 根据用户ID获取用户完整信息（包含统计数据）
+     * @param id 用户ID
+     * @return 用户完整信息
+     */
+    UserWithStats selectUserWithStatsById(@Param("id") Long id);
 }

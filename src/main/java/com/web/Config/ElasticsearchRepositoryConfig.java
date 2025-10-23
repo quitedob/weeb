@@ -12,7 +12,7 @@ import org.springframework.data.elasticsearch.repository.config.EnableElasticsea
 @ConditionalOnProperty(
     value = "elasticsearch.enabled",
     havingValue = "true",
-    matchIfMissing = true
+    matchIfMissing = false
 )
 @EnableElasticsearchRepositories(basePackages = "com.web.repository")
 public class ElasticsearchRepositoryConfig {

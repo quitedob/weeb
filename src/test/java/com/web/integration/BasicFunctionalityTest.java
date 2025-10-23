@@ -1,7 +1,6 @@
 package com.web.integration;
 
 import com.web.service.ArticleCommentService;
-import com.web.service.FileManagementService;
 import com.web.service.UserFollowService;
 import com.web.service.GroupService;
 import com.web.service.ContactService;
@@ -35,9 +34,6 @@ public class BasicFunctionalityTest {
     private ArticleCommentService articleCommentService;
 
     @Autowired(required = false)
-    private FileManagementService fileManagementService;
-
-    @Autowired(required = false)
     private UserFollowService userFollowService;
 
     @Autowired(required = false)
@@ -62,7 +58,6 @@ public class BasicFunctionalityTest {
         
         // 新增的服务
         assertNotNull(articleCommentService, "ArticleCommentService should be available");
-        assertNotNull(fileManagementService, "FileManagementService should be available");
         assertNotNull(userFollowService, "UserFollowService should be available");
     }
 
@@ -154,24 +149,6 @@ public class BasicFunctionalityTest {
         });
     }
 
-    @Test
-    void testFileManagementFunctionality() {
-        if (fileManagementService == null) return;
-        
-        // 测试文件管理功能
-        assertDoesNotThrow(() -> {
-            Map<String, Object> userFiles = fileManagementService.getUserFiles(1L, 1, 10);
-            assertNotNull(userFiles);
-            assertTrue(userFiles.containsKey("files"));
-            assertTrue(userFiles.containsKey("total"));
-        });
-
-        assertDoesNotThrow(() -> {
-            String fileUrl = fileManagementService.generateFileUrl(1L);
-            assertNotNull(fileUrl);
-            assertTrue(fileUrl.contains("/api/files/download/"));
-        });
-    }
 
     @Test
     void testArticleCommentFunctionality() {

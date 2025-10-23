@@ -3,14 +3,14 @@
 import axiosInstance from '../axiosInstance';
 
 export default {
-  // 获取用户加入的群组列表 - 对应 GET /api/groups
+  // 获取用户加入的群组列表 - 对应 GET /api/groups/my-groups
   getUserJoinedGroups() {
-    return axiosInstance.get('/api/groups');
+    return axiosInstance.get('/api/groups/my-groups');
   },
 
-  // 获取用户拥有的群组列表 - 对应 GET /api/groups/owned
+  // 获取用户拥有的群组列表 - 对应 GET /api/groups/my-created
   getUserOwnedGroups() {
-    return axiosInstance.get('/api/groups/owned');
+    return axiosInstance.get('/api/groups/my-created');
   },
 
   // 创建群组 - 对应 POST /api/groups
@@ -33,9 +33,9 @@ export default {
     return axiosInstance.put(`/api/groups/${groupData.id}`, groupData);
   },
 
-  // 邀请成员加入群组 - 对应 POST /api/groups/{groupId}/invite
+  // 邀请成员加入群组 - 对应 POST /api/groups/{groupId}/members
   inviteMembers(payload) { // payload: { groupId: string, userIds: string[] }
-    return axiosInstance.post(`/api/groups/${payload.groupId}/invite`, payload);
+    return axiosInstance.post(`/api/groups/${payload.groupId}/members`, payload);
   },
 
   // 移除群组成员 - 对应 DELETE /api/groups/{groupId}/members/{userId}
@@ -43,9 +43,9 @@ export default {
     return axiosInstance.delete(`/api/groups/${payload.groupId}/members/${payload.userIdToKick}`);
   },
 
-  // 退出群组 - 对应 POST /api/groups/{groupId}/leave
+  // 退出群组 - 对应 DELETE /api/groups/{groupId}/members/me
   leaveGroup(groupId) {
-    return axiosInstance.post(`/api/groups/${groupId}/leave`);
+    return axiosInstance.delete(`/api/groups/${groupId}/members/me`);
   },
 
   // 解散群组 - 对应 DELETE /api/groups/{groupId}
@@ -53,9 +53,9 @@ export default {
     return axiosInstance.delete(`/api/groups/${groupId}`);
   },
 
-  // 申请加入群组 - 对应 POST /api/groups/join
+  // 申请加入群组 - 对应 POST /api/groups/{groupId}/applications
   applyToJoinGroup(data) {
-    return axiosInstance.post('/api/groups/join', data);
+    return axiosInstance.post(`/api/groups/${data.groupId}/applications`, data);
   },
 
   // 搜索群组 - 对应 GET /api/groups/search?keyword=xxx

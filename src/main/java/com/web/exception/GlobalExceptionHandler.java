@@ -18,6 +18,7 @@ import jakarta.validation.ConstraintViolationException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * 全局异常处理器
@@ -330,11 +331,11 @@ public class GlobalExceptionHandler {
         String eventId = logException("类型转换异常", e, request);
         String path = getPath(request);
 
-        log.warn("参数类型转换错误 eventId={}, path={}, parameter={}, requiredType={}, value={}",
-                eventId, path, e.getName(), e.getRequiredType().getSimpleName(), e.getValue());
+        log.warn("参数类型转换错误 eventId={}, path={}, property={}, requiredType={}, value={}",
+                eventId, path, e.getPropertyName(), e.getRequiredType().getSimpleName(), e.getValue());
 
         ApiResponse<Object> response = ApiResponse.badRequest(String.format(
-                "参数 '%s' 类型错误，期望类型: %s", e.getName(), e.getRequiredType().getSimpleName()))
+                "参数 '%s' 类型错误，期望类型: %s", e.getPropertyName(), e.getRequiredType().getSimpleName()))
                 .withPath(path);
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);

@@ -9,6 +9,7 @@ import com.web.model.UserStats;
 import com.web.model.UserWithStats;
 import com.web.service.PermissionService;
 import com.web.service.UserService;
+import com.web.service.RedisCacheService;
 import com.web.util.ValidationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /**
  * 用户服务实现类
@@ -46,12 +50,30 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private PermissionService permissionService;
 
+    @Autowired
+    private RedisCacheService redisCacheService;
+
     @Override
     public UserWithStats getUserProfile(Long userId) {
         if (userId == null || userId <= 0) {
             throw new WeebException("用户ID必须为正数");
         }
-        return userMapper.selectUserWithStatsById(userId);
+
+        // 先尝试从缓存获取
+        UserWithStats cached = redisCacheService.getCachedUserWithStats(userId);
+        if (cached != null) {
+            log.debug("命中用户完整信息缓存: userId={}", userId);
+            return cached;
+        }
+
+        // 缓存未命中，从数据库查询
+        UserWithStats userWithStats = userMapper.selectUserWithStatsById(userId);
+        if (userWithStats != null) {
+            // 缓存结果
+            redisCacheService.cacheUserWithStats(userWithStats);
+            log.debug("缓存用户完整信息: userId={}", userId);
+        }
+        return userWithStats;
     }
 
     @Override
@@ -127,7 +149,8 @@ public class UserServiceImpl implements UserService {
 
             return true;
         } catch (Exception e) {
-            throw new WeebException("更新用户信息失败", e);
+            log.error("更新用户信息失败: {}", e.getMessage(), e);
+            throw new WeebException("更新用户信息失败: " + e.getMessage());
         }
     }
 
@@ -163,7 +186,8 @@ public class UserServiceImpl implements UserService {
             // 返回完整的用户信息
             return getUserProfile(user.getId());
         } catch (Exception e) {
-            throw new WeebException("创建用户失败", e);
+            log.error("创建用户失败: {}", e.getMessage(), e);
+            throw new WeebException("创建用户失败: " + e.getMessage());
         }
     }
 
@@ -181,7 +205,8 @@ public class UserServiceImpl implements UserService {
             int result = userMapper.deleteById(userId);
             return result > 0;
         } catch (Exception e) {
-            throw new WeebException("删除用户失败", e);
+            log.error("删除用户失败: {}", e.getMessage(), e);
+            throw new WeebException("删除用户失败: " + e.getMessage());
         }
     }
 
@@ -203,7 +228,8 @@ public class UserServiceImpl implements UserService {
             int result = userStatsMapper.incrementFansCount(followedId);
             return result > 0;
         } catch (Exception e) {
-            throw new WeebException("关注用户失败", e);
+            log.error("关注用户失败: {}", e.getMessage(), e);
+            throw new WeebException("关注用户失败: " + e.getMessage());
         }
     }
 
@@ -225,7 +251,8 @@ public class UserServiceImpl implements UserService {
             int result = userStatsMapper.decrementFansCount(followedId);
             return result > 0;
         } catch (Exception e) {
-            throw new WeebException("取消关注用户失败", e);
+            log.error("取消关注用户失败: {}", e.getMessage(), e);
+            throw new WeebException("取消关注用户失败: " + e.getMessage());
         }
     }
 
@@ -366,7 +393,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Map<String, Object> getUsersWithPaging(int page, int pageSize, String keyword) {
+    public Map<String, Object> getUsersWithPaging(int page, int pageSize, String keyword, String status) {
         if (page <= 0) {
             throw new WeebException("页码必须为正数");
         }
@@ -380,6 +407,24 @@ public class UserServiceImpl implements UserService {
             // 计算偏移量
             int offset = (page - 1) * pageSize;
 
+            // 处理状态过滤
+            Integer statusFilter = null;
+            if (status != null && !status.trim().isEmpty()) {
+                switch (status.toLowerCase()) {
+                    case "active":
+                        statusFilter = 1; // 1表示启用状态
+                        break;
+                    case "banned":
+                        statusFilter = 0; // 0表示禁用状态
+                        break;
+                    case "all":
+                        // 不设置状态过滤，查询所有用户
+                        break;
+                    default:
+                        throw new WeebException("无效的状态参数: " + status + "，支持的值: active, banned, all");
+                }
+            }
+
             // 查询用户列表 - 使用安全的搜索参数
             List<UserWithStats> users;
             String safeKeyword = null;
@@ -388,17 +433,17 @@ public class UserServiceImpl implements UserService {
                 if (safeKeyword.length() > 50) {
                     throw new WeebException("搜索关键词长度不能超过50个字符");
                 }
-                users = userMapper.selectUsersWithStatsByKeyword(safeKeyword, offset, pageSize);
+                users = userMapper.selectUsersWithStatsByKeywordAndStatus(safeKeyword, statusFilter, offset, pageSize);
             } else {
-                users = userMapper.selectUsersWithStatsWithPaging(offset, pageSize);
+                users = userMapper.selectUsersWithStatsWithPagingAndStatus(statusFilter, offset, pageSize);
             }
 
             // 查询总数量
             int total;
             if (safeKeyword != null) {
-                total = userMapper.countUsersByKeyword(safeKeyword);
+                total = userMapper.countUsersByKeywordAndStatus(safeKeyword, statusFilter);
             } else {
-                total = userMapper.countUsers();
+                total = userMapper.countUsersByStatus(statusFilter);
             }
 
             result.put("list", users);
@@ -409,7 +454,7 @@ public class UserServiceImpl implements UserService {
 
             return result;
         } catch (Exception e) {
-            log.error("分页查询用户失败: page={}, pageSize={}, keyword={}", page, pageSize, keyword, e);
+            log.error("分页查询用户失败: page={}, pageSize={}, keyword={}, status={}", page, pageSize, keyword, status, e);
             throw new WeebException("分页查询用户失败: " + e.getMessage());
         }
     }
@@ -703,5 +748,105 @@ public class UserServiceImpl implements UserService {
             log.error("获取用户角色失败: userId={}", userId, e);
             return List.of();
         }
+    }
+
+    // ==================== 缓存相关辅助方法 ====================
+
+    /**
+     * 清除用户相关缓存
+     * @param userId 用户ID
+     */
+    private void evictUserCache(Long userId) {
+        try {
+            redisCacheService.evictUserCache(userId);
+            log.debug("清除用户缓存: userId={}", userId);
+        } catch (Exception e) {
+            log.error("清除用户缓存失败: userId={}", userId, e);
+        }
+    }
+
+    /**
+     * 清除用户统计缓存
+     * @param userId 用户ID
+     */
+    private void evictUserStatsCache(Long userId) {
+        try {
+            // 用户完整信息缓存也包含了统计数据，所以直接清除用户缓存即可
+            evictUserCache(userId);
+            log.debug("清除用户统计缓存: userId={}", userId);
+        } catch (Exception e) {
+            log.error("清除用户统计缓存失败: userId={}", userId, e);
+        }
+    }
+
+    /**
+     * 更新用户信息时清除缓存
+     * @param user 用户对象
+     */
+    private void handleUserUpdate(User user) {
+        if (user != null && user.getId() != null) {
+            // 清除缓存，下次访问时会重新缓存
+            evictUserCache(user.getId());
+        }
+    }
+
+    /**
+     * 批量获取用户时使用缓存优化
+     * @param userIds 用户ID列表
+     * @return 用户列表
+     */
+    private List<User> getUsersWithCache(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+
+        try {
+            // 先尝试从缓存批量获取
+            List<User> cachedUsers = redisCacheService.getCachedUsers(userIds);
+            if (cachedUsers.size() == userIds.size()) {
+                // 全部命中缓存
+                log.debug("批量命中用户缓存: count={}", cachedUsers.size());
+                return cachedUsers;
+            }
+
+            // 部分命中或全部未命中，从数据库查询缺失的用户
+            Set<Long> cachedUserIds = cachedUsers.stream()
+                    .map(User::getId)
+                    .collect(Collectors.toSet());
+
+            List<Long> missingIds = userIds.stream()
+                    .filter(id -> !cachedUserIds.contains(id))
+                    .collect(Collectors.toList());
+
+            if (!missingIds.isEmpty()) {
+                // 查询缺失的用户
+                List<User> dbUsers = userMapper.selectByIds(missingIds);
+                // 缓存新查询的用户
+                dbUsers.forEach(redisCacheService::cacheUser);
+                // 合并结果
+                Map<Long, User> userMap = cachedUsers.stream()
+                        .collect(Collectors.toMap(User::getId, u -> u));
+                dbUsers.forEach(user -> userMap.put(user.getId(), user));
+                return new ArrayList<>(userMap.values());
+            }
+
+            return cachedUsers;
+        } catch (Exception e) {
+            log.error("批量获取用户缓存失败", e);
+            // 降级到数据库查询
+            return userMapper.selectByIds(userIds);
+        }
+    }
+
+    @Override
+    public Map<String, Object> getUsersWithPaging(Integer page, Integer pageSize, String keyword, String status) {
+        // 调用int版本的方法
+        return getUsersWithPaging(page.intValue(), pageSize.intValue(), keyword, status);
+    }
+
+    @Override
+    public Map<String, Object> getUsersWithPaging(int page, int pageSize, String keyword) {
+        // 调用4参数版本的方法，默认状态为null
+        return getUsersWithPaging(page, pageSize, keyword, null);
     }
 }

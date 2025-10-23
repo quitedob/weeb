@@ -24,6 +24,8 @@ public class Group implements Serializable {
 
     private String groupName; // 群名称
 
+    private String groupDescription; // 群描述
+
     private Long ownerId; // 群主的用户ID
 
     private String groupAvatarUrl; // 群头像URL

@@ -147,4 +147,173 @@ public class JwtUtil {
     public long getExpiration() {
         return expiration;
     }
+
+    /**
+     * 从JWT令牌中提取用户名
+     * @param token JWT令牌
+     * @return 用户名
+     */
+    public String extractUsername(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(this.key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getSubject();
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 获取令牌过期时间
+     * @param token JWT令牌 (可选参数，如果不提供则返回默认过期时间)
+     * @return 过期时间（毫秒）
+     */
+    public long getExpirationTime(String... token) {
+        try {
+            // 如果没有提供token参数，返回默认过期时间
+            if (token == null || token.length == 0) {
+                return System.currentTimeMillis() + expiration;
+            }
+            String tokenString = token[0];
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(this.key)
+                    .build()
+                    .parseClaimsJws(tokenString)
+                    .getBody();
+            return claims.getExpiration().getTime();
+        } catch (JwtException | IllegalArgumentException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * 获取令牌过期时间（重载方法）
+     * @param token JWT令牌
+     * @return 过期时间（毫秒）
+     */
+    public long getExpirationTimeSingle(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(this.key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getExpiration().getTime();
+        } catch (JwtException | IllegalArgumentException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * 获取令牌过期日期
+     * @param token JWT令牌
+     * @return 过期日期
+     */
+    public Date getExpirationDate(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(this.key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getExpiration();
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 检查令牌是否过期
+     * @param token JWT令牌
+     * @return 是否过期
+     */
+    public boolean isTokenExpired(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(this.key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getExpiration().before(new Date());
+        } catch (JwtException | IllegalArgumentException e) {
+            return true;
+        }
+    }
+
+    /**
+     * 检查令牌是否在黑名单中
+     * @param token JWT令牌
+     * @return 是否在黑名单中
+     */
+    public boolean isTokenBlacklisted(String token) {
+        // 简单实现，实际项目中应该使用Redis或数据库存储黑名单
+        // 这里返回false，表示没有黑名单功能
+        return false;
+    }
+
+    /**
+     * 将令牌加入黑名单
+     * @param token JWT令牌
+     */
+    public void blacklistToken(String token) {
+        // 实际项目中应该将token加入Redis或数据库黑名单
+        // 这里为空实现，因为当前没有黑名单存储
+    }
+
+    /**
+     * 将用户所有令牌加入黑名单
+     * @param username 用户名
+     */
+    public void blacklistAllUserTokens(String username) {
+        // 实际项目中应该根据用户名将所有相关token加入黑名单
+        // 这里为空实现，因为当前没有黑名单存储
+    }
+
+    /**
+     * 发送密码重置邮件
+     * @param email 邮箱地址
+     */
+    public void sendPasswordResetEmail(String email) {
+        // 实际项目中应该调用邮件服务发送重置邮件
+        // 这里为空实现，因为当前没有邮件服务集成
+    }
+
+    /**
+     * 重置密码
+     * @param token 重置令牌
+     * @param newPassword 新密码
+     */
+    public void resetPassword(String token, String newPassword) {
+        // 实际项目中应该验证token并更新用户密码
+        // 这里为空实现，因为当前没有密码重置服务集成
+    }
+
+    /**
+     * 验证重置令牌
+     * @param token 重置令牌
+     * @return 是否有效
+     */
+    public boolean verifyResetToken(String token) {
+        // 实际项目中应该验证重置令牌的有效性
+        // 这里返回false，表示没有重置令牌功能
+        return false;
+    }
+
+    /**
+     * 验证令牌是否有效（带用户名验证）
+     * @param token JWT令牌
+     * @param username 用户名
+     * @return 是否有效
+     */
+    public boolean isTokenValid(String token, String username) {
+        try {
+            String tokenUsername = extractUsername(token);
+            return tokenUsername != null && tokenUsername.equals(username) && !isTokenExpired(token) && !isTokenBlacklisted(token);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

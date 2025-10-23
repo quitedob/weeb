@@ -124,4 +124,32 @@ public interface AuthService {
      * @return 用户完整信息
      */
     com.web.model.UserWithStats getUserWithStats(Long userId);
+
+    /**
+     * 用户认证
+     * @param username 用户名
+     * @param password 密码
+     * @return 用户对象
+     */
+    User authenticate(String username, String password);
+
+    /**
+     * 发送密码重置邮件
+     * @param email 邮箱地址
+     */
+    boolean sendPasswordResetEmail(String email);
+
+    /**
+     * 重置密码
+     * @param token 重置令牌
+     * @param newPassword 新密码
+     */
+    boolean resetPassword(String token, String newPassword);
+
+    /**
+     * 验证重置令牌
+     * @param token 重置令牌
+     * @return 是否有效
+     */
+    boolean verifyResetToken(String token);
 }

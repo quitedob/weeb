@@ -76,13 +76,13 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
             }
 
             // 验证消息是否存在
-            Message message = messageMapper.findById(messageId);
+            Message message = messageMapper.selectById(messageId);
             if (message == null) {
                 throw new WeebException("消息不存在: " + messageId);
             }
 
             // 验证用户是否存在
-            User creator = userMapper.findById(createdBy);
+            User creator = userMapper.selectById(createdBy);
             if (creator == null) {
                 throw new WeebException("用户不存在: " + createdBy);
             }

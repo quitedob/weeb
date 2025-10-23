@@ -74,4 +74,16 @@ public class Permission extends BaseEntity {
         this.resource = resource;
         this.action = action;
     }
+
+    public Permission(String name, String description, String resource, String action, String condition, Integer status, Integer type, String group) {
+        this();
+        this.name = name;
+        this.description = description;
+        this.resource = resource;
+        this.action = action;
+        this.condition = condition;
+        this.status = status;
+        this.type = type;
+        this.group = group;
+    }
 }

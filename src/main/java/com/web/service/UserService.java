@@ -189,6 +189,25 @@ public interface UserService {
      */
     UserStats getUserStatsOnly(Long userId);
 
+    Map<String, Object> getUsersWithPaging(int page, int pageSize, String keyword, String status);
+
+    /**
+     * 获取分页用户列表（重载方法 - Integer参数版本）
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @param keyword 关键词
+     * @param status 状态
+     * @return 用户列表
+     */
+    Map<String, Object> getUsersWithPaging(Integer page, Integer pageSize, String keyword, String status);
+
+    /**
+     * 获取分页用户列表（重载方法 - 3参数版本）
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @param keyword 关键词
+     * @return 用户列表
+     */
     Map<String, Object> getUsersWithPaging(int page, int pageSize, String keyword);
 
     boolean banUser(Long userId);
@@ -239,13 +258,7 @@ public interface UserService {
      */
     boolean isGroupOwner(Long userId, Long groupId);
 
-    /**
-     * 获取用户权限列表
-     * @param userId 用户ID
-     * @return 用户权限列表
-     */
-    List<Permission> getUserPermissions(Long userId);
-
+    
     /**
      * 获取用户角色列表
      * @param userId 用户ID

@@ -154,18 +154,18 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
-    public Map<String, Object> getPermissionsWithPaging(int page, int pageSize, String keyword) {
+    public Map<String, Object> getPermissionsWithPaging(int page, int pageSize, String keyword, String resource, String status) {
         try {
             Map<String, Object> result = new HashMap<>();
 
             // 计算偏移量
             int offset = (page - 1) * pageSize;
 
-            // 查询权限列表
-            List<Permission> permissions = permissionMapper.selectPermissionsWithPaging(keyword, offset, pageSize);
+            // 查询权限列表（带过滤条件）
+            List<Permission> permissions = permissionMapper.selectPermissionsWithFilters(keyword, resource, status, offset, pageSize);
 
             // 查询总数量
-            int total = permissionMapper.countPermissions(keyword);
+            int total = permissionMapper.countPermissionsWithFilters(keyword, resource, status);
 
             result.put("permissions", permissions);
             result.put("total", total);
@@ -178,6 +178,11 @@ public class PermissionServiceImpl implements PermissionService {
             log.error("分页查询权限失败: {}", e.getMessage(), e);
             throw new WeebException("分页查询权限失败: " + e.getMessage());
         }
+    }
+
+    public Map<String, Object> getPermissionsWithPaging(int page, int pageSize, String keyword) {
+        // 调用5参数版本的方法，默认不设置resource和status过滤
+        return getPermissionsWithPaging(page, pageSize, keyword, null, null);
     }
 
     @Override

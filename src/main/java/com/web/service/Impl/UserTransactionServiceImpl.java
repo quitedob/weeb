@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.extern.slf4j.Slf4j;
 import java.util.*;
 
 /**
@@ -22,6 +23,8 @@ import java.util.*;
 @Service
 @Transactional
 public class UserTransactionServiceImpl implements UserTransactionService {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserTransactionServiceImpl.class);
 
     @Autowired
     private UserMapper userMapper;
@@ -58,7 +61,8 @@ public class UserTransactionServiceImpl implements UserTransactionService {
                 result.add(userWithStats);
                 
             } catch (Exception e) {
-                throw new WeebException("批量创建用户失败: " + e.getMessage(), e);
+                log.error("批量创建用户失败: {}", e.getMessage(), e);
+                throw new WeebException("批量创建用户失败: " + e.getMessage());
             }
         }
         

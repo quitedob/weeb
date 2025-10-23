@@ -12,7 +12,7 @@ import java.util.List;
 public class Article implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private Long id;
+    private Long articleId;
     private Long userId;
     private Long categoryId; // 新增分类ID
     private String articleTitle;
@@ -34,11 +34,16 @@ public class Article implements Serializable {
     // Default constructor
     public Article() {}
 
+    // Backward compatibility method - maps to articleId for existing code
+    public Long getId() {
+        return this.articleId;
+    }
+
     // Constructor with all fields (example provided by user)
-    public Article(Long id, Long userId, Long categoryId, String articleTitle, String articleContent, String articleLink,
+    public Article(Long articleId, Long userId, Long categoryId, String articleTitle, String articleContent, String articleLink,
                    Integer status, Integer likesCount, Integer favoritesCount, Double sponsorsCount,
                    Long exposureCount, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
+        this.articleId = articleId;
         this.userId = userId;
         this.categoryId = categoryId;
         this.articleTitle = articleTitle;
@@ -55,12 +60,12 @@ public class Article implements Serializable {
 
     // Getters and Setters for all fields
 
-    public Long getId() {
-        return id;
+    public Long getArticleId() {
+        return articleId;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setArticleId(Long articleId) {
+        this.articleId = articleId;
     }
 
     public Long getUserId() {

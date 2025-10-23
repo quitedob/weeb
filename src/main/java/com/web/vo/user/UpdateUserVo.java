@@ -72,6 +72,15 @@ public class UpdateUserVo {
         return phoneNumber;
     }
 
+    // Add missing methods that controllers are calling
+    public String getEmail() {
+        return userEmail;
+    }
+
+    public String getPhone() {
+        return phoneNumber;
+    }
+
     public void setPhoneNumber(String phoneNumber) {
         this.phoneNumber = phoneNumber;
     }

@@ -10,9 +10,13 @@ import com.web.service.RBACService;
 import com.web.service.RoleService;
 import com.web.service.UserService;
 import com.web.service.LogService;
+import com.web.service.RedisCacheService;
+import com.web.service.ElasticsearchSearchService;
+import com.web.util.ValidationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import java.util.HashMap;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -42,6 +46,12 @@ public class AdminController {
 
     @Autowired
     private LogService logService;
+
+    @Autowired
+    private RedisCacheService redisCacheService;
+
+    @Autowired
+    private ElasticsearchSearchService elasticsearchSearchService;
 
     /**
      * 获取权限管理页面数据
@@ -225,15 +235,17 @@ public class AdminController {
      * @param page 页码
      * @param pageSize 每页大小
      * @param keyword 搜索关键词
+     * @param status 用户状态过滤（active, banned, all）
      * @return 用户列表和统计信息
      */
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUsers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status) {
 
-        Map<String, Object> data = userService.getUsersWithPaging(page, pageSize, keyword);
+        Map<String, Object> data = userService.getUsersWithPaging(page, pageSize, keyword, status);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -265,7 +277,7 @@ public class AdminController {
     /**
      * 重置用户密码
      * @param userId 用户ID
-     * @param newPassword 新密码
+     * @param passwordData 密码数据
      * @return 重置结果
      */
     @PostMapping("/users/{userId}/reset-password")
@@ -275,6 +287,16 @@ public class AdminController {
             @RequestBody Map<String, String> passwordData) {
 
         String newPassword = passwordData.get("newPassword");
+
+        // 验证密码格式
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("新密码不能为空"));
+        }
+
+        if (!ValidationUtils.isValidPassword(newPassword)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("密码格式不正确：必须包含至少一个字母和一个数字，长度在6-100个字符之间"));
+        }
+
         boolean reset = userService.resetUserPassword(userId, newPassword);
         return ResponseEntity.ok(ApiResponse.success(reset));
     }
@@ -336,13 +358,26 @@ public class AdminController {
      * 获取系统日志
      * @param page 页码
      * @param pageSize 每页大小
+     * @param operatorId 操作者ID（可选）
+     * @param action 操作类型（可选）
+     * @param ipAddress IP地址（可选）
+     * @param startDate 开始日期（可选，格式：yyyy-MM-dd）
+     * @param endDate 结束日期（可选，格式：yyyy-MM-dd）
+     * @param keyword 关键词搜索（可选，搜索操作详情）
      * @return 系统日志列表
      */
     @GetMapping("/logs")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSystemLogs(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize) {
-        Map<String, Object> logs = logService.getSystemLogs(page, pageSize);
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) Long operatorId,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) String ipAddress,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String keyword) {
+        Map<String, Object> logs = logService.getSystemLogsWithFilters(
+                page, pageSize, operatorId, action, ipAddress, startDate, endDate, keyword);
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 
@@ -355,5 +390,59 @@ public class AdminController {
     public ResponseEntity<ApiResponse<Boolean>> refreshPermissionCache() {
         rbacService.refreshAllPermissionCache();
         return ResponseEntity.ok(ApiResponse.success(true));
+    }
+
+    /**
+     * 获取系统健康状态
+     * @return 系统健康状态信息
+     */
+    @GetMapping("/health")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSystemHealth() {
+        Map<String, Object> healthStatus = new HashMap<>();
+
+        // 检查数据库连接
+        try {
+            // 通过简单的查询来检查数据库连接
+            userService.getSystemStatistics(); // 这个方法会访问数据库
+            healthStatus.put("database", Map.of(
+                "status", "healthy",
+                "message", "数据库连接正常"
+            ));
+        } catch (Exception e) {
+            healthStatus.put("database", Map.of(
+                "status", "unhealthy",
+                "message", "数据库连接失败: " + e.getMessage()
+            ));
+        }
+
+        // 检查Redis连接
+        try {
+            boolean redisConnected = redisCacheService.exists("health_check");
+            healthStatus.put("redis", Map.of(
+                "status", redisConnected ? "healthy" : "warning",
+                "message", redisConnected ? "Redis连接正常" : "Redis连接异常"
+            ));
+        } catch (Exception e) {
+            healthStatus.put("redis", Map.of(
+                "status", "unhealthy",
+                "message", "Redis连接失败: " + e.getMessage()
+            ));
+        }
+
+        // 检查Elasticsearch连接
+        try {
+            boolean esConnected = elasticsearchSearchService.messageIndexExists();
+            healthStatus.put("elasticsearch", Map.of(
+                "status", esConnected ? "healthy" : "warning",
+                "message", esConnected ? "Elasticsearch连接正常" : "Elasticsearch连接异常"
+            ));
+        } catch (Exception e) {
+            healthStatus.put("elasticsearch", Map.of(
+                "status", "unhealthy",
+                "message", "Elasticsearch连接失败: " + e.getMessage()
+            ));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(healthStatus));
     }
 }

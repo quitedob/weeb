@@ -32,10 +32,10 @@ public class MigrationController {
             if (report.isValid()) {
                 return ApiResponseUtil.success(report, "Pre-migration validation passed");
             } else {
-                return ApiResponseUtil.badRequest("Pre-migration validation failed");
+                return ApiResponseUtil.badRequestMigration("Pre-migration validation failed");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "Pre-migration validation");
+            return ApiResponseUtil.handleServiceExceptionMigration(e, "Pre-migration validation");
         }
     }
 
@@ -51,10 +51,10 @@ public class MigrationController {
             if (report.isValid()) {
                 return ApiResponseUtil.success(report, "Post-migration validation passed");
             } else {
-                return ApiResponseUtil.badRequest("Post-migration validation failed");
+                return ApiResponseUtil.badRequestMigration("Post-migration validation failed");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "Post-migration validation");
+            return ApiResponseUtil.handleServiceExceptionMigration(e, "Post-migration validation");
         }
     }
 
@@ -68,10 +68,10 @@ public class MigrationController {
             int createdCount = migrationUtil.createMissingUserStats();
 
             String message = String.format("Successfully created %d user stats records", createdCount);
-            return ApiResponseUtil.success(message);
+            return ApiResponseUtil.successString(message);
 
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "创建缺失用户统计数据");
+            return ApiResponseUtil.handleServiceExceptionString(e, "创建缺失用户统计数据");
         }
     }
 
@@ -104,7 +104,7 @@ public class MigrationController {
             return ApiResponseUtil.success(status);
 
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取迁移状态");
+            return ApiResponseUtil.handleServiceExceptionMigrationStatus(e, "获取迁移状态");
         }
     }
 

@@ -29,22 +29,9 @@
           </div>
         </div>
 
-        <!-- 步骤1：验证身份 -->
+        <!-- 步骤1：发送重置邮件 -->
         <div v-if="currentStep === 1" class="step-content">
-          <form @submit.prevent="verifyIdentity" class="forget-form">
-            <div class="form-group">
-              <label class="apple-label" for="username">用户名</label>
-              <input
-                id="username"
-                v-model="formData.username"
-                type="text"
-                class="apple-input"
-                placeholder="请输入您的用户名"
-                required
-                :disabled="loading"
-              />
-            </div>
-
+          <form @submit.prevent="sendResetEmail" class="forget-form">
             <div class="form-group">
               <label class="apple-label" for="email">邮箱地址</label>
               <input
@@ -58,36 +45,13 @@
               />
             </div>
 
-            <div class="form-group">
-              <label class="apple-label" for="captcha">验证码</label>
-              <div class="captcha-group">
-                <input
-                  id="captcha"
-                  v-model="formData.captcha"
-                  type="text"
-                  class="apple-input captcha-input"
-                  placeholder="请输入验证码"
-                  required
-                  :disabled="loading"
-                />
-                <button
-                  type="button"
-                  class="captcha-button"
-                  @click="getCaptcha"
-                  :disabled="loading || captchaCountdown > 0"
-                >
-                  {{ captchaCountdown > 0 ? `${captchaCountdown}s` : '获取验证码' }}
-                </button>
-              </div>
-            </div>
-
             <button
               type="submit"
               class="apple-button apple-button-primary verify-button"
               :disabled="loading"
             >
               <span v-if="loading" class="apple-loading"></span>
-              <span v-else>验证身份</span>
+              <span v-else>发送重置邮件</span>
             </button>
           </form>
         </div>
@@ -95,6 +59,19 @@
         <!-- 步骤2：重置密码 -->
         <div v-if="currentStep === 2" class="step-content">
           <form @submit.prevent="resetPassword" class="forget-form">
+            <div class="form-group">
+              <label class="apple-label" for="resetToken">重置令牌</label>
+              <input
+                id="resetToken"
+                v-model="formData.resetToken"
+                type="text"
+                class="apple-input"
+                placeholder="请输入发送到邮箱的重置令牌"
+                required
+                :disabled="loading"
+              />
+            </div>
+
             <div class="form-group">
               <label class="apple-label" for="newPassword">新密码</label>
               <input
@@ -109,8 +86,8 @@
               />
               <div class="password-strength" v-if="formData.newPassword">
                 <div class="strength-bar">
-                  <div 
-                    class="strength-fill" 
+                  <div
+                    class="strength-fill"
                     :class="passwordStrength.class"
                     :style="{ width: passwordStrength.percentage + '%' }"
                   ></div>
@@ -138,19 +115,6 @@
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="apple-label" for="resetCode">重置码</label>
-              <input
-                id="resetCode"
-                v-model="formData.resetCode"
-                type="text"
-                class="apple-input"
-                placeholder="请输入发送到邮箱的重置码"
-                required
-                :disabled="loading"
-              />
-            </div>
-
             <div class="button-group">
               <button
                 type="button"
@@ -160,7 +124,7 @@
               >
                 返回上一步
               </button>
-              
+
               <button
                 type="submit"
                 class="apple-button apple-button-primary"
@@ -216,15 +180,12 @@ const router = useRouter()
 const currentStep = ref(1)
 const loading = ref(false)
 const error = ref('')
-const captchaCountdown = ref(0)
 
 const formData = ref({
-  username: '',
   email: '',
-  captcha: '',
   newPassword: '',
   confirmPassword: '',
-  resetCode: ''
+  resetToken: ''
 })
 
 // 计算属性
@@ -257,60 +218,40 @@ const passwordStrength = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  return formData.value.newPassword && 
-         formData.value.confirmPassword && 
-         formData.value.resetCode &&
+  return formData.value.newPassword &&
+         formData.value.confirmPassword &&
+         formData.value.resetToken &&
          passwordsMatch.value &&
          passwordStrength.value.percentage >= 60
 })
 
 // 方法
-const getCaptcha = async () => {
-  try {
-    const response = await api.auth.getCaptcha()
-    if (response.code === 0 && response.data) {
-      ElMessage.success('验证码已发送到您的邮箱')
-      startCaptchaCountdown()
-    } else {
-      throw new Error(response.message || '获取验证码失败')
-    }
-  } catch (err) {
-    console.error('获取验证码失败:', err)
-    ElMessage.error(err.message || '获取验证码失败')
-  }
-}
 
-const startCaptchaCountdown = () => {
-  captchaCountdown.value = 60
-  const timer = setInterval(() => {
-    captchaCountdown.value--
-    if (captchaCountdown.value <= 0) {
-      clearInterval(timer)
-    }
-  }, 1000)
-}
-
-const verifyIdentity = async () => {
-  if (!formData.value.username || !formData.value.email || !formData.value.captcha) {
-    error.value = '请填写完整信息'
+const sendResetEmail = async () => {
+  if (!formData.value.email) {
+    error.value = '请输入邮箱地址'
     return
   }
 
   try {
     loading.value = true
     error.value = ''
-    
-    // 这里应该调用后端验证接口
-    // 暂时模拟验证成功
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 模拟发送重置码到邮箱
-    ElMessage.success('身份验证成功，重置码已发送到您的邮箱')
-    currentStep.value = 2
-    
+
+    // 调用后端发送重置邮件接口
+    const response = await api.auth.forgotPassword({
+      email: formData.value.email
+    })
+
+    if (response.code === 0) {
+      ElMessage.success('重置邮件已发送到您的邮箱，请查收')
+      currentStep.value = 2
+    } else {
+      throw new Error(response.message || '发送重置邮件失败')
+    }
+
   } catch (err) {
-    console.error('身份验证失败:', err)
-    error.value = err.message || '身份验证失败'
+    console.error('发送重置邮件失败:', err)
+    error.value = err.message || '发送重置邮件失败'
     ElMessage.error(error.value)
   } finally {
     loading.value = false
@@ -326,19 +267,20 @@ const resetPassword = async () => {
   try {
     loading.value = true
     error.value = ''
-    
+
     const response = await api.auth.resetPassword({
-      username: formData.value.username,
+      email: formData.value.email,
+      token: formData.value.resetToken,
       newPassword: formData.value.newPassword
     })
-    
+
     if (response.code === 0) {
       ElMessage.success('密码重置成功')
       currentStep.value = 3
     } else {
       throw new Error(response.message || '密码重置失败')
     }
-    
+
   } catch (err) {
     console.error('密码重置失败:', err)
     error.value = err.message || '密码重置失败'
@@ -512,35 +454,6 @@ onMounted(() => {
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
-.captcha-group {
-  display: flex;
-  gap: var(--apple-spacing-sm);
-}
-
-.captcha-input {
-  flex: 1;
-}
-
-.captcha-button {
-  padding: var(--apple-spacing-sm) var(--apple-spacing-md);
-  background: var(--apple-blue);
-  color: var(--apple-white);
-  border: none;
-  border-radius: var(--apple-border-radius-sm);
-  font-size: var(--apple-font-sm);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.captcha-button:hover:not(:disabled) {
-  background: var(--apple-blue-dark);
-}
-
-.captcha-button:disabled {
-  background: var(--apple-gray);
-  cursor: not-allowed;
-}
 
 .password-strength {
   margin-top: var(--apple-spacing-xs);

@@ -28,4 +28,18 @@ public class TextRefineRequestVo {
      * 保留原文核心意思的程度：high(高度保留), medium(中度保留), low(低度保留)
      */
     private String preserveMeaning = "high";
+
+    /**
+     * 期望的语气：formal(正式), casual(休闲), academic(学术), business(商务)
+     */
+    private String tone = "casual";
+
+    // Getter for tone field to fix compilation error
+    public String getTone() {
+        return tone;
+    }
+
+    public void setTone(String tone) {
+        this.tone = tone;
+    }
 }

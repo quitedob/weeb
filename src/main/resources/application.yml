@@ -72,7 +72,7 @@ spring:
   # Elasticsearch配置（HTTP模式，无需认证）
   elasticsearch:
     uris: http://localhost:9200
-    enabled: true  # 启用Elasticsearch搜索功能
+    enabled: false  # 暂时禁用Elasticsearch搜索功能
 
 management:
   # 完全禁用 Redis 健康检查
@@ -102,6 +102,8 @@ weeb:
     exclude:
       - org.springframework.boot.autoconfigure.data.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration
 
   # Redis配置优化（已合并到上面的Redis配置中）
   # repositories.enabled已在上面配置

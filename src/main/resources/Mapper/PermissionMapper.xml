@@ -85,4 +85,48 @@
         </foreach>
     </insert>
 
+    <!-- 根据条件分页查询权限列表 -->
+    <select id="selectPermissionsWithFilters" resultMap="PermissionResultMap">
+        SELECT * FROM permission
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (name LIKE CONCAT('%', #{keyword}, '%')
+                 OR description LIKE CONCAT('%', #{keyword}, '%')
+                 OR resource LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="resource != null and resource != ''">
+            AND resource = #{resource}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY sort_order ASC, created_at DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 根据条件统计权限数量 -->
+    <select id="countPermissionsWithFilters" resultType="int">
+        SELECT COUNT(*) FROM permission
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (name LIKE CONCAT('%', #{keyword}, '%')
+                 OR description LIKE CONCAT('%', #{keyword}, '%')
+                 OR resource LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="resource != null and resource != ''">
+            AND resource = #{resource}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+    </select>
+
+    <!-- 根据角色ID查询权限列表 -->
+    <select id="selectPermissionsByRoleId" resultMap="PermissionResultMap">
+        SELECT p.* FROM permission p
+        INNER JOIN role_permissions rp ON p.id = rp.permission_id
+        WHERE rp.role_id = #{roleId} AND p.status = 1
+        ORDER BY p.sort_order ASC
+    </select>
+
 </mapper>

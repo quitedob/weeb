@@ -1,69 +1,59 @@
 package com.web.Config;
 
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
-import org.springframework.ai.chat.memory.InMemoryChatMemory;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.api.OpenAiApi;
-import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * AI 服务配置类
- * 配置 Spring AI 和 OpenAI 集成
+ * AI 配置类
+ * 提供 AI 相关的配置信息给前端使用
  */
 @Configuration
 public class AIConfig {
 
-    @Value("${spring.ai.openai.api-key:}")
-    private String openaiApiKey;
+    @Value("${ai.provider:deepseek}")
+    private String aiProvider;
 
-    @Value("${spring.ai.openai.chat.options.model:gpt-3.5-turbo}")
-    private String chatModel;
+    @Value("${ai.deepseek.api-key:}")
+    private String deepseekApiKey;
 
-    @Value("${spring.ai.openai.chat.options.temperature:0.7}")
-    private Double temperature;
+    @Value("${ai.deepseek.chat-model:deepseek-chat}")
+    private String deepseekChatModel;
 
-    @Value("${spring.ai.openai.chat.options.max-tokens:1000}")
-    private Integer maxTokens;
+    @Value("${ai.ollama.chat-model:gemma3:4b}")
+    private String ollamaChatModel;
 
     /**
-     * 创建 OpenAI API 客户端
+     * 获取当前使用的AI提供商
      */
-    @Bean
-    public OpenAiApi openAiApi() {
-        return new OpenAiApi(openaiApiKey);
+    public String getAiProvider() {
+        return aiProvider;
     }
 
     /**
-     * 创建 OpenAI 聊天模型
+     * 获取当前使用的模型名称
      */
-    @Bean
-    public OpenAiChatModel openAiChatModel(OpenAiApi openAiApi) {
-        return new OpenAiChatModel(openAiApi);
+    public String getCurrentModel() {
+        if ("deepseek".equalsIgnoreCase(aiProvider)) {
+            return deepseekChatModel;
+        } else if ("ollama".equalsIgnoreCase(aiProvider)) {
+            return ollamaChatModel;
+        }
+        return "unknown";
     }
 
     /**
-     * 创建聊天客户端
+     * 获取AI配置信息（用于前端展示）
+     * 注意：不包含敏感信息如API key
      */
     @Bean
-    public ChatClient chatClient(OpenAiChatModel chatModel) {
-        return ChatClient.builder(chatModel)
-                .defaultSystem("你是一个专业、友好的AI助手，专门为WEEB平台的用户提供帮助。")
-                .defaultOptions(createChatOptions())
-                .build();
-    }
-
-    /**
-     * 创建聊天选项
-     */
-    private OpenAiChatOptions createChatOptions() {
-        return OpenAiChatOptions.builder()
-                .withModel(chatModel)
-                .withTemperature(temperature.floatValue())
-                .withMaxTokens(maxTokens)
-                .build();
+    public Map<String, Object> aiConfiguration() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("provider", aiProvider);
+        config.put("model", getCurrentModel());
+        config.put("hasApiKey", deepseekApiKey != null && !deepseekApiKey.trim().isEmpty());
+        return config;
     }
 }

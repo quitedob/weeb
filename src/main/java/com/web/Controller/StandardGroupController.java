@@ -8,6 +8,7 @@ import com.web.service.GroupService;
 import com.web.util.ApiResponseUtil;
 import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
+import com.web.vo.group.GroupApplyVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -44,7 +45,7 @@ public class StandardGroupController {
             return ResponseEntity.status(201)
                     .body(ApiResponse.success("群组创建成功", group));
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "创建群组", userId);
+            return ApiResponseUtil.handleServiceExceptionGroup(e, "创建群组", userId);
         }
     }
 
@@ -58,11 +59,11 @@ public class StandardGroupController {
         try {
             Group group = groupService.getGroupById(groupId);
             if (group == null) {
-                return ApiResponseUtil.notFound("群组不存在");
+                return ApiResponseUtil.badRequestGroup("群组不存在");
             }
-            return ApiResponseUtil.success(group);
+            return ApiResponseUtil.successGroup(group);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取群组详情", groupId);
+            return ApiResponseUtil.handleServiceExceptionGroup(e, "获取群组详情", groupId);
         }
     }
 
@@ -77,13 +78,18 @@ public class StandardGroupController {
             @RequestBody @Valid GroupCreateVo updateVo,
             @Userid Long userId) {
         try {
-            Group group = groupService.updateGroup(groupId, updateVo, userId);
-            if (group == null) {
-                return ApiResponseUtil.notFound("群组不存在");
-            }
-            return ApiResponseUtil.success(group, "群组更新成功");
+            // 创建 Group 对象用于更新
+            Group groupData = new Group();
+            groupData.setGroupName(updateVo.getGroupName());
+            groupData.setGroupDescription(updateVo.getGroupDescription());
+
+            groupService.updateGroup(groupId, groupData, userId);
+
+            // 获取更新后的群组信息
+            Group updatedGroup = groupService.getGroupById(groupId);
+            return ApiResponseUtil.successGroup(updatedGroup, "群组更新成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "更新群组", groupId, userId);
+            return ApiResponseUtil.handleServiceExceptionGroup(e, "更新群组", groupId, userId);
         }
     }
 
@@ -101,10 +107,10 @@ public class StandardGroupController {
             if (deleted) {
                 return ResponseEntity.noContent().build();
             } else {
-                return ApiResponseUtil.badRequest("删除群组失败");
+                return ApiResponseUtil.badRequestString("删除群组失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "删除群组", groupId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "删除群组", groupId, userId);
         }
     }
 
@@ -114,12 +120,12 @@ public class StandardGroupController {
      */
     @GetMapping("/{groupId}/members")
     @PreAuthorize("hasPermission(#groupId, 'GROUP_READ_OWN')")
-    public ResponseEntity<ApiResponse<List<GroupMember>>> getGroupMembers(@PathVariable Long groupId) {
+    public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> getGroupMembers(@PathVariable Long groupId) {
         try {
-            List<GroupMember> members = groupService.getGroupMembers(groupId);
-            return ApiResponseUtil.success(members);
+            java.util.List<java.util.Map<String, Object>> members = groupService.getGroupMembers(groupId);
+            return ApiResponseUtil.successMapList(members);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取群组成员", groupId);
+            return ApiResponseUtil.handleServiceExceptionMapList(e, "获取群组成员", groupId);
         }
     }
 
@@ -139,10 +145,10 @@ public class StandardGroupController {
                 return ResponseEntity.status(201)
                         .body(ApiResponse.success("邀请发送成功"));
             } else {
-                return ApiResponseUtil.badRequest("邀请发送失败");
+                return ApiResponseUtil.badRequestString("邀请发送失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "邀请用户加入群组", groupId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "邀请用户加入群组", groupId, userId);
         }
     }
 
@@ -160,10 +166,10 @@ public class StandardGroupController {
             if (left) {
                 return ResponseEntity.noContent().build();
             } else {
-                return ApiResponseUtil.badRequest("退出群组失败");
+                return ApiResponseUtil.badRequestString("退出群组失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "退出群组", groupId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "退出群组", groupId, userId);
         }
     }
 
@@ -182,10 +188,10 @@ public class StandardGroupController {
             if (removed) {
                 return ResponseEntity.noContent().build();
             } else {
-                return ApiResponseUtil.badRequest("移除成员失败");
+                return ApiResponseUtil.badRequestString("移除成员失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "移除群组成员", groupId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "移除群组成员", groupId, userId);
         }
     }
 
@@ -201,15 +207,20 @@ public class StandardGroupController {
             @Userid Long userId) {
         try {
             String message = application.getOrDefault("message", "");
-            boolean applied = groupService.applyToJoinGroup(groupId, userId, message);
+            GroupApplyVo applyVo = new GroupApplyVo();
+            applyVo.setGroupId(groupId);
+            applyVo.setUserId(userId);
+            applyVo.setMessage(message);
+
+            boolean applied = groupService.applyToJoinGroup(applyVo, userId);
             if (applied) {
                 return ResponseEntity.status(201)
                         .body(ApiResponse.success("申请已提交"));
             } else {
-                return ApiResponseUtil.badRequest("申请提交失败");
+                return ApiResponseUtil.badRequestString("申请提交失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "申请加入群组", groupId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "申请加入群组", groupId, userId);
         }
     }
 
@@ -244,20 +255,20 @@ public class StandardGroupController {
             String reason = decision.getOrDefault("reason", "");
 
             if (!"approve".equals(action) && !"reject".equals(action)) {
-                return ApiResponseUtil.badRequest("无效的操作类型");
+                return ApiResponseUtil.badRequestString("无效的操作类型");
             }
 
             boolean processed = "approve".equals(action)
-                ? groupService.approveApplication(applicationId, userId, reason)
-                : groupService.rejectApplication(applicationId, userId, reason);
+                ? groupService.approveApplication(groupId, applicationId, userId, reason)
+                : groupService.rejectApplication(groupId, applicationId, userId, reason);
 
             if (processed) {
-                return ApiResponseUtil.success("申请处理成功");
+                return ApiResponseUtil.successString("申请处理成功");
             } else {
-                return ApiResponseUtil.badRequest("申请处理失败");
+                return ApiResponseUtil.badRequestString("申请处理失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "处理群组申请", groupId, applicationId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "处理群组申请", groupId, applicationId);
         }
     }
 
@@ -275,17 +286,17 @@ public class StandardGroupController {
         try {
             String role = roleRequest.get("role");
             if (role == null || role.trim().isEmpty()) {
-                return ApiResponseUtil.badRequest("角色不能为空");
+                return ApiResponseUtil.badRequestString("角色不能为空");
             }
 
             boolean updated = groupService.setMemberRole(groupId, userId, role, currentUserId);
             if (updated) {
-                return ApiResponseUtil.success("角色设置成功");
+                return ApiResponseUtil.successString("角色设置成功");
             } else {
-                return ApiResponseUtil.badRequest("角色设置失败");
+                return ApiResponseUtil.badRequestString("角色设置失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "设置成员角色", groupId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "设置成员角色", groupId, userId);
         }
     }
 
@@ -300,9 +311,9 @@ public class StandardGroupController {
             @RequestParam(defaultValue = "10") int limit) {
         try {
             List<Group> groups = groupService.searchGroups(keyword, limit);
-            return ApiResponseUtil.success(groups);
+            return ApiResponseUtil.successGroupList(groups);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "搜索群组", keyword, limit);
+            return ApiResponseUtil.handleServiceExceptionGroupList(e, "搜索群组", keyword, limit);
         }
     }
 
@@ -315,9 +326,9 @@ public class StandardGroupController {
     public ResponseEntity<ApiResponse<List<Group>>> getMyGroups(@Userid Long userId) {
         try {
             List<Group> groups = groupService.getUserGroups(userId);
-            return ApiResponseUtil.success(groups);
+            return ApiResponseUtil.successGroupList(groups);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取用户群组", userId);
+            return ApiResponseUtil.handleServiceExceptionGroupList(e, "获取用户群组", userId);
         }
     }
 
@@ -330,9 +341,9 @@ public class StandardGroupController {
     public ResponseEntity<ApiResponse<List<Group>>> getMyCreatedGroups(@Userid Long userId) {
         try {
             List<Group> groups = groupService.getUserCreatedGroups(userId);
-            return ApiResponseUtil.success(groups);
+            return ApiResponseUtil.successGroupList(groups);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取用户创建的群组", userId);
+            return ApiResponseUtil.handleServiceExceptionGroupList(e, "获取用户创建的群组", userId);
         }
     }
 }

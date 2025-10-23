@@ -74,4 +74,37 @@ public interface PermissionMapper extends BaseMapper<Permission> {
      * @return 插入成功的数量
      */
     int batchInsert(@Param("permissions") List<Permission> permissions);
+
+    /**
+     * 根据条件分页查询权限列表
+     * @param keyword 搜索关键词
+     * @param resource 资源名称
+     * @param status 状态
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @return 权限列表
+     */
+    List<Permission> selectPermissionsWithFilters(@Param("keyword") String keyword,
+                                                  @Param("resource") String resource,
+                                                  @Param("status") String status,
+                                                  @Param("offset") int offset,
+                                                  @Param("pageSize") int pageSize);
+
+    /**
+     * 根据条件统计权限数量
+     * @param keyword 搜索关键词
+     * @param resource 资源名称
+     * @param status 状态
+     * @return 权限总数
+     */
+    int countPermissionsWithFilters(@Param("keyword") String keyword,
+                                    @Param("resource") String resource,
+                                    @Param("status") String status);
+
+    /**
+     * 根据角色ID查询权限列表
+     * @param roleId 角色ID
+     * @return 权限列表
+     */
+    List<Permission> selectPermissionsByRoleId(@Param("roleId") Long roleId);
 }

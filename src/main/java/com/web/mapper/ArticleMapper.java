@@ -276,4 +276,18 @@ public interface ArticleMapper {
     int countAdvancedSearchResults(
             @Param("searchVo") ArticleSearchAdvancedVo searchVo
     );
+
+    /**
+     * 根据ID查询文章
+     * @param id 文章ID
+     * @return 文章对象
+     */
+    Article selectById(@Param("id") Long id);
+
+    /**
+     * 更新文章信息
+     * @param article 文章对象
+     * @return 影响的行数
+     */
+    int updateById(Article article);
 }

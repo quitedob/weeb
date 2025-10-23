@@ -5,10 +5,15 @@ import com.web.mapper.MessageMapper;
 import com.web.mapper.MessageReactionMapper;
 import com.web.model.Message;
 import com.web.model.MessageReaction;
+import com.web.model.elasticsearch.MessageDocument;
 import com.web.service.MessageService;
+import com.web.service.ElasticsearchSearchService;
+import com.web.service.RedisCacheService;
 import com.web.vo.message.ReactionVo;
 import com.web.util.ValidationUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +27,7 @@ import java.util.List;
  * 消息服务实现类
  * 处理消息发送、接收、撤回等业务逻辑
  */
+@Slf4j
 @Service
 @Transactional
 public class MessageServiceImpl implements MessageService {
@@ -31,6 +37,12 @@ public class MessageServiceImpl implements MessageService {
 
     @Autowired
     private MessageReactionMapper messageReactionMapper;
+
+    @Autowired(required = false)
+    private ElasticsearchSearchService elasticsearchSearchService;
+
+    @Autowired
+    private RedisCacheService redisCacheService;
 
     @Override
     public Message send(Long userId, Message messageBody) {
@@ -95,13 +107,17 @@ public class MessageServiceImpl implements MessageService {
     public Message sendMessageToGroup(Long userId, Message messageBody) {
         // 设置消息类型为群组消息
         messageBody.setMessageType(1);
-        
+
         // 插入群组消息
         int result = messageMapper.insertGroupMessage(messageBody);
         if (result > 0) {
+            // 异步索引到Elasticsearch
+            indexMessageToElasticsearch(messageBody);
+            // 缓存消息到Redis
+            cacheMessageToRedis(messageBody);
             return messageBody;
         }
-        
+
         throw new WeebException("发送群组消息失败");
     }
 
@@ -109,13 +125,17 @@ public class MessageServiceImpl implements MessageService {
     public Message sendMessageToUser(Long userId, Message messageBody) {
         // 设置消息类型为私聊消息
         messageBody.setMessageType(0);
-        
+
         // 插入私聊消息
         int result = messageMapper.insertMessage(messageBody);
         if (result > 0) {
+            // 异步索引到Elasticsearch
+            indexMessageToElasticsearch(messageBody);
+            // 缓存消息到Redis
+            cacheMessageToRedis(messageBody);
             return messageBody;
         }
-        
+
         throw new WeebException("发送私聊消息失败");
     }
 
@@ -153,6 +173,93 @@ public class MessageServiceImpl implements MessageService {
             }
         } else {
             throw new WeebException("不支持的反应操作");
+        }
+    }
+
+    // ==================== Elasticsearch集成方法 ====================
+
+    /**
+     * 异步索引消息到Elasticsearch
+     * @param message 消息对象
+     */
+    private void indexMessageToElasticsearch(Message message) {
+        if (elasticsearchSearchService == null) {
+            log.debug("Elasticsearch服务未启用，跳过消息索引");
+            return;
+        }
+
+        try {
+            // 转换为ES文档
+            MessageDocument document = convertToMessageDocument(message);
+            // 异步索引
+            elasticsearchSearchService.indexMessage(document);
+            log.debug("消息已索引到Elasticsearch: messageId={}", message.getId());
+        } catch (Exception e) {
+            log.error("消息索引到Elasticsearch失败: messageId={}", message.getId(), e);
+        }
+    }
+
+    /**
+     * 转换消息为ES文档
+     * @param message 消息对象
+     * @return ES文档
+     */
+    private MessageDocument convertToMessageDocument(Message message) {
+        MessageDocument document = new MessageDocument();
+        document.setId(message.getId());
+        document.setFromId(message.getSenderId());
+        document.setChatListId(message.getChatListId());
+        document.setContent(message.getContent().toString());
+        document.setSendTime(message.getCreatedAt());
+        return document;
+    }
+
+    // ==================== Redis缓存方法 ====================
+
+    /**
+     * 缓存消息到Redis
+     * @param message 消息对象
+     */
+    private void cacheMessageToRedis(Message message) {
+        try {
+            String cacheKey = "message:" + message.getId();
+            redisCacheService.set(cacheKey, message, 3600); // 缓存1小时
+            log.debug("消息已缓存到Redis: messageId={}", message.getId());
+        } catch (Exception e) {
+            log.error("消息缓存到Redis失败: messageId={}", message.getId(), e);
+        }
+    }
+
+    /**
+     * 从Redis获取缓存的消息
+     * @param messageId 消息ID
+     * @return 消息对象，如果不存在返回null
+     */
+    public Message getCachedMessage(Long messageId) {
+        try {
+            String cacheKey = "message:" + messageId;
+            Object cached = redisCacheService.get(cacheKey);
+            if (cached instanceof Message) {
+                log.debug("命中消息缓存: messageId={}", messageId);
+                return (Message) cached;
+            }
+        } catch (Exception e) {
+            log.error("获取消息缓存失败: messageId={}", messageId, e);
+        }
+        return null;
+    }
+
+    /**
+     * 删除消息缓存
+     * @param messageId 消息ID
+     */
+    public void evictMessageCache(Long messageId) {
+        try {
+            String cacheKey = "message:" + messageId;
+            redisCacheService.delete(cacheKey);
+            log.debug("删除消息缓存: messageId={}", messageId);
+        } catch (Exception e) {
+            log.error("删除消息缓存失败: messageId={}", messageId, e);
         }
     }
 }

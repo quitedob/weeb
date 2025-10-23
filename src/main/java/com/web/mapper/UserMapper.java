@@ -261,6 +261,19 @@ public interface UserMapper extends BaseMapper<User> {
                                                      @Param("pageSize") int pageSize);
 
     /**
+     * 根据关键词和状态搜索用户（包含统计数据，分页支持）
+     * @param keyword 搜索关键词
+     * @param status 用户状态
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @return 用户完整信息列表（包含统计数据）
+     */
+    List<UserWithStats> selectUsersWithStatsByKeywordAndStatus(@Param("keyword") String keyword,
+                                                              @Param("status") Integer status,
+                                                              @Param("offset") int offset,
+                                                              @Param("pageSize") int pageSize);
+
+    /**
      * 获取用户列表（包含统计数据，分页支持）
      * @param offset 偏移量
      * @param pageSize 每页大小
@@ -270,6 +283,17 @@ public interface UserMapper extends BaseMapper<User> {
                                                       @Param("pageSize") int pageSize);
 
     /**
+     * 获取用户列表（包含统计数据，分页支持，带状态过滤）
+     * @param status 用户状态
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @return 用户完整信息列表（包含统计数据）
+     */
+    List<UserWithStats> selectUsersWithStatsWithPagingAndStatus(@Param("status") Integer status,
+                                                               @Param("offset") int offset,
+                                                               @Param("pageSize") int pageSize);
+
+    /**
      * 根据关键词统计用户数量
      * @param keyword 搜索关键词
      * @return 用户数量
@@ -277,10 +301,26 @@ public interface UserMapper extends BaseMapper<User> {
     int countUsersByKeyword(@Param("keyword") String keyword);
 
     /**
+     * 根据关键词和状态统计用户数量
+     * @param keyword 搜索关键词
+     * @param status 用户状态
+     * @return 用户数量
+     */
+    int countUsersByKeywordAndStatus(@Param("keyword") String keyword,
+                                    @Param("status") Integer status);
+
+    /**
      * 统计用户总数
      * @return 用户总数
      */
     int countUsers();
+
+    /**
+     * 根据状态统计用户数量
+     * @param status 用户状态
+     * @return 用户数量
+     */
+    int countUsersByStatus(@Param("status") Integer status);
 
     /**
      * 统计活跃用户数量

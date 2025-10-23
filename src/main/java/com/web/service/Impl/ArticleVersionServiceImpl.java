@@ -192,7 +192,7 @@ public class ArticleVersionServiceImpl implements ArticleVersionService {
                 if (article != null) {
                     article.setArticleTitle((String) version.get("title"));
                     article.setArticleContent((String) version.get("content"));
-                    article.setUpdatedAt(new Date());
+                    article.setUpdatedAt(java.time.LocalDateTime.now());
                     articleMapper.updateById(article);
 
                     log.info("文章回滚成功: articleId={}, fromVersion={}, toVersion={}",

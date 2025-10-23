@@ -39,11 +39,11 @@ public class StandardUserController {
         try {
             UserWithStats userProfile = userService.getUserProfile(userId);
             if (userProfile == null) {
-                return ApiResponseUtil.notFound("资源未找到");
+                return ApiResponseUtil.badRequestUserWithStats("资源未找到");
             }
-            return ApiResponseUtil.success(userProfile);
+            return ApiResponseUtil.successUserWithStats(userProfile);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取当前用户信息", userId);
+            return ApiResponseUtil.handleServiceExceptionUserWithStats(e, "获取当前用户信息", userId);
         }
     }
 
@@ -69,12 +69,12 @@ public class StandardUserController {
             if (updated) {
                 User updatedUser = userService.getUserBasicInfo(userId);
                 updatedUser.setPassword(null); // 安全起见，不返回密码
-                return ApiResponseUtil.success(updatedUser, "用户信息更新成功");
+                return ApiResponseUtil.successUser(updatedUser, "用户信息更新成功");
             } else {
-                return ApiResponseUtil.badRequest("用户信息更新失败");
+                return ApiResponseUtil.badRequestUser("用户信息更新失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "更新当前用户信息", userId);
+            return ApiResponseUtil.handleServiceExceptionUser(e, "更新当前用户信息", userId);
         }
     }
 
@@ -88,11 +88,11 @@ public class StandardUserController {
         try {
             UserWithStats userProfile = userService.getUserProfile(userId);
             if (userProfile == null) {
-                return ApiResponseUtil.notFound("资源未找到");
+                return ApiResponseUtil.badRequestUserWithStats("资源未找到");
             }
-            return ApiResponseUtil.success(userProfile);
+            return ApiResponseUtil.successUserWithStats(userProfile);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取用户信息", userId);
+            return ApiResponseUtil.handleServiceExceptionUserWithStats(e, "获取用户信息", userId);
         }
     }
 
@@ -108,9 +108,9 @@ public class StandardUserController {
             @RequestParam(required = false) String keyword) {
         try {
             Map<String, Object> result = userService.getUsersWithPaging(page, pageSize, keyword);
-            return ApiResponseUtil.success(result);
+            return ApiResponseUtil.successMap(result);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取用户列表", page, pageSize, keyword);
+            return ApiResponseUtil.handleServiceExceptionMap(e, "获取用户列表", page, pageSize, keyword);
         }
     }
 
@@ -126,9 +126,11 @@ public class StandardUserController {
         try {
             // 这里需要实现搜索逻辑，目前简化处理
             Map<String, Object> searchResult = userService.getUsersWithPaging(1, limit, keyword);
-            return ApiResponseUtil.success(searchResult);
+            @SuppressWarnings("unchecked")
+            List<User> users = (List<User>) searchResult.get("users");
+            return ApiResponseUtil.successUserList(users);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "搜索用户", keyword, limit);
+            return ApiResponseUtil.handleServiceExceptionUserList(e, "搜索用户", keyword, limit);
         }
     }
 
@@ -138,13 +140,13 @@ public class StandardUserController {
      */
     @GetMapping("/me/groups")
     @PreAuthorize("hasPermission(null, 'GROUP_READ_OWN')")
-    public ResponseEntity<ApiResponse<Object>> getCurrentUserGroups(@Userid Long userId) {
+    public ResponseEntity<ApiResponse<String>> getCurrentUserGroups(@Userid Long userId) {
         try {
             // 这里需要实现获取用户群组的逻辑
             // 暂时返回空列表，实际需要调用GroupService
-            return ApiResponseUtil.success("获取用户群组成功");
+            return ApiResponseUtil.successString("获取用户群组成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取用户群组", userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "获取用户群组", userId);
         }
     }
 
@@ -158,12 +160,12 @@ public class StandardUserController {
         try {
             boolean banned = userService.banUser(userId);
             if (banned) {
-                return ApiResponseUtil.success("用户封禁成功");
+                return ApiResponseUtil.successString("用户封禁成功");
             } else {
-                return ApiResponseUtil.badRequest("用户封禁失败");
+                return ApiResponseUtil.badRequestString("用户封禁失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "封禁用户", userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "封禁用户", userId);
         }
     }
 
@@ -177,12 +179,12 @@ public class StandardUserController {
         try {
             boolean unbanned = userService.unbanUser(userId);
             if (unbanned) {
-                return ApiResponseUtil.success("用户解封成功");
+                return ApiResponseUtil.successString("用户解封成功");
             } else {
-                return ApiResponseUtil.badRequest("用户解封失败");
+                return ApiResponseUtil.badRequestString("用户解封失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "解封用户", userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "解封用户", userId);
         }
     }
 
@@ -198,17 +200,17 @@ public class StandardUserController {
         try {
             String newPassword = request.get("newPassword");
             if (newPassword == null || newPassword.trim().isEmpty()) {
-                return ApiResponseUtil.badRequest("新密码不能为空");
+                return ApiResponseUtil.badRequestString("新密码不能为空");
             }
 
             boolean reset = userService.resetUserPassword(userId, newPassword.trim());
             if (reset) {
-                return ApiResponseUtil.success("密码重置成功");
+                return ApiResponseUtil.successString("密码重置成功");
             } else {
-                return ApiResponseUtil.badRequest("密码重置失败");
+                return ApiResponseUtil.badRequestString("密码重置失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "重置用户密码", userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "重置用户密码", userId);
         }
     }
 
@@ -224,12 +226,12 @@ public class StandardUserController {
         try {
             boolean followed = userService.followUser(currentUserId, userId);
             if (followed) {
-                return ApiResponseUtil.success("关注成功");
+                return ApiResponseUtil.successString("关注成功");
             } else {
-                return ApiResponseUtil.badRequest("关注失败");
+                return ApiResponseUtil.badRequestString("关注失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "关注用户", currentUserId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "关注用户", currentUserId, userId);
         }
     }
 
@@ -245,12 +247,12 @@ public class StandardUserController {
         try {
             boolean unfollowed = userService.unfollowUser(currentUserId, userId);
             if (unfollowed) {
-                return ApiResponseUtil.success("取消关注成功");
+                return ApiResponseUtil.successString("取消关注成功");
             } else {
-                return ApiResponseUtil.badRequest("取消关注失败");
+                return ApiResponseUtil.badRequestString("取消关注失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "取消关注用户", currentUserId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "取消关注用户", currentUserId, userId);
         }
     }
 
@@ -260,15 +262,15 @@ public class StandardUserController {
      */
     @GetMapping("/{userId}/following")
     @PreAuthorize("hasPermission(#userId, 'USER_READ_ANY')")
-    public ResponseEntity<ApiResponse<Object>> getUserFollowing(
+    public ResponseEntity<ApiResponse<String>> getUserFollowing(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
         try {
             // 这里需要实现获取关注列表的逻辑
-            return ApiResponseUtil.success("获取关注列表成功");
+            return ApiResponseUtil.successString("获取关注列表成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取用户关注列表", userId, page, pageSize);
+            return ApiResponseUtil.handleServiceExceptionString(e, "获取用户关注列表", userId, page, pageSize);
         }
     }
 
@@ -278,15 +280,15 @@ public class StandardUserController {
      */
     @GetMapping("/{userId}/followers")
     @PreAuthorize("hasPermission(#userId, 'USER_READ_ANY')")
-    public ResponseEntity<ApiResponse<Object>> getUserFollowers(
+    public ResponseEntity<ApiResponse<String>> getUserFollowers(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
         try {
             // 这里需要实现获取粉丝列表的逻辑
-            return ApiResponseUtil.success("获取粉丝列表成功");
+            return ApiResponseUtil.successString("获取粉丝列表成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取用户粉丝列表", userId, page, pageSize);
+            return ApiResponseUtil.handleServiceExceptionString(e, "获取用户粉丝列表", userId, page, pageSize);
         }
     }
 
@@ -301,9 +303,9 @@ public class StandardUserController {
             @Userid Long currentUserId) {
         try {
             // 这里需要实现检查关注状态的逻辑
-            return ApiResponseUtil.success(false); // 暂时返回false
+            return ApiResponseUtil.successBoolean(false); // 暂时返回false
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "检查关注状态", currentUserId, userId);
+            return ApiResponseUtil.handleServiceExceptionBoolean(e, "检查关注状态", currentUserId, userId);
         }
     }
 }
