@@ -925,9 +925,10 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             if (userCount == null || userCount == 0) {
                 // 插入测试用户 (密码: test123)
+                // 使用BCrypt加密密码: test123 -> $2a$10$T1q2gCReMhlPLkB4zBuZC.bIVAbBl/BpHBvurrI2NQkBqNHuHeiYe
                 jdbcTemplate.update("""
                     INSERT INTO user (username, password, user_email, nickname, type, online_status, status)
-                    VALUES ('testuser', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iKV6biekKXsE6X5w5R2fK5U2gO6', 'test@weeb.com', '测试用户', 'USER', 1, 1)
+                    VALUES ('testuser', '$2a$10$T1q2gCReMhlPLkB4zBuZC.bIVAbBl/BpHBvurrI2NQkBqNHuHeiYe', 'test@weeb.com', '测试用户', 'USER', 1, 1)
                     """);
 
                 // 获取测试用户ID并插入统计信息
@@ -940,13 +941,13 @@ public class DatabaseInitializer implements CommandLineRunner {
                 log.info("✅ 测试用户创建成功 (用户名: testuser, 密码: test123)");
             }
 
-            // 插入更多测试用户
+            // 插入更多测试用户 (密码: password + 数字)
             String[][] testUsers = {
-                {"alice", "alice@weeb.com", "爱丽丝", "100"},
-                {"bob", "bob@weeb.com", "鲍勃", "200"},
-                {"charlie", "charlie@weeb.com", "查理", "300"},
-                {"diana", "diana@weeb.com", "戴安娜", "400"},
-                {"eve", "eve@weeb.com", "伊芙", "500"}
+                {"alice", "alice@weeb.com", "爱丽丝", "$2a$10$hbTBtOr3hqz4NV7xItTtluXdgtH/XSmu2Sa3BGMex6BiP/PlQ/lZ2"}, // password100
+                {"bob", "bob@weeb.com", "鲍勃", "$2a$10$HeB5dudFSSMQ6ICVunOlHuVoBFydle0x3tIAj9xMTKlvsNGZ2zbO6"}, // password200
+                {"charlie", "charlie@weeb.com", "查理", "$2a$10$q.3Zrap1HhMeNrarmTTWduJZNQ6mtWY8pe6k7uzkDmAo6ZRy6pbya"}, // password300
+                {"diana", "diana@weeb.com", "戴安娜", "$2a$10$vyksYpUq50fq1tD774bvMesIZsrPn43UMMfAZwIlEEpVvumvCtKwa"}, // password400
+                {"eve", "eve@weeb.com", "伊芙", "$2a$10$bk5/XQfztGfK/1zuXNqKIOWxbbo1uwZFMh9Ws7/yIVZVwFpeiscgW"} // password500
             };
 
             for (String[] userInfo : testUsers) {
@@ -961,8 +962,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                 if (existingUser == null || existingUser == 0) {
                     jdbcTemplate.update("""
                         INSERT INTO user (username, password, user_email, nickname, type, online_status, status)
-                        VALUES (?, '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iKV6biekKXsE6X5w5R2fK5U2gO6', ?, ?, 'USER', 1, 1)
-                        """, username, email, nickname);
+                        VALUES (?, ?, ?, ?, 'USER', 1, 1)
+                        """, username, passwordHash, email, nickname);
 
                     Long userId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
                     jdbcTemplate.update("""

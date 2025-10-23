@@ -358,7 +358,7 @@ public interface UserMapper extends BaseMapper<User> {
     @Select("SELECT DISTINCT p.* FROM permission p " +
             "INNER JOIN role_permission rp ON p.id = rp.permission_id " +
             "INNER JOIN user_role ur ON rp.role_id = ur.role_id " +
-            "WHERE ur.user_id = #{userId} AND ur.status = 1 AND p.status = 1")
+            "WHERE ur.user_id = #{userId} AND p.status = 1")
     List<Permission> selectUserPermissions(@Param("userId") Long userId);
 
     /**
