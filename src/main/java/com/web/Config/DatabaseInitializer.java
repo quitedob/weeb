@@ -15,6 +15,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -1045,10 +1046,322 @@ public class DatabaseInitializer implements CommandLineRunner {
                 
                 log.info("✅ 默认文章标签创建成功");
             }
-            
+
+            // 初始化角色和权限数据
+            initializeRolesAndPermissions();
+
+            // 为初始用户分配特定角色
+            assignRolesToInitialUsers();
+
         } catch (Exception e) {
             log.error("插入初始数据失败", e);
             throw new RuntimeException("插入初始数据失败", e);
+        }
+    }
+
+    /**
+     * 初始化角色和权限数据
+     */
+    private void initializeRolesAndPermissions() {
+        try {
+            log.info("开始初始化角色和权限数据...");
+
+            // 检查是否已有角色数据
+            Integer roleCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM role", Integer.class);
+
+            if (roleCount == null || roleCount == 0) {
+                // 插入默认角色
+                jdbcTemplate.update("""
+                    INSERT INTO role (name, description, status, type, level, is_default, created_at, updated_at) VALUES
+                    ('超级管理员', '系统最高权限管理员', 1, 0, 1, FALSE, NOW(), NOW()),
+                    ('管理员', '系统管理员', 1, 0, 10, FALSE, NOW(), NOW()),
+                    ('版主', '内容版主', 1, 0, 50, FALSE, NOW(), NOW()),
+                    ('用户', '普通用户', 1, 0, 100, TRUE, NOW(), NOW())
+                    """);
+
+                log.info("✅ 默认角色创建成功");
+            } else {
+                log.info("角色数据已存在，跳过创建");
+            }
+
+            // 检查是否已有权限数据
+            Integer permissionCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM permission", Integer.class);
+
+            if (permissionCount == null || permissionCount == 0) {
+                // 插入基础权限
+                jdbcTemplate.update("""
+                    INSERT INTO permission (name, description, resource, action, `condition`, status, type, `group`, sort_order, created_at, updated_at) VALUES
+                    -- 用户管理权限
+                    ('USER_READ', '查看用户信息', 'user', 'read', 'own', 1, 1, '用户管理', 1, NOW(), NOW()),
+                    ('USER_UPDATE', '更新用户信息', 'user', 'update', 'own', 1, 1, '用户管理', 2, NOW(), NOW()),
+                    ('USER_DELETE', '删除用户', 'user', 'delete', 'any', 1, 0, '用户管理', 3, NOW(), NOW()),
+                    ('USER_CREATE', '创建用户', 'user', 'create', 'any', 1, 0, '用户管理', 4, NOW(), NOW()),
+                    -- 聊天权限
+                    ('MESSAGE_READ', '查看消息', 'message', 'read', 'own', 1, 1, '聊天管理', 20, NOW(), NOW()),
+                    ('MESSAGE_CREATE', '发送消息', 'message', 'create', 'own', 1, 1, '聊天管理', 21, NOW(), NOW()),
+                    ('MESSAGE_UPDATE', '更新消息', 'message', 'update', 'own', 1, 1, '聊天管理', 22, NOW(), NOW()),
+                    ('MESSAGE_DELETE', '删除消息', 'message', 'delete', 'own', 1, 1, '聊天管理', 23, NOW(), NOW()),
+                    -- 好友权限
+                    ('CONTACT_READ', '查看联系人', 'contact', 'read', 'own', 1, 1, '好友管理', 30, NOW(), NOW()),
+                    ('CONTACT_CREATE', '添加好友', 'contact', 'create', 'own', 1, 1, '好友管理', 31, NOW(), NOW()),
+                    ('CONTACT_UPDATE', '更新联系人', 'contact', 'update', 'own', 1, 1, '好友管理', 32, NOW(), NOW()),
+                    ('CONTACT_DELETE', '删除好友', 'contact', 'delete', 'own', 1, 1, '好友管理', 33, NOW(), NOW()),
+                    ('FOLLOW_READ', '查看关注', 'follow', 'read', 'own', 1, 1, '好友管理', 34, NOW(), NOW()),
+                    ('FOLLOW_CREATE', '关注用户', 'follow', 'create', 'own', 1, 1, '好友管理', 35, NOW(), NOW()),
+                    ('FOLLOW_DELETE', '取消关注', 'follow', 'delete', 'own', 1, 1, '好友管理', 36, NOW(), NOW()),
+                    -- 群组权限
+                    ('GROUP_READ', '查看群组', 'group', 'read', 'member', 1, 1, '群组管理', 40, NOW(), NOW()),
+                    ('GROUP_CREATE', '创建群组', 'group', 'create', 'own', 1, 1, '群组管理', 41, NOW(), NOW()),
+                    ('GROUP_UPDATE', '更新群组', 'group', 'update', 'admin', 1, 1, '群组管理', 42, NOW(), NOW()),
+                    ('GROUP_DELETE', '删除群组', 'group', 'delete', 'owner', 1, 1, '群组管理', 43, NOW(), NOW()),
+                    ('GROUP_JOIN', '加入群组', 'group', 'join', 'any', 1, 1, '群组管理', 44, NOW(), NOW()),
+                    ('GROUP_INVITE', '邀请成员', 'group', 'invite', 'admin', 1, 1, '群组管理', 45, NOW(), NOW()),
+                    -- 文章权限
+                    ('ARTICLE_READ', '查看文章', 'article', 'read', 'any', 1, 1, '文章管理', 10, NOW(), NOW()),
+                    ('ARTICLE_CREATE', '创建文章', 'article', 'create', 'own', 1, 1, '文章管理', 11, NOW(), NOW()),
+                    ('ARTICLE_UPDATE', '更新文章', 'article', 'update', 'own', 1, 1, '文章管理', 12, NOW(), NOW()),
+                    ('ARTICLE_DELETE', '删除文章', 'article', 'delete', 'own', 1, 1, '文章管理', 13, NOW(), NOW()),
+                    ('ARTICLE_FAVORITE', '收藏文章', 'article', 'favorite', 'own', 1, 1, '文章管理', 14, NOW(), NOW()),
+                    ('ARTICLE_COMMENT', '评论文章', 'article', 'comment', 'own', 1, 1, '文章管理', 15, NOW(), NOW()),
+                    -- 文件权限
+                    ('FILE_READ', '查看文件', 'file', 'read', 'own', 1, 1, '文件管理', 50, NOW(), NOW()),
+                    ('FILE_UPLOAD', '上传文件', 'file', 'upload', 'own', 1, 1, '文件管理', 51, NOW(), NOW()),
+                    ('FILE_UPDATE', '更新文件', 'file', 'update', 'own', 1, 1, '文件管理', 52, NOW(), NOW()),
+                    ('FILE_DELETE', '删除文件', 'file', 'delete', 'own', 1, 1, '文件管理', 53, NOW(), NOW()),
+                    ('FILE_SHARE', '分享文件', 'file', 'share', 'own', 1, 1, '文件管理', 54, NOW(), NOW()),
+                    -- 系统管理权限
+                    ('SYSTEM_ADMIN', '系统管理', 'system', 'admin', 'any', 1, 0, '系统管理', 100, NOW(), NOW()),
+                    ('ROLE_MANAGE', '角色管理', 'role', 'manage', 'any', 1, 0, '系统管理', 101, NOW(), NOW())
+                    """);
+
+                log.info("✅ 基础权限创建成功");
+            } else {
+                log.info("权限数据已存在，跳过创建");
+            }
+
+            // 为角色分配权限
+            assignPermissionsToRoles();
+
+            // 为现有用户分配默认角色
+            assignDefaultRolesToExistingUsers();
+
+            log.info("✅ 角色和权限数据初始化完成");
+
+        } catch (Exception e) {
+            log.error("初始化角色和权限数据失败", e);
+            throw new RuntimeException("初始化角色和权限数据失败", e);
+        }
+    }
+
+    /**
+     * 为角色分配权限
+     */
+    private void assignPermissionsToRoles() {
+        try {
+            log.info("开始为角色分配权限...");
+
+            // 清空现有的角色权限关联（重新分配）
+            jdbcTemplate.update("DELETE FROM role_permission");
+
+            // 为超级管理员分配所有权限
+            Long superAdminRoleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM role WHERE name = '超级管理员'", Long.class);
+
+            if (superAdminRoleId != null) {
+                jdbcTemplate.update("""
+                    INSERT INTO role_permission (role_id, permission_id, created_at)
+                    SELECT ?, id, NOW() FROM permission
+                    """, superAdminRoleId);
+                log.info("✅ 超级管理员权限分配完成");
+            }
+
+            // 为管理员分配大部分权限（除了系统管理）
+            Long adminRoleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM role WHERE name = '管理员'", Long.class);
+
+            if (adminRoleId != null) {
+                jdbcTemplate.update("""
+                    INSERT INTO role_permission (role_id, permission_id, created_at)
+                    SELECT ?, id, NOW() FROM permission
+                    WHERE name NOT IN ('SYSTEM_ADMIN', 'ROLE_MANAGE')
+                    """, adminRoleId);
+                log.info("✅ 管理员权限分配完成");
+            }
+
+            // 为版主分配文章管理权限
+            Long moderatorRoleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM role WHERE name = '版主'", Long.class);
+
+            if (moderatorRoleId != null) {
+                jdbcTemplate.update("""
+                    INSERT INTO role_permission (role_id, permission_id, created_at)
+                    SELECT ?, id, NOW() FROM permission
+                    WHERE name IN ('ARTICLE_READ', 'ARTICLE_CREATE', 'ARTICLE_UPDATE', 'ARTICLE_DELETE')
+                    """, moderatorRoleId);
+                log.info("✅ 版主权限分配完成");
+            }
+
+            // 为普通用户分配基础权限
+            Long userRoleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM role WHERE name = '用户'", Long.class);
+
+            if (userRoleId != null) {
+                jdbcTemplate.update("""
+                    INSERT INTO role_permission (role_id, permission_id, created_at)
+                    SELECT ?, id, NOW() FROM permission
+                    WHERE name IN (
+                        'USER_READ', 'USER_UPDATE',                    -- 用户基本信息管理
+                        'MESSAGE_READ', 'MESSAGE_CREATE', 'MESSAGE_UPDATE', 'MESSAGE_DELETE',  -- 聊天功能
+                        'CONTACT_READ', 'CONTACT_CREATE', 'CONTACT_UPDATE', 'CONTACT_DELETE',  -- 好友管理
+                        'FOLLOW_READ', 'FOLLOW_CREATE', 'FOLLOW_DELETE',                       -- 关注功能
+                        'GROUP_READ', 'GROUP_CREATE', 'GROUP_JOIN',                           -- 群组基础功能
+                        'ARTICLE_READ', 'ARTICLE_CREATE', 'ARTICLE_UPDATE', 'ARTICLE_DELETE',  -- 文章管理
+                        'ARTICLE_FAVORITE', 'ARTICLE_COMMENT',                                -- 文章互动
+                        'FILE_READ', 'FILE_UPLOAD', 'FILE_UPDATE', 'FILE_DELETE', 'FILE_SHARE'  -- 文件管理
+                    )
+                    """, userRoleId);
+                log.info("✅ 普通用户权限分配完成");
+            }
+
+            log.info("✅ 角色权限分配完成");
+
+        } catch (Exception e) {
+            log.error("为角色分配权限失败", e);
+            throw new RuntimeException("为角色分配权限失败", e);
+        }
+    }
+
+    /**
+     * 为现有用户分配默认角色
+     */
+    private void assignDefaultRolesToExistingUsers() {
+        try {
+            log.info("开始为现有用户分配默认角色...");
+
+            // 获取所有没有角色的用户
+            List<Long> usersWithoutRoles = jdbcTemplate.queryForList(
+                "SELECT u.id FROM user u LEFT JOIN user_role ur ON u.id = ur.user_id WHERE ur.user_id IS NULL",
+                Long.class);
+
+            if (usersWithoutRoles.isEmpty()) {
+                log.info("所有用户都已有角色，跳过分配");
+                return;
+            }
+
+            // 获取默认角色ID（标记为 is_default = TRUE 的角色）
+            Long defaultRoleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM role WHERE is_default = TRUE AND status = 1", Long.class);
+
+            if (defaultRoleId == null) {
+                // 如果没有默认角色，获取"用户"角色的ID
+                defaultRoleId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM role WHERE name = '用户' AND status = 1", Long.class);
+            }
+
+            if (defaultRoleId == null) {
+                log.warn("未找到合适的默认角色，无法为现有用户分配角色");
+                return;
+            }
+
+            // 为所有没有角色的用户分配默认角色
+            int assignedCount = 0;
+            for (Long userId : usersWithoutRoles) {
+                try {
+                    jdbcTemplate.update(
+                        "INSERT INTO user_role (user_id, role_id, created_at) VALUES (?, ?, NOW())",
+                        userId, defaultRoleId);
+                    assignedCount++;
+                } catch (Exception e) {
+                    log.warn("为用户分配角色失败: userId={}, error={}", userId, e.getMessage());
+                }
+            }
+
+            log.info("✅ 为 {} 个现有用户分配了默认角色", assignedCount);
+
+        } catch (Exception e) {
+            log.error("为现有用户分配默认角色失败", e);
+            throw new RuntimeException("为现有用户分配默认角色失败", e);
+        }
+    }
+
+    /**
+     * 为初始用户分配特定角色
+     */
+    private void assignRolesToInitialUsers() {
+        try {
+            log.info("开始为初始用户分配特定角色...");
+
+            // 清空现有的用户角色关联（重新分配）
+            jdbcTemplate.update("DELETE FROM user_role");
+
+            // 获取角色ID
+            Long superAdminRoleId = getRoleIdByName("超级管理员");
+            Long adminRoleId = getRoleIdByName("管理员");
+            Long userRoleId = getRoleIdByName("用户");
+
+            if (userRoleId == null) {
+                log.warn("未找到基础角色，无法为用户分配角色");
+                return;
+            }
+
+            // 为初始用户分配角色
+            assignRoleToUser("admin", superAdminRoleId, "超级管理员");
+            assignRoleToUser("testuser", adminRoleId, "管理员");
+            assignRoleToUser("alice", userRoleId, "用户");
+            assignRoleToUser("bob", userRoleId, "用户");
+            assignRoleToUser("charlie", userRoleId, "用户");
+            assignRoleToUser("diana", userRoleId, "用户");
+            assignRoleToUser("eve", userRoleId, "用户");
+
+            // 为所有其他用户分配默认角色
+            assignDefaultRolesToExistingUsers();
+
+            log.info("✅ 初始用户角色分配完成");
+
+        } catch (Exception e) {
+            log.error("为初始用户分配特定角色失败", e);
+            throw new RuntimeException("为初始用户分配特定角色失败", e);
+        }
+    }
+
+    /**
+     * 根据用户名分配角色
+     */
+    private void assignRoleToUser(String username, Long roleId, String roleName) {
+        try {
+            Long userId = jdbcTemplate.queryForObject(
+                "SELECT id FROM user WHERE username = ?", Long.class, username);
+
+            if (userId != null && roleId != null) {
+                jdbcTemplate.update(
+                    "INSERT INTO user_role (user_id, role_id, created_at) VALUES (?, ?, NOW())",
+                    userId, roleId);
+                log.info("✅ 为用户 {} 分配角色: {}", username, roleName);
+            } else {
+                if (userId == null) {
+                    log.warn("用户 {} 不存在，跳过角色分配", username);
+                }
+                if (roleId == null) {
+                    log.warn("角色不存在，无法为用户 {} 分配", username);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("为用户 {} 分配角色失败: {}", username, e.getMessage());
+        }
+    }
+
+    /**
+     * 根据角色名称获取角色ID
+     */
+    private Long getRoleIdByName(String roleName) {
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT id FROM role WHERE name = ? AND status = 1", Long.class, roleName);
+        } catch (Exception e) {
+            log.warn("未找到角色: {}", roleName);
+            return null;
         }
     }
 
