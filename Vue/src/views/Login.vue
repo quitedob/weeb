@@ -80,7 +80,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
-import { ElMessage } from 'element-plus'
+import appleMessage from '@/utils/appleMessage'
 import api from '@/api'
 
 const router = useRouter()
@@ -122,9 +122,9 @@ const handleLogin = async () => {
       
       // 获取用户信息
       await authStore.fetchUserInfo()
-      
-      ElMessage.success('登录成功')
-      
+
+      appleMessage.success('登录成功')
+
       // 跳转到目标页面或首页
       const redirectPath = route.query.redirect || '/'
       router.push(redirectPath)

@@ -2,412 +2,513 @@
   <div class="contact-page-container">
     <div class="page-header">
       <h1>联系人管理</h1>
-      <el-button type="primary" @click="openAddContactDialog">
-        <el-icon><Plus /></el-icon> 添加联系人
-      </el-button>
+      <AppleButton variant="primary" @click="openAddContactDialog">
+        <i class="icon-plus"></i> 添加联系人
+      </AppleButton>
     </div>
 
-    <el-tabs v-model="activeTab" class="contact-tabs">
-      <el-tab-pane label="我的联系人" name="contacts">
+    <SimpleTabs
+      v-model="activeTab"
+      :tabs="[
+        { name: 'contacts', label: '我的联系人' },
+        { name: 'requests', label: '好友申请' },
+        { name: 'search', label: '查找用户' }
+      ]"
+    >
+      <!-- 我的联系人 -->
+      <div v-show="activeTab === 'contacts'">
         <div v-if="loadingContacts" class="loading-state">
-          <el-skeleton :rows="3" animated />
+          <div class="loading-text">正在加载联系人...</div>
         </div>
         <div v-else-if="contacts.length === 0" class="empty-state">
-          <el-empty description="您还没有任何联系人，快添加一个吧！" />
+          <div class="empty-icon">👥</div>
+          <div class="empty-text">您还没有任何联系人，快添加一个吧！</div>
+          <AppleButton variant="primary" @click="openAddContactDialog">
+            添加第一个联系人
+          </AppleButton>
         </div>
         <div v-else class="contact-list">
-          <el-card v-for="contact in contacts" :key="contact.id" shadow="hover" class="contact-card">
-            <template #header>
+          <AppleCard
+            v-for="contact in contacts"
+            :key="contact.id"
+            class="contact-card"
+            hover
+          >
+            <div class="card-header">
+              <div class="user-info">
+                <div class="user-avatar">
+                  <img v-if="contact.avatar" :src="contact.avatar" :alt="contact.username" />
+                  <div v-else class="avatar-placeholder">
+                    {{ contact.username?.charAt(0)?.toUpperCase() || 'U' }}
+                  </div>
+                </div>
+                <div class="user-details">
+                  <span class="username">{{ contact.username }}</span>
+                  <span class="nickname">{{ contact.nickname || contact.username }}</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <AppleButton variant="primary" size="small" @click="startChat(contact)">
+                  <i class="icon-message"></i> 发消息
+                </AppleButton>
+                <AppleButton variant="ghost" size="small" @click="deleteContact(contact)">
+                  <i class="icon-trash"></i> 删除
+                </AppleButton>
+              </div>
+            </div>
+            <div v-if="contact.bio" class="contact-bio">
+              {{ contact.bio }}
+            </div>
+          </AppleCard>
+        </div>
+      </div>
+
+      <!-- 好友申请 -->
+      <div v-show="activeTab === 'requests'">
+        <div v-if="loadingRequests" class="loading-state">
+          <div class="loading-text">正在加载好友申请...</div>
+        </div>
+        <div v-else-if="friendRequests.length === 0" class="empty-state">
+          <div class="empty-icon">📭</div>
+          <div class="empty-text">暂无好友申请</div>
+        </div>
+        <div v-else class="request-list">
+          <AppleCard
+            v-for="request in friendRequests"
+            :key="request.id"
+            class="request-card"
+            hover
+          >
+            <div class="card-header">
+              <div class="user-info">
+                <div class="user-avatar">
+                  <img v-if="request.avatar" :src="request.avatar" :alt="request.username" />
+                  <div v-else class="avatar-placeholder">
+                    {{ request.username?.charAt(0)?.toUpperCase() || 'U' }}
+                  </div>
+                </div>
+                <div class="user-details">
+                  <span class="username">{{ request.username }}</span>
+                  <span class="request-time">{{ formatTime(request.createdAt) }}</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <AppleButton variant="success" size="small" @click="acceptRequest(request)">
+                  <i class="icon-check"></i> 接受
+                </AppleButton>
+                <AppleButton variant="danger" size="small" @click="rejectRequest(request)">
+                  <i class="icon-close"></i> 拒绝
+                </AppleButton>
+              </div>
+            </div>
+            <div v-if="request.message" class="request-message">
+              <strong>申请消息：</strong>{{ request.message }}
+            </div>
+          </AppleCard>
+        </div>
+      </div>
+
+      <!-- 查找用户 -->
+      <div v-show="activeTab === 'search'">
+        <div class="search-section">
+          <AppleCard class="search-card">
+            <div class="search-header">
+              <h3>查找用户</h3>
+            </div>
+            <div class="search-form">
+              <div class="form-item">
+                <AppleInput
+                  v-model="searchQuery"
+                  placeholder="输入用户名或邮箱搜索..."
+                  clearable
+                  @keyup.enter="searchUsers"
+                >
+                  <template #suffix>
+                    <AppleButton variant="ghost" size="small" @click="searchUsers" :loading="searching">
+                      <i class="icon-search"></i>
+                    </AppleButton>
+                  </template>
+                </AppleInput>
+              </div>
+            </div>
+          </AppleCard>
+
+          <!-- 搜索结果 -->
+          <div v-if="searchResults.length > 0" class="search-results">
+            <h3>搜索结果</h3>
+            <AppleCard
+              v-for="user in searchResults"
+              :key="user.id"
+              class="user-card"
+              hover
+            >
               <div class="card-header">
                 <div class="user-info">
                   <div class="user-avatar">
-                    <img v-if="contact.avatar" :src="contact.avatar" :alt="contact.username" />
+                    <img v-if="user.avatar" :src="user.avatar" :alt="user.username" />
                     <div v-else class="avatar-placeholder">
-                      {{ contact.username?.charAt(0)?.toUpperCase() || 'U' }}
+                      {{ user.username?.charAt(0)?.toUpperCase() || 'U' }}
                     </div>
                   </div>
                   <div class="user-details">
-                    <span class="username">{{ contact.username }}</span>
-                    <span class="nickname">{{ contact.nickname || '暂无昵称' }}</span>
+                    <span class="username">{{ user.username }}</span>
+                    <span class="user-nickname">{{ user.nickname || '暂无昵称' }}</span>
                   </div>
                 </div>
-                <el-tag :type="getContactStatusType(contact.status)">
-                  {{ getContactStatusText(contact.status) }}
-                </el-tag>
-              </div>
-            </template>
-            <div class="contact-info">
-              <p>用户ID: {{ contact.id }}</p>
-              <p>邮箱: {{ contact.userEmail || '未设置' }}</p>
-              <p>添加时间: {{ formatDate(contact.createdAt) }}</p>
-            </div>
-            <template #footer>
-              <div class="card-footer">
-                <el-button type="primary" text @click="startChat(contact)">发送消息</el-button>
-                <el-button type="info" text @click="viewUserProfile(contact.id)">查看资料</el-button>
-                <el-button type="danger" text @click="confirmRemoveContact(contact.id)">删除联系人</el-button>
-              </div>
-            </template>
-          </el-card>
-        </div>
-      </el-tab-pane>
-
-      <el-tab-pane label="好友申请" name="applications">
-        <div v-if="loadingApplications" class="loading-state">
-          <el-skeleton :rows="3" animated />
-        </div>
-        <div v-else-if="applications.length === 0" class="empty-state">
-          <el-empty description="暂无好友申请" />
-        </div>
-        <div v-else class="application-list">
-          <el-card v-for="application in applications" :key="application.id" shadow="hover" class="application-card">
-            <template #header>
-              <div class="card-header">
-                <div class="user-info">
-                  <div class="user-avatar">
-                    <img v-if="application.avatar" :src="application.avatar" :alt="application.username" />
-                    <div v-else class="avatar-placeholder">
-                      {{ application.username?.charAt(0)?.toUpperCase() || 'U' }}
-                    </div>
-                  </div>
-                  <div class="user-details">
-                    <span class="username">{{ application.username }}</span>
-                    <span class="nickname">{{ application.nickname || '暂无昵称' }}</span>
-                  </div>
+                <div class="card-actions">
+                  <AppleButton variant="primary" size="small" @click="sendFriendRequest(user)">
+                    <i class="icon-user-plus"></i> 添加好友
+                  </AppleButton>
                 </div>
               </div>
-            </template>
-            <div class="application-info">
-              <p><strong>申请理由:</strong> {{ application.remarks || '无' }}</p>
-              <p>申请时间: {{ formatDate(application.createdAt) }}</p>
-            </div>
-            <template #footer>
-              <div class="card-footer">
-                <el-button type="success" @click="acceptApplication(application.id)">接受</el-button>
-                <el-button type="danger" @click="declineApplication(application.id)">拒绝</el-button>
+              <div v-if="user.bio" class="user-bio">
+                {{ user.bio }}
               </div>
-            </template>
-          </el-card>
-        </div>
-      </el-tab-pane>
-    </el-tabs>
+            </AppleCard>
+          </div>
 
-    <!-- 添加联系人对话框 -->
-    <el-dialog v-model="addContactDialogVisible" title="添加联系人" width="500px" @close="resetAddContactForm">
-      <el-form ref="addContactFormRef" :model="addContactForm" :rules="addContactRules" label-width="80px">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="addContactForm.username" placeholder="请输入用户名" />
-        </el-form-item>
-        <el-form-item label="申请理由" prop="remarks">
-          <el-input v-model="addContactForm.remarks" type="textarea" placeholder="（选填）请输入申请理由" />
-        </el-form-item>
-      </el-form>
+          <div v-else-if="searched && !searching" class="no-results">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-text">未找到匹配的用户</div>
+          </div>
+        </div>
+      </div>
+    </SimpleTabs>
+
+    <!-- 添加联系人弹窗 -->
+    <AppleModal
+      v-model="showAddDialog"
+      title="添加联系人"
+      width="500px"
+    >
+      <div class="add-contact-form">
+        <div class="form-item">
+          <label>用户名或邮箱：</label>
+          <AppleInput
+            v-model="addForm.username"
+            placeholder="请输入要添加的用户名或邮箱"
+            clearable
+          />
+        </div>
+        <div class="form-item">
+          <label>申请消息（可选）：</label>
+          <AppleInput
+            v-model="addForm.message"
+            type="textarea"
+            :rows="3"
+            placeholder="介绍一下自己吧..."
+          />
+        </div>
+      </div>
       <template #footer>
-        <el-button @click="addContactDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleAddContact" :loading="addingContact">
+        <AppleButton variant="ghost" @click="showAddDialog = false">
+          取消
+        </AppleButton>
+        <AppleButton
+          variant="primary"
+          @click="sendFriendRequestByUsername"
+          :loading="adding"
+        >
           发送申请
-        </el-button>
+        </AppleButton>
       </template>
-    </el-dialog>
+    </AppleModal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/authStore';
-import { useChatStore } from '@/stores/chatStore';
-import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
-import { Plus } from '@element-plus/icons-vue';
-import contactApi from '@/api/modules/contact';
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { showMessage } from '@/utils/message' // 导入消息工具
+import { instance as axiosInstance } from '@/api/axiosInstance'
+import AppleButton from '@/components/common/AppleButton.vue'
+import AppleInput from '@/components/common/AppleInput.vue'
+import AppleCard from '@/components/common/AppleCard.vue'
+import AppleModal from '@/components/common/AppleModal.vue'
+import SimpleTabs from '@/components/common/SimpleTabs.vue'
 
-const router = useRouter();
-const authStore = useAuthStore();
-const chatStore = useChatStore();
+const router = useRouter()
 
-const activeTab = ref('contacts');
-const contacts = ref([]);
-const applications = ref([]);
-const loadingContacts = ref(false);
-const loadingApplications = ref(false);
+// 响应式数据
+const activeTab = ref('contacts')
+const contacts = ref([])
+const friendRequests = ref([])
+const searchResults = ref([])
+const loadingContacts = ref(false)
+const loadingRequests = ref(false)
+const searching = ref(false)
+const searched = ref(false)
+const searchQuery = ref('')
 
-const addContactDialogVisible = ref(false);
-const addingContact = ref(false);
-const addContactFormRef = ref(null);
-const addContactForm = reactive({
+// 添加联系人弹窗
+const showAddDialog = ref(false)
+const adding = ref(false)
+const addForm = ref({
   username: '',
-  remarks: ''
-});
+  message: ''
+})
 
-const addContactRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
-  ]
-};
-
-// 获取联系人列表
-const fetchContacts = async () => {
-  loadingContacts.value = true;
+// 方法
+const loadContacts = async () => {
+  loadingContacts.value = true
   try {
-    const response = await contactApi.getContacts('ACCEPTED');
-    if (response.code === 200 && response.data) {
-      contacts.value = response.data;
+    const response = await axiosInstance.get('/api/contacts', {
+      params: { status: 'ACCEPTED' }
+    })
+    if (response.data && response.data.code === 0) {
+      contacts.value = response.data.data || []
     } else {
-      contacts.value = [];
-      ElMessage.error(response.message || '获取联系人失败');
+      showMessage.error('获取联系人列表失败') // 使用 showMessage 显示错误
     }
   } catch (error) {
-    console.error('获取联系人失败:', error);
-    ElMessage.error('获取联系人失败');
-    contacts.value = [];
+    console.error('加载联系人失败:', error)
+    showMessage.error('加载联系人失败') // 使用 showMessage 显示错误
   } finally {
-    loadingContacts.value = false;
+    loadingContacts.value = false
   }
-};
+}
 
-// 获取好友申请列表
-const fetchApplications = async () => {
-  loadingApplications.value = true;
+const loadFriendRequests = async () => {
+  loadingRequests.value = true
   try {
-    const response = await contactApi.getPendingApplications();
-    if (response.code === 200 && response.data) {
-      applications.value = response.data;
+    const response = await axiosInstance.get('/api/contacts/requests')
+    if (response.data && response.data.code === 0) {
+      friendRequests.value = response.data.data || []
     } else {
-      applications.value = [];
-      ElMessage.error(response.message || '获取好友申请失败');
+      showMessage.error('获取好友申请失败') // 使用 showMessage 显示错误
     }
   } catch (error) {
-    console.error('获取好友申请失败:', error);
-    ElMessage.error('获取好友申请失败');
-    applications.value = [];
+    console.error('加载好友申请失败:', error)
+    showMessage.error('加载好友申请失败') // 使用 showMessage 显示错误
   } finally {
-    loadingApplications.value = false;
+    loadingRequests.value = false
   }
-};
+}
 
-// 打开添加联系人对话框
+const searchUsers = async () => {
+  if (!searchQuery.value.trim()) {
+    showMessage.warning('请输入搜索关键词') // 使用 showMessage 显示警告
+    return
+  }
+
+  searching.value = true
+  try {
+    const response = await axiosInstance.get('/api/users/search', {
+      params: { q: searchQuery.value.trim() }
+    })
+    if (response.data && response.data.code === 0) {
+      searchResults.value = response.data.data || []
+    } else {
+      showMessage.error('搜索失败') // 使用 showMessage 显示错误
+    }
+  } catch (error) {
+    console.error('搜索用户失败:', error)
+    showMessage.error('搜索用户失败') // 使用 showMessage 显示错误
+  } finally {
+    searching.value = false
+    searched.value = true
+  }
+}
+
 const openAddContactDialog = () => {
-  addContactDialogVisible.value = true;
-};
-
-// 重置添加联系人表单
-const resetAddContactForm = () => {
-  if (addContactFormRef.value) {
-    addContactFormRef.value.resetFields();
+  showAddDialog.value = true
+  addForm.value = {
+    username: '',
+    message: ''
   }
-  addContactForm.username = '';
-  addContactForm.remarks = '';
-};
+}
 
-// 处理添加联系人
-const handleAddContact = async () => {
-  if (!addContactFormRef.value) return;
-
-  await addContactFormRef.value.validate(async (valid) => {
-    if (valid) {
-      addingContact.value = true;
-      try {
-        const response = await contactApi.applyContact({
-          username: addContactForm.username,
-          remarks: addContactForm.remarks
-        });
-        
-        if (response.code === 200) {
-          ElMessage.success('好友申请发送成功');
-          addContactDialogVisible.value = false;
-          resetAddContactForm();
-        } else {
-          ElMessage.error(response.message || '发送申请失败');
-        }
-      } catch (error) {
-        console.error('发送好友申请失败:', error);
-        ElMessage.error(error.response?.data?.message || error.message || '发送申请失败');
-      } finally {
-        addingContact.value = false;
-      }
-    }
-  });
-};
-
-// 接受好友申请
-const acceptApplication = async (contactId) => {
-  const loading = ElLoading.service({ text: '正在处理...' });
+const sendFriendRequest = async (user) => {
   try {
-    const response = await contactApi.acceptContact(contactId);
-    if (response.code === 200) {
-      ElMessage.success('已接受好友申请');
-      fetchApplications();
-      fetchContacts();
+    const response = await axiosInstance.post('/api/contacts/request', {
+      targetUserId: user.id,
+      message: '您好，我想添加您为好友'
+    })
+    if (response.data && response.data.code === 0) {
+      showMessage.success('好友申请已发送') // 使用 showMessage 显示成功信息
+      // 从搜索结果中移除该用户
+      searchResults.value = searchResults.value.filter(u => u.id !== user.id)
     } else {
-      ElMessage.error(response.message || '操作失败');
+      showMessage.error(response.data?.message || '发送申请失败') // 使用 showMessage 显示错误
     }
   } catch (error) {
-    console.error('接受好友申请失败:', error);
-    ElMessage.error(error.response?.data?.message || error.message || '操作失败');
+    console.error('发送好友申请失败:', error)
+    showMessage.error('发送好友申请失败') // 使用 showMessage 显示错误
+  }
+}
+
+const sendFriendRequestByUsername = async () => {
+  if (!addForm.value.username.trim()) {
+    showMessage.warning('请输入用户名或邮箱') // 使用 showMessage 显示警告
+    return
+  }
+
+  adding.value = true
+  try {
+    const response = await axiosInstance.post('/api/contacts/request/by-username', {
+      username: addForm.value.username.trim(),
+      message: addForm.value.message || '您好，我想添加您为好友'
+    })
+    if (response.data && response.data.code === 0) {
+      showMessage.success('好友申请已发送') // 使用 showMessage 显示成功信息
+      showAddDialog.value = false
+    } else {
+      showMessage.error(response.data?.message || '发送申请失败') // 使用 showMessage 显示错误
+    }
+  } catch (error) {
+    console.error('发送好友申请失败:', error)
+    showMessage.error('发送好友申请失败') // 使用 showMessage 显示错误
   } finally {
-    loading.close();
+    adding.value = false
   }
-};
+}
 
-// 拒绝好友申请
-const declineApplication = async (contactId) => {
-  ElMessageBox.confirm('确定要拒绝该好友申请吗？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    const loading = ElLoading.service({ text: '正在处理...' });
-    try {
-      const response = await contactApi.declineContact(contactId);
-      if (response.code === 200) {
-        ElMessage.success('已拒绝好友申请');
-        fetchApplications();
-      } else {
-        ElMessage.error(response.message || '操作失败');
-      }
-    } catch (error) {
-      console.error('拒绝好友申请失败:', error);
-      ElMessage.error(error.response?.data?.message || error.message || '操作失败');
-    } finally {
-      loading.close();
+const acceptRequest = async (request) => {
+  try {
+    const response = await axiosInstance.post(`/api/contacts/request/${request.id}/accept`)
+    if (response.data && response.data.code === 0) {
+      showMessage.success('已接受好友申请') // 使用 showMessage 显示成功信息
+      // 从申请列表中移除
+      friendRequests.value = friendRequests.value.filter(r => r.id !== request.id)
+      // 重新加载联系人列表
+      await loadContacts()
+    } else {
+      showMessage.error(response.data?.message || '接受申请失败') // 使用 showMessage 显示错误
     }
-  }).catch(() => {
-    // 用户取消
-  });
-};
+  } catch (error) {
+    console.error('接受好友申请失败:', error)
+    showMessage.error('接受好友申请失败') // 使用 showMessage 显示错误
+  }
+}
 
-// 确认删除联系人
-const confirmRemoveContact = (contactId) => {
-  ElMessageBox.confirm('确定要删除该联系人吗？删除后将无法直接发送消息。', '提示', {
-    confirmButtonText: '确定删除',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(async () => {
-    const loading = ElLoading.service({ text: '正在删除...' });
-    try {
-      const response = await contactApi.blockContact(contactId);
-      if (response.code === 200) {
-        ElMessage.success('联系人已删除');
-        fetchContacts();
-      } else {
-        ElMessage.error(response.message || '删除失败');
-      }
-    } catch (error) {
-      console.error('删除联系人失败:', error);
-      ElMessage.error(error.response?.data?.message || error.message || '删除失败');
-    } finally {
-      loading.close();
+const rejectRequest = async (request) => {
+  try {
+    const response = await axiosInstance.post(`/api/contacts/request/${request.id}/reject`)
+    if (response.data && response.data.code === 0) {
+      showMessage.success('已拒绝好友申请') // 使用 showMessage 显示成功信息
+      // 从申请列表中移除
+      friendRequests.value = friendRequests.value.filter(r => r.id !== request.id)
+    } else {
+      showMessage.error(response.data?.message || '拒绝申请失败') // 使用 showMessage 显示错误
     }
-  }).catch(() => {
-    // 用户取消
-  });
-};
+  } catch (error) {
+    console.error('拒绝好友申请失败:', error)
+    showMessage.error('拒绝好友申请失败') // 使用 showMessage 显示错误
+  }
+}
 
-// 开始聊天
+const deleteContact = async (contact) => {
+  if (!confirm(`确定要删除联系人 ${contact.username} 吗？`)) {
+    return
+  }
+
+  try {
+    const response = await axiosInstance.delete(`/api/contacts/${contact.id}`)
+    if (response.data && response.data.code === 0) {
+      showMessage.success('已删除联系人') // 使用 showMessage 显示成功信息
+      // 从联系人列表中移除
+      contacts.value = contacts.value.filter(c => c.id !== contact.id)
+    } else {
+      showMessage.error(response.data?.message || '删除联系人失败') // 使用 showMessage 显示错误
+    }
+  } catch (error) {
+    console.error('删除联系人失败:', error)
+    showMessage.error('删除联系人失败') // 使用 showMessage 显示错误
+  }
+}
+
 const startChat = (contact) => {
-  const chatSession = {
-    id: contact.id,
-    name: contact.username,
-    avatar: contact.avatar,
-    type: 'PRIVATE',
-    unreadCount: 0,
-    lastMessage: null,
-    lastMessageTime: new Date().toISOString(),
-  };
-  chatStore.setActiveChat(chatSession);
-  router.push('/chat');
-};
+  // 跳转到聊天页面
+  router.push(`/chat/user/${contact.id}`)
+}
 
-// 查看用户资料
-const viewUserProfile = (userId) => {
-  router.push(`/user/${userId}`);
-};
+const formatTime = (timeString) => {
+  if (!timeString) return ''
+  const date = new Date(timeString)
+  const now = new Date()
+  const diff = now - date
 
-// 获取联系人状态类型
-const getContactStatusType = (status) => {
-  switch (status) {
-    case 'ACCEPTED': return 'success';
-    case 'PENDING': return 'warning';
-    case 'BLOCKED': return 'danger';
-    default: return 'info';
-  }
-};
-
-// 获取联系人状态文本
-const getContactStatusText = (status) => {
-  switch (status) {
-    case 'ACCEPTED': return '已添加';
-    case 'PENDING': return '待确认';
-    case 'BLOCKED': return '已屏蔽';
-    default: return '未知';
-  }
-};
-
-// 格式化日期
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
-  return new Date(dateString).toLocaleString();
-};
-
-// 组件挂载时加载数据
-onMounted(() => {
-  if (authStore.currentUser) {
-    fetchContacts();
-    fetchApplications();
+  if (diff < 60000) {
+    return '刚刚'
+  } else if (diff < 3600000) {
+    return `${Math.floor(diff / 60000)}分钟前`
+  } else if (diff < 86400000) {
+    return `${Math.floor(diff / 3600000)}小时前`
   } else {
-    ElMessage.error('用户未登录，无法加载联系人数据');
-    router.replace('/login');
+    return date.toLocaleDateString()
   }
-});
+}
+
+// 生命周期
+onMounted(() => {
+  loadContacts()
+  loadFriendRequests()
+})
 </script>
 
 <style scoped>
 .contact-page-container {
   padding: 20px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: #f5f5f7;
+  min-height: 100vh;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .page-header h1 {
-  font-size: 1.8em;
-  color: #303133;
   margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #1d1d1f;
 }
 
-.contact-tabs {
-  flex-grow: 1;
+.loading-state {
+  text-align: center;
+  padding: 40px;
+  color: #86868b;
+}
+
+.loading-text {
+  font-size: 16px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-text {
+  font-size: 16px;
+  color: #86868b;
+  margin-bottom: 20px;
+}
+
+.contact-list,
+.request-list,
+.search-results {
   display: flex;
   flex-direction: column;
+  gap: 16px;
 }
 
-.el-tabs__content {
-  overflow-y: auto;
-  height: calc(100% - 55px);
-}
-
-.contact-list, .application-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-  padding-top: 10px;
-}
-
-.contact-card, .application-card {
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-.contact-card:hover, .application-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+.contact-card,
+.request-card,
+.user-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .card-header {
@@ -420,6 +521,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
 }
 
 .user-avatar {
@@ -427,6 +529,7 @@ onMounted(() => {
   height: 48px;
   border-radius: 50%;
   overflow: hidden;
+  background: #f0f0f0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -439,16 +542,9 @@ onMounted(() => {
 }
 
 .avatar-placeholder {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
   font-size: 18px;
+  font-weight: 600;
+  color: #86868b;
 }
 
 .user-details {
@@ -458,43 +554,173 @@ onMounted(() => {
 }
 
 .username {
-  font-weight: bold;
+  font-weight: 600;
+  color: #1d1d1f;
   font-size: 16px;
-  color: #303133;
 }
 
-.nickname {
+.nickname,
+.user-nickname {
+  color: #86868b;
   font-size: 14px;
-  color: #909399;
 }
 
-.contact-info, .application-info {
-  margin: 15px 0;
+.request-time {
+  font-size: 12px;
+  color: #98989f;
 }
 
-.contact-info p, .application-info p {
-  font-size: 0.9em;
-  color: #606266;
-  margin: 5px 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.card-footer {
+.card-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #ebeef5;
-  margin-top: 10px;
+  gap: 8px;
 }
 
-.empty-state, .loading-state {
+.contact-bio,
+.user-bio,
+.request-message {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  color: #515154;
+  line-height: 1.5;
+}
+
+.request-message {
+  font-size: 14px;
+}
+
+.search-section {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-  color: #909399;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.search-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.search-header h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.search-form {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.form-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-item label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1d1d1f;
+}
+
+.search-results h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.no-results {
+  text-align: center;
+  padding: 40px;
+}
+
+.add-contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .contact-page-container {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .card-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .card-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .search-form {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.contact-card,
+.request-card,
+.user-card {
+  animation: fadeIn 0.3s ease;
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .contact-page-container {
+    background: #000000;
+  }
+
+  .page-header h1,
+  .search-header h3,
+  .search-results h3,
+  .form-item label {
+    color: #f5f5f7;
+  }
+
+  .contact-card,
+  .request-card,
+  .user-card,
+  .search-card {
+    background: rgba(28, 28, 30, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .username {
+    color: #f5f5f7;
+  }
+
+  .nickname,
+  .user-nickname,
+  .request-time {
+    color: #98989f;
+  }
 }
 </style>

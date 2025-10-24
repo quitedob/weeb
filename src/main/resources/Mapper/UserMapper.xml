@@ -182,10 +182,10 @@
                 AND u.username LIKE CONCAT('%', #{username}, '%')
             </if>
             <if test="minFansCount != null">
-                AND us.fans_count >= #{minFansCount}
+                <![CDATA[AND us.fans_count >= #{minFansCount}]]>
             </if>
             <if test="minTotalLikes != null">
-                AND us.total_likes >= #{minTotalLikes}
+                <![CDATA[AND us.total_likes >= #{minTotalLikes}]]>
             </if>
         </where>
         ORDER BY 
@@ -321,7 +321,7 @@
         WHERE (u.username LIKE CONCAT('%', #{keyword}, '%')
                OR u.nickname LIKE CONCAT('%', #{keyword}, '%'))
         <if test="startDate != null and startDate != ''">
-            AND DATE(u.registration_date) >= #{startDate}
+            <![CDATA[AND DATE(u.registration_date) >= #{startDate}]]>
         </if>
         <if test="endDate != null and endDate != ''">
             AND DATE(u.registration_date) &lt;= #{endDate}
@@ -362,7 +362,7 @@
         WHERE (u.username LIKE CONCAT('%', #{keyword}, '%')
                OR u.nickname LIKE CONCAT('%', #{keyword}, '%'))
         <if test="startDate != null and startDate != ''">
-            AND DATE(u.registration_date) >= #{startDate}
+            <![CDATA[AND DATE(u.registration_date) >= #{startDate}]]>
         </if>
         <if test="endDate != null and endDate != ''">
             AND DATE(u.registration_date) &lt;= #{endDate}
@@ -379,7 +379,7 @@
         WHERE (u.username LIKE CONCAT('%', #{keyword}, '%')
                OR u.nickname LIKE CONCAT('%', #{keyword}, '%'))
         <if test="startDate != null and startDate != ''">
-            AND DATE(u.registration_date) >= #{startDate}
+            <![CDATA[AND DATE(u.registration_date) >= #{startDate}]]>
         </if>
         <if test="endDate != null and endDate != ''">
             AND DATE(u.registration_date) &lt;= #{endDate}
@@ -420,7 +420,7 @@
         WHERE (u.username LIKE CONCAT('%', #{keyword}, '%')
                OR u.nickname LIKE CONCAT('%', #{keyword}, '%'))
         <if test="startDate != null and startDate != ''">
-            AND DATE(u.registration_date) >= #{startDate}
+            <![CDATA[AND DATE(u.registration_date) >= #{startDate}]]>
         </if>
         <if test="endDate != null and endDate != ''">
             AND DATE(u.registration_date) &lt;= #{endDate}
@@ -577,13 +577,13 @@
     <!-- 统计活跃用户数量 -->
     <select id="countActiveUsers" resultType="int">
         SELECT COUNT(*) FROM user
-        WHERE login_time >= #{sinceTime}
+        <![CDATA[WHERE login_time >= #{sinceTime}]]>
     </select>
 
     <!-- 统计新用户数量 -->
     <select id="countNewUsers" resultType="int">
         SELECT COUNT(*) FROM user
-        WHERE registration_date >= #{sinceTime}
+        <![CDATA[WHERE registration_date >= #{sinceTime}]]>
     </select>
 
     <!-- 统计被封禁用户数量 -->
@@ -609,6 +609,41 @@
                login_time, bio, online_status, status
         FROM user
         WHERE username = #{username}
+    </select>
+
+    <!-- 统计用户文章数量 -->
+    <select id="countUserArticles" parameterType="long" resultType="long">
+        SELECT COUNT(*) FROM articles WHERE user_id = #{userId} AND status = 1
+    </select>
+
+    <!-- 统计用户消息数量 -->
+    <select id="countUserMessages" parameterType="long" resultType="long">
+        SELECT COUNT(*) FROM messages WHERE sender_id = #{userId}
+    </select>
+
+    <!-- 统计用户点赞数量 -->
+    <select id="countUserLikes" parameterType="long" resultType="long">
+        SELECT COUNT(*) FROM article_like WHERE user_id = #{userId}
+    </select>
+
+    <!-- 统计用户粉丝数量 -->
+    <select id="countUserFollowers" parameterType="long" resultType="long">
+        SELECT COUNT(*) FROM user_follow WHERE followed_id = #{userId}
+    </select>
+
+    <!-- 统计用户文章阅读量 -->
+    <select id="countUserArticleViews" parameterType="long" resultType="long">
+        SELECT COALESCE(SUM(exposure_count), 0) FROM articles WHERE user_id = #{userId} AND status = 1
+    </select>
+
+    <!-- 统计用户评论数量 -->
+    <select id="countUserComments" parameterType="long" resultType="long">
+        SELECT COUNT(*) FROM article_comment WHERE user_id = #{userId}
+    </select>
+
+    <!-- 根据等级统计用户数量 -->
+    <select id="countUsersByLevel" parameterType="int" resultType="long">
+        SELECT COUNT(*) FROM user WHERE type = #{level}
     </select>
 
 </mapper>

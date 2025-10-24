@@ -290,4 +290,33 @@ public interface ArticleMapper {
      * @return 影响的行数
      */
     int updateById(Article article);
+
+    /**
+     * 根据状态统计文章数量
+     * @param status 文章状态
+     * @return 文章数量
+     */
+    int countByStatus(@Param("status") int status);
+
+    /**
+     * 统计今日审核的文章数量
+     * @param today 今日日期
+     * @return 审核文章数量
+     */
+    int countReviewedToday(@Param("today") String today);
+
+    /**
+     * 统计指定时间段内审核的文章数量
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 审核文章数量
+     */
+    int countReviewedInPeriod(@Param("startDate") String startDate, @Param("endDate") String endDate);
+
+    /**
+     * 更新文章状态
+     * @param articleId 文章ID
+     * @param status 新状态
+     */
+    void updateArticleStatus(@Param("articleId") Long articleId, @Param("status") int status);
 }

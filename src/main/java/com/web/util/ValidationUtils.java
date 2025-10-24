@@ -861,4 +861,54 @@ public class ValidationUtils {
         log.warn("IP地址验证失败：格式不正确 - {}", trimmedIp);
         return false;
     }
+
+    /**
+     * 验证邮箱地址格式
+     * @param email 邮箱地址字符串
+     * @return 是否为有效邮箱地址格式
+     */
+    public static boolean isValidEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return true; // 空值允许，由调用方处理
+        }
+
+        String trimmedEmail = email.trim();
+
+        // 邮箱地址正则表达式（RFC 5322标准简化版）
+        String emailPattern = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
+
+        if (trimmedEmail.matches(emailPattern)) {
+            return true;
+        }
+
+        log.warn("邮箱地址验证失败：格式不正确 - {}", trimmedEmail);
+        return false;
+    }
+
+    /**
+     * 验证URL格式
+     * @param url URL字符串
+     * @return 是否为有效URL格式
+     */
+    public static boolean isValidUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return true; // 空值允许，由调用方处理
+        }
+
+        String trimmedUrl = url.trim();
+
+        try {
+            // URL格式验证正则表达式
+            String urlPattern = "^(https?|ftp)://[^\\s/$.?#].[^\\s]*$";
+
+            if (trimmedUrl.matches(urlPattern)) {
+                return true;
+            }
+        } catch (Exception e) {
+            log.warn("URL验证失败：解析错误 - {}", trimmedUrl);
+        }
+
+        log.warn("URL验证失败：格式不正确 - {}", trimmedUrl);
+        return false;
+    }
 }

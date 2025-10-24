@@ -86,6 +86,12 @@ const routes = [
         meta: { title: '群组详情', requiresAuth: true }
       },
       {
+        path: '/profile',
+        name: 'Profile',
+        component: () => import(/* webpackChunkName: "user" */ '../views/UserProfile.vue'),
+        meta: { title: '个人资料', requiresAuth: true }
+      },
+      {
         path: '/setting',
         name: 'Setting',
         component: () => import(/* webpackChunkName: "settings" */ '../views/Settings.vue'),
@@ -115,6 +121,55 @@ const routes = [
         component: () => import(/* webpackChunkName: "user" */ '../views/UserDetail.vue'),
         props: true,
         meta: { title: '用户详情', requiresAuth: true }
+      },
+      // 管理员路由
+      {
+        path: '/admin',
+        name: 'Admin',
+        component: () => import(/* webpackChunkName: "admin" */ '../views/admin/Dashboard.vue'),
+        meta: { title: '管理后台', requiresAuth: true }
+      },
+      {
+        path: '/admin/users',
+        name: 'AdminUsers',
+        component: () => import(/* webpackChunkName: "admin" */ '../views/admin/UserManagement.vue'),
+        meta: { title: '用户管理', requiresAuth: true }
+      },
+      {
+        path: '/admin/roles',
+        name: 'AdminRoles',
+        component: () => import(/* webpackChunkName: "admin" */ '../views/admin/RoleManagement.vue'),
+        meta: { title: '角色管理', requiresAuth: true }
+      },
+      {
+        path: '/admin/permissions',
+        name: 'AdminPermissions',
+        component: () => import(/* webpackChunkName: "admin" */ '../views/admin/PermissionManagement.vue'),
+        meta: { title: '权限管理', requiresAuth: true }
+      },
+      {
+        path: '/admin/content',
+        name: 'AdminContent',
+        component: () => import(/* webpackChunkName: "admin" */ '../views/admin/ContentModeration.vue'),
+        meta: { title: '内容审核', requiresAuth: true }
+      },
+      {
+        path: '/admin/monitor',
+        name: 'AdminMonitor',
+        component: () => import(/* webpackChunkName: "admin" */ '../views/admin/SystemMonitor.vue'),
+        meta: { title: '系统监控', requiresAuth: true }
+      },
+      {
+        path: '/admin/user-behavior',
+        name: 'AdminUserBehavior',
+        component: () => import(/* webpackChunkName: "admin" */ '../views/admin/UserBehaviorMonitor.vue'),
+        meta: { title: '用户行为监控', requiresAuth: true }
+      },
+      {
+        path: '/admin/logs',
+        name: 'AdminLogs',
+        component: () => import(/* webpackChunkName: "admin" */ '../views/admin/SystemLogViewer.vue'),
+        meta: { title: '系统日志', requiresAuth: true }
       }
     ]
   },

@@ -18,7 +18,7 @@ import java.util.List; // For return type of getContacts
  * 简化注释：联系人控制器
  */
 @RestController
-@RequestMapping("/api/contact") // As per plan
+@RequestMapping("/api/contacts") // As per plan
 public class ContactController {
 
     @Autowired
@@ -78,7 +78,7 @@ public class ContactController {
      * @param status 要查询的关系状态 (e.g., ACCEPTED, PENDING)
      * @return 联系人列表 (List<UserDto>)
      */
-    @GetMapping("/list")
+    @GetMapping
     public ResponseEntity<ApiResponse<List<UserDto>>> getContacts(@Userid Long userId, @RequestParam("status") ContactStatus status) {
         List<UserDto> contacts = contactService.getContacts(userId, status);
         return ResponseEntity.ok(ApiResponse.success(contacts));
@@ -89,7 +89,7 @@ public class ContactController {
      * @param userId 当前用户ID (from @Userid)
      * @return 待处理的申请列表 (List<UserDto> representing the applicants)
      */
-    @GetMapping("/list/pending")
+    @GetMapping("/requests")
     public ResponseEntity<ApiResponse<List<UserDto>>> getPendingApplications(@Userid Long userId) {
         // This service method might need to return more info than just UserDto,
         // perhaps a list of Contact objects or a custom DTO that includes remarks and contactId.

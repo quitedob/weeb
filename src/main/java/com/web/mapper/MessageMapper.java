@@ -103,4 +103,49 @@ public interface MessageMapper extends BaseMapper<Message> {
      * @return 消息列表
      */
     List<Message> selectMessagesByChatId(@Param("chatId") Long chatId, @Param("offset") int offset, @Param("size") int size);
+
+    // ==================== 消息线程相关方法 ====================
+
+    /**
+     * 查询线程消息列表
+     * @param parentMessageId 父消息ID（线程ID）
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @return 线程消息列表
+     */
+    List<Message> selectThreadMessages(@Param("parentMessageId") Long parentMessageId,
+                                     @Param("offset") int offset,
+                                     @Param("pageSize") int pageSize);
+
+    /**
+     * 统计线程消息数量
+     * @param parentMessageId 父消息ID（线程ID）
+     * @return 消息数量
+     */
+    int countThreadMessages(@Param("parentMessageId") Long parentMessageId);
+
+    /**
+     * 查询线程摘要信息
+     * @param parentMessageId 父消息ID（线程ID）
+     * @return 线程摘要信息
+     */
+    java.util.Map<String, Object> selectThreadSummary(@Param("parentMessageId") Long parentMessageId);
+
+    /**
+     * 查询用户参与的线程
+     * @param userId 用户ID
+     * @param offset 偏移量
+     * @param pageSize 每页大小
+     * @return 用户参与的线程列表
+     */
+    List<java.util.Map<String, Object>> selectUserThreads(@Param("userId") Long userId,
+                                                       @Param("offset") int offset,
+                                                       @Param("pageSize") int pageSize);
+
+    /**
+     * 统计用户参与的线程数量
+     * @param userId 用户ID
+     * @return 线程数量
+     */
+    int countUserThreads(@Param("userId") Long userId);
 }

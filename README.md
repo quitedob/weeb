@@ -12,7 +12,6 @@
 - 🚀 **高性能架构**: Spring Boot 3 + MySQL + Redis缓存 + 连接池优化
 - 💬 **实时通信**: WebSocket实现实时消息推送 + 异步任务处理
 - 🔍 **智能搜索**: Elasticsearch全文搜索（已启用）
-- 📁 **文件管理**: 多文件上传与云存储集成
 - 🔐 **企业级安全**: JWT令牌认证 + RSA/AES加密 + 密钥持久化
 - 🎨 **现代化UI**: Vue 3 + Element Plus + 响应式设计
 - 🏗️ **智能初始化**: 环境感知自动创建数据库（开发环境）+ 生产环境安全验证
@@ -121,7 +120,6 @@ WEEB 是一个功能全面的现代化即时通信与内容管理系统，专为
 - 📝 **内容创作**: 文章发布、编辑、富文本编辑器、评论系统、分类管理
 - 👍 **社交互动**: 文章点赞、收藏、评论系统、阅读统计
 - 🔍 **智能搜索**: 全文搜索、消息检索、文章搜索、Elasticsearch集成
-- 📁 **文件管理**: 多文件上传、云存储、文件类型验证、安全检查、文件分享
 - 🔔 **通知系统**: 实时通知、消息提醒、系统公告、邮件通知
 - 📊 **数据统计**: 用户数据、文章统计、访问分析、性能监控
 - 🔒 **安全防护**: SQL注入防护、XSS防护、输入验证、安全审计日志
@@ -312,7 +310,6 @@ mvn spring-boot:run
 ### 💬 聊天系统
 - 实时私聊和群聊 (WebSocket)
 - 消息推送通知
-- 文件和图片分享
 - 消息搜索和历史记录
 - 打字指示器和消息状态 (发送中/已发送/已送达/已读)
 - 表情包支持和消息撤回功能
@@ -431,7 +428,7 @@ weeb/
 │   │   ├── UserOnlineStatus.java  # 用户在线状态
 │   │   ├── UserType.java          # 用户类型
 │   │   └── WsContentType.java     # WebSocket内容类型
-│   ├── Controller/                 # REST控制器 (25个)
+│   ├── Controller/                 # REST控制器 (23个)
 │   │   ├── AdminController.java   # 管理员控制器
 │   │   ├── AIController.java      # AI功能控制器
 │   │   ├── ArticleCenterController.java # 文章中心控制器
@@ -441,8 +438,6 @@ weeb/
 │   │   ├── ChatController.java    # 聊天控制器
 │   │   ├── ContactController.java # 联系人控制器
 │   │   ├── ContentReportController.java # 内容举报控制器
-│   │   ├── FileController.java    # 文件控制器
-│   │   ├── FileManagementController.java # 文件管理控制器
 │   │   ├── GroupController.java   # 群组控制器
 │   │   ├── MessageController.java # 消息控制器
 │   │   ├── MessageThreadController.java # 消息线索控制器
@@ -453,7 +448,6 @@ weeb/
 │   │   ├── StandardAuthController.java # 标准认证控制器
 │   │   ├── StandardGroupController.java # 标准群组控制器
 │   │   ├── StandardUserController.java # 标准用户控制器
-│   │   ├── UploadController.java  # 上传控制器
 │   │   ├── UserController.java    # 用户控制器
 │   │   ├── UserFollowController.java # 用户关注控制器
 │   │   └── WebSocketMessageController.java # WebSocket消息控制器
@@ -467,7 +461,7 @@ weeb/
 │   │   └── WeebException.java     # 自定义异常
 │   ├── filter/                     # 过滤器 (1个)
 │   │   └── JwtAuthenticationFilter.java # JWT认证过滤器
-│   ├── mapper/                     # MyBatis Mapper接口 (31个)
+│   ├── mapper/                     # MyBatis Mapper接口 (28个)
 │   │   ├── ArticleCategoryMapper.java # 文章分类Mapper
 │   │   ├── ArticleCommentMapper.java # 文章评论Mapper
 │   │   ├── ArticleMapper.java     # 文章Mapper
@@ -477,9 +471,6 @@ weeb/
 │   │   ├── ChatListMapper.java    # 聊天列表Mapper
 │   │   ├── ContactMapper.java     # 联系人Mapper
 │   │   ├── ContentReportMapper.java # 内容举报Mapper
-│   │   ├── FileMapper.java        # 文件Mapper
-│   │   ├── FileRecordMapper.java  # 文件记录Mapper
-│   │   ├── FileShareMapper.java   # 文件分享Mapper
 │   │   ├── GroupMapper.java       # 群组Mapper
 │   │   ├── GroupMemberMapper.java # 群组成员Mapper
 │   │   ├── LinkPreviewMapper.java # 链接预览Mapper
@@ -499,7 +490,7 @@ weeb/
 │   │   ├── DatabaseMigrationExecutor.java # 数据库迁移执行器
 │   │   ├── MigrationRunner.java   # 迁移运行器
 │   │   └── MigrationValidator.java # 迁移验证器
-│   ├── model/                      # 数据模型 (30个)
+│   ├── model/                      # 数据模型 (27个)
 │   │   ├── Article.java           # 文章模型
 │   │   ├── ArticleCategory.java   # 文章分类模型
 │   │   ├── ArticleComment.java    # 文章评论模型
@@ -508,9 +499,6 @@ weeb/
 │   │   ├── ChatList.java          # 聊天列表模型
 │   │   ├── Contact.java           # 联系人模型
 │   │   ├── ContentReport.java     # 内容举报模型
-│   │   ├── FileRecord.java        # 文件记录模型
-│   │   ├── FileShare.java         # 文件分享模型
-│   │   ├── FileTransfer.java      # 文件传输模型
 │   │   ├── Group.java             # 群组模型
 │   │   ├── GroupMember.java       # 群组成员模型
 │   │   ├── LinkPreview.java       # 链接预览模型
@@ -537,7 +525,7 @@ weeb/
 │   │   └── ExpiredClearTask.java  # 过期清理任务
 │   ├── security/                   # 安全模块 (1个)
 │   │   └── CustomPermissionEvaluator.java # 自定义权限评估器
-│   ├── service/                    # 业务逻辑层 (59个)
+│   ├── service/                    # 业务逻辑层 (57个)
 │   │   ├── AIService.java         # AI服务接口
 │   │   ├── ArticleService.java    # 文章服务接口
 │   │   ├── ArticleVersionService.java # 文章版本服务接口
@@ -546,8 +534,6 @@ weeb/
 │   │   ├── ChatService.java       # 聊天服务接口
 │   │   ├── ContactService.java    # 联系人服务接口
 │   │   ├── ContentReportService.java # 内容举报服务接口
-│   │   ├── FileManagementService.java # 文件管理服务接口
-│   │   ├── FileService.java       # 文件服务接口
 │   │   ├── GroupService.java      # 群组服务接口
 │   │   ├── LinkPreviewService.java # 链接预览服务接口
 │   │   ├── LogService.java        # 日志服务接口
@@ -558,7 +544,6 @@ weeb/
 │   │   ├── RBACService.java       # 基于角色的访问控制服务接口
 │   │   ├── RoleService.java       # 角色服务接口
 │   │   ├── SearchService.java     # 搜索服务接口
-│   │   ├── StorageService.java    # 存储服务接口
 │   │   ├── SystemPermissionInitializer.java # 系统权限初始化器
 │   │   ├── UserFollowService.java # 用户关注服务接口
 │   │   ├── UserMentionService.java # 用户提及服务接口
@@ -566,7 +551,7 @@ weeb/
 │   │   ├── UserStatsService.java  # 用户统计服务接口
 │   │   ├── UserTransactionService.java # 用户事务服务接口
 │   │   ├── WebSocketService.java  # WebSocket服务接口
-│   │   └── Impl/                  # 服务实现类 (33个)
+│   │   └── Impl/                  # 服务实现类 (31个)
 │   │       ├── AIServiceImpl.java # AI服务实现
 │   │       ├── ArticleServiceImpl.java # 文章服务实现
 │   │       ├── ArticleVersionServiceImpl.java # 文章版本服务实现
@@ -575,8 +560,6 @@ weeb/
 │   │       ├── ChatServiceImpl.java # 聊天服务实现
 │   │       ├── ContactServiceImpl.java # 联系人服务实现
 │   │       ├── ContentReportServiceImpl.java # 内容举报服务实现
-│   │       ├── FileManagementServiceImpl.java # 文件管理服务实现
-│   │       ├── FileServiceImpl.java # 文件服务实现
 │   │       ├── GroupServiceImpl.java # 群组服务实现
 │   │       ├── LinkPreviewServiceImpl.java # 链接预览服务实现
 │   │       ├── LogServiceImpl.java  # 日志服务实现
@@ -588,7 +571,6 @@ weeb/
 │   │       ├── RBACServiceImpl.java # RBAC服务实现
 │   │       ├── RoleServiceImpl.java # 角色服务实现
 │   │       ├── SearchServiceImpl.java # 搜索服务实现
-│   │       ├── StorageServiceImpl.java # 存储服务实现
 │   │       ├── SystemPermissionInitializer.java # 系统权限初始化器实现
 │   │       ├── UserFollowServiceImpl.java # 用户关注服务实现
 │   │       ├── UserMentionServiceImpl.java # 用户提及服务实现
@@ -613,7 +595,7 @@ weeb/
 │   │   ├── UrlPermitUtil.java     # URL权限工具
 │   │   ├── UserStatsUtil.java     # 用户统计工具
 │   │   └── ValidationUtils.java   # 输入验证工具
-│   └── vo/                         # 视图对象 (43个)
+│   └── vo/                         # 视图对象 (42个)
 │       ├── ai/                     # AI相关VO
 │       ├── article/                # 文章相关VO
 │       ├── auth/                   # 认证相关VO
@@ -621,7 +603,6 @@ weeb/
 │       ├── chatList/               # 聊天列表相关VO
 │       ├── comment/                # 评论相关VO
 │       ├── contact/                # 联系人相关VO
-│       ├── file/                   # 文件相关VO
 │       ├── group/                  # 群组相关VO
 │       ├── login/                  # 登录相关VO
 │       ├── message/                # 消息相关VO
@@ -635,15 +616,13 @@ weeb/
 │   │       └── V2__advanced_chat_features.sql # 高级聊天功能迁移脚本
 │   ├── es/                         # Elasticsearch配置
 │   │   └── README.md               # ES配置说明
-│   ├── Mapper/                     # MyBatis XML映射文件 (18个)
+│   ├── Mapper/                     # MyBatis XML映射文件 (16个)
 │   │   ├── ArticleCategoryMapper.xml # 文章分类Mapper映射
 │   │   ├── ArticleCommentMapper.xml # 文章评论Mapper映射
 │   │   ├── ArticleMapper.xml       # 文章Mapper映射
 │   │   ├── AuthMapper.xml          # 认证Mapper映射
 │   │   ├── ChatListMapper.xml      # 聊天列表Mapper映射
 │   │   ├── ContactMapper.xml       # 联系人Mapper映射
-│   │   ├── FileMapper.xml          # 文件Mapper映射
-│   │   ├── FileRecordMapper.xml    # 文件记录Mapper映射
 │   │   ├── GroupMapper.xml         # 群组Mapper映射
 │   │   ├── MessageMapper.xml       # 消息Mapper映射
 │   │   ├── MessageReactionMapper.xml # 消息反应Mapper映射
@@ -691,7 +670,6 @@ weeb/
 │   │   │       ├── auth.js       # 认证API
 │   │   │       ├── comment.js    # 评论API
 │   │   │       ├── contact.js    # 联系人API
-│   │   │       ├── fileManagement.js # 文件管理API
 │   │   │       ├── follow.js     # 关注API
 │   │   │       ├── group.js      # 群组API
 │   │   │       ├── message.js    # 消息API
@@ -755,7 +733,6 @@ weeb/
 │   │       │   └── UserManagement.vue # 用户管理
 │   │       ├── chat/             # 聊天视图
 │   │       │   └── ChatWindow.vue # 聊天窗口
-│   │       ├── FileTransfer.vue  # 文件传输
 │   │       ├── Forget.vue        # 忘记密码
 │   │       ├── group/            # 群组视图
 │   │       │   └── GroupDetail.vue # 群组详情
@@ -836,9 +813,6 @@ weeb/
 - `GET /notifications` - 获取通知列表
 - `POST /notifications/read-all` - 标记所有通知为已读
 
-### 📁 文件管理
-- 文件上传、下载和管理相关接口
-- 支持多文件上传和云存储集成
 
 > 📖 **详细API文档**: 请查看各个Controller类的注释，或使用Swagger UI (如果配置了) 查看完整的API文档。
 
@@ -878,18 +852,17 @@ weeb/
 - **路由管理**: Vue Router 4.x
 
 ### 前端项目结构 (Vue/)
-Vue/ (51个Vue和JS文件)
+Vue/ (50个Vue和JS文件)
 ├── src/                         # 源代码目录
 │   ├── api/                     # API接口封装
 │   │   ├── axiosInstance.js     # Axios实例配置
 │   │   ├── index.js             # API统一导出
-│   │   └── modules/             # API模块 (11个)
+│   │   └── modules/             # API模块 (10个)
 │   │       ├── article.js       # 文章API
 │   │       ├── auth.js          # 认证API
 │   │       ├── chat.js          # 聊天API
 │   │       ├── comment.js       # 评论API
 │   │       ├── contact.js       # 联系人API
-│   │       ├── fileManagement.js # 文件管理API
 │   │       ├── follow.js         # 关注API
 │   │       ├── group.js         # 群组API
 │   │       ├── notification.js  # 通知API
@@ -935,10 +908,9 @@ Vue/ (51个Vue和JS文件)
 │   │   └── value.vue            # 值组件
 │   ├── video/                   # 视频组件
 │   │   └── Video.vue            # 视频播放器
-│   └── views/                   # 视图页面 (13个)
+│   └── views/                   # 视图页面 (12个)
 │       ├── chat/                # 聊天视图
 │       │   └── ChatWindow.vue   # 聊天窗口
-│       ├── FileTransfer.vue     # 文件传输
 │       ├── Forget.vue           # 忘记密码
 │       ├── group/               # 群组视图
 │       │   └── GroupDetail.vue  # 群组详情
@@ -1448,7 +1420,6 @@ cd Vue && npm run test:e2e
 
 - ✅ **帮助系统**: 完整的帮助中心内容，涵盖创作者权益、内容曝光和审核标准
 - ✅ **通知系统**: 实时消息通知和系统公告功能
-- ✅ **文件分享**: 完善的文件上传、管理和分享功能
 - ✅ **社交互动**: 点赞、收藏、评论系统完整实现
 
 ### 🔧 开发者体验

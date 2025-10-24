@@ -19,11 +19,17 @@ public class UserStats implements Serializable {
     
     // 统计数据字段
     private Long fansCount = 0L;             // 粉丝数量
+    private Long followerCount = 0L;         // 关注者数量
+    private Long followingCount = 0L;        // 关注数量
+    private Long articleCount = 0L;          // 文章数量
+    private Long totalViews = 0L;            // 总浏览量
+    private Long loginCount = 0L;            // 登录次数
     private Long totalLikes = 0L;            // 总点赞数
     private Long totalFavorites = 0L;        // 总收藏数
     private Long totalSponsorship = 0L;      // 总赞助数
     private Long totalArticleExposure = 0L;  // 文章总曝光数
     private Long websiteCoins = 0L;          // 网站金币
+    private java.time.LocalDateTime lastLoginTime; // 最后登录时间
     
     // 时间戳字段
     @TableField(fill = FieldFill.INSERT)
@@ -136,6 +142,56 @@ public class UserStats implements Serializable {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    // 新增字段的 getter 和 setter 方法
+
+    public Long getFollowerCount() {
+        return followerCount;
+    }
+
+    public void setFollowerCount(Long followerCount) {
+        this.followerCount = followerCount;
+    }
+
+    public Long getFollowingCount() {
+        return followingCount;
+    }
+
+    public void setFollowingCount(Long followingCount) {
+        this.followingCount = followingCount;
+    }
+
+    public Long getArticleCount() {
+        return articleCount;
+    }
+
+    public void setArticleCount(Long articleCount) {
+        this.articleCount = articleCount;
+    }
+
+    public Long getTotalViews() {
+        return totalViews;
+    }
+
+    public void setTotalViews(Long totalViews) {
+        this.totalViews = totalViews;
+    }
+
+    public Long getLoginCount() {
+        return loginCount;
+    }
+
+    public void setLoginCount(Long loginCount) {
+        this.loginCount = loginCount;
+    }
+
+    public java.time.LocalDateTime getLastLoginTime() {
+        return lastLoginTime;
+    }
+
+    public void setLastLoginTime(java.time.LocalDateTime lastLoginTime) {
+        this.lastLoginTime = lastLoginTime;
     }
 
     // 便利方法：增加粉丝数

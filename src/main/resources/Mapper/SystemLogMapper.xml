@@ -35,7 +35,7 @@
                 AND ip_address = #{ipAddress}
             </if>
             <if test="startDate != null and startDate != ''">
-                AND DATE(created_at) >= #{startDate}
+                <![CDATA[AND DATE(created_at) >= #{startDate}]]>
             </if>
             <if test="endDate != null and endDate != ''">
                 AND DATE(created_at) &lt;= #{endDate}
@@ -63,7 +63,7 @@
                 AND ip_address = #{ipAddress}
             </if>
             <if test="startDate != null and startDate != ''">
-                AND DATE(created_at) >= #{startDate}
+                <![CDATA[AND DATE(created_at) >= #{startDate}]]>
             </if>
             <if test="endDate != null and endDate != ''">
                 AND DATE(created_at) &lt;= #{endDate}
@@ -73,6 +73,122 @@
                      OR action LIKE CONCAT('%', #{keyword}, '%'))
             </if>
         </where>
+    </select>
+
+    <!-- 按日期统计日志数量 -->
+    <select id="countLogsByDate" parameterType="string" resultType="long">
+        SELECT COUNT(*) FROM system_logs
+        WHERE DATE(created_at) = #{date}
+    </select>
+
+    <!-- 按周统计日志数量 -->
+    <select id="countLogsByWeek" parameterType="string" resultType="long">
+        SELECT COUNT(*) FROM system_logs
+        WHERE DATE(created_at) >= #{startDate}
+        AND DATE(created_at) <![CDATA[<= DATE(DATE_ADD(#{startDate}, INTERVAL 7 DAY))]]>
+    </select>
+
+    <!-- 按操作类型统计日志数量 -->
+    <select id="countLogsByAction" parameterType="string" resultType="long">
+        SELECT COUNT(*) FROM system_logs
+        WHERE action = #{action}
+    </select>
+
+    <!-- 获取最活跃的操作员 -->
+    <select id="getTopOperators" parameterType="int" resultType="map">
+        SELECT operator_id as operatorId,
+               COUNT(*) as count
+        FROM system_logs
+        WHERE operator_id IS NOT NULL
+        GROUP BY operator_id
+        ORDER BY count DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 获取最常见的操作 -->
+    <select id="getTopActions" parameterType="int" resultType="map">
+        SELECT action, COUNT(*) as count
+        FROM system_logs
+        GROUP BY action
+        ORDER BY count DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 查找错误日志 -->
+    <select id="findErrorLogs" resultType="com.web.model.SystemLog">
+        SELECT id, operator_id, action, details, ip_address, created_at
+        FROM system_logs
+        WHERE action = 'ERROR'
+        AND created_at BETWEEN #{startTime} AND #{endTime}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查找最近日志 -->
+    <select id="findRecentLogs" resultType="com.web.model.SystemLog">
+        SELECT id, operator_id, action, details, ip_address, created_at
+        FROM system_logs
+        WHERE created_at BETWEEN #{startTime} AND #{endTime}
+        ORDER BY created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 获取所有不同的操作类型 -->
+    <select id="getDistinctActions" resultType="string">
+        SELECT DISTINCT action FROM system_logs
+        ORDER BY action
+    </select>
+
+    <!-- 获取最活跃的操作员列表 -->
+    <select id="getDistinctOperators" parameterType="int" resultType="map">
+        SELECT DISTINCT operator_id as operatorId,
+               (SELECT COUNT(*) FROM system_logs sl2
+                WHERE sl2.operator_id = sl.operator_id) as count
+        FROM system_logs sl
+        WHERE operator_id IS NOT NULL
+        ORDER BY count DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 删除指定日期之前的日志 -->
+    <delete id="deleteLogsBefore" parameterType="java.time.LocalDateTime">
+        DELETE FROM system_logs
+        <![CDATA[
+        WHERE created_at < #{cutoffTime}
+        ]]>
+    </delete>
+
+    <!-- 批量删除日志 -->
+    <delete id="batchDeleteLogs">
+        DELETE FROM system_logs
+        WHERE id IN
+        <foreach item="id" collection="list" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 根据ID查找日志 -->
+    <select id="findById" parameterType="long" resultType="com.web.model.SystemLog">
+        SELECT id, operator_id, action, details, ip_address, created_at
+        FROM system_logs
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据日期查找日志 -->
+    <select id="findLogsByDate" parameterType="string" resultType="com.web.model.SystemLog">
+        SELECT id, operator_id, action, details, ip_address, created_at
+        FROM system_logs
+        WHERE DATE(created_at) = #{date}
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 搜索日志 -->
+    <select id="searchLogs" resultType="com.web.model.SystemLog">
+        SELECT id, operator_id, action, details, ip_address, created_at
+        FROM system_logs
+        WHERE details LIKE CONCAT('%', #{keyword}, '%')
+           OR action LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY created_at DESC
+        LIMIT #{limit}
     </select>
 
 </mapper>

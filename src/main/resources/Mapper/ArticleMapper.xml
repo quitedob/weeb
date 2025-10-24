@@ -40,7 +40,7 @@
             <![CDATA[(likes_count * 0.3 + exposure_count * 0.2 + favorites_count * 0.3 + (TIMESTAMPDIFF(DAY, created_at, NOW()) < 7) * 10 * 0.2) AS recommend_score]]>
         FROM articles
         WHERE status = 1        <!-- 只显示已发布的文章 -->
-        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)  <!-- 只推荐30天内的文章 -->
+        <![CDATA[AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)]]><!-- 只推荐30天内的文章 -->
         ORDER BY recommend_score DESC, created_at DESC
         LIMIT #{offset}, #{pageSize}
     </select>
@@ -458,10 +458,10 @@
         WHERE status = 1        <!-- 只显示已发布的文章 -->
         AND (article_title LIKE CONCAT('%', #{query}, '%') OR article_content LIKE CONCAT('%', #{query}, '%'))
         <if test="startDate != null and startDate != ''">
-            AND DATE(created_at) >= #{startDate}
+            <![CDATA[AND DATE(created_at) >= #{startDate}]]>
         </if>
         <if test="endDate != null and endDate != ''">
-            AND DATE(created_at) &lt;= #{endDate}
+            <![CDATA[AND DATE(created_at) <= #{endDate}]]>
         </if>
         <choose>
             <when test="sortBy == 'created_at' and sortOrder == 'asc'">
@@ -501,10 +501,10 @@
         WHERE status = 1        <!-- 只显示已发布的文章 -->
         AND (article_title LIKE CONCAT('%', #{query}, '%') OR article_content LIKE CONCAT('%', #{query}, '%'))
         <if test="startDate != null and startDate != ''">
-            AND DATE(created_at) >= #{startDate}
+            <![CDATA[AND DATE(created_at) >= #{startDate}]]>
         </if>
         <if test="endDate != null and endDate != ''">
-            AND DATE(created_at) &lt;= #{endDate}
+            <![CDATA[AND DATE(created_at) <= #{endDate}]]>
         </if>
     </select>
 
@@ -520,10 +520,10 @@
                 (article_title LIKE CONCAT('%', #{searchVo.query}, '%') OR article_content LIKE CONCAT('%', #{searchVo.query}, '%'))
             </if>
             <if test="searchVo.startDate != null and searchVo.startDate != ''">
-                AND created_at >= #{searchVo.startDate}
+                <![CDATA[AND created_at >= #{searchVo.startDate}]]>
             </if>
             <if test="searchVo.endDate != null and searchVo.endDate != ''">
-                AND created_at &lt;= #{searchVo.endDate}
+                <![CDATA[AND created_at <= #{searchVo.endDate}]]>
             </if>
             <if test="searchVo.categoryIds != null and !searchVo.categoryIds.isEmpty()">
                 AND category_id IN
@@ -538,16 +538,16 @@
                 AND status = #{searchVo.status}
             </if>
             <if test="searchVo.minLikes != null">
-                AND likes_count >= #{searchVo.minLikes}
+                <![CDATA[AND likes_count >= #{searchVo.minLikes}]]>
             </if>
             <if test="searchVo.maxLikes != null">
-                AND likes_count &lt;= #{searchVo.maxLikes}
+                <![CDATA[AND likes_count <= #{searchVo.maxLikes}]]>
             </if>
             <if test="searchVo.minExposure != null">
-                AND exposure_count >= #{searchVo.minExposure}
+                <![CDATA[AND exposure_count >= #{searchVo.minExposure}]]>
             </if>
             <if test="searchVo.maxExposure != null">
-                AND exposure_count &lt;= #{searchVo.maxExposure}
+                <![CDATA[AND exposure_count <= #{searchVo.maxExposure}]]>
             </if>
         </where>
         ORDER BY ${searchVo.sortBy} ${searchVo.sortOrder}
@@ -563,10 +563,10 @@
                 (article_title LIKE CONCAT('%', #{searchVo.query}, '%') OR article_content LIKE CONCAT('%', #{searchVo.query}, '%'))
             </if>
             <if test="searchVo.startDate != null and searchVo.startDate != ''">
-                AND created_at >= #{searchVo.startDate}
+                <![CDATA[AND created_at >= #{searchVo.startDate}]]>
             </if>
             <if test="searchVo.endDate != null and searchVo.endDate != ''">
-                AND created_at &lt;= #{searchVo.endDate}
+                <![CDATA[AND created_at <= #{searchVo.endDate}]]>
             </if>
             <if test="searchVo.categoryIds != null and !searchVo.categoryIds.isEmpty()">
                 AND category_id IN
@@ -581,18 +581,44 @@
                 AND status = #{searchVo.status}
             </if>
             <if test="searchVo.minLikes != null">
-                AND likes_count >= #{searchVo.minLikes}
+                <![CDATA[AND likes_count >= #{searchVo.minLikes}]]>
             </if>
             <if test="searchVo.maxLikes != null">
-                AND likes_count &lt;= #{searchVo.maxLikes}
+                <![CDATA[AND likes_count <= #{searchVo.maxLikes}]]>
             </if>
             <if test="searchVo.minExposure != null">
-                AND exposure_count >= #{searchVo.minExposure}
+                <![CDATA[AND exposure_count >= #{searchVo.minExposure}]]>
             </if>
             <if test="searchVo.maxExposure != null">
-                AND exposure_count &lt;= #{searchVo.maxExposure}
+                <![CDATA[AND exposure_count <= #{searchVo.maxExposure}]]>
             </if>
         </where>
     </select>
+
+    <!-- 根据状态统计文章数量 -->
+    <select id="countByStatus" parameterType="int" resultType="int">
+        SELECT COUNT(*) FROM articles WHERE status = #{status}
+    </select>
+
+    <!-- 统计今日审核的文章数量 -->
+    <select id="countReviewedToday" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM articles
+        WHERE DATE(updated_at) = #{today}
+        AND status IN (1, 2)  <!-- 假设1=已审核通过, 2=已拒绝 -->
+    </select>
+
+    <!-- 统计指定时间段内审核的文章数量 -->
+    <select id="countReviewedInPeriod" resultType="int">
+        SELECT COUNT(*) FROM articles
+        WHERE DATE(updated_at) BETWEEN #{startDate} AND #{endDate}
+        AND status IN (1, 2)  <!-- 假设1=已审核通过, 2=已拒绝 -->
+    </select>
+
+    <!-- 更新文章状态 -->
+    <update id="updateArticleStatus" parameterType="map">
+        UPDATE articles
+        SET status = #{status}, updated_at = NOW()
+        WHERE article_id = #{articleId}
+    </update>
 
 </mapper>

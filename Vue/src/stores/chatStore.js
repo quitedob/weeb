@@ -2,6 +2,9 @@
 import { defineStore } from 'pinia';
 import { useAuthStore } from './authStore';
 import api from '@/api';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+import { log } from '@/utils/logger';
 
 export const useChatStore = defineStore('chat', {
   persist: {
@@ -16,8 +19,8 @@ export const useChatStore = defineStore('chat', {
     chatPagination: {},      // Pagination info per chat: { chatId1: { hasMore: true, page: 1 }, ... }
     recentSessions: [],      // List of recent chat sessions for a chat list panel
     unreadCounts: {},        // Unread message counts per chatId: { chatId1: 2, chatId2: 0 }
-    connectionStatus: 'disconnected', // WebSocket connection status: 'disconnected', 'connecting', 'connected', 'error'
-    websocket: null,         // WebSocket connection instance
+    connectionStatus: 'disconnected', // STOMP connection status: 'disconnected', 'connecting', 'connected', 'error'
+    stompClient: null,       // STOMP client instance
     reconnectAttempts: 0,    // Number of reconnection attempts
     maxReconnectAttempts: 5, // Maximum reconnection attempts
     heartbeatInterval: null, // Heartbeat interval
@@ -64,48 +67,53 @@ export const useChatStore = defineStore('chat', {
     }
   },
   actions: {
-    // WebSocket Connection Methods
+    // STOMP WebSocket Connection Methods
     connectWebSocket() {
       const authStore = useAuthStore();
       if (!authStore.token) {
-        console.warn('No auth token available for WebSocket connection');
+        log.warn('No auth token available for STOMP connection');
         return;
       }
 
-      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-        console.log('WebSocket already connected');
+      if (this.stompClient && this.stompClient.connected) {
+        log.debug('STOMP already connected');
         return;
       }
 
       this.connectionStatus = 'connecting';
-      const wsUrl = `ws://localhost:8081/ws`; // WebSocket server on port 8081
 
       try {
-        this.websocket = new WebSocket(wsUrl);
+        // Create STOMP client with SockJS fallback
+        this.stompClient = new Client({
+          webSocketFactory: () => new SockJS('http://localhost:8081/ws'),
+          connectHeaders: {
+            'Authorization': `Bearer ${authStore.token}`
+          },
+          debug: (str) => {
+            log.debug('STOMP Debug:', str);
+          },
+          reconnectDelay: 5000,
+          heartbeatIncoming: 4000,
+          heartbeatOutgoing: 4000,
+        });
 
-        this.websocket.onopen = () => {
-          console.log('WebSocket connected');
+        // Connection successful
+        this.stompClient.onConnect = (frame) => {
+          log.info('STOMP connected:', frame);
           this.connectionStatus = 'connected';
           this.reconnectAttempts = 0;
 
-          // Authenticate with WebSocket server
-          this.sendWebSocketMessage({
-            type: 'auth',
-            data: { token: authStore.token }
-          });
+          // Subscribe to user-specific queues
+          this.subscribeToQueues();
 
           // Start heartbeat
           this.startHeartbeat();
         };
 
-        this.websocket.onmessage = (event) => {
-          this.handleWebSocketMessage(event);
-        };
-
-        this.websocket.onclose = (event) => {
-          console.log('WebSocket disconnected:', event);
-          this.connectionStatus = 'disconnected';
-          this.stopHeartbeat();
+        // Connection error
+        this.stompClient.onStompError = (frame) => {
+          console.error('STOMP error:', frame);
+          this.connectionStatus = 'error';
 
           // Attempt to reconnect
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -117,99 +125,116 @@ export const useChatStore = defineStore('chat', {
           }
         };
 
-        this.websocket.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          this.connectionStatus = 'error';
+        // Connection lost
+        this.stompClient.onDisconnect = () => {
+          console.log('STOMP disconnected');
+          this.connectionStatus = 'disconnected';
+          this.stopHeartbeat();
         };
 
+        // Connect to STOMP server
+        this.stompClient.activate();
+
       } catch (error) {
-        console.error('Failed to create WebSocket connection:', error);
+        console.error('Failed to create STOMP connection:', error);
         this.connectionStatus = 'error';
       }
     },
 
     disconnectWebSocket() {
-      if (this.websocket) {
-        this.websocket.close();
-        this.websocket = null;
+      if (this.stompClient) {
+        this.stompClient.deactivate();
+        this.stompClient = null;
       }
       this.stopHeartbeat();
       this.connectionStatus = 'disconnected';
     },
 
-    sendWebSocketMessage(message) {
-      if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-        this.websocket.send(JSON.stringify(message));
-      } else {
-        console.warn('WebSocket not connected, message not sent:', message);
-      }
+    subscribeToQueues() {
+      if (!this.stompClient || !this.stompClient.connected) return;
+
+      const authStore = useAuthStore();
+      const username = authStore.currentUser?.username;
+
+      if (!username) return;
+
+      // Subscribe to private messages
+      this.stompClient.subscribe(`/user/${username}/queue/private`, (message) => {
+        const parsedMessage = JSON.parse(message.body);
+        this.handleIncomingChatMessage(parsedMessage);
+      });
+
+      // Subscribe to error messages
+      this.stompClient.subscribe(`/user/${username}/queue/errors`, (message) => {
+        const errorMessage = JSON.parse(message.body);
+        console.error('STOMP error message:', errorMessage);
+      });
+
+      // Subscribe to general chat topics (optional)
+      this.stompClient.subscribe('/topic/chat/*', (message) => {
+        const parsedMessage = JSON.parse(message.body);
+        if (parsedMessage.type === 'join' || parsedMessage.type === 'leave') {
+          console.log('Chat room status:', parsedMessage);
+        }
+      });
     },
 
-    handleWebSocketMessage(event) {
-      try {
-        const message = JSON.parse(event.data);
+    sendWebSocketMessage(message) {
+      if (this.stompClient && this.stompClient.connected) {
+        // Map message types to STOMP destinations
+        let destination;
 
         switch (message.type) {
-          case 'auth_success':
-            console.log('WebSocket authentication successful');
+          case 'chat':
+            if (message.data.chatType === 'PRIVATE') {
+              destination = '/app/chat/private';
+            } else {
+              destination = `/app/chat/sendMessage/${message.data.targetId}`;
+            }
             break;
-
-          case 'chat_message':
-            this.handleIncomingChatMessage(message);
-            break;
-
-          case 'heartbeat_response':
-            // Heartbeat response handled automatically
-            break;
-
-          case 'error':
-            console.error('WebSocket error:', message.data);
-            break;
-
-          case 'status_change':
-            this.handleUserStatusChange(message);
-            break;
-
-          case 'message_sent':
-            console.log('Message sent confirmation:', message);
-            this.updateMessageStatus(message.data.messageId, 'sent', message.data.tempId);
-            break;
-
-          case 'message_delivered':
-            console.log('Message delivered confirmation:', message);
-            this.updateMessageStatus(message.data.messageId, 'delivered', message.data.tempId);
-            break;
-
-          case 'message_read':
-            console.log('Message read confirmation:', message);
-            this.updateMessageStatus(message.data.messageId, 'read', message.data.tempId);
-            break;
-
           case 'typing':
-            this.handleTypingIndicator(message);
+            destination = `/app/chat/typing/${message.data.chatId}`;
             break;
-
+          case 'heartbeat':
+            destination = '/app/chat/heartbeat';
+            break;
           default:
-            console.log('Unknown WebSocket message type:', message.type);
+            console.warn('Unknown message type for STOMP:', message.type);
+            return;
         }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+
+        this.stompClient.publish({
+          destination: destination,
+          body: JSON.stringify(message.data)
+        });
+      } else {
+        console.warn('STOMP not connected, message not sent:', message);
       }
     },
 
     handleIncomingChatMessage(message) {
-      const chatId = message.data.chatId || message.data.targetId;
-      const isFromMe = message.data.fromUserId === useAuthStore().currentUser?.id;
+      // Handle both Spring WebSocket format and old format
+      const chatId = message.roomId || message.data?.chatId || message.data?.targetId || message.targetId;
+      const authStore = useAuthStore();
+      const isFromMe = (message.fromId || message.data?.fromUserId) === authStore.currentUser?.id;
 
       // Parse message content for file messages
-      let parsedContent = message.data.content;
-      let fileData = null;
-      let displayContent = message.data.content;
+      let content, displayContent, fileData;
 
-      if (message.data.messageType === 2) {
+      if (message.content !== undefined) {
+        // Spring WebSocket format
+        content = message.content;
+        displayContent = message.content;
+      } else if (message.data?.content !== undefined) {
+        // Old format
+        content = message.data.content;
+        displayContent = message.data.content;
+      }
+
+      if (message.type === 2 || message.data?.messageType === 2) {
         // File message - parse JSON content
         try {
-          fileData = JSON.parse(message.data.content);
+          fileData = JSON.parse(content);
           displayContent = `[文件] ${fileData.fileName}`;
         } catch (error) {
           console.error('Failed to parse file message content:', error);
@@ -219,18 +244,19 @@ export const useChatStore = defineStore('chat', {
 
       // Create standardized message object
       const standardizedMessage = {
-        id: message.messageId || Date.now(),
-        fromId: message.data.fromUserId,
+        id: message.id || message.messageId || Date.now(),
+        fromId: message.fromId || message.data?.fromUserId,
+        fromName: message.fromName || message.data?.fromName,
         msgContent: displayContent,
-        content: parsedContent,
+        content: content,
         isRecalled: 0,
-        messageType: message.data.messageType || 1,
-        chatType: message.data.chatType,
+        messageType: message.type || message.data?.messageType || 1,
+        chatType: message.type === 'private' ? 'PRIVATE' : (message.data?.chatType || 'GROUP'),
         targetId: chatId,
         chatId: chatId,
-        timestamp: message.data.timestamp || new Date(),
+        timestamp: message.timestamp || message.data?.timestamp || new Date(),
         isFromMe: isFromMe,
-        msgType: message.data.messageType || 1,
+        msgType: message.type || message.data?.messageType || 1,
         fileData: fileData // Store parsed file data
       };
 
@@ -245,9 +271,9 @@ export const useChatStore = defineStore('chat', {
       // Update recent sessions
       this.updateRecentSession(chatId, {
         content: displayContent,
-        timestamp: message.data.timestamp || new Date(),
-        fromUserId: message.data.fromUserId,
-        messageType: message.data.messageType || 1
+        timestamp: standardizedMessage.timestamp,
+        fromUserId: standardizedMessage.fromId,
+        messageType: standardizedMessage.messageType
       });
     },
 
@@ -261,13 +287,9 @@ export const useChatStore = defineStore('chat', {
     },
 
     startHeartbeat() {
-      this.stopHeartbeat();
-      this.heartbeatInterval = setInterval(() => {
-        this.sendWebSocketMessage({
-          type: 'heartbeat',
-          data: 'ping'
-        });
-      }, 30000); // Send heartbeat every 30 seconds
+      // STOMP handles heartbeat automatically with the configured settings
+      // No need for manual heartbeat with STOMP client
+      console.log('STOMP heartbeat enabled automatically');
     },
 
     stopHeartbeat() {
@@ -431,9 +453,7 @@ export const useChatStore = defineStore('chat', {
         type: 'typing',
         data: {
           chatId,
-          isTyping,
-          userId: useAuthStore().currentUser?.id,
-          timestamp: new Date()
+          action: isTyping ? 'start' : 'stop'
         }
       });
     },

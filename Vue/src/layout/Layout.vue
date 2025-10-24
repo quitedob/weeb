@@ -10,39 +10,57 @@
       <!-- 顶部导航栏 -->
       <header class="top-header">
         <div class="header-left">
-          <el-button
-            type="text"
+          <AppleButton
+            type="ghost"
             @click="toggleSidebar"
             class="sidebar-toggle"
+            size="small"
           >
-            <el-icon size="20">
-              <Fold v-if="!isSidebarCollapsed" />
-              <Expand v-else />
-            </el-icon>
-          </el-button>
+            <span class="menu-icon">
+              {{ isSidebarCollapsed ? '☰' : '✕' }}
+            </span>
+          </AppleButton>
           <h1 class="page-title">{{ currentPageTitle }}</h1>
         </div>
 
         <div class="header-right">
           <!-- 通知铃铛 -->
           <NotificationBell />
-          
+
           <!-- 用户信息 -->
           <div class="user-info">
-            <el-dropdown @command="handleUserCommand">
-              <div class="user-avatar">
-                <el-avatar :size="32" :src="userAvatar" />
-                <span class="username">{{ currentUser?.username || '用户' }}</span>
-                <el-icon><ArrowDown /></el-icon>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="profile">个人资料</el-dropdown-item>
-                  <el-dropdown-item command="settings">设置</el-dropdown-item>
-                  <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
-                </el-dropdown-menu>
+            <AppleDropdown @command="handleUserCommand" placement="bottom-end">
+              <template #trigger>
+                <div class="user-avatar">
+                  <div class="avatar-img">
+                    <img
+                      :src="userAvatar || defaultAvatar"
+                      :alt="currentUser?.username || '用户'"
+                      @error="onAvatarError"
+                    />
+                  </div>
+                  <span class="username">{{ currentUser?.username || '用户' }}</span>
+                  <span class="dropdown-arrow">▼</span>
+                </div>
               </template>
-            </el-dropdown>
+
+              <AppleDropdownItem command="profile">
+                <span class="item-icon">👤</span>
+                个人资料
+              </AppleDropdownItem>
+
+              <AppleDropdownItem command="settings">
+                <span class="item-icon">⚙️</span>
+                设置
+              </AppleDropdownItem>
+
+              <div class="apple-dropdown-divider"></div>
+
+              <AppleDropdownItem command="logout" danger>
+                <span class="item-icon">🚪</span>
+                退出登录
+              </AppleDropdownItem>
+            </AppleDropdown>
           </div>
         </div>
       </header>
@@ -60,8 +78,9 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { Fold, Expand, ArrowDown } from '@element-plus/icons-vue';
+import AppleButton from '@/components/common/AppleButton.vue';
+import AppleDropdown from '@/components/common/AppleDropdown.vue';
+import AppleDropdownItem from '@/components/common/AppleDropdownItem.vue';
 import AsideMenu from './AsideMenu.vue';
 import NotificationBell from './components/NotificationBell.vue';
 import api from '@/api';
@@ -70,6 +89,9 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
+
+// 默认头像
+const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png';
 
 // 响应式数据
 const isSidebarCollapsed = ref(false);
@@ -85,7 +107,8 @@ const currentPageTitle = computed(() => {
     '/article': '文章中心',
     '/search': '搜索',
     '/notifications': '通知中心',
-    '/settings': '设置'
+    '/profile': '个人资料',
+    '/setting': '设置'
   };
   return routeTitles[route.path] || 'Weeb IM';
 });
@@ -101,7 +124,7 @@ const handleUserCommand = async (command) => {
       router.push('/profile');
       break;
     case 'settings':
-      router.push('/settings');
+      router.push('/setting');
       break;
     case 'logout':
       await handleLogout();
@@ -111,25 +134,27 @@ const handleUserCommand = async (command) => {
 
 const handleLogout = async () => {
   try {
-    await ElMessageBox.confirm('您确定要退出登录吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    });
+    // 使用原生 confirm 替代 ElMessageBox
+    const confirmed = confirm('您确定要退出登录吗？');
+    if (!confirmed) {
+      return;
+    }
 
     await api.auth.logout();
     authStore.logout();
     notificationStore.reset(); // 重置通知状态
-    ElMessage.success('已成功退出登录');
+    alert('已成功退出登录'); // 使用原生 alert 替代 ElMessage
     router.push('/login');
   } catch (error) {
-    if (error !== 'cancel') {
-      console.error('登出失败:', error);
-      ElMessage.error('登出失败，请稍后再试');
-      authStore.logout(); // 确保清理状态
-      router.push('/login');
-    }
+    console.error('登出失败:', error);
+    alert('登出失败，请稍后再试'); // 使用原生 alert 替代 ElMessage
+    authStore.logout(); // 确保清理状态
+    router.push('/login');
   }
+};
+
+const onAvatarError = (e) => {
+  e.target.src = defaultAvatar;
 };
 
 // 生命周期
@@ -149,7 +174,7 @@ onMounted(() => {
   width: 240px;
   transition: width 0.3s ease;
   background-color: var(--apple-bg-secondary);
-  border-right: 1px solid var(--apple-border-secondary);
+  border-right: 1px solid var(--apple-bg-quaternary);
   z-index: 1000;
 }
 
@@ -167,44 +192,55 @@ onMounted(() => {
 .top-header {
   height: 64px;
   background-color: var(--apple-bg-primary);
-  border-bottom: 1px solid var(--apple-border-secondary);
+  border-bottom: 1px solid var(--apple-bg-quaternary);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--apple-spacing-lg);
-  box-shadow: var(--apple-shadow-light);
+  padding: 0 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(20px);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: var(--apple-spacing-md);
+  gap: 16px;
 }
 
 .sidebar-toggle {
-  padding: var(--apple-spacing-sm);
+  padding: 8px;
   color: var(--apple-text-secondary);
-  border-radius: var(--apple-radius-medium);
+  border-radius: 8px;
   transition: all 0.2s ease;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar-toggle:hover {
   color: var(--apple-blue);
-  background-color: var(--apple-bg-secondary);
+  background-color: var(--apple-bg-tertiary);
+}
+
+.menu-icon {
+  font-size: 18px;
+  font-weight: bold;
 }
 
 .page-title {
   margin: 0;
-  font-size: var(--apple-font-xl);
+  font-size: 20px;
   font-weight: 600;
   color: var(--apple-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--apple-spacing-md);
+  gap: 16px;
 }
 
 .user-info {
@@ -215,28 +251,64 @@ onMounted(() => {
 .user-avatar {
   display: flex;
   align-items: center;
-  gap: var(--apple-spacing-sm);
+  gap: 8px;
   cursor: pointer;
-  padding: var(--apple-spacing-xs) var(--apple-spacing-sm);
-  border-radius: var(--apple-radius-medium);
+  padding: 6px 12px;
+  border-radius: 12px;
   transition: all 0.2s ease;
+  border: 1px solid transparent;
 }
 
 .user-avatar:hover {
-  background-color: var(--apple-bg-secondary);
+  background-color: var(--apple-bg-tertiary);
+  border-color: var(--apple-bg-quaternary);
+}
+
+.avatar-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--apple-bg-quaternary);
+  flex-shrink: 0;
+}
+
+.avatar-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .username {
-  font-size: var(--apple-font-md);
+  font-size: 14px;
   color: var(--apple-text-secondary);
-  margin: 0 var(--apple-spacing-xs);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  font-weight: 500;
+}
+
+.dropdown-arrow {
+  font-size: 12px;
+  color: var(--apple-text-tertiary);
+  transition: transform 0.2s ease;
+}
+
+.user-avatar:hover .dropdown-arrow {
+  transform: rotate(180deg);
 }
 
 .page-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--apple-spacing-lg);
+  padding: 24px;
   background-color: var(--apple-bg-secondary);
+}
+
+/* 下拉菜单项图标 */
+.item-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
 }
 
 /* 响应式设计 */
@@ -255,8 +327,12 @@ onMounted(() => {
     transform: translateX(0);
   }
 
+  .top-header {
+    padding: 0 16px;
+  }
+
   .page-title {
-    font-size: var(--apple-font-lg);
+    font-size: 18px;
   }
 
   .username {
@@ -264,7 +340,15 @@ onMounted(() => {
   }
 
   .page-content {
-    padding: var(--apple-spacing-md);
+    padding: 16px;
+  }
+
+  .header-left {
+    gap: 12px;
+  }
+
+  .header-right {
+    gap: 12px;
   }
 }
 
@@ -272,7 +356,7 @@ onMounted(() => {
 @media (prefers-color-scheme: dark) {
   .top-header {
     background-color: var(--apple-bg-primary);
-    border-bottom-color: var(--apple-border-primary);
+    border-bottom-color: var(--apple-bg-quaternary);
   }
 
   .page-title {
@@ -287,4 +371,22 @@ onMounted(() => {
     background-color: var(--apple-bg-tertiary);
   }
 }
-</style> 
+
+/* 确保滚动条样式一致 */
+.page-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.page-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.page-content::-webkit-scrollbar-thumb {
+  background: var(--apple-bg-quaternary);
+  border-radius: 4px;
+}
+
+.page-content::-webkit-scrollbar-thumb:hover {
+  background: var(--apple-bg-tertiary);
+}
+</style>

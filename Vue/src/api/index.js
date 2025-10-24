@@ -11,6 +11,7 @@ import message from './modules/message';
 import comment from './modules/comment';
 import follow from './modules/follow';
 import contact from './modules/contact';
+import chat from './modules/chat'; // 导入 chat 模块
 
 export default {
   auth,
@@ -23,4 +24,5 @@ export default {
   comment,
   follow,
   contact,
+  chat, // 导出 chat 模块
 };

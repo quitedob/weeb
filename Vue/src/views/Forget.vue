@@ -171,10 +171,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import api from '@/api'
+import { useMessageStore } from '@/stores/messageStore'
+import { instance as axiosInstance } from '@/api/axiosInstance'
 
 const router = useRouter()
+const messageStore = useMessageStore()
 
 // 响应式数据
 const currentStep = ref(1)

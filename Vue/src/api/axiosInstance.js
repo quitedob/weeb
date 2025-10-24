@@ -3,9 +3,10 @@
 // Response interceptor simplified to handle only standardized ApiResponse<T> format
 
 import axios from 'axios';
-import { ElMessage } from 'element-plus';
+import appleMessage from '@/utils/appleMessage';
 // 不再需要从这里导入 router
 import { useAuthStore } from '@/stores/authStore';
+import { log } from '@/utils/logger';
 
 // 区分开发环境和生产环境的 baseURL
 // 1. 开发环境 (import.meta.env.DEV) 时，使用相对路径 '/'
@@ -39,7 +40,7 @@ instance.interceptors.request.use(
       token = authStore.accessToken;
     } catch (error) {
       // 如果 Pinia 还未初始化或出现其他错误，回退到 localStorage
-      console.warn('Pinia store not available, falling back to localStorage:', error);
+      log.warn('Pinia store not available, falling back to localStorage:', error);
       token = localStorage.getItem('jwt_token');
     }
 
@@ -52,7 +53,7 @@ instance.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('Request Error Interceptor:', error);
+    log.error('Request Error Interceptor:', error);
     return Promise.reject(error);
   }
 );
@@ -68,17 +69,13 @@ instance.interceptors.response.use(
     
     // 检查是否为标准 ApiResponse 格式
     if (typeof res?.code !== 'number' || !('message' in res)) {
-      console.warn('Unexpected response format:', res);
+      log.warn('Unexpected response format:', res);
       return res; // 返回原始数据，让调用方处理
     }
 
     // 处理业务错误（code !== 0）
     if (res.code !== 0) {
-      ElMessage({ 
-        message: res.message || '请求失败', 
-        type: 'error', 
-        duration: 5000 
-      });
+      appleMessage.error(res.message || '请求失败', 5000);
 
       // 处理认证失败（系统错误 code === -1 或未授权 code === 1002）
       if (res.code === -1 || res.code === 1002) {
@@ -93,7 +90,7 @@ instance.interceptors.response.use(
     return res;
   },
   async (error) => {
-    console.error('Response Error Interceptor:', error);
+    log.error('Response Error Interceptor:', error);
     let message = error.message;
     let shouldRetry = false;
 
@@ -163,7 +160,7 @@ instance.interceptors.response.use(
 
         return new Promise(resolve => {
           setTimeout(() => {
-            console.log(`Retrying request (${config.retryCount}/${config.retry}): ${config.url}`);
+            log.info(`Retrying request (${config.retryCount}/${config.retry}): ${config.url}`);
             resolve(instance(config));
           }, retryDelay);
         });
@@ -172,12 +169,7 @@ instance.interceptors.response.use(
 
     // 显示错误消息（对于非重试或重试失败的情况）
     if (!shouldRetry || (config && config.retryCount >= config.retry)) {
-      ElMessage({
-        message,
-        type: 'error',
-        duration: 5000,
-        showClose: true
-      });
+      appleMessage.error(message, 5000);
     }
 
     return Promise.reject(error);

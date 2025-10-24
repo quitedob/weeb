@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 消息控制器
@@ -145,6 +146,113 @@ public class MessageController {
     public ResponseEntity<ApiResponse<String>> handleReaction(@RequestBody @Valid ReactionVo reactionVo, @Userid Long userId) {
         messageService.handleReaction(reactionVo, userId);
         return ResponseEntity.ok(ApiResponse.success("反应操作成功"));
+    }
+
+    // ==================== 消息线程相关API ====================
+
+    /**
+     * 创建消息线程
+     * @param threadRequest 线程创建请求
+     * @param userId 用户ID
+     * @return 创建结果
+     */
+    @PostMapping("/thread/create")
+    public ResponseEntity<ApiResponse<Message>> createThread(@RequestBody @Valid Map<String, Object> threadRequest, @Userid Long userId) {
+        try {
+            Long parentMessageId = Long.valueOf(threadRequest.get("parentMessageId").toString());
+            String content = (String) threadRequest.get("content");
+
+            Message threadMessage = messageService.createThread(userId, parentMessageId, content);
+            return ResponseEntity.ok(ApiResponse.success(threadMessage));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(400, "创建线程失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 获取消息线程列表
+     * @param parentMessageId 父消息ID
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @return 线程消息列表
+     */
+    @GetMapping("/thread/{parentMessageId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getThreadMessages(
+            @PathVariable Long parentMessageId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+
+        Map<String, Object> result = messageService.getThreadMessages(parentMessageId, page, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * 获取消息的所有线程摘要
+     * @param parentMessageId 父消息ID
+     * @return 线程摘要信息
+     */
+    @GetMapping("/thread/{parentMessageId}/summary")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getThreadSummary(@PathVariable Long parentMessageId) {
+        Map<String, Object> summary = messageService.getThreadSummary(parentMessageId);
+        return ResponseEntity.ok(ApiResponse.success(summary));
+    }
+
+    /**
+     * 在线程中回复消息
+     * @param threadId 线程ID
+     * @param replyRequest 回复请求
+     * @param userId 用户ID
+     * @return 回复结果
+     */
+    @PostMapping("/thread/{threadId}/reply")
+    public ResponseEntity<ApiResponse<Message>> replyToThread(
+            @PathVariable Long threadId,
+            @RequestBody @Valid Map<String, Object> replyRequest,
+            @Userid Long userId) {
+
+        try {
+            String content = (String) replyRequest.get("content");
+            Message replyMessage = messageService.replyToThread(userId, threadId, content);
+            return ResponseEntity.ok(ApiResponse.success(replyMessage));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(400, "回复线程失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 删除消息线程
+     * @param threadId 线程ID
+     * @param userId 用户ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/thread/{threadId}")
+    public ResponseEntity<ApiResponse<Boolean>> deleteThread(@PathVariable Long threadId, @Userid Long userId) {
+        try {
+            boolean deleted = messageService.deleteThread(threadId, userId);
+            return ResponseEntity.ok(ApiResponse.success(deleted));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error(400, "删除线程失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 获取用户参与的线程列表
+     * @param userId 用户ID
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @return 用户线程列表
+     */
+    @GetMapping("/thread/user")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserThreads(
+            @Userid Long userId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+
+        Map<String, Object> result = messageService.getUserThreads(userId, page, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
 }
