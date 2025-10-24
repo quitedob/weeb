@@ -2,34 +2,46 @@
   <div class="user-detail-container">
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-container">
-      <el-skeleton :rows="8" animated />
+      <div class="skeleton-loader">
+        <div class="skeleton-item" v-for="i in 8" :key="i">
+          <div class="skeleton-line"></div>
+        </div>
+      </div>
     </div>
 
     <!-- 错误状态 -->
     <div v-else-if="error" class="error-container">
-      <el-alert :title="error" type="error" :closable="false">
-        <template #default>
-          <p>{{ error }}</p>
-          <el-button @click="loadUserData" type="primary" size="small">重试</el-button>
-        </template>
-      </el-alert>
+      <AppleCard class="error-card">
+        <div class="error-content">
+          <div class="error-icon">⚠️</div>
+          <h3 class="error-title">加载失败</h3>
+          <p class="error-message">{{ error }}</p>
+          <AppleButton
+            @click="loadUserData"
+            type="primary"
+            size="small"
+          >
+            重试
+          </AppleButton>
+        </div>
+      </AppleCard>
     </div>
 
     <!-- 用户信息 -->
     <div v-else-if="userProfile" class="user-profile">
       <!-- 用户基本信息卡片 -->
-      <el-card class="user-info-card">
+      <AppleCard class="user-info-card">
         <div class="user-header">
           <div class="avatar-section">
-            <el-avatar 
-              :size="120" 
-              :src="userProfile.user?.avatar" 
-              :alt="userProfile.user?.username"
-            >
-              <img src="https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png" />
-            </el-avatar>
+            <div class="user-avatar">
+              <img
+                :src="userProfile.user?.avatar || 'https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png'"
+                :alt="userProfile.user?.username"
+                class="avatar-img"
+              />
+            </div>
           </div>
-          
+
           <div class="user-basic-info">
             <h2 class="username">{{ userProfile.user?.username || '未知用户' }}</h2>
             <p class="nickname" v-if="userProfile.user?.nickname">
@@ -39,9 +51,12 @@
               {{ userProfile.user.bio }}
             </p>
             <div class="user-meta">
-              <el-tag v-if="userProfile.user?.type" :type="getUserTypeTagType(userProfile.user.type)">
+              <div
+                v-if="userProfile.user?.type"
+                :class="['user-type-tag', getUserTypeClass(userProfile.user.type)]"
+              >
                 {{ getUserTypeText(userProfile.user.type) }}
-              </el-tag>
+              </div>
               <span class="join-date" v-if="userProfile.user?.registrationDate">
                 加入时间：{{ formatDate(userProfile.user.registrationDate) }}
               </span>
@@ -49,20 +64,20 @@
           </div>
 
           <div class="user-actions" v-if="!isCurrentUser">
-            <el-button 
-              type="primary" 
+            <AppleButton
+              type="primary"
               @click="toggleFollow"
               :loading="followLoading"
             >
               {{ isFollowing ? '取消关注' : '关注' }}
-            </el-button>
-            <el-button @click="sendMessage">发消息</el-button>
+            </AppleButton>
+            <AppleButton @click="sendMessage">发消息</AppleButton>
           </div>
         </div>
-      </el-card>
+      </AppleCard>
 
       <!-- 用户统计信息 -->
-      <el-card class="stats-card" v-if="userProfile.userStats">
+      <AppleCard class="stats-card" v-if="userProfile.userStats">
         <template #header>
           <span>用户统计</span>
         </template>
@@ -88,42 +103,49 @@
             <div class="stat-label">金币</div>
           </div>
         </div>
-      </el-card>
+      </AppleCard>
 
       <!-- 用户文章列表 -->
-      <el-card class="articles-card">
+      <AppleCard class="articles-card">
         <template #header>
           <div class="card-header">
             <span>发布的文章</span>
-            <el-button @click="refreshArticles" :loading="articlesLoading" size="small">
+            <AppleButton @click="refreshArticles" :loading="articlesLoading" size="small">
               刷新
-            </el-button>
+            </AppleButton>
           </div>
         </template>
-        
+
         <div v-if="articlesLoading" class="articles-loading">
-          <el-skeleton :rows="3" animated />
+          <div class="skeleton-loader">
+            <div class="skeleton-item" v-for="i in 3" :key="i">
+              <div class="skeleton-line"></div>
+            </div>
+          </div>
         </div>
-        
+
         <div v-else-if="articles.length === 0" class="no-articles">
-          <el-empty description="暂无发布的文章" />
+          <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <p class="empty-text">暂无发布的文章</p>
+          </div>
         </div>
-        
+
         <div v-else class="articles-list">
-          <div 
-            v-for="article in articles" 
-            :key="article.id" 
+          <div
+            v-for="article in articles"
+            :key="article.id"
             class="article-item"
             @click="viewArticle(article.id)"
           >
             <h4 class="article-title">{{ article.articleTitle }}</h4>
             <div class="article-meta">
               <span class="article-stats">
-                <el-icon><View /></el-icon>
+                <span class="stat-icon">👁️</span>
                 {{ article.exposureCount || 0 }}
               </span>
               <span class="article-stats">
-                <el-icon><Star /></el-icon>
+                <span class="stat-icon">⭐</span>
                 {{ article.likesCount || 0 }}
               </span>
               <span class="article-date">
@@ -132,7 +154,7 @@
             </div>
           </div>
         </div>
-      </el-card>
+      </AppleCard>
     </div>
   </div>
 </template>
@@ -141,8 +163,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
-import { ElMessage } from 'element-plus';
-import { View, Star } from '@element-plus/icons-vue';
+import AppleButton from '@/components/common/AppleButton.vue';
+import AppleCard from '@/components/common/AppleCard.vue';
 import userApi from '@/api/modules/user';
 import { getArticlesByUserId } from '@/api/modules/article';
 
@@ -163,8 +185,8 @@ const userId = computed(() => route.params.userId);
 
 // 判断是否是当前用户
 const isCurrentUser = computed(() => {
-  return authStore.currentUser && 
-         authStore.currentUser.id && 
+  return authStore.currentUser &&
+         authStore.currentUser.id &&
          authStore.currentUser.id.toString() === userId.value;
 });
 
@@ -239,7 +261,8 @@ const viewArticle = (articleId) => {
 // 切换关注状态
 const toggleFollow = async () => {
   if (!authStore.currentUser) {
-    ElMessage.warning('请先登录');
+    // 使用原生 alert 替代 ElMessage
+    alert('请先登录');
     router.push('/login');
     return;
   }
@@ -257,17 +280,17 @@ const toggleFollow = async () => {
 
     if (response.data.code === 200) {
       isFollowing.value = !isFollowing.value;
-      ElMessage.success(response.data.message || (isFollowing.value ? '关注成功' : '取消关注成功'));
+      alert(response.data.message || (isFollowing.value ? '关注成功' : '取消关注成功'));
       // 更新粉丝数
       if (userProfile.value.userStats) {
         userProfile.value.userStats.fansCount += isFollowing.value ? 1 : -1;
       }
     } else {
-      ElMessage.error(response.data.message || '操作失败');
+      alert(response.data.message || '操作失败');
     }
   } catch (err) {
     console.error('关注操作失败:', err);
-    ElMessage.error('操作失败，请稍后重试');
+    alert('操作失败，请稍后重试');
   } finally {
     followLoading.value = false;
   }
@@ -276,27 +299,27 @@ const toggleFollow = async () => {
 // 发送消息
 const sendMessage = () => {
   if (!authStore.currentUser) {
-    ElMessage.warning('请先登录');
+    alert('请先登录');
     router.push('/login');
     return;
   }
-  
+
   // 跳转到聊天页面
-  router.push({ 
-    name: 'ChatPage', 
-    query: { userId: userId.value } 
+  router.push({
+    name: 'ChatPage',
+    query: { userId: userId.value }
   });
 };
 
-// 获取用户类型标签类型
-const getUserTypeTagType = (type) => {
+// 获取用户类型标签样式
+const getUserTypeClass = (type) => {
   switch (type?.toUpperCase()) {
     case 'ADMIN':
-      return 'danger';
+      return 'user-type-admin';
     case 'VIP':
-      return 'warning';
+      return 'user-type-vip';
     default:
-      return 'info';
+      return 'user-type-normal';
   }
 };
 
@@ -329,12 +352,72 @@ onMounted(() => {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  background: var(--apple-bg-secondary);
+  min-height: 100vh;
 }
 
+/* 加载骨架屏 */
 .loading-container, .error-container {
   padding: 40px;
 }
 
+.skeleton-loader {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-line {
+  height: 16px;
+  background: linear-gradient(90deg, var(--apple-bg-tertiary) 25%, var(--apple-bg-quaternary) 50%, var(--apple-bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: 4px;
+}
+
+.skeleton-line:nth-child(1) { width: 60%; }
+.skeleton-line:nth-child(2) { width: 80%; }
+.skeleton-line:nth-child(3) { width: 45%; }
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 错误状态 */
+.error-card {
+  border-left: 4px solid var(--apple-red);
+}
+
+.error-content {
+  text-align: center;
+  padding: 20px;
+}
+
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.error-title {
+  margin: 0 0 8px 0;
+  color: var(--apple-text-primary);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.error-message {
+  margin: 0 0 20px 0;
+  color: var(--apple-text-secondary);
+}
+
+/* 用户信息 */
 .user-profile {
   display: flex;
   flex-direction: column;
@@ -355,27 +438,44 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+.user-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--apple-bg-quaternary);
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .user-basic-info {
   flex: 1;
 }
 
 .username {
   margin: 0 0 10px 0;
-  color: #303133;
+  color: var(--apple-text-primary);
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .nickname {
   margin: 0 0 10px 0;
-  color: #606266;
+  color: var(--apple-text-secondary);
   font-size: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .bio {
   margin: 0 0 15px 0;
-  color: #909399;
+  color: var(--apple-text-tertiary);
   line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .user-meta {
@@ -385,9 +485,30 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.user-type-tag {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+.user-type-admin {
+  background: var(--apple-red);
+}
+
+.user-type-vip {
+  background: var(--apple-orange);
+}
+
+.user-type-normal {
+  background: var(--apple-blue);
+}
+
 .join-date {
-  color: #909399;
+  color: var(--apple-text-tertiary);
   font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .user-actions {
@@ -409,21 +530,29 @@ onMounted(() => {
 }
 
 .stat-item {
-  padding: 15px;
-  border-radius: 8px;
-  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--apple-bg-tertiary);
+  transition: all 0.2s ease;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .stat-number {
   font-size: 24px;
-  font-weight: 600;
-  color: #409eff;
+  font-weight: 700;
+  color: var(--apple-blue);
   margin-bottom: 5px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .stat-label {
-  color: #909399;
+  color: var(--apple-text-secondary);
   font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .articles-card .card-header {
@@ -440,6 +569,24 @@ onMounted(() => {
   padding: 40px;
 }
 
+.empty-state {
+  text-align: center;
+  padding: 40px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  margin: 0;
+  color: var(--apple-text-tertiary);
+  font-size: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+}
+
 .articles-list {
   display: flex;
   flex-direction: column;
@@ -447,37 +594,45 @@ onMounted(() => {
 }
 
 .article-item {
-  padding: 15px;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--apple-bg-quaternary);
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
+  background: var(--apple-bg-primary);
 }
 
 .article-item:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+  border-color: var(--apple-blue);
+  box-shadow: 0 4px 16px rgba(0, 122, 255, 0.1);
+  transform: translateY(-2px);
 }
 
 .article-title {
   margin: 0 0 10px 0;
-  color: #303133;
+  color: var(--apple-text-primary);
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .article-meta {
   display: flex;
   align-items: center;
   gap: 15px;
-  color: #909399;
+  color: var(--apple-text-tertiary);
   font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .article-stats {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.stat-icon {
+  font-size: 16px;
 }
 
 .article-date {
@@ -487,26 +642,39 @@ onMounted(() => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .user-detail-container {
-    padding: 10px;
+    padding: 16px;
   }
-  
+
   .user-header {
     flex-direction: column;
     text-align: center;
     gap: 20px;
   }
-  
+
   .user-actions {
     flex-direction: row;
     justify-content: center;
   }
-  
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .article-meta {
     flex-wrap: wrap;
+  }
+
+  .article-item {
+    padding: 16px;
+  }
+
+  .username {
+    font-size: 24px;
+  }
+
+  .user-avatar {
+    width: 100px;
+    height: 100px;
   }
 }
 </style>

@@ -98,6 +98,16 @@
                 用户管理
               </el-button>
             </el-col>
+            <el-col :xs="24" :sm="12" :md="8">
+              <el-button
+                type="info"
+                class="action-btn"
+                @click="$router.push('/admin/logs')"
+              >
+                <el-icon><Document /></el-icon>
+                系统日志
+              </el-button>
+            </el-col>
           </el-row>
         </el-card>
       </div>
@@ -154,6 +164,7 @@ import { ref, onMounted } from 'vue'
 import { User, Document, ChatDotRound, Connection, Lock, UserSolid, Management, CheckCircle, Warning } from '@element-plus/icons-vue'
 import { getSystemLogs } from '@/api/modules/admin'
 import axiosInstance from '@/api/axiosInstance'
+import { log } from '@/utils/logger'
 
 const stats = ref({
   totalUsers: 0,
@@ -179,7 +190,7 @@ const fetchSystemStats = async () => {
       stats.value = response.data.data
     }
   } catch (error) {
-    console.error('获取系统统计数据失败:', error)
+    log.error('获取系统统计数据失败:', error)
   } finally {
     loading.value = false
   }
@@ -193,7 +204,7 @@ const fetchRecentActivities = async () => {
       recentActivities.value = response.data.data.list || []
     }
   } catch (error) {
-    console.error('获取最近活动失败:', error)
+    log.error('获取最近活动失败:', error)
     // 如果API调用失败，使用默认数据
     recentActivities.value = []
   }
@@ -227,7 +238,7 @@ const checkSystemStatus = async () => {
       throw new Error('健康检查API返回失败')
     }
   } catch (error) {
-    console.error('系统健康检查失败:', error)
+    log.error('系统健康检查失败:', error)
 
     // 设置默认错误状态
     systemStatus.value.database = {

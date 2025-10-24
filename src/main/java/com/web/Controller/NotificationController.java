@@ -2,11 +2,10 @@ package com.web.Controller;
 
 import cn.hutool.json.JSONObject;
 import com.web.common.ApiResponse;
+import com.web.security.SecurityUtils;
 import com.web.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -30,9 +29,8 @@ public class NotificationController {
     @PostMapping("/test")
     public ResponseEntity<ApiResponse<String>> createTestNotification() {
         // 获取当前登录用户ID
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
-        
+        Long userId = SecurityUtils.getCurrentUserId();
+
         // 创建测试通知
         notificationService.createAndPublishNotification(
             userId, // 接收者
@@ -41,7 +39,7 @@ public class NotificationController {
             "test", // 实体类型
             1L // 实体ID
         );
-        
+
         return ResponseEntity.ok(ApiResponse.success("测试通知已创建"));
     }
 
@@ -55,15 +53,14 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getNotifications(@RequestParam(defaultValue = "1") int page,
                                                                           @RequestParam(defaultValue = "10") int size) {
         // 获取当前登录用户ID
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
-        
+        Long userId = SecurityUtils.getCurrentUserId();
+
         // 参数验证
         if (page < 1) page = 1;
         if (size < 1 || size > 50) size = 10;
-        
+
         Map<String, Object> result = notificationService.getNotificationsForUser(userId, page, size);
-        
+
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 
@@ -74,14 +71,13 @@ public class NotificationController {
     @GetMapping("/unread-count")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUnreadCount() {
         // 获取当前登录用户ID
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
-        
+        Long userId = SecurityUtils.getCurrentUserId();
+
         int unreadCount = notificationService.getUnreadCount(userId);
-        
+
         Map<String, Object> data = new HashMap<>();
         data.put("unreadCount", unreadCount);
-        
+
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
@@ -92,11 +88,10 @@ public class NotificationController {
     @PostMapping("/read-all")
     public ResponseEntity<ApiResponse<String>> markAllAsRead() {
         // 获取当前登录用户ID
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
-        
+        Long userId = SecurityUtils.getCurrentUserId();
+
         boolean success = notificationService.markAllAsRead(userId);
-        
+
         if (success) {
             return ResponseEntity.ok(ApiResponse.success("所有通知已标记为已读"));
         } else {
@@ -112,11 +107,10 @@ public class NotificationController {
     @PostMapping("/{id}/read")
     public ResponseEntity<ApiResponse<String>> markAsRead(@PathVariable Long id) {
         // 获取当前登录用户ID
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
-        
+        Long userId = SecurityUtils.getCurrentUserId();
+
         boolean success = notificationService.markAsRead(id, userId);
-        
+
         if (success) {
             return ResponseEntity.ok(ApiResponse.success("通知已标记为已读"));
         } else {
@@ -131,14 +125,13 @@ public class NotificationController {
     @DeleteMapping("/read")
     public ResponseEntity<ApiResponse<Map<String, Object>>> deleteReadNotifications() {
         // 获取当前登录用户ID
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Long userId = (Long) authentication.getPrincipal();
-        
+        Long userId = SecurityUtils.getCurrentUserId();
+
         int deletedCount = notificationService.deleteReadNotifications(userId);
-        
+
         Map<String, Object> data = new HashMap<>();
         data.put("deletedCount", deletedCount);
-        
+
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 } 

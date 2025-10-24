@@ -384,4 +384,53 @@ public interface UserMapper extends BaseMapper<User> {
      */
     @Select("SELECT owner_id FROM `group` WHERE id = #{groupId}")
     Long selectGroupOwnerId(@Param("groupId") Long groupId);
+
+    /**
+     * 统计用户文章数量
+     * @param userId 用户ID
+     * @return 文章数量
+     */
+    long countUserArticles(@Param("userId") Long userId);
+
+    /**
+     * 统计用户消息数量
+     * @param userId 用户ID
+     * @return 消息数量
+     */
+    long countUserMessages(@Param("userId") Long userId);
+
+    /**
+     * 统计用户点赞数量
+     * @param userId 用户ID
+     * @return 点赞数量
+     */
+    long countUserLikes(@Param("userId") Long userId);
+
+    /**
+     * 统计用户粉丝数量
+     * @param userId 用户ID
+     * @return 粉丝数量
+     */
+    long countUserFollowers(@Param("userId") Long userId);
+
+    /**
+     * 统计用户文章查看数量
+     * @param userId 用户ID
+     * @return 查看数量
+     */
+    long countUserArticleViews(@Param("userId") Long userId);
+
+    /**
+     * 统计用户评论数量
+     * @param userId 用户ID
+     * @return 评论数量
+     */
+    long countUserComments(@Param("userId") Long userId);
+
+    /**
+     * 统计指定等级的用户数量
+     * @param level 用户等级
+     * @return 用户数量
+     */
+    int countUsersByLevel(@Param("level") int level);
 }

@@ -4,6 +4,7 @@ import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.model.User;
 import com.web.model.UserWithStats;
+import com.web.security.SecurityUtils;
 import com.web.service.UserService;
 import com.web.util.ApiResponseUtil;
 import com.web.vo.user.UpdateUserVo;
@@ -14,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,15 +37,20 @@ public class StandardUserController {
      */
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<UserWithStats>> getCurrentUser(@Userid Long userId) {
+    public ResponseEntity<ApiResponse<UserWithStats>> getCurrentUser() {
         try {
+            Long userId = SecurityUtils.getCurrentUserId();
+            if (userId == null) {
+                return ApiResponseUtil.badRequestUserWithStats("用户未认证");
+            }
+
             UserWithStats userProfile = userService.getUserProfile(userId);
             if (userProfile == null) {
                 return ApiResponseUtil.badRequestUserWithStats("资源未找到");
             }
             return ApiResponseUtil.successUserWithStats(userProfile);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionUserWithStats(e, "获取当前用户信息", userId);
+            return ApiResponseUtil.handleServiceExceptionUserWithStats(e, "获取当前用户信息", SecurityUtils.getCurrentUserId());
         }
     }
 
@@ -54,9 +61,13 @@ public class StandardUserController {
     @PutMapping("/me")
     @PreAuthorize("hasPermission(null, 'USER_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<User>> updateCurrentUser(
-            @RequestBody @Valid UpdateUserVo updateVo,
-            @Userid Long userId) {
+            @RequestBody @Valid UpdateUserVo updateVo) {
         try {
+            Long userId = SecurityUtils.getCurrentUserId();
+            if (userId == null) {
+                return ApiResponseUtil.badRequestUser("用户未认证");
+            }
+
             User user = new User();
             user.setId(userId);
             user.setUsername(updateVo.getUsername());
@@ -74,7 +85,7 @@ public class StandardUserController {
                 return ApiResponseUtil.badRequestUser("用户信息更新失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionUser(e, "更新当前用户信息", userId);
+            return ApiResponseUtil.handleServiceExceptionUser(e, "更新当前用户信息", SecurityUtils.getCurrentUserId());
         }
     }
 
@@ -140,13 +151,18 @@ public class StandardUserController {
      */
     @GetMapping("/me/groups")
     @PreAuthorize("hasPermission(null, 'GROUP_READ_OWN')")
-    public ResponseEntity<ApiResponse<String>> getCurrentUserGroups(@Userid Long userId) {
+    public ResponseEntity<ApiResponse<String>> getCurrentUserGroups() {
         try {
+            Long userId = SecurityUtils.getCurrentUserId();
+            if (userId == null) {
+                return ApiResponseUtil.badRequestString("用户未认证");
+            }
+
             // 这里需要实现获取用户群组的逻辑
             // 暂时返回空列表，实际需要调用GroupService
             return ApiResponseUtil.successString("获取用户群组成功");
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionString(e, "获取用户群组", userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "获取用户群组", SecurityUtils.getCurrentUserId());
         }
     }
 
@@ -221,9 +237,13 @@ public class StandardUserController {
     @PostMapping("/{userId}/follow")
     @PreAuthorize("hasPermission(null, 'USER_FOLLOW_OWN')")
     public ResponseEntity<ApiResponse<String>> followUser(
-            @PathVariable Long userId,
-            @Userid Long currentUserId) {
+            @PathVariable Long userId) {
         try {
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            if (currentUserId == null) {
+                return ApiResponseUtil.badRequestString("用户未认证");
+            }
+
             boolean followed = userService.followUser(currentUserId, userId);
             if (followed) {
                 return ApiResponseUtil.successString("关注成功");
@@ -231,7 +251,7 @@ public class StandardUserController {
                 return ApiResponseUtil.badRequestString("关注失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionString(e, "关注用户", currentUserId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "关注用户", SecurityUtils.getCurrentUserId(), userId);
         }
     }
 
@@ -242,9 +262,13 @@ public class StandardUserController {
     @DeleteMapping("/{userId}/follow")
     @PreAuthorize("hasPermission(null, 'USER_FOLLOW_OWN')")
     public ResponseEntity<ApiResponse<String>> unfollowUser(
-            @PathVariable Long userId,
-            @Userid Long currentUserId) {
+            @PathVariable Long userId) {
         try {
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            if (currentUserId == null) {
+                return ApiResponseUtil.badRequestString("用户未认证");
+            }
+
             boolean unfollowed = userService.unfollowUser(currentUserId, userId);
             if (unfollowed) {
                 return ApiResponseUtil.successString("取消关注成功");
@@ -252,7 +276,7 @@ public class StandardUserController {
                 return ApiResponseUtil.badRequestString("取消关注失败");
             }
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionString(e, "取消关注用户", currentUserId, userId);
+            return ApiResponseUtil.handleServiceExceptionString(e, "取消关注用户", SecurityUtils.getCurrentUserId(), userId);
         }
     }
 
@@ -299,13 +323,126 @@ public class StandardUserController {
     @GetMapping("/{userId}/follow/status")
     @PreAuthorize("hasPermission(null, 'USER_FOLLOW_OWN')")
     public ResponseEntity<ApiResponse<Boolean>> checkFollowStatus(
-            @PathVariable Long userId,
-            @Userid Long currentUserId) {
+            @PathVariable Long userId) {
         try {
+            Long currentUserId = SecurityUtils.getCurrentUserId();
+            if (currentUserId == null) {
+                return ApiResponseUtil.badRequestBoolean("用户未认证");
+            }
+
             // 这里需要实现检查关注状态的逻辑
             return ApiResponseUtil.successBoolean(false); // 暂时返回false
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionBoolean(e, "检查关注状态", currentUserId, userId);
+            return ApiResponseUtil.handleServiceExceptionBoolean(e, "检查关注状态", SecurityUtils.getCurrentUserId(), userId);
+        }
+    }
+
+    /**
+     * 获取用户统计信息
+     * GET /api/users/{userId}/stats
+     */
+    @GetMapping("/{userId}/stats")
+    @PreAuthorize("hasPermission(#userId, 'USER_READ_ANY') or #userId == authentication.principal.id")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserStats(
+            @PathVariable Long userId) {
+        try {
+            Map<String, Object> stats = userService.getUserStatistics(userId);
+            return ApiResponseUtil.successMap(stats);
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionMap(e, "获取用户统计信息", userId);
+        }
+    }
+
+    /**
+     * 获取用户最近活动
+     * GET /api/users/{userId}/activities
+     */
+    @GetMapping("/{userId}/activities")
+    @PreAuthorize("hasPermission(#userId, 'USER_READ_ANY') or #userId == authentication.principal.id")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserRecentActivities(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "10") int limit) {
+        try {
+            List<Map<String, Object>> activities = userService.getUserRecentActivities(userId, limit);
+            return ApiResponseUtil.successMapList(activities);
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionMapList(e, "获取用户最近活动", userId, limit);
+        }
+    }
+
+    /**
+     * 更新个人资料
+     * PUT /api/users/profile
+     */
+    @PutMapping("/profile")
+    @PreAuthorize("hasPermission(null, 'USER_UPDATE_OWN')")
+    public ResponseEntity<ApiResponse<User>> updateProfile(
+            @RequestBody @Valid UpdateUserVo updateVo) {
+        try {
+            Long userId = SecurityUtils.getCurrentUserId();
+            if (userId == null) {
+                return ApiResponseUtil.badRequestUser("用户未认证");
+            }
+
+            User user = new User();
+            user.setId(userId);
+            user.setNickname(updateVo.getNickname());
+            user.setBio(updateVo.getBio());
+            user.setEmail(updateVo.getEmail());
+
+            boolean updated = userService.updateUserProfile(user);
+            if (updated) {
+                User updatedUser = userService.getUserBasicInfo(userId);
+                updatedUser.setPassword(null); // 安全起见，不返回密码
+                return ApiResponseUtil.successUser(updatedUser, "个人资料更新成功");
+            } else {
+                return ApiResponseUtil.badRequestUser("个人资料更新失败");
+            }
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionUser(e, "更新个人资料", SecurityUtils.getCurrentUserId());
+        }
+    }
+
+    /**
+     * 上传用户头像
+     * POST /api/users/avatar
+     */
+    @PostMapping("/avatar")
+    @PreAuthorize("hasPermission(null, 'USER_UPDATE_OWN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadAvatar(
+            @RequestParam("avatar") org.springframework.web.multipart.MultipartFile file) {
+        try {
+            Long userId = SecurityUtils.getCurrentUserId();
+            if (userId == null) {
+                return ApiResponseUtil.badRequestMap("用户未认证");
+            }
+
+            // 验证文件
+            if (file.isEmpty()) {
+                return ApiResponseUtil.badRequestMap("请选择要上传的文件");
+            }
+
+            // 验证文件类型
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                return ApiResponseUtil.badRequestMap("只能上传图片文件");
+            }
+
+            // 验证文件大小 (5MB)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                return ApiResponseUtil.badRequestMap("图片大小不能超过5MB");
+            }
+
+            String avatarUrl = userService.uploadUserAvatar(userId, file);
+            if (avatarUrl != null) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("avatarUrl", avatarUrl);
+                return ApiResponseUtil.successMap(result, "头像上传成功");
+            } else {
+                return ApiResponseUtil.badRequestMap("头像上传失败");
+            }
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionMap(e, "上传头像", SecurityUtils.getCurrentUserId());
         }
     }
 }

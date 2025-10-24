@@ -67,18 +67,35 @@ public class WebSocketMessageController {
 
             // 构建消息对象
             Map<String, Object> chatMessage = new HashMap<>();
-            chatMessage.put("id", System.currentTimeMillis()); // 临时ID，应该由数据库生成
-            chatMessage.put("fromId", SecurityUtils.getCurrentUserId());
-            chatMessage.put("fromName", principal.getName());
             chatMessage.put("content", message.get("content"));
             chatMessage.put("roomId", roomId);
-            chatMessage.put("timestamp", LocalDateTime.now());
             chatMessage.put("type", message.getOrDefault("type", "text"));
 
-            // 保存消息到数据库
-            // Message savedMessage = messageService.saveMessage(chatMessage);
+            // 添加额外字段
+            if (message.containsKey("replyToMessageId")) {
+                chatMessage.put("replyToMessageId", message.get("replyToMessageId"));
+            }
+            if (message.containsKey("threadId")) {
+                chatMessage.put("threadId", message.get("threadId"));
+            }
+            if (message.containsKey("url")) {
+                chatMessage.put("url", message.get("url"));
+            }
 
-            return chatMessage;
+            // 保存消息到数据库
+            Message savedMessage = messageService.saveWebSocketMessage(chatMessage, SecurityUtils.getCurrentUserId());
+
+            // 构建返回的消息对象
+            Map<String, Object> responseMessage = new HashMap<>();
+            responseMessage.put("id", savedMessage.getId());
+            responseMessage.put("fromId", savedMessage.getSenderId());
+            responseMessage.put("fromName", principal.getName());
+            responseMessage.put("content", message.get("content"));
+            responseMessage.put("roomId", roomId);
+            responseMessage.put("timestamp", savedMessage.getCreatedAt().toLocalDateTime());
+            responseMessage.put("type", message.getOrDefault("type", "text"));
+
+            return responseMessage;
         } catch (Exception e) {
             log.error("处理消息失败", e);
 
@@ -164,13 +181,36 @@ public class WebSocketMessageController {
             log.info("私聊消息: from={}, to={}, content={}",
                     principal.getName(), targetUser, content);
 
+            // 构建消息数据用于保存
+            Map<String, Object> chatMessage = new HashMap<>();
+            chatMessage.put("content", content);
+            chatMessage.put("roomId", "private_" + targetUser); // 私聊房间ID格式
+            chatMessage.put("type", message.getOrDefault("type", "text"));
+
+            // 添加额外字段
+            if (message.containsKey("replyToMessageId")) {
+                chatMessage.put("replyToMessageId", message.get("replyToMessageId"));
+            }
+            if (message.containsKey("threadId")) {
+                chatMessage.put("threadId", message.get("threadId"));
+            }
+            if (message.containsKey("url")) {
+                chatMessage.put("url", message.get("url"));
+            }
+
+            // 保存消息到数据库
+            Message savedMessage = messageService.saveWebSocketMessage(chatMessage, SecurityUtils.getCurrentUserId());
+
+            // 构建私聊消息对象
             Map<String, Object> privateMessage = new HashMap<>();
             privateMessage.put("type", "private");
-            privateMessage.put("fromId", SecurityUtils.getCurrentUserId());
+            privateMessage.put("id", savedMessage.getId());
+            privateMessage.put("fromId", savedMessage.getSenderId());
             privateMessage.put("fromName", principal.getName());
             privateMessage.put("toUser", targetUser);
             privateMessage.put("content", content);
-            privateMessage.put("timestamp", LocalDateTime.now());
+            privateMessage.put("timestamp", savedMessage.getCreatedAt().toLocalDateTime());
+            privateMessage.put("roomId", "private_" + targetUser);
 
             // 发送给目标用户
             messagingTemplate.convertAndSendToUser(

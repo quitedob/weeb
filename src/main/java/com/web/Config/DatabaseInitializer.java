@@ -1160,18 +1160,44 @@ public class DatabaseInitializer implements CommandLineRunner {
                     INSERT INTO role_permission (role_id, permission_id, created_at)
                     SELECT ?, id, NOW() FROM permission
                     WHERE name IN (
-                        'USER_READ_OWN', 'USER_UPDATE_OWN',              -- 用户基本信息管理（修复：使用OWN权限）
-                        'MESSAGE_READ_OWN', 'MESSAGE_CREATE_OWN', 'MESSAGE_UPDATE_OWN', 'MESSAGE_DELETE_OWN',  -- 聊天功能
-                        'CONTACT_READ_OWN', 'CONTACT_CREATE_OWN', 'CONTACT_UPDATE_OWN', 'CONTACT_DELETE_OWN',  -- 好友管理
-                        'GROUP_READ_OWN', 'GROUP_CREATE_OWN', 'GROUP_JOIN_OWN',                           -- 群组基础功能
-                        'ARTICLE_READ_OWN', 'ARTICLE_CREATE_OWN', 'ARTICLE_UPDATE_OWN', 'ARTICLE_DELETE_OWN',  -- 文章管理
-                        'ARTICLE_FAVORITE_OWN', 'ARTICLE_COMMENT_OWN',                                -- 文章互动
-                        'FILE_READ_OWN', 'FILE_UPLOAD_OWN', 'FILE_UPDATE_OWN', 'FILE_DELETE_OWN', 'FILE_SHARE_OWN',  -- 文件管理
-                        'FOLLOW_READ_OWN', 'FOLLOW_CREATE_OWN', 'FOLLOW_DELETE_OWN',                       -- 关注功能
-                        'AUTH_LOGIN_OWN', 'AUTH_LOGOUT_OWN', 'AUTH_PASSWORD_CHANGE_OWN'              -- 认证功能
+                        -- 用户基础权限
+                        'USER_READ_OWN', 'USER_UPDATE_OWN', 'USER_EDIT_PROFILE_OWN', 'USER_SETTINGS_OWN',
+                        'USER_FOLLOW_OWN',
+
+                        -- 消息和聊天权限
+                        'MESSAGE_CREATE_OWN', 'MESSAGE_READ_OWN', 'MESSAGE_UPDATE_OWN', 'MESSAGE_DELETE_OWN_USER',
+                        'MESSAGE_RECALL_OWN', 'MESSAGE_SEND',
+
+                        -- 群组基础权限
+                        'GROUP_CREATE_OWN', 'GROUP_READ_OWN', 'GROUP_JOIN_OWN', 'GROUP_LEAVE_OWN',
+
+                        -- 文章创作和互动权限
+                        'ARTICLE_CREATE_OWN', 'ARTICLE_READ_OWN', 'ARTICLE_UPDATE_OWN', 'ARTICLE_DELETE_OWN_USER',
+                        'ARTICLE_FAVORITE_OWN', 'ARTICLE_COMMENT_OWN', 'ARTICLE_LIKE',
+
+                        -- 搜索权限
+                        'SEARCH_BASIC', 'SEARCH_USER_BASIC', 'SEARCH_CONTENT_BASIC',
+                        'SEARCH_USER', 'SEARCH_ARTICLE', 'SEARCH_GROUP',
+
+                        -- 通知管理
+                        'NOTIFICATION_READ',
+
+                        -- 联系人管理
+                        'CONTACT_CREATE_OWN', 'CONTACT_READ_OWN', 'CONTACT_UPDATE_OWN', 'CONTACT_DELETE_OWN',
+
+                        -- 文件管理
+                        'FILE_CREATE_OWN', 'FILE_READ_OWN', 'FILE_UPLOAD_OWN', 'FILE_UPDATE_OWN',
+                        'FILE_DELETE_OWN', 'FILE_SHARE_OWN', 'FILE_DOWNLOAD',
+
+                        -- 关注功能
+                        'FOLLOW_CREATE_OWN', 'FOLLOW_READ_OWN', 'FOLLOW_DELETE_OWN',
+
+                        -- 认证功能
+                        'AUTH_LOGIN_OWN', 'AUTH_LOGOUT_OWN', 'AUTH_PASSWORD_CHANGE_OWN',
+                        'AUTH_LOGIN', 'AUTH_REGISTER', 'AUTH_PASSWORD_CHANGE'
                     )
                     """, userRoleId);
-                log.info("✅ 普通用户权限分配完成");
+                log.info("✅ 普通用户权限分配完成（扩展版）");
             }
 
             log.info("✅ 角色权限分配完成");

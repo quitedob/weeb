@@ -196,4 +196,50 @@ public interface ArticleService {
      * @return 包含推荐文章列表和总数的Map
      */
     Map<String, Object> getRecommendedArticles(int page, int pageSize);
+
+    // ==================== 内容审核相关方法 ====================
+
+    /**
+     * 获取待审核的文章列表
+     *
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @param status 文章状态 (可选)
+     * @param keyword 关键词搜索 (可选)
+     * @return 包含待审核文章列表和总数的Map
+     */
+    Map<String, Object> getPendingArticlesForModeration(int page, int pageSize, Integer status, String keyword);
+
+    /**
+     * 审核通过文章
+     *
+     * @param articleId 文章ID
+     * @return 操作是否成功
+     */
+    boolean approveArticle(Long articleId);
+
+    /**
+     * 审核拒绝文章
+     *
+     * @param articleId 文章ID
+     * @param reason 拒绝原因
+     * @return 操作是否成功
+     */
+    boolean rejectArticle(Long articleId, String reason);
+
+    /**
+     * 管理员删除文章
+     *
+     * @param articleId 文章ID
+     * @param reason 删除原因
+     * @return 操作是否成功
+     */
+    boolean deleteArticleByAdmin(Long articleId, String reason);
+
+    /**
+     * 获取内容审核统计数据
+     *
+     * @return 内容审核统计数据
+     */
+    Map<String, Object> getContentModerationStatistics();
 }

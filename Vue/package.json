@@ -8,21 +8,25 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "clean:console": "node scripts/clean-console.js",
+    "build:prod": "npm run clean:console && vite build",
+    "dev:check": "node scripts/dev-check.js",
+    "precommit": "npm run dev:check && npm run clean:console"
   },
   "dependencies": {
-    "@element-plus/icons-vue": "^2.3.2",
+    "@stomp/stompjs": "^7.2.1",
     "@tanstack/vue-virtual": "^3.13.12",
     "axios": "^1.7.9",
     "dayjs": "^1.11.18",
     "dompurify": "^3.3.0",
-    "element-plus": "^2.7.8",
     "lodash-es": "^4.17.21",
     "marked": "^16.4.1",
     "pinia": "^2.1.7",
     "pinia-plugin-persistedstate": "^2.4.0",
     "quill": "^2.0.3",
     "socket.io-client": "^4.8.1",
+    "sockjs-client": "^1.6.1",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },

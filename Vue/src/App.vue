@@ -11,7 +11,7 @@ export default {
 </script>
 
 <style>
-@import './assets/apple-style.css';
+/* Apple设计系统已在main.css中导入，无需重复导入 */
 
 /* 全局样式 */
 #app {

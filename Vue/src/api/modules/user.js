@@ -54,6 +54,30 @@ export function getUserInfoById(userId) {
   return axiosInstance.get(`/api/users/${userId}`);
 }
 
+// 获取用户统计信息
+export function getUserStats(userId) {
+  return axiosInstance.get(`/api/users/${userId}/stats`);
+}
+
+// 获取用户最近活动
+export function getRecentActivities(userId) {
+  return axiosInstance.get(`/api/users/${userId}/activities`);
+}
+
+// 更新个人资料
+export function updateProfile(profileData) {
+  return axiosInstance.put('/api/users/profile', profileData);
+}
+
+// 上传用户头像
+export function uploadAvatar(formData) {
+  return axiosInstance.post('/api/users/avatar', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+}
+
 export default {
   getUserList,
   getUserMap,
@@ -63,5 +87,9 @@ export default {
   updateUser,
   getUserInfo,
   updateUserInfo,
-  getUserInfoById
+  getUserInfoById,
+  getUserStats,
+  getRecentActivities,
+  updateProfile,
+  uploadAvatar
 };

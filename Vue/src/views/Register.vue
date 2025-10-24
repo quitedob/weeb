@@ -161,7 +161,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import appleMessage from '@/utils/appleMessage'
 import api from '@/api'
 
 const router = useRouter()
@@ -217,7 +217,7 @@ const handleRegister = async () => {
     })
 
     if (response.success) {
-      ElMessage.success('注册成功，请登录')
+      appleMessage.success('注册成功，请登录')
       router.push('/login')
     } else {
       error.value = response.message || '注册失败'

@@ -44,6 +44,7 @@ public class User implements Serializable {
     private String bio; // 个人简介
     private Integer onlineStatus; // 用户在线状态, stores code from UserOnlineStatus
     private Integer status; // 用户状态：0-禁用，1-启用
+    private Integer userLevel = 1; // 用户等级，默认为1
 
     // 创建时间和更新时间
     @TableField(fill = FieldFill.INSERT)
@@ -143,6 +144,24 @@ public class User implements Serializable {
     // Alias method for backward compatibility
     public void setEmail(String userEmail) {
         this.userEmail = userEmail; // 设置邮箱地址
+    }
+
+    // Alias method for backward compatibility
+    public String getEmail() {
+        return this.userEmail; // 返回邮箱地址
+    }
+
+    // Alias method for backward compatibility
+    public String getPhone() {
+        return this.phoneNumber; // 返回电话号码
+    }
+
+    public Integer getUserLevel() {
+        return userLevel; // 返回用户等级
+    }
+
+    public void setUserLevel(Integer userLevel) {
+        this.userLevel = userLevel; // 设置用户等级
     }
 
 

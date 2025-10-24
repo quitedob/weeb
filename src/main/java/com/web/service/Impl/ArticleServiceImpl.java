@@ -7,11 +7,13 @@ import com.web.model.ArticleCategory;
 import com.web.service.ArticleService;
 import com.web.exception.WeebException;
 import com.web.vo.article.ArticleSearchAdvancedVo;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +23,7 @@ import java.util.Set;
  * 文章服务实现类
  * 实现文章相关的业务逻辑
  */
+@Slf4j
 @Service
 @Transactional
 public class ArticleServiceImpl implements ArticleService {
@@ -420,5 +423,209 @@ public class ArticleServiceImpl implements ArticleService {
         result.put("totalPages", (int) Math.ceil((double) totalCount / searchVo.getPageSize()));
 
         return result;
+    }
+
+    @Override
+    public Map<String, Object> getPendingArticlesForModeration(int page, int pageSize, Integer status, String keyword) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // 验证分页参数
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 50) pageSize = 20; // 审核页面默认20条
+
+            int offset = (page - 1) * pageSize;
+
+            // 构建查询条件
+            Map<String, Object> params = new HashMap<>();
+            params.put("offset", offset);
+            params.put("pageSize", pageSize);
+            params.put("keyword", keyword != null && !keyword.trim().isEmpty() ? keyword.trim() : null);
+
+            // 根据状态过滤
+            if (status != null) {
+                params.put("status", status);
+            } else {
+                // 默认查询待审核和审核中的文章 (假设 0=待审核, 3=审核中)
+                params.put("status", 0); // 主要查询待审核的文章
+            }
+
+            // 查询文章列表
+            List<Article> articles = articleMapper.getAllArticles(offset, pageSize, "created_at", "desc");
+
+            // 统计总数
+            int totalCount = 0;
+            if (status != null) {
+                totalCount = articleMapper.countByStatus(status);
+            } else {
+                totalCount = articleMapper.countByStatus(0); // 统计待审核文章总数
+            }
+
+            // 如果有关键词，过滤文章列表
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                articles = articles.stream()
+                    .filter(article ->
+                        article.getArticleTitle().toLowerCase().contains(keyword.toLowerCase()) ||
+                        (article.getArticleContent() != null &&
+                         article.getArticleContent().toLowerCase().contains(keyword.toLowerCase()))
+                    )
+                    .toList();
+
+                // 重新计算总数（近似值）
+                totalCount = articles.size();
+            }
+
+            result.put("list", articles);
+            result.put("total", totalCount);
+            result.put("currentPage", page);
+            result.put("pageSize", pageSize);
+            result.put("totalPages", (int) Math.ceil((double) totalCount / pageSize));
+
+            log.info("获取待审核文章列表成功: page={}, pageSize={}, status={}, keyword={}, total={}",
+                    page, pageSize, status, keyword, totalCount);
+
+        } catch (Exception e) {
+            log.error("获取待审核文章列表失败: page={}, pageSize={}, status={}, keyword={}",
+                    page, pageSize, status, keyword, e);
+            result.put("error", "获取待审核文章列表失败: " + e.getMessage());
+            result.put("list", new ArrayList<>());
+            result.put("total", 0);
+        }
+
+        return result;
+    }
+
+    @Override
+    public Map<String, Object> getContentModerationStatistics() {
+        Map<String, Object> statistics = new HashMap<>();
+
+        try {
+            // 待审核文章数量
+            int pendingCount = articleMapper.countByStatus(0); // 假设0表示待审核
+            statistics.put("pendingArticles", pendingCount);
+
+            // 已审核文章数量
+            int approvedCount = articleMapper.countByStatus(1); // 假设1表示已审核
+            statistics.put("approvedArticles", approvedCount);
+
+            // 被拒绝文章数量
+            int rejectedCount = articleMapper.countByStatus(2); // 假设2表示被拒绝
+            statistics.put("rejectedArticles", rejectedCount);
+
+            // 总文章数量
+            int totalArticles = articleMapper.countAllArticles();
+            statistics.put("totalArticles", totalArticles);
+
+            // 审核通过率
+            if (totalArticles > 0) {
+                double approvalRate = (double) approvedCount / totalArticles * 100;
+                statistics.put("approvalRate", Math.round(approvalRate * 100.0) / 100.0);
+            } else {
+                statistics.put("approvalRate", 0.0);
+            }
+
+            // 今日审核数量
+            String today = java.time.LocalDate.now().toString();
+            int todayReviewed = articleMapper.countReviewedToday(today);
+            statistics.put("todayReviewed", todayReviewed);
+
+            // 本周审核数量
+            String weekAgo = java.time.LocalDate.now().minusDays(7).toString();
+            int weekReviewed = articleMapper.countReviewedInPeriod(weekAgo, today);
+            statistics.put("weekReviewed", weekReviewed);
+
+            statistics.put("lastUpdated", java.time.LocalDateTime.now().toString());
+
+        } catch (Exception e) {
+            // 如果出现异常，返回基本统计信息
+            statistics.put("error", "获取审核统计失败: " + e.getMessage());
+            statistics.put("pendingArticles", 0);
+            statistics.put("approvedArticles", 0);
+            statistics.put("rejectedArticles", 0);
+            statistics.put("totalArticles", 0);
+            statistics.put("approvalRate", 0.0);
+            statistics.put("todayReviewed", 0);
+            statistics.put("weekReviewed", 0);
+        }
+
+        return statistics;
+    }
+
+    @Override
+    public boolean approveArticle(Long articleId) {
+        try {
+            // 记录文章通过审核的操作日志
+            log.info("通过文章审核: articleId={}", articleId);
+
+            // 更新文章状态为已通过（假设状态码 1 表示已通过）
+            Article article = articleMapper.selectArticleById(articleId);
+            if (article == null) {
+                log.warn("要审核的文章不存在: articleId={}", articleId);
+                return false;
+            }
+
+            // 将文章状态设置为已通过
+            articleMapper.updateArticleStatus(articleId, 1);
+
+            log.info("文章审核通过成功: articleId={}", articleId);
+            return true;
+
+        } catch (Exception e) {
+            log.error("通过文章审核失败: articleId={}", articleId, e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean rejectArticle(Long articleId, String reason) {
+        try {
+            // 记录文章拒绝操作的日志
+            log.info("拒绝文章审核: articleId={}, reason={}", articleId, reason);
+
+            // 更新文章状态为已拒绝（假设状态码 2 表示已拒绝）
+            Article article = articleMapper.selectArticleById(articleId);
+            if (article == null) {
+                log.warn("要拒绝的文章不存在: articleId={}", articleId);
+                return false;
+            }
+
+            // 将文章状态设置为已拒绝
+            articleMapper.updateArticleStatus(articleId, 2);
+
+            log.info("文章拒绝成功: articleId={}", articleId);
+            return true;
+
+        } catch (Exception e) {
+            log.error("拒绝文章失败: articleId={}, reason={}", articleId, reason, e);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean deleteArticleByAdmin(Long articleId, String reason) {
+        try {
+            // 记录管理员删除操作的日志
+            log.info("管理员删除文章: articleId={}, reason={}", articleId, reason);
+
+            // 更新文章状态为已删除（逻辑删除）
+            Article article = articleMapper.selectArticleById(articleId);
+            if (article == null) {
+                log.warn("要删除的文章不存在: articleId={}", articleId);
+                return false;
+            }
+
+            // 将文章状态设置为已删除（假设状态码 3 表示已删除）
+            articleMapper.updateArticleStatus(articleId, 3);
+
+            // 可以在这里添加其他清理逻辑，比如删除相关的评论、收藏等
+            // 但为了简单起见，这里只做文章状态更新
+
+            log.info("文章删除成功: articleId={}", articleId);
+            return true;
+
+        } catch (Exception e) {
+            log.error("删除文章失败: articleId={}, reason={}", articleId, reason, e);
+            return false;
+        }
     }
 }

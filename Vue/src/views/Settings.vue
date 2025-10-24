@@ -1,13 +1,13 @@
 <template>
   <div class="settings-container">
     <h2>个人设置</h2>
-    <el-tabs v-model="activeTab" type="card">
+    <SimpleTabs v-model="activeTab">
       <!-- 基本信息设置 -->
-      <el-tab-pane label="基本信息" name="profile">
+      <div v-show="activeTab === 'profile'">
         <div v-if="user" class="settings-form">
           <div class="form-item">
             <label for="username">用户名:</label>
-            <el-input
+            <AppleInput
               id="username"
               v-model="form.username"
               placeholder="请输入新用户名"
@@ -16,7 +16,7 @@
           </div>
           <div class="form-item">
             <label for="nickname">昵称:</label>
-            <el-input
+            <AppleInput
               id="nickname"
               v-model="form.nickname"
               placeholder="请输入昵称"
@@ -25,7 +25,7 @@
           </div>
           <div class="form-item">
             <label for="bio">个人简介:</label>
-            <el-input
+            <AppleInput
               id="bio"
               v-model="form.bio"
               type="textarea"
@@ -36,7 +36,7 @@
           </div>
           <div class="form-item">
             <label for="avatar">头像 URL:</label>
-            <el-input
+            <AppleInput
               id="avatar"
               v-model="form.avatar"
               placeholder="请输入头像图片URL"
@@ -47,98 +47,100 @@
             <label>头像预览:</label>
             <img :src="form.avatar || defaultAvatar" alt="avatar" class="avatar-preview" @error="onAvatarError" />
           </div>
-          <el-button type="primary" @click="updateProfile" class="save-btn" :loading="loading">
+          <AppleButton type="primary" @click="updateProfile" class="save-btn" :loading="loading">
             保存更改
-          </el-button>
-          <p v-if="message" :class="messageType">{{ message }}</p>
+          </AppleButton>
+          <div v-if="message" :class="['message', messageType]">{{ message }}</div>
         </div>
-        <div v-else>
-          正在加载用户信息...
+        <div v-else class="loading-state">
+          <div class="loading-text">正在加载用户信息...</div>
         </div>
-      </el-tab-pane>
+      </div>
 
       <!-- 隐私设置 -->
-      <el-tab-pane label="隐私设置" name="privacy">
+      <div v-show="activeTab === 'privacy'">
         <div class="privacy-settings">
           <div class="setting-item">
             <div class="setting-info">
               <h4>在线状态可见性</h4>
               <p>控制其他用户是否能看到你的在线状态</p>
             </div>
-            <el-switch v-model="privacySettings.onlineVisible" />
+            <AppleSwitch v-model="privacySettings.onlineVisible" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>接收私信</h4>
               <p>允许其他用户向你发送私信</p>
             </div>
-            <el-switch v-model="privacySettings.allowMessages" />
+            <AppleSwitch v-model="privacySettings.allowMessages" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>显示关注列表</h4>
               <p>让其他用户查看你关注的人</p>
             </div>
-            <el-switch v-model="privacySettings.showFollows" />
+            <AppleSwitch v-model="privacySettings.showFollows" />
           </div>
-          <el-button type="primary" @click="updatePrivacySettings" :loading="loading">
+          <AppleButton type="primary" @click="updatePrivacySettings" :loading="loading">
             保存隐私设置
-          </el-button>
+          </AppleButton>
         </div>
-      </el-tab-pane>
+      </div>
 
       <!-- 通知设置 -->
-      <el-tab-pane label="通知设置" name="notifications">
+      <div v-show="activeTab === 'notifications'">
         <div class="notification-settings">
           <div class="setting-item">
             <div class="setting-info">
               <h4>新消息通知</h4>
               <p>收到新消息时通知我</p>
             </div>
-            <el-switch v-model="notificationSettings.newMessages" />
+            <AppleSwitch v-model="notificationSettings.newMessages" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>关注通知</h4>
               <p>有人关注我时通知我</p>
             </div>
-            <el-switch v-model="notificationSettings.follows" />
+            <AppleSwitch v-model="notificationSettings.follows" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>点赞通知</h4>
               <p>有人点赞我的内容时通知我</p>
             </div>
-            <el-switch v-model="notificationSettings.likes" />
+            <AppleSwitch v-model="notificationSettings.likes" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>评论通知</h4>
               <p>有人评论我的内容时通知我</p>
             </div>
-            <el-switch v-model="notificationSettings.comments" />
+            <AppleSwitch v-model="notificationSettings.comments" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>群组邀请</h4>
               <p>收到群组邀请时通知我</p>
             </div>
-            <el-switch v-model="notificationSettings.groupInvites" />
+            <AppleSwitch v-model="notificationSettings.groupInvites" />
           </div>
-          <el-button type="primary" @click="updateNotificationSettings" :loading="loading">
+          <AppleButton type="primary" @click="updateNotificationSettings" :loading="loading">
             保存通知设置
-          </el-button>
+          </AppleButton>
         </div>
-      </el-tab-pane>
+      </div>
 
       <!-- 账号安全 -->
-      <el-tab-pane label="账号安全" name="security">
+      <div v-show="activeTab === 'security'">
         <div class="security-settings">
-          <div class="section">
-            <h3>修改密码</h3>
+          <AppleCard class="section">
+            <template #header>
+              <h3>修改密码</h3>
+            </template>
             <div class="form-item">
               <label>当前密码:</label>
-              <el-input
+              <AppleInput
                 v-model="passwordForm.currentPassword"
                 type="password"
                 placeholder="请输入当前密码"
@@ -148,7 +150,7 @@
             </div>
             <div class="form-item">
               <label>新密码:</label>
-              <el-input
+              <AppleInput
                 v-model="passwordForm.newPassword"
                 type="password"
                 placeholder="请输入新密码（至少6位）"
@@ -158,7 +160,7 @@
             </div>
             <div class="form-item">
               <label>确认新密码:</label>
-              <el-input
+              <AppleInput
                 v-model="passwordForm.confirmPassword"
                 type="password"
                 placeholder="请再次输入新密码"
@@ -166,32 +168,34 @@
                 style="width: 300px;"
               />
             </div>
-            <el-button type="primary" @click="changePassword" :loading="loading">
+            <AppleButton type="primary" @click="changePassword" :loading="loading">
               修改密码
-            </el-button>
-          </div>
+            </AppleButton>
+          </AppleCard>
 
-          <div class="section">
-            <h3>邮箱设置</h3>
+          <AppleCard class="section">
+            <template #header>
+              <h3>邮箱设置</h3>
+            </template>
             <div class="form-item">
               <label>当前邮箱:</label>
-              <span>{{ user?.user_email || '未设置' }}</span>
+              <span class="current-email">{{ user?.user_email || '未设置' }}</span>
             </div>
             <div class="form-item">
               <label>新邮箱:</label>
-              <el-input
+              <AppleInput
                 v-model="emailForm.newEmail"
                 placeholder="请输入新邮箱地址"
                 style="width: 300px;"
               />
             </div>
-            <el-button type="primary" @click="changeEmail" :loading="loading">
+            <AppleButton type="primary" @click="changeEmail" :loading="loading">
               修改邮箱
-            </el-button>
-          </div>
+            </AppleButton>
+          </AppleCard>
         </div>
-      </el-tab-pane>
-    </el-tabs>
+      </div>
+    </SimpleTabs>
   </div>
 </template>
 
@@ -199,7 +203,11 @@
 import { ref, onMounted } from 'vue';
 import api from '@/api';
 import { useAuthStore } from '@/stores/authStore';
-import { ElMessage } from 'element-plus';
+import AppleButton from '@/components/common/AppleButton.vue';
+import AppleInput from '@/components/common/AppleInput.vue';
+import AppleSwitch from '@/components/common/AppleSwitch.vue';
+import SimpleTabs from '@/components/common/SimpleTabs.vue';
+import AppleCard from '@/components/common/AppleCard.vue';
 
 const authStore = useAuthStore();
 
@@ -281,7 +289,8 @@ const loadUserInfo = async () => {
 const showMessage = (msg, type = 'success') => {
   message.value = msg;
   messageType.value = type;
-  ElMessage[type](msg);
+  // 使用原生 alert 替代 ElMessage
+  alert(msg);
   setTimeout(() => (message.value = ''), 3000);
 };
 
@@ -406,24 +415,32 @@ const onAvatarError = (e) => {
   padding: 24px;
   max-width: 800px;
   margin: 0 auto;
+  background: var(--apple-bg-secondary);
+  min-height: 100vh;
 }
 
 h2 {
-  margin-bottom: 20px;
-  color: #303133;
+  margin-bottom: 24px;
+  color: var(--apple-text-primary);
+  font-size: 24px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 h3 {
-  margin-bottom: 16px;
-  color: #606266;
-  border-bottom: 1px solid #dcdfe6;
-  padding-bottom: 8px;
+  margin: 0;
+  color: var(--apple-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 h4 {
   margin: 0 0 4px 0;
-  color: #303133;
+  color: var(--apple-text-primary);
   font-size: 14px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .form-item {
@@ -434,52 +451,76 @@ h4 {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
-  color: #606266;
+  color: var(--apple-text-secondary);
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .avatar-preview-container {
   margin-top: 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
 }
 
 .avatar-preview-container label {
   margin-bottom: 0;
   font-weight: 500;
-  color: #606266;
+  color: var(--apple-text-secondary);
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 .avatar-preview {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  border: 2px solid #dcdfe6;
+  border: 2px solid var(--apple-bg-quaternary);
   object-fit: cover;
-  background-color: #f5f7fa;
+  background-color: var(--apple-bg-tertiary);
+  transition: all 0.2s ease;
+}
+
+.avatar-preview:hover {
+  border-color: var(--apple-blue);
+  transform: scale(1.05);
 }
 
 .save-btn {
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 .message {
-  margin-top: 15px;
+  margin-top: 16px;
   padding: 12px 16px;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  transition: all 0.2s ease;
 }
 
 .success {
-  color: #67c23a;
-  background-color: #f0f9eb;
-  border: 1px solid #e1f3d8;
+  color: var(--apple-green);
+  background-color: rgba(52, 199, 89, 0.1);
+  border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
 .error {
-  color: #f56c6c;
-  background-color: #fef0f0;
-  border: 1px solid #fde2e2;
+  color: var(--apple-red);
+  background-color: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.2);
+}
+
+/* 加载状态 */
+.loading-state {
+  padding: 40px;
+  text-align: center;
+}
+
+.loading-text {
+  color: var(--apple-text-tertiary);
+  font-size: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 /* 隐私设置和通知设置样式 */
@@ -493,8 +534,16 @@ h4 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--apple-bg-quaternary);
+  transition: all 0.2s ease;
+}
+
+.setting-item:hover {
+  background: var(--apple-bg-tertiary);
+  margin: 0 -16px;
+  padding: 20px 16px;
+  border-radius: 8px;
 }
 
 .setting-item:last-child {
@@ -507,17 +556,24 @@ h4 {
 
 .setting-info p {
   margin: 0;
-  color: #909399;
+  color: var(--apple-text-tertiary);
   font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  line-height: 1.4;
 }
 
 /* 安全设置样式 */
 .section {
-  margin-bottom: 40px;
-  padding: 20px;
-  background-color: #fafafa;
-  border-radius: 6px;
-  border: 1px solid #ebeef5;
+  margin-bottom: 24px;
+  padding: 24px;
+  background-color: var(--apple-bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--apple-bg-quaternary);
+  transition: all 0.2s ease;
+}
+
+.section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .section:last-child {
@@ -525,27 +581,27 @@ h4 {
 }
 
 .section h3 {
-  margin-top: 0;
-  border-bottom: 1px solid #dcdfe6;
-  padding-bottom: 8px;
   margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--apple-bg-quaternary);
 }
 
 .security-settings .form-item {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .security-settings .form-item label {
   min-width: 100px;
   display: inline-block;
-  margin-right: 12px;
+  margin-right: 16px;
   margin-bottom: 0;
   vertical-align: middle;
 }
 
-.security-settings .form-item span {
-  color: #606266;
+.current-email {
+  color: var(--apple-text-primary);
   font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
 }
 
 /* 响应式设计 */
@@ -554,10 +610,22 @@ h4 {
     padding: 16px;
   }
 
+  h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+  }
+
   .setting-item {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: 12px;
+    padding: 16px 0;
+  }
+
+  .setting-item:hover {
+    margin: 0;
+    padding: 16px 0;
+    background: none;
   }
 
   .security-settings .form-item label {
@@ -565,26 +633,15 @@ h4 {
     margin-bottom: 8px;
     margin-right: 0;
   }
-}
 
-/* Element Plus 组件定制 */
-:deep(.el-tabs__header) {
-  margin-bottom: 20px;
-}
+  .section {
+    padding: 20px;
+    margin-bottom: 20px;
+  }
 
-:deep(.el-tabs__nav-wrap::after) {
-  height: 1px;
-}
-
-:deep(.el-input__wrapper) {
-  box-shadow: 0 0 0 1px #dcdfe6 inset;
-}
-
-:deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #c0c4cc inset;
-}
-
-:deep(.el-switch__label) {
-  color: #606266;
+  .avatar-preview {
+    width: 60px;
+    height: 60px;
+  }
 }
 </style>

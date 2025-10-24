@@ -53,6 +53,7 @@ export default defineConfig(async ({ mode }) => {
     // 确保环境变量在客户端代码中可用
     define: {
       __VITE_ENV__: JSON.stringify(env),
+      global: {}, // 解决 sockjs-client 的 'global is not defined' 问题
     },
     // 构建优化配置
     build: {
@@ -70,14 +71,12 @@ export default defineConfig(async ({ mode }) => {
           manualChunks: {
             // 核心库
             'vendor': ['vue', 'vue-router', 'pinia'],
-            // UI 库
-            'ui-library': ['element-plus'],
             // 编辑器相关
             'editor': ['quill'],
             // 工具库
             'utils': ['lodash-es', 'dayjs'],
             // WebSocket 相关
-            'websocket': ['socket.io-client'],
+            'websocket': ['@stomp/stompjs', 'sockjs-client', 'socket.io-client'],
           },
           // 按入口点分割
           chunkFileNames: 'assets/js/[name]-[hash].js',
@@ -96,10 +95,11 @@ export default defineConfig(async ({ mode }) => {
         'vue',
         'vue-router',
         'pinia',
-        'element-plus',
         'quill',
         'lodash-es',
         'dayjs',
+        '@stomp/stompjs',
+        'sockjs-client',
         'socket.io-client'
       ],
     },

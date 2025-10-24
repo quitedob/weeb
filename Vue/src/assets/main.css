@@ -1,4 +1,224 @@
-/* main.css */
-body {
-    font-family: Arial, sans-serif;
+/* 导入苹果风格样式系统 */
+@import './apple-style.css';
+
+/* 覆盖Element Plus默认样式，使用Apple设计系统 */
+.el-button {
+    /* 使用Apple按钮样式 */
+    background-color: var(--apple-bg-primary) !important;
+    color: var(--apple-text-primary) !important;
+    border: 1px solid var(--apple-border-primary) !important;
+    border-radius: var(--apple-radius-medium) !important;
+    font-family: inherit !important;
+    font-size: var(--apple-font-md) !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    box-shadow: none !important;
+}
+
+.el-button--primary {
+    background-color: var(--apple-blue) !important;
+    border-color: var(--apple-blue) !important;
+    color: white !important;
+}
+
+.el-button--primary:hover {
+    background-color: var(--apple-blue-dark) !important;
+    border-color: var(--apple-blue-dark) !important;
+}
+
+.el-button:hover {
+    background-color: var(--apple-bg-secondary) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--apple-shadow-light) !important;
+}
+
+.el-input__wrapper {
+    background-color: var(--apple-bg-primary) !important;
+    border: 1px solid var(--apple-border-primary) !important;
+    border-radius: var(--apple-radius-medium) !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.el-input__wrapper:hover {
+    border-color: var(--apple-text-tertiary) !important;
+}
+
+.el-input__wrapper.is-focus {
+    border-color: var(--apple-blue) !important;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1) !important;
+}
+
+.el-card {
+    background-color: var(--apple-bg-primary) !important;
+    border: 1px solid var(--apple-border-secondary) !important;
+    border-radius: var(--apple-radius-large) !important;
+    box-shadow: var(--apple-shadow-light) !important;
+}
+
+.el-card:hover {
+    box-shadow: var(--apple-shadow-medium) !important;
+    transform: translateY(-2px) !important;
+    transition: all 0.2s ease !important;
+}
+
+.el-dialog {
+    border-radius: var(--apple-radius-large) !important;
+    box-shadow: var(--apple-shadow-heavy) !important;
+}
+
+.el-dialog__header {
+    background-color: var(--apple-bg-secondary) !important;
+    border-bottom: 1px solid var(--apple-border-secondary) !important;
+    border-radius: var(--apple-radius-large) var(--apple-radius-large) 0 0 !important;
+}
+
+.el-dialog__title {
+    color: var(--apple-text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.el-message {
+    border-radius: var(--apple-radius-medium) !important;
+    box-shadow: var(--apple-shadow-medium) !important;
+}
+
+.el-message-box {
+    border-radius: var(--apple-radius-large) !important;
+    box-shadow: var(--apple-shadow-heavy) !important;
+}
+
+/* 表格样式 */
+.el-table {
+    background-color: var(--apple-bg-primary) !important;
+}
+
+.el-table th {
+    background-color: var(--apple-bg-secondary) !important;
+    color: var(--apple-text-secondary) !important;
+    font-weight: 600 !important;
+}
+
+.el-table tr {
+    background-color: var(--apple-bg-primary) !important;
+}
+
+.el-table tr:hover {
+    background-color: var(--apple-bg-secondary) !important;
+}
+
+/* 下拉菜单 */
+.el-dropdown-menu {
+    background-color: var(--apple-bg-primary) !important;
+    border: 1px solid var(--apple-border-primary) !important;
+    border-radius: var(--apple-radius-medium) !important;
+    box-shadow: var(--apple-shadow-medium) !important;
+}
+
+.el-dropdown-menu__item:hover {
+    background-color: var(--apple-bg-secondary) !important;
+    color: var(--apple-text-primary) !important;
+}
+
+/* 标签页 */
+.el-tabs__header {
+    margin: 0 0 var(--apple-spacing-md) 0 !important;
+}
+
+.el-tabs__nav {
+    border-bottom: 1px solid var(--apple-border-secondary) !important;
+}
+
+.el-tabs__item {
+    color: var(--apple-text-tertiary) !important;
+    font-weight: 500 !important;
+}
+
+.el-tabs__item.is-active {
+    color: var(--apple-blue) !important;
+}
+
+.el-tabs__item:hover {
+    color: var(--apple-text-secondary) !important;
+}
+
+/* 分页 */
+.el-pagination {
+    color: var(--apple-text-secondary) !important;
+}
+
+.el-pager li {
+    background-color: var(--apple-bg-primary) !important;
+    color: var(--apple-text-secondary) !important;
+    border: 1px solid var(--apple-border-primary) !important;
+    border-radius: var(--apple-radius-small) !important;
+}
+
+.el-pager li.is-active {
+    background-color: var(--apple-blue) !important;
+    color: white !important;
+}
+
+/* 加载器 */
+.el-loading-spinner .circular {
+    stroke: var(--apple-blue) !important;
+}
+
+/* 通知 */
+.el-notification {
+    border-radius: var(--apple-radius-large) !important;
+    box-shadow: var(--apple-shadow-heavy) !important;
+}
+
+/* 选择器 */
+.el-select-dropdown {
+    background-color: var(--apple-bg-primary) !important;
+    border: 1px solid var(--apple-border-primary) !important;
+    border-radius: var(--apple-radius-medium) !important;
+    box-shadow: var(--apple-shadow-medium) !important;
+}
+
+.el-select-dropdown__item {
+    color: var(--apple-text-primary) !important;
+}
+
+.el-select-dropdown__item:hover {
+    background-color: var(--apple-bg-secondary) !important;
+}
+
+/* 开关 */
+.el-switch.is-checked .el-switch__core {
+    background-color: var(--apple-blue) !important;
+}
+
+/* 复选框 */
+.el-checkbox__input.is-checked .el-checkbox__inner {
+    background-color: var(--apple-blue) !important;
+    border-color: var(--apple-blue) !important;
+}
+
+/* 单选框 */
+.el-radio__input.is-checked .el-radio__inner {
+    background-color: var(--apple-blue) !important;
+    border-color: var(--apple-blue) !important;
+}
+
+/* 菜单 */
+.el-menu {
+    background-color: var(--apple-bg-primary) !important;
+    border-right: 1px solid var(--apple-border-secondary) !important;
+}
+
+.el-menu-item {
+    color: var(--apple-text-secondary) !important;
+}
+
+.el-menu-item:hover {
+    background-color: var(--apple-bg-secondary) !important;
+    color: var(--apple-text-primary) !important;
+}
+
+.el-menu-item.is-active {
+    background-color: var(--apple-bg-secondary) !important;
+    color: var(--apple-blue) !important;
 }

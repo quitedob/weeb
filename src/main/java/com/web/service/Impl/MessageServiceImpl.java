@@ -262,4 +262,371 @@ public class MessageServiceImpl implements MessageService {
             log.error("删除消息缓存失败: messageId={}", messageId, e);
         }
     }
+
+    @Override
+    public Message saveWebSocketMessage(java.util.Map<String, Object> messageData, Long userId) {
+        try {
+            // 创建消息对象
+            Message message = new Message();
+
+            // 设置基本信息
+            message.setSenderId(userId);
+            message.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+            message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
+
+            // 从Map中提取数据
+            String content = (String) messageData.get("content");
+            String roomId = (String) messageData.get("roomId");
+            String type = (String) messageData.getOrDefault("type", "text");
+
+            // 设置消息内容
+            com.web.vo.message.TextMessageContent textContent = new com.web.vo.message.TextMessageContent();
+            textContent.setContent(content);
+
+            // 根据类型设置contentType
+            if ("image".equals(type)) {
+                textContent.setContentType(com.web.constant.TextContentType.IMAGE.getCode());
+                textContent.setUrl((String) messageData.get("url"));
+            } else if ("file".equals(type)) {
+                textContent.setContentType(com.web.constant.TextContentType.FILE.getCode());
+                textContent.setUrl((String) messageData.get("url"));
+            } else {
+                textContent.setContentType(com.web.constant.TextContentType.TEXT.getCode());
+            }
+
+            message.setContent(textContent);
+
+            // 设置消息类型 (0: 私聊, 1: 群聊)
+            if (roomId != null && roomId.startsWith("group_")) {
+                message.setMessageType(1); // 群聊
+                // 这里需要根据roomId获取chatId，暂时使用roomId转换
+                message.setChatId(extractChatIdFromRoomId(roomId));
+            } else {
+                message.setMessageType(0); // 私聊
+                message.setChatId(extractChatIdFromRoomId(roomId));
+            }
+
+            // 设置其他默认值
+            message.setReadStatus(0); // 未读
+            message.setIsRecalled(0); // 未撤回
+            message.setIsShowTime(1); // 显示时间
+            message.setUserIp("WebSocket"); // 标记来源为WebSocket
+            message.setSource("WebSocket");
+
+            // 设置回复信息（如果有）
+            if (messageData.containsKey("replyToMessageId")) {
+                Object replyToId = messageData.get("replyToMessageId");
+                if (replyToId != null) {
+                    message.setReplyToMessageId(Long.valueOf(replyToId.toString()));
+                }
+            }
+
+            // 设置线程信息（如果有）
+            if (messageData.containsKey("threadId")) {
+                Object threadId = messageData.get("threadId");
+                if (threadId != null) {
+                    message.setThreadId(Long.valueOf(threadId.toString()));
+                }
+            }
+
+            // 保存到数据库
+            messageMapper.insert(message);
+
+            // 缓存到Redis
+            cacheMessageToRedis(message);
+
+            // 如果启用了Elasticsearch，索引到ES
+            if (elasticsearchSearchService != null) {
+                try {
+                    elasticsearchSearchService.indexMessage(convertToMessageDocument(message));
+                    log.debug("消息已索引到Elasticsearch: messageId={}", message.getId());
+                } catch (Exception e) {
+                    log.warn("消息索引到Elasticsearch失败: messageId={}", message.getId(), e);
+                }
+            }
+
+            log.info("WebSocket消息已保存: messageId={}, userId={}, roomId={}",
+                    message.getId(), userId, roomId);
+
+            return message;
+
+        } catch (Exception e) {
+            log.error("保存WebSocket消息失败: userId={}, messageData={}", userId, messageData, e);
+            throw new WeebException("保存消息失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 从roomId中提取chatId
+     * 这里需要根据实际的业务逻辑来实现
+     */
+    private Long extractChatIdFromRoomId(String roomId) {
+        try {
+            if (roomId == null) {
+                return null;
+            }
+
+            // 如果roomId是数字格式，直接转换
+            if (roomId.matches("\\d+")) {
+                return Long.valueOf(roomId);
+            }
+
+            // 如果roomId包含前缀，提取数字部分
+            if (roomId.startsWith("private_")) {
+                String idStr = roomId.substring("private_".length());
+                return Long.valueOf(idStr);
+            }
+
+            if (roomId.startsWith("group_")) {
+                String idStr = roomId.substring("group_".length());
+                return Long.valueOf(idStr);
+            }
+
+            // 默认情况下，尝试直接转换
+            return Long.valueOf(roomId);
+
+        } catch (NumberFormatException e) {
+            log.warn("无法从roomId提取chatId: roomId={}", roomId);
+            return null;
+        }
+    }
+
+    // ==================== 消息线程相关方法实现 ====================
+
+    @Override
+    public Message createThread(Long userId, Long parentMessageId, String content) {
+        try {
+            // 验证父消息是否存在
+            Message parentMessage = messageMapper.selectById(parentMessageId);
+            if (parentMessage == null) {
+                throw new WeebException("父消息不存在: " + parentMessageId);
+            }
+
+            // 创建线程消息
+            Message threadMessage = new Message();
+            threadMessage.setSenderId(userId);
+            threadMessage.setChatId(parentMessage.getChatId());
+            threadMessage.setThreadId(parentMessageId); // 设置线程ID为父消息ID
+            threadMessage.setReplyToMessageId(parentMessageId); // 设置回复消息ID
+            threadMessage.setMessageType(1); // 文本消息类型
+            threadMessage.setReadStatus(0); // 未读状态
+            threadMessage.setIsRecalled(0); // 未撤回状态
+            threadMessage.setIsShowTime(1); // 显示时间
+
+            // 设置消息内容
+            com.web.vo.message.TextMessageContent textContent = new com.web.vo.message.TextMessageContent();
+            textContent.setContent(content);
+            textContent.setContentType(com.web.constant.TextContentType.TEXT.getCode());
+            threadMessage.setContent(textContent);
+
+            // 设置时间戳
+            Timestamp now = new Timestamp(System.currentTimeMillis());
+            threadMessage.setCreatedAt(now);
+            threadMessage.setUpdatedAt(now);
+
+            // 保存到数据库
+            int result = messageMapper.insert(threadMessage);
+            if (result <= 0) {
+                throw new WeebException("创建线程消息失败");
+            }
+
+            // 缓存消息
+            cacheMessageToRedis(threadMessage);
+
+            // 索引到Elasticsearch
+            indexMessageToElasticsearch(threadMessage);
+
+            log.info("用户 {} 创建了线程消息，父消息ID: {}", userId, parentMessageId);
+
+            return threadMessage;
+
+        } catch (Exception e) {
+            log.error("创建消息线程失败: userId={}, parentMessageId={}, content={}",
+                     userId, parentMessageId, content, e);
+            throw new WeebException("创建线程失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> getThreadMessages(Long parentMessageId, int page, int pageSize) {
+        try {
+            // 计算偏移量
+            int offset = (page - 1) * pageSize;
+
+            // 查询线程消息列表
+            List<Message> threadMessages = messageMapper.selectThreadMessages(
+                parentMessageId, offset, pageSize);
+
+            // 查询总数量
+            int totalCount = messageMapper.countThreadMessages(parentMessageId);
+
+            // 构建返回结果
+            java.util.Map<String, Object> result = new java.util.HashMap<>();
+            result.put("messages", threadMessages);
+            result.put("pagination", java.util.Map.of(
+                "page", page,
+                "pageSize", pageSize,
+                "total", totalCount,
+                "totalPages", (int) Math.ceil((double) totalCount / pageSize)
+            ));
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("获取线程消息失败: parentMessageId={}, page={}, pageSize={}",
+                     parentMessageId, page, pageSize, e);
+            throw new WeebException("获取线程消息失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> getThreadSummary(Long parentMessageId) {
+        try {
+            // 查询线程摘要信息
+            java.util.Map<String, Object> summary = messageMapper.selectThreadSummary(parentMessageId);
+
+            if (summary == null || summary.isEmpty()) {
+                return java.util.Map.of(
+                    "messageCount", 0,
+                    "participantCount", 0,
+                    "lastReplyTime", null,
+                    "lastReplyUser", null
+                );
+            }
+
+            return summary;
+
+        } catch (Exception e) {
+            log.error("获取线程摘要失败: parentMessageId={}", parentMessageId, e);
+            throw new WeebException("获取线程摘要失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public Message replyToThread(Long userId, Long threadId, String content) {
+        try {
+            // 验证线程消息是否存在
+            Message threadMessage = messageMapper.selectById(threadId);
+            if (threadMessage == null) {
+                throw new WeebException("线程消息不存在: " + threadId);
+            }
+
+            // 创建回复消息
+            Message replyMessage = new Message();
+            replyMessage.setSenderId(userId);
+            replyMessage.setChatId(threadMessage.getChatId());
+            replyMessage.setThreadId(threadMessage.getThreadId()); // 使用相同的线程ID
+            replyMessage.setReplyToMessageId(threadId); // 回复当前线程消息
+            replyMessage.setMessageType(1); // 文本消息类型
+            replyMessage.setReadStatus(0); // 未读状态
+            replyMessage.setIsRecalled(0); // 未撤回状态
+            replyMessage.setIsShowTime(1); // 显示时间
+
+            // 设置消息内容
+            com.web.vo.message.TextMessageContent textContent = new com.web.vo.message.TextMessageContent();
+            textContent.setContent(content);
+            textContent.setContentType(com.web.constant.TextContentType.TEXT.getCode());
+            replyMessage.setContent(textContent);
+
+            // 设置时间戳
+            Timestamp now = new Timestamp(System.currentTimeMillis());
+            replyMessage.setCreatedAt(now);
+            replyMessage.setUpdatedAt(now);
+
+            // 保存到数据库
+            int result = messageMapper.insert(replyMessage);
+            if (result <= 0) {
+                throw new WeebException("回复线程消息失败");
+            }
+
+            // 缓存消息
+            cacheMessageToRedis(replyMessage);
+
+            // 索引到Elasticsearch
+            indexMessageToElasticsearch(replyMessage);
+
+            log.info("用户 {} 回复了线程消息，线程ID: {}", userId, threadId);
+
+            return replyMessage;
+
+        } catch (Exception e) {
+            log.error("回复线程失败: userId={}, threadId={}, content={}",
+                     userId, threadId, content, e);
+            throw new WeebException("回复线程失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean deleteThread(Long threadId, Long userId) {
+        try {
+            // 验证线程消息是否存在
+            Message threadMessage = messageMapper.selectById(threadId);
+            if (threadMessage == null) {
+                throw new WeebException("线程消息不存在: " + threadId);
+            }
+
+            // 检查权限：只有发送者可以删除自己的消息
+            if (!threadMessage.getSenderId().equals(userId)) {
+                throw new WeebException("无权限删除此消息");
+            }
+
+            // 删除消息
+            int result = messageMapper.deleteById(threadId);
+            if (result <= 0) {
+                throw new WeebException("删除线程消息失败");
+            }
+
+            // 清除缓存
+            evictMessageCache(threadId);
+
+            // 从Elasticsearch删除索引
+            if (elasticsearchSearchService != null) {
+                try {
+                    elasticsearchSearchService.deleteMessage(threadId);
+                } catch (Exception e) {
+                    log.warn("从Elasticsearch删除消息索引失败: messageId={}", threadId, e);
+                }
+            }
+
+            log.info("用户 {} 删除了线程消息: {}", userId, threadId);
+
+            return true;
+
+        } catch (Exception e) {
+            log.error("删除线程失败: userId={}, threadId={}", userId, threadId, e);
+            throw new WeebException("删除线程失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> getUserThreads(Long userId, int page, int pageSize) {
+        try {
+            // 计算偏移量
+            int offset = (page - 1) * pageSize;
+
+            // 查询用户参与的线程
+            List<java.util.Map<String, Object>> userThreads = messageMapper.selectUserThreads(
+                userId, offset, pageSize);
+
+            // 查询总数量
+            int totalCount = messageMapper.countUserThreads(userId);
+
+            // 构建返回结果
+            java.util.Map<String, Object> result = new java.util.HashMap<>();
+            result.put("threads", userThreads);
+            result.put("pagination", java.util.Map.of(
+                "page", page,
+                "pageSize", pageSize,
+                "total", totalCount,
+                "totalPages", (int) Math.ceil((double) totalCount / pageSize)
+            ));
+
+            return result;
+
+        } catch (Exception e) {
+            log.error("获取用户线程失败: userId={}, page={}, pageSize={}",
+                     userId, page, pageSize, e);
+            throw new WeebException("获取用户线程失败: " + e.getMessage());
+        }
+    }
 }

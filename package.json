@@ -2,5 +2,8 @@
   "devDependencies": {
     "less": "^4.2.2",
     "less-loader": "^12.2.0"
+  },
+  "dependencies": {
+    "element-plus": "^2.11.5"
   }
 }

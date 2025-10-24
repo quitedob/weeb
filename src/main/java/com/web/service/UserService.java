@@ -265,4 +265,116 @@ public interface UserService {
      * @return 用户角色列表
      */
     List<String> getUserRoles(Long userId);
+
+    // ==================== 用户行为监控相关方法 ====================
+
+    /**
+     * 获取用户行为分析数据
+     * @param days 统计天数
+     * @return 用户行为分析数据
+     */
+    Map<String, Object> getUserBehaviorAnalysis(int days);
+
+    /**
+     * 获取用户行为事件列表
+     * @param days 统计天数
+     * @param eventType 事件类型过滤
+     * @param page 页码
+     * @param pageSize 每页大小
+     * @return 用户行为事件列表
+     */
+    Map<String, Object> getUserBehaviorEvents(int days, String eventType, int page, int pageSize);
+
+    /**
+     * 获取用户分群统计数据
+     * @param days 统计天数
+     * @return 用户分群统计
+     */
+    Map<String, Object> getUserSegmentAnalysis(int days);
+
+    /**
+     * 获取热门页面统计
+     * @param days 统计天数
+     * @return 热门页面数据
+     */
+    Map<String, Object> getPopularPages(int days);
+
+    /**
+     * 获取异常行为检测结果
+     * @param hours 检测时间范围
+     * @return 异常行为列表
+     */
+    Map<String, Object> getBehaviorAnomalies(int hours);
+
+    /**
+     * 运行异常行为检测
+     * @return 检测结果
+     */
+    Map<String, Object> runAnomalyDetection();
+
+    /**
+     * 导出用户行为数据
+     * @param format 导出格式
+     * @param days 统计天数
+     * @return 导出数据
+     */
+    byte[] exportBehaviorData(String format, int days);
+
+    /**
+     * 获取用户活动热力图数据
+     * @param type 热力图类型
+     * @param days 统计天数
+     * @return 热力图数据
+     */
+    Map<String, Object> getActivityHeatmap(String type, int days);
+
+    /**
+     * 获取用户留存分析
+     * @param cohortType 队列类型
+     * @param periods 分析期数
+     * @return 留存数据
+     */
+    Map<String, Object> getUserRetention(String cohortType, int periods);
+
+    /**
+     * 获取当前在线用户数
+     * @return 在线用户数
+     */
+    int getCurrentOnlineUserCount();
+
+    /**
+     * 获取今日在线用户峰值
+     * @return 峰值用户数
+     */
+    int getPeakOnlineUsersToday();
+
+    /**
+     * 获取用户详细统计信息
+     * @param userId 用户ID
+     * @return 用户统计信息
+     */
+    Map<String, Object> getUserStatistics(Long userId);
+
+    /**
+     * 获取用户最近活动
+     * @param userId 用户ID
+     * @param limit 返回条数限制
+     * @return 最近活动列表
+     */
+    List<Map<String, Object>> getUserRecentActivities(Long userId, int limit);
+
+    /**
+     * 更新个人资料（仅基本信息）
+     * @param user 用户信息
+     * @return 是否更新成功
+     */
+    boolean updateUserProfile(User user);
+
+    /**
+     * 上传用户头像
+     * @param userId 用户ID
+     * @param file 头像文件
+     * @return 头像URL
+     */
+    String uploadUserAvatar(Long userId, org.springframework.web.multipart.MultipartFile file);
 }
