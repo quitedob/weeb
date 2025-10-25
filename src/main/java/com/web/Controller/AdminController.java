@@ -15,6 +15,8 @@ import com.web.service.RedisCacheService;
 import com.web.service.ElasticsearchSearchService;
 import com.web.service.ArticleService;
 import com.web.util.ValidationUtils;
+import com.web.vo.admin.ArticleRejectRequestVo;
+import com.web.vo.admin.ArticleAdminDeleteRequestVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -488,33 +490,51 @@ public class AdminController {
     /**
      * 审核文章 - 拒绝
      * @param articleId 文章ID
-     * @param reason 拒绝原因
+     * @param rejectRequest 拒绝请求
      * @return 操作结果
      */
     @PostMapping("/content/articles/{articleId}/reject")
     @AdminLog(action = "REJECT_ARTICLE")
     public ResponseEntity<ApiResponse<Boolean>> rejectArticle(
             @PathVariable Long articleId,
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid ArticleRejectRequestVo rejectRequest) {
 
-        String reason = request.getOrDefault("reason", "内容不符合社区规范");
-        boolean rejected = articleService.rejectArticle(articleId, reason);
+        // 使用ValidationUtils进行额外的拒绝原因验证
+        String reason = rejectRequest.getReason();
+        if (!ValidationUtils.validateArticleContent(reason)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "拒绝原因格式不正确"));
+        }
+
+        // 对拒绝原因进行安全清理
+        String sanitizedReason = ValidationUtils.sanitizeSearchKeyword(reason.trim());
+
+        boolean rejected = articleService.rejectArticle(articleId, sanitizedReason);
         return ResponseEntity.ok(ApiResponse.success(rejected));
     }
 
     /**
      * 删除文章 (管理员权限)
      * @param articleId 文章ID
-     * @param reason 删除原因
+     * @param deleteRequest 删除请求
      * @return 操作结果
      */
     @DeleteMapping("/content/articles/{articleId}")
     @AdminLog(action = "DELETE_ARTICLE_ADMIN")
     public ResponseEntity<ApiResponse<Boolean>> deleteArticleByAdmin(
             @PathVariable Long articleId,
-            @RequestBody(required = false) Map<String, String> request) {
+            @RequestBody(required = false) @Valid ArticleAdminDeleteRequestVo deleteRequest) {
 
-        String reason = request != null ? request.get("reason") : "管理员删除";
+        // 使用ValidationUtils进行删除原因验证
+        String reason = "管理员删除"; // 默认原因
+        if (deleteRequest != null && deleteRequest.getReason() != null) {
+            String inputReason = deleteRequest.getReason();
+            if (!ValidationUtils.validateArticleContent(inputReason)) {
+                return ResponseEntity.badRequest().body(ApiResponse.error(400, "删除原因格式不正确"));
+            }
+            // 对删除原因进行安全清理
+            reason = ValidationUtils.sanitizeSearchKeyword(inputReason.trim());
+        }
+
         boolean deleted = articleService.deleteArticleByAdmin(articleId, reason);
         return ResponseEntity.ok(ApiResponse.success(deleted));
     }

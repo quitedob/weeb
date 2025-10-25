@@ -6,8 +6,11 @@ import com.web.model.User;
 import com.web.model.UserWithStats;
 import com.web.security.SecurityUtils;
 import com.web.service.UserService;
+import com.web.service.UserStatsService;
 import com.web.util.ApiResponseUtil;
 import com.web.vo.user.UpdateUserVo;
+import com.web.vo.admin.AdminResetPasswordRequestVo;
+import com.web.util.ValidationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +34,9 @@ public class StandardUserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private UserStatsService userStatsService;
+
     /**
      * 获取当前用户信息
      * GET /api/users/me
@@ -51,6 +57,52 @@ public class StandardUserController {
             return ApiResponseUtil.successUserWithStats(userProfile);
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionUserWithStats(e, "获取当前用户信息", SecurityUtils.getCurrentUserId());
+        }
+    }
+
+    /**
+     * 获取当前用户完整信息（包含统计数据）- 兼容UserController路径
+     * GET /api/users/me/profile
+     */
+    @GetMapping("/me/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserWithStats>> getCurrentUserProfile() {
+        try {
+            Long userId = SecurityUtils.getCurrentUserId();
+            if (userId == null) {
+                return ApiResponseUtil.badRequestUserWithStats("用户未认证");
+            }
+
+            UserWithStats userWithStats = userService.getUserProfile(userId);
+            if (userWithStats != null && userWithStats.getUser() != null) {
+                userWithStats.getUser().setPassword(null); // 安全起见，不返回密码
+            }
+            return ApiResponseUtil.successUserWithStats(userWithStats);
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionUserWithStats(e, "获取当前用户完整信息", SecurityUtils.getCurrentUserId());
+        }
+    }
+
+    /**
+     * 获取当前用户基本信息 - 兼容UserController路径
+     * GET /api/users/me/info
+     */
+    @GetMapping("/me/info")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<User>> getCurrentUserInfo() {
+        try {
+            Long userId = SecurityUtils.getCurrentUserId();
+            if (userId == null) {
+                return ApiResponseUtil.badRequestUser("用户未认证");
+            }
+
+            User user = userService.getUserBasicInfo(userId);
+            if (user != null) {
+                user.setPassword(null); // 安全起见，不返回密码
+            }
+            return ApiResponseUtil.successUser(user);
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionUser(e, "获取当前用户基本信息", SecurityUtils.getCurrentUserId());
         }
     }
 
@@ -212,14 +264,23 @@ public class StandardUserController {
     @PreAuthorize("hasPermission(#userId, 'USER_RESET_PASSWORD_ANY')")
     public ResponseEntity<ApiResponse<String>> resetUserPassword(
             @PathVariable Long userId,
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid AdminResetPasswordRequestVo resetRequest) {
         try {
-            String newPassword = request.get("newPassword");
-            if (newPassword == null || newPassword.trim().isEmpty()) {
-                return ApiResponseUtil.badRequestString("新密码不能为空");
+            // 使用ValidationUtils进行额外的密码验证
+            String newPassword = resetRequest.getNewPassword();
+            if (!ValidationUtils.validatePassword(newPassword)) {
+                return ApiResponseUtil.badRequestString("新密码不符合安全要求");
             }
 
-            boolean reset = userService.resetUserPassword(userId, newPassword.trim());
+            // 确认密码验证
+            if (!newPassword.equals(resetRequest.getConfirmPassword())) {
+                return ApiResponseUtil.badRequestString("两次输入的密码不一致");
+            }
+
+            // 对密码进行安全清理（使用搜索关键词清理方法作为通用字符串清理）
+            String sanitizedPassword = ValidationUtils.sanitizeSearchKeyword(newPassword.trim());
+
+            boolean reset = userService.resetUserPassword(userId, sanitizedPassword);
             if (reset) {
                 return ApiResponseUtil.successString("密码重置成功");
             } else {

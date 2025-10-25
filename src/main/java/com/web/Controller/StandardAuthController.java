@@ -5,7 +5,11 @@ import com.web.model.User;
 import com.web.service.AuthService;
 import com.web.util.ApiResponseUtil;
 import com.web.util.JwtUtil;
+import com.web.util.ValidationUtils;
+import com.web.vo.auth.ForgotPasswordVo;
 import com.web.vo.auth.LoginVo;
+import com.web.vo.auth.PasswordChangeVo;
+import com.web.vo.auth.PasswordResetVo;
 import com.web.vo.auth.RegistrationVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -226,7 +230,7 @@ public class StandardAuthController {
      */
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<String>> changePassword(
-            @RequestBody @Valid Map<String, String> passwordRequest,
+            @RequestBody @Valid PasswordChangeVo passwordChangeVo,
             @RequestHeader("Authorization") String authorization) {
         try {
             if (authorization == null || !authorization.startsWith("Bearer ")) {
@@ -236,11 +240,9 @@ public class StandardAuthController {
             String token = authorization.substring(7);
             String username = jwtUtil.extractUsername(token);
 
-            String currentPassword = passwordRequest.get("currentPassword");
-            String newPassword = passwordRequest.get("newPassword");
-
-            if (currentPassword == null || newPassword == null) {
-                return ApiResponseUtil.badRequestString("当前密码和新密码不能为空");
+            // 验证确认密码
+            if (!passwordChangeVo.getNewPassword().equals(passwordChangeVo.getConfirmPassword())) {
+                return ApiResponseUtil.badRequestString("新密码和确认密码不一致");
             }
 
             User user = authService.findByUsername(username);
@@ -249,12 +251,12 @@ public class StandardAuthController {
             }
 
             // 验证当前密码
-            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            if (!passwordEncoder.matches(passwordChangeVo.getCurrentPassword(), user.getPassword())) {
                 return ApiResponseUtil.badRequestString("当前密码错误");
             }
 
             // 更新密码
-            user.setPassword(passwordEncoder.encode(newPassword));
+            user.setPassword(passwordEncoder.encode(passwordChangeVo.getNewPassword()));
             boolean updated = authService.updateUser(user);
 
             if (updated) {
@@ -275,14 +277,9 @@ public class StandardAuthController {
      * POST /api/auth/forgot-password
      */
     @PostMapping("/forgot-password")
-    public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestBody @Valid Map<String, String> request) {
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestBody @Valid ForgotPasswordVo forgotPasswordVo) {
         try {
-            String email = request.get("email");
-            if (email == null || email.trim().isEmpty()) {
-                return ApiResponseUtil.badRequestString("邮箱不能为空");
-            }
-
-            boolean sent = authService.sendPasswordResetEmail(email.trim());
+            boolean sent = authService.sendPasswordResetEmail(forgotPasswordVo.getEmail().trim());
             if (sent) {
                 return ApiResponseUtil.successString("重置邮件已发送");
             } else {
@@ -298,16 +295,14 @@ public class StandardAuthController {
      * POST /api/auth/reset-password
      */
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<String>> resetPassword(@RequestBody @Valid Map<String, String> resetRequest) {
+    public ResponseEntity<ApiResponse<String>> resetPassword(@RequestBody @Valid PasswordResetVo passwordResetVo) {
         try {
-            String token = resetRequest.get("token");
-            String newPassword = resetRequest.get("newPassword");
-
-            if (token == null || newPassword == null) {
-                return ApiResponseUtil.badRequestString("重置令牌和新密码不能为空");
+            // 验证确认密码
+            if (!passwordResetVo.getNewPassword().equals(passwordResetVo.getConfirmPassword())) {
+                return ApiResponseUtil.badRequestString("新密码和确认密码不一致");
             }
 
-            boolean reset = authService.resetPassword(token, newPassword);
+            boolean reset = authService.resetPassword(passwordResetVo.getResetToken(), passwordResetVo.getNewPassword());
             if (reset) {
                 return ApiResponseUtil.successString("密码重置成功");
             } else {
@@ -325,11 +320,15 @@ public class StandardAuthController {
     @GetMapping("/verify-reset-token")
     public ResponseEntity<ApiResponse<Boolean>> verifyResetToken(@RequestParam String token) {
         try {
-            if (token == null || token.trim().isEmpty()) {
-                return ApiResponseUtil.badRequestBoolean("重置令牌不能为空");
+            // 使用ValidationUtils进行令牌验证（使用搜索关键词验证方法）
+            if (!ValidationUtils.validateSearchKeyword(token)) {
+                return ApiResponseUtil.badRequestBoolean("重置令牌格式不正确");
             }
 
-            boolean valid = authService.verifyResetToken(token.trim());
+            // 对令牌进行安全清理
+            String sanitizedToken = ValidationUtils.sanitizeSearchKeyword(token.trim());
+
+            boolean valid = authService.verifyResetToken(sanitizedToken);
             return ApiResponseUtil.successBoolean(valid);
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionBoolean(e, "验证重置令牌");

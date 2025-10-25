@@ -22,6 +22,13 @@ public interface AuthService {
     Long findUserIdByUsername(String username);
 
     /**
+     * 更新用户信息
+     * @param user 用户对象
+     * @return 是否更新成功
+     */
+    boolean updateUser(User user);
+
+    /**
      * 用户注册
      * @param user 用户信息
      */
@@ -106,15 +113,7 @@ public interface AuthService {
      */
     Map<Long, User> listMapUser();
 
-    /**
-     * 更新用户信息（只更新允许更新的字段）
-     * @param user 要更新的用户对象
-     * @return 是否更新成功
-     */
-    boolean updateUser(User user);
-
-    User getUserByIdForTalk(Long userId);
-
+    
     User getUserById(Integer userId);
     User updateUser(Integer userId, com.web.vo.user.UpdateUserVo updateUserVo);
 

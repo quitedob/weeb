@@ -6,6 +6,8 @@ import com.web.model.Article;
 import com.web.model.ArticleCategory;
 import com.web.service.ArticleService;
 import com.web.exception.WeebException;
+import com.web.util.ValidationUtils;
+import com.web.util.SqlInjectionUtils;
 import com.web.vo.article.ArticleSearchAdvancedVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,14 +52,24 @@ public class ArticleServiceImpl implements ArticleService {
      * @return 验证后的排序参数数组
      */
     private String[] validateSortParams(String sortBy, String sortOrder) {
-        // 验证并设置默认排序字段
-        if (sortBy == null || sortBy.trim().isEmpty() || !ALLOWED_SORT_COLUMNS.contains(sortBy.toLowerCase())) {
+        // 使用SqlInjectionUtils验证排序参数以防止SQL注入
+        if (!SqlInjectionUtils.validateSortParams(sortBy, sortOrder)) {
             sortBy = "created_at";
-        }
-
-        // 验证并设置默认排序方向
-        if (sortOrder == null || sortOrder.trim().isEmpty() || !ALLOWED_SORT_ORDERS.contains(sortOrder.toLowerCase())) {
             sortOrder = "desc";
+        } else {
+            // 进一步验证排序字段是否在允许的列表中
+            if (sortBy != null && ALLOWED_SORT_COLUMNS.contains(sortBy.toLowerCase())) {
+                sortBy = sortBy.toLowerCase();
+            } else {
+                sortBy = "created_at";
+            }
+
+            // 验证排序方向
+            if (sortOrder != null && ALLOWED_SORT_ORDERS.contains(sortOrder.toLowerCase())) {
+                sortOrder = sortOrder.toLowerCase();
+            } else {
+                sortOrder = "desc";
+            }
         }
 
         return new String[]{sortBy, sortOrder};
@@ -247,14 +259,13 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> searchArticles(String query, int page, int pageSize, String sortBy, String sortOrder) {
-        // 验证搜索关键词
-        if (query == null || query.trim().isEmpty()) {
-            throw new WeebException("搜索关键词不能为空");
+        // 使用ValidationUtils验证搜索关键词
+        if (!ValidationUtils.validateSearchKeyword(query)) {
+            throw new WeebException("搜索关键词不能为空或格式不正确");
         }
-        query = query.trim();
-        if (query.length() > 100) {
-            throw new WeebException("搜索关键词长度不能超过100个字符");
-        }
+
+        // 使用ValidationUtils进行安全清理
+        query = ValidationUtils.sanitizeSearchKeyword(query.trim());
 
         // 验证排序参数
         String[] validatedParams = validateSortParams(sortBy, sortOrder);
@@ -282,14 +293,13 @@ public class ArticleServiceImpl implements ArticleService {
     @Override
     @Transactional(readOnly = true)
     public Map<String, Object> searchArticlesWithFilters(String query, int page, int pageSize, String startDate, String endDate, String sortBy, String sortOrder) {
-        // 验证搜索关键词
-        if (query == null || query.trim().isEmpty()) {
-            throw new WeebException("搜索关键词不能为空");
+        // 使用ValidationUtils验证搜索关键词
+        if (!ValidationUtils.validateSearchKeyword(query)) {
+            throw new WeebException("搜索关键词不能为空或格式不正确");
         }
-        query = query.trim();
-        if (query.length() > 100) {
-            throw new WeebException("搜索关键词长度不能超过100个字符");
-        }
+
+        // 使用ValidationUtils进行安全清理
+        query = ValidationUtils.sanitizeSearchKeyword(query.trim());
 
         // 验证排序参数
         String[] validatedParams = validateSortParams(sortBy, sortOrder);

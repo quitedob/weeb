@@ -6,6 +6,7 @@ import com.web.model.User;
 import com.web.model.Group;
 import com.web.service.SearchService;
 import com.web.exception.WeebException;
+import com.web.util.SqlInjectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,13 +40,13 @@ public class SearchServiceImpl implements SearchService {
                 return result;
             }
 
-            // SQL注入防护
-            keyword = keyword.trim();
-            if (keyword.length() > 100) {
-                keyword = keyword.substring(0, 100);
+            // 使用SqlInjectionUtils进行SQL注入防护
+            if (!SqlInjectionUtils.validateSqlParam(keyword, "搜索关键词")) {
+                throw new WeebException("搜索关键词包含非法字符");
             }
-            // 移除潜在的危险字符
-            keyword = keyword.replaceAll("[';\"\\-\\-]", "");
+
+            // 对搜索关键词进行安全清理
+            keyword = SqlInjectionUtils.sanitizeInput(keyword.trim());
 
             // 分页参数验证
             if (page < 0) page = 0;
@@ -79,13 +80,13 @@ public class SearchServiceImpl implements SearchService {
                 return result;
             }
 
-            // SQL注入防护
-            keyword = keyword.trim();
-            if (keyword.length() > 100) {
-                keyword = keyword.substring(0, 100);
+            // 使用SqlInjectionUtils进行SQL注入防护
+            if (!SqlInjectionUtils.validateSqlParam(keyword, "搜索关键词")) {
+                throw new WeebException("搜索关键词包含非法字符");
             }
-            // 移除潜在的危险字符
-            keyword = keyword.replaceAll("[';\"\\-\\-]", "");
+
+            // 对搜索关键词进行安全清理
+            keyword = SqlInjectionUtils.sanitizeInput(keyword.trim());
 
             // 分页参数验证
             if (page < 0) page = 0;
@@ -126,8 +127,14 @@ public class SearchServiceImpl implements SearchService {
         // 计算偏移量
         int offset = page * size;
 
-        // 设置默认排序方式
-        String safeSortBy = sortBy != null ? sortBy : "time_desc";
+        // 使用SqlInjectionUtils验证并设置默认排序方式
+        String safeSortBy = "time_desc";
+        if (sortBy != null && !sortBy.trim().isEmpty()) {
+            // 验证排序参数是否安全
+            if (SqlInjectionUtils.validateSortParams(sortBy, "desc")) {
+                safeSortBy = sortBy.trim();
+            }
+        }
 
         List<Group> groups = groupMapper.searchGroupsWithFilters(keyword.trim(), offset, size, startDate, endDate, safeSortBy);
         long total = groupMapper.countSearchGroupsWithFilters(keyword.trim(), startDate, endDate);
@@ -152,8 +159,14 @@ public class SearchServiceImpl implements SearchService {
         // 计算偏移量
         int offset = page * size;
 
-        // 设置默认排序方式
-        String safeSortBy = sortBy != null ? sortBy : "time_desc";
+        // 使用SqlInjectionUtils验证并设置默认排序方式
+        String safeSortBy = "time_desc";
+        if (sortBy != null && !sortBy.trim().isEmpty()) {
+            // 验证排序参数是否安全
+            if (SqlInjectionUtils.validateSortParams(sortBy, "desc")) {
+                safeSortBy = sortBy.trim();
+            }
+        }
 
         List<User> users = userMapper.searchUsersWithFilters(keyword.trim(), offset, size, startDate, endDate, safeSortBy);
         long total = userMapper.countSearchUsersWithFilters(keyword.trim(), startDate, endDate);
@@ -186,8 +199,14 @@ public class SearchServiceImpl implements SearchService {
         // 计算偏移量
         int offset = page * size;
 
-        // 设置默认排序方式
-        String safeSortBy = sortBy != null ? sortBy : "time_desc";
+        // 使用SqlInjectionUtils验证并设置默认排序方式
+        String safeSortBy = "time_desc";
+        if (sortBy != null && !sortBy.trim().isEmpty()) {
+            // 验证排序参数是否安全
+            if (SqlInjectionUtils.validateSortParams(sortBy, "desc")) {
+                safeSortBy = sortBy.trim();
+            }
+        }
 
         List<User> users = userMapper.searchUsersAdvanced(keyword.trim(), offset, size, startDate, endDate,
                 userTypes, onlineStatus, minFansCount, maxFansCount, minTotalLikes, maxTotalLikes, safeSortBy, "desc");
@@ -221,8 +240,14 @@ public class SearchServiceImpl implements SearchService {
         // 计算偏移量
         int offset = page * size;
 
-        // 设置默认排序方式
-        String safeSortBy = sortBy != null ? sortBy : "time_desc";
+        // 使用SqlInjectionUtils验证并设置默认排序方式
+        String safeSortBy = "time_desc";
+        if (sortBy != null && !sortBy.trim().isEmpty()) {
+            // 验证排序参数是否安全
+            if (SqlInjectionUtils.validateSortParams(sortBy, "desc")) {
+                safeSortBy = sortBy.trim();
+            }
+        }
 
         List<Group> groups = groupMapper.searchGroupsAdvanced(keyword.trim(), offset, size, startDate, endDate,
                 groupTypes, isPublic, safeSortBy, "desc");

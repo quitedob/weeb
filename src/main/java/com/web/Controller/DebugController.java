@@ -1,9 +1,8 @@
 package com.web.Controller;
 
-import com.web.mapper.PermissionMapper;
-import com.web.mapper.RoleMapper;
-import com.web.model.Permission;
-import com.web.model.Role;
+import com.web.common.ApiResponse;
+import com.web.service.DebugService;
+import com.web.util.ApiResponseUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,93 +10,124 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
+/**
+ * 调试控制器
+ * 提供系统调试和信息查询功能
+ */
 @RestController
 @RequestMapping("/api/debug")
 public class DebugController {
 
     @Autowired
-    private RoleMapper roleMapper;
-
-    @Autowired
-    private PermissionMapper permissionMapper;
+    private DebugService debugService;
 
     /**
      * 调试用户权限信息
+     * GET /api/debug/user-permissions?userId=1
      */
     @GetMapping("/user-permissions")
-    public ResponseEntity<Map<String, Object>> getUserPermissions(@RequestParam Long userId) {
-        Map<String, Object> result = new HashMap<>();
-
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserPermissions(@RequestParam Long userId) {
         try {
-            // 获取用户角色
-            List<Role> userRoles = roleMapper.selectRolesByUserId(userId);
-            result.put("userRoles", userRoles);
-
-            // 获取每个角色的权限
-            Map<String, List<Permission>> rolePermissions = new HashMap<>();
-            for (Role role : userRoles) {
-                List<Permission> permissions = permissionMapper.selectPermissionsByRoleId(role.getId());
-                rolePermissions.put(role.getName(), permissions);
+            Map<String, Object> result = debugService.getUserPermissions(userId);
+            if ((Boolean) result.get("success")) {
+                return ApiResponseUtil.successMap(result, "获取用户权限信息成功");
+            } else {
+                return ApiResponseUtil.badRequestMap((String) result.get("error"));
             }
-            result.put("rolePermissions", rolePermissions);
-
-            // 检查USER_READ_OWN权限是否存在
-            Permission userReadOwnPermission = permissionMapper.selectByName("USER_READ_OWN");
-            result.put("USER_READ_OWN_permission", userReadOwnPermission);
-
-            result.put("success", true);
-
         } catch (Exception e) {
-            result.put("success", false);
-            result.put("error", e.getMessage());
+            return ApiResponseUtil.handleServiceExceptionMap(e, "获取用户权限信息", userId);
         }
-
-        return ResponseEntity.ok(result);
     }
 
     /**
      * 获取所有权限列表
+     * GET /api/debug/all-permissions
      */
     @GetMapping("/all-permissions")
-    public ResponseEntity<Map<String, Object>> getAllPermissions() {
-        Map<String, Object> result = new HashMap<>();
-
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAllPermissions() {
         try {
-            List<Permission> permissions = permissionMapper.selectList(null);
-            result.put("permissions", permissions);
-            result.put("total", permissions.size());
-            result.put("success", true);
-
+            Map<String, Object> result = debugService.getAllPermissions();
+            if ((Boolean) result.get("success")) {
+                return ApiResponseUtil.successMap(result, "获取权限列表成功");
+            } else {
+                return ApiResponseUtil.badRequestMap((String) result.get("error"));
+            }
         } catch (Exception e) {
-            result.put("success", false);
-            result.put("error", e.getMessage());
+            return ApiResponseUtil.handleServiceExceptionMap(e, "获取权限列表");
         }
-
-        return ResponseEntity.ok(result);
     }
 
     /**
      * 获取所有角色
+     * GET /api/debug/all-roles
      */
     @GetMapping("/all-roles")
-    public ResponseEntity<Map<String, Object>> getAllRoles() {
-        Map<String, Object> result = new HashMap<>();
-
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAllRoles() {
         try {
-            List<Role> roles = roleMapper.selectList(null);
-            result.put("roles", roles);
-            result.put("total", roles.size());
-            result.put("success", true);
-
+            Map<String, Object> result = debugService.getAllRoles();
+            if ((Boolean) result.get("success")) {
+                return ApiResponseUtil.successMap(result, "获取角色列表成功");
+            } else {
+                return ApiResponseUtil.badRequestMap((String) result.get("error"));
+            }
         } catch (Exception e) {
-            result.put("success", false);
-            result.put("error", e.getMessage());
+            return ApiResponseUtil.handleServiceExceptionMap(e, "获取角色列表");
         }
+    }
 
-        return ResponseEntity.ok(result);
+    /**
+     * 获取系统健康状态
+     * GET /api/debug/system-health
+     */
+    @GetMapping("/system-health")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSystemHealth() {
+        try {
+            Map<String, Object> result = debugService.getSystemHealth();
+            if ((Boolean) result.get("success")) {
+                return ApiResponseUtil.successMap(result, "获取系统健康状态成功");
+            } else {
+                return ApiResponseUtil.badRequestMap((String) result.get("error"));
+            }
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionMap(e, "获取系统健康状态");
+        }
+    }
+
+    /**
+     * 获取数据库状态
+     * GET /api/debug/database-status
+     */
+    @GetMapping("/database-status")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDatabaseStatus() {
+        try {
+            Map<String, Object> result = debugService.getDatabaseStatus();
+            if ((Boolean) result.get("success")) {
+                return ApiResponseUtil.successMap(result, "获取数据库状态成功");
+            } else {
+                return ApiResponseUtil.badRequestMap((String) result.get("error"));
+            }
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionMap(e, "获取数据库状态");
+        }
+    }
+
+    /**
+     * 获取系统配置
+     * GET /api/debug/system-config
+     */
+    @GetMapping("/system-config")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSystemConfiguration() {
+        try {
+            Map<String, Object> result = debugService.getSystemConfiguration();
+            if ((Boolean) result.get("success")) {
+                return ApiResponseUtil.successMap(result, "获取系统配置成功");
+            } else {
+                return ApiResponseUtil.badRequestMap((String) result.get("error"));
+            }
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionMap(e, "获取系统配置");
+        }
     }
 }

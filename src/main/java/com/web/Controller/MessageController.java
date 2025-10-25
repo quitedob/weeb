@@ -10,6 +10,8 @@ import com.web.vo.message.RecordRequestVo;
 import com.web.vo.message.RecallRequestVo;
 import com.web.vo.message.ReactionVo;
 import com.web.vo.message.TextMessageContent;
+import com.web.vo.message.ThreadCreationRequestVo;
+import com.web.vo.message.ThreadReplyRequestVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -157,10 +159,13 @@ public class MessageController {
      * @return 创建结果
      */
     @PostMapping("/thread/create")
-    public ResponseEntity<ApiResponse<Message>> createThread(@RequestBody @Valid Map<String, Object> threadRequest, @Userid Long userId) {
+    public ResponseEntity<ApiResponse<Message>> createThread(@RequestBody @Valid ThreadCreationRequestVo threadRequest, @Userid Long userId) {
         try {
-            Long parentMessageId = Long.valueOf(threadRequest.get("parentMessageId").toString());
-            String content = (String) threadRequest.get("content");
+            Long parentMessageId = threadRequest.getParentMessageId();
+            String content = threadRequest.getContent();
+            String contentType = threadRequest.getContentType();
+            String mentions = threadRequest.getMentions();
+            Object attachments = threadRequest.getAttachments();
 
             Message threadMessage = messageService.createThread(userId, parentMessageId, content);
             return ResponseEntity.ok(ApiResponse.success(threadMessage));
@@ -208,11 +213,16 @@ public class MessageController {
     @PostMapping("/thread/{threadId}/reply")
     public ResponseEntity<ApiResponse<Message>> replyToThread(
             @PathVariable Long threadId,
-            @RequestBody @Valid Map<String, Object> replyRequest,
+            @RequestBody @Valid ThreadReplyRequestVo replyRequest,
             @Userid Long userId) {
 
         try {
-            String content = (String) replyRequest.get("content");
+            String content = replyRequest.getContent();
+            String contentType = replyRequest.getContentType();
+            String mentions = replyRequest.getMentions();
+            Object attachments = replyRequest.getAttachments();
+            Boolean silent = replyRequest.getSilent();
+
             Message replyMessage = messageService.replyToThread(userId, threadId, content);
             return ResponseEntity.ok(ApiResponse.success(replyMessage));
         } catch (Exception e) {
