@@ -2,10 +2,10 @@ package com.web.service.Impl;
 
 import com.web.constant.UserLevel;
 import com.web.exception.WeebException;
-// import com.web.mapper.UserLevelHistoryMapper; // TODO: 待创建 UserLevelHistoryMapper 类
+import com.web.mapper.UserLevelHistoryMapper;
 import com.web.mapper.UserMapper;
 import com.web.model.User;
-// import com.web.model.UserLevelHistory; // TODO: 待创建 UserLevelHistory 模型类
+import com.web.model.UserLevelHistory;
 import com.web.service.UserLevelService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,8 +29,8 @@ public class UserLevelServiceImpl implements UserLevelService {
     @Autowired
     private UserMapper userMapper;
 
-    // @Autowired
-    // private UserLevelHistoryMapper userLevelHistoryMapper; // TODO: 待创建 UserLevelHistoryMapper 类
+    @Autowired
+    private UserLevelHistoryMapper userLevelHistoryMapper;
 
     @Override
     public int getUserLevel(Long userId) {

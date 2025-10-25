@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.UserLevelHistoryMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="UserLevelHistoryResultMap" type="com.web.model.UserLevelHistory">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="old_level" property="oldLevel"/>
+        <result column="new_level" property="newLevel"/>
+        <result column="change_reason" property="changeReason"/>
+        <result column="change_type" property="changeType"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="change_time" property="changeTime"/>
+        <result column="ip_address" property="ipAddress"/>
+        <result column="user_agent" property="userAgent"/>
+        <result column="remark" property="remark"/>
+        <result column="status" property="status"/>
+        <result column="username" property="username"/>
+        <result column="user_nickname" property="userNickname"/>
+        <result column="operator_username" property="operatorUsername"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 基础列 -->
+    <sql id="Base_Column_List">
+        id, user_id, old_level, new_level, change_reason, change_type, operator_id, operator_name,
+        change_time, ip_address, user_agent, remark, status, created_at, updated_at
+    </sql>
+
+    <!-- 关联查询列 -->
+    <sql id="Join_Column_List">
+        h.id, h.user_id, h.old_level, h.new_level, h.change_reason, h.change_type,
+        h.operator_id, h.operator_name, h.change_time, h.ip_address, h.user_agent,
+        h.remark, h.status, h.created_at, h.updated_at,
+        u.username, u.nickname as user_nickname,
+        op.username as operator_username
+    </sql>
+
+    <!-- 插入用户等级变更记录 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_level_history (
+            user_id, old_level, new_level, change_reason, change_type, operator_id, operator_name,
+            change_time, ip_address, user_agent, remark, status, created_at, updated_at
+        ) VALUES (
+            #{userId}, #{oldLevel}, #{newLevel}, #{changeReason}, #{changeType}, #{operatorId}, #{operatorName},
+            #{changeTime}, #{ipAddress}, #{userAgent}, #{remark}, #{status}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <!-- 批量插入 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO user_level_history (
+            user_id, old_level, new_level, change_reason, change_type, operator_id, operator_name,
+            change_time, ip_address, user_agent, remark, status, created_at, updated_at
+        ) VALUES
+        <foreach collection="userLevelHistories" item="item" separator=",">
+            (#{item.userId}, #{item.oldLevel}, #{item.newLevel}, #{item.changeReason}, #{item.changeType},
+             #{item.operatorId}, #{item.operatorName}, #{item.changeTime}, #{item.ipAddress},
+             #{item.userAgent}, #{item.remark}, #{item.status}, #{item.createdAt}, #{item.updatedAt})
+        </foreach>
+    </insert>
+
+    <!-- 更新记录 -->
+    <update id="update">
+        UPDATE user_level_history
+        SET old_level = #{oldLevel},
+            new_level = #{newLevel},
+            change_reason = #{changeReason},
+            change_type = #{changeType},
+            operator_id = #{operatorId},
+            operator_name = #{operatorName},
+            ip_address = #{ipAddress},
+            user_agent = #{userAgent},
+            remark = #{remark},
+            status = #{status},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除记录 -->
+    <delete id="deleteById">
+        DELETE FROM user_level_history WHERE id = #{id}
+    </delete>
+
+    <!-- 根据用户ID删除 -->
+    <delete id="deleteByUserId">
+        DELETE FROM user_level_history WHERE user_id = #{userId}
+    </delete>
+
+    <!-- 批量删除 -->
+    <delete id="batchDeleteByIds">
+        DELETE FROM user_level_history WHERE id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 根据ID查询 -->
+    <select id="findById" resultMap="UserLevelHistoryResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_level_history WHERE id = #{id}
+    </select>
+
+    <!-- 根据用户ID查询 -->
+    <select id="findByUserId" resultMap="UserLevelHistoryResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_level_history
+        WHERE user_id = #{userId} AND status = 1
+        ORDER BY change_time DESC
+    </select>
+
+    <!-- 根据用户ID分页查询 -->
+    <select id="findByUserIdWithPaging" resultMap="UserLevelHistoryResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_level_history
+        WHERE user_id = #{userId} AND status = 1
+        ORDER BY change_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 分页查询 -->
+    <select id="findWithPaging" resultMap="UserLevelHistoryResultMap">
+        SELECT
+        <include refid="Join_Column_List"/>
+        FROM user_level_history h
+        LEFT JOIN user u ON h.user_id = u.id
+        LEFT JOIN user op ON h.operator_id = op.id
+        <where>
+            h.status = 1
+            <if test="userId != null">
+                AND h.user_id = #{userId}
+            </if>
+            <if test="changeType != null">
+                AND h.change_type = #{changeType}
+            </if>
+            <if test="operatorId != null">
+                AND h.operator_id = #{operatorId}
+            </if>
+            <if test="startTime != null">
+                AND h.change_time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND h.change_time <= #{endTime}
+            </if>
+        </where>
+        ORDER BY h.change_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 统计数量 -->
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM user_level_history
+        <where>
+            status = 1
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="changeType != null">
+                AND change_type = #{changeType}
+            </if>
+            <if test="operatorId != null">
+                AND operator_id = #{operatorId}
+            </if>
+            <if test="startTime != null">
+                AND change_time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND change_time <= #{endTime}
+            </if>
+        </where>
+    </select>
+
+    <!-- 查询最近记录 -->
+    <select id="findRecentByUserId" resultMap="UserLevelHistoryResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_level_history
+        WHERE user_id = #{userId} AND status = 1
+        ORDER BY change_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 时间范围查询 -->
+    <select id="findByTimeRange" resultMap="UserLevelHistoryResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_level_history
+        WHERE change_time BETWEEN #{startTime} AND #{endTime} AND status = 1
+        ORDER BY change_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 查询等级提升记录 -->
+    <select id="findLevelUpRecords" resultMap="UserLevelHistoryResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_level_history
+        WHERE new_level > old_level AND status = 1
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+        <if test="startTime != null">
+            AND change_time >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND change_time <= #{endTime}
+        </if>
+        ORDER BY change_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 查询等级降低记录 -->
+    <select id="findLevelDownRecords" resultMap="UserLevelHistoryResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_level_history
+        WHERE new_level &lt; old_level AND status = 1
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+        <if test="startTime != null">
+            AND change_time >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND change_time <= #{endTime}
+        </if>
+        ORDER BY change_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 统计用户变更次数 -->
+    <select id="countByUserId" resultType="long">
+        SELECT COUNT(*)
+        FROM user_level_history
+        WHERE user_id = #{userId} AND status = 1
+    </select>
+
+    <!-- 获取用户当前等级 -->
+    <select id="getCurrentLevelByUserId" resultType="int">
+        SELECT new_level
+        FROM user_level_history
+        WHERE user_id = #{userId} AND status = 1
+        ORDER BY change_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 用户等级统计 -->
+    <select id="getUserLevelStats" resultMap="UserLevelHistoryResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM user_level_history
+        WHERE user_id = #{userId} AND status = 1
+        AND change_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        ORDER BY change_time DESC
+    </select>
+
+    <!-- 清理过期记录 -->
+    <delete id="cleanupExpiredRecords">
+        DELETE FROM user_level_history
+        WHERE created_at &lt; #{beforeTime}
+    </delete>
+
+    <!-- 更新状态 -->
+    <update id="updateStatus">
+        UPDATE user_level_history
+        SET status = #{status}, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 批量更新状态 -->
+    <update id="batchUpdateStatus">
+        UPDATE user_level_history
+        SET status = #{status}, updated_at = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </update>
+
+</mapper>

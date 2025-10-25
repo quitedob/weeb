@@ -37,8 +37,8 @@ public class RolePermissionServiceImpl implements RolePermissionService {
     @Autowired
     private PermissionMapper permissionMapper;
 
-    // @Autowired
-    // private RolePermissionMapper rolePermissionMapper; // TODO: 待创建 RolePermissionMapper 类
+    @Autowired
+    private RolePermissionMapper rolePermissionMapper;
 
     @Autowired
     private UserLevelService userLevelService;
@@ -249,7 +249,7 @@ public class RolePermissionServiceImpl implements RolePermissionService {
                 rolePermission.setRoleId(roleId);
                 rolePermission.setPermissionId(permissionId);
                 rolePermission.setCreatedAt(java.time.LocalDateTime.now());
-                // TODO: rolePermissionMapper.insert(rolePermission); - 缺少 RolePermissionMapper
+                rolePermissionMapper.insert(rolePermission);
             }
 
             log.info("为角色分配默认权限: roleId={}, roleName={}, permissionCount={}",
@@ -350,8 +350,17 @@ public class RolePermissionServiceImpl implements RolePermissionService {
     @Override
     public List<Permission> getRolePermissions(Long roleId) {
         try {
-            // TODO: return rolePermissionMapper.selectPermissionsByRoleId(roleId); - 缺少 RolePermissionMapper
-        return new java.util.ArrayList<>();
+            List<RolePermission> rolePermissions = rolePermissionMapper.findByRoleId(roleId);
+            List<Permission> permissions = new ArrayList<>();
+
+            for (RolePermission rp : rolePermissions) {
+                Permission permission = permissionMapper.selectById(rp.getPermissionId());
+                if (permission != null) {
+                    permissions.add(permission);
+                }
+            }
+
+            return permissions;
         } catch (Exception e) {
             log.error("获取角色权限失败: roleId={}", roleId, e);
             return Collections.emptyList();
@@ -438,7 +447,7 @@ public class RolePermissionServiceImpl implements RolePermissionService {
             }
 
             // 删除现有权限映射
-            // TODO: rolePermissionMapper.deleteByRoleId(roleId); - 缺少 RolePermissionMapper
+            rolePermissionMapper.deleteByRoleId(roleId);
 
             // 添加新的权限映射
             for (Long permissionId : permissionIds) {
@@ -453,7 +462,7 @@ public class RolePermissionServiceImpl implements RolePermissionService {
                 rolePermission.setRoleId(roleId);
                 rolePermission.setPermissionId(permissionId);
                 rolePermission.setCreatedAt(java.time.LocalDateTime.now());
-                // TODO: rolePermissionMapper.insert(rolePermission); - 缺少 RolePermissionMapper
+                rolePermissionMapper.insert(rolePermission);
             }
 
             // 更新角色信息
@@ -481,8 +490,7 @@ public class RolePermissionServiceImpl implements RolePermissionService {
 
             for (Role role : allRoles) {
                 int userCount = (int) userRoleMapper.countUsersByRole(role.getId());
-                // TODO: int permissionCount = rolePermissionMapper.countPermissionsByRole(role.getId()); - 缺少 RolePermissionMapper
-        int permissionCount = 0;
+                int permissionCount = (int) rolePermissionMapper.countByRoleId(role.getId());
 
                 Map<String, Object> roleInfo = new HashMap<>();
                 roleInfo.put("roleId", role.getId());
