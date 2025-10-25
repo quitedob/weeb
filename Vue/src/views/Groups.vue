@@ -255,7 +255,7 @@ const applyToJoinGroup = async (groupId) => {
   }).then(async () => {
     const loading = ElLoading.service({ text: '正在处理...' });
     try {
-      const response = await api.group.joinGroup({ groupId }); // Corrected API call
+      const response = await api.group.applyToJoinGroup({ groupId }); // 修复API调用
       if (response.code === 200) {
          ElMessage.success('操作成功！请等待群主或管理员审核或查看群组列表。');
          fetchMyGroups();

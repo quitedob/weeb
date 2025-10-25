@@ -33,14 +33,14 @@ export default {
     return axiosInstance.post('/api/auth/logout');
   },
 
-  // 获取当前用户信息
+  // 获取当前用户信息 - 修复API路径
   getUserInfo() {
-    return axiosInstance.get('/api/user/info');
+    return axiosInstance.get('/api/auth/me');
   },
 
-  // 更新当前用户信息
+  // 更新当前用户信息 - 修复API路径
   updateUserInfo(data) {
-    return axiosInstance.put('/api/user/info', data);
+    return axiosInstance.put('/api/users/me', data);
   },
 
   // 获取验证码 (mock)

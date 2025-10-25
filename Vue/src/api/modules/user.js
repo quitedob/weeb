@@ -5,9 +5,9 @@ import axiosInstance from '../axiosInstance';
  * 与后端AuthController接口对齐
  */
 
-// 获取用户列表
+// 获取用户列表 - 修复API路径
 export function getUserList() {
-  return axiosInstance.get('/api/list');
+  return axiosInstance.get('/api/users');
 }
 
 // 获取用户Map
@@ -37,16 +37,6 @@ export function findByUserID(userID) {
 // 更新用户信息
 export function updateUser(updateData) {
   return axiosInstance.post('/api/update', updateData);
-}
-
-// 获取用户信息
-export function getUserInfo() {
-  return axiosInstance.get('/api/users/me');
-}
-
-// 更新用户信息（使用PUT）
-export function updateUserInfo(data) {
-  return axiosInstance.put('/api/users/me', data);
 }
 
 // 根据用户ID获取用户信息
@@ -85,8 +75,6 @@ export default {
   findByUsername,
   findByUserID,
   updateUser,
-  getUserInfo,
-  updateUserInfo,
   getUserInfoById,
   getUserStats,
   getRecentActivities,
