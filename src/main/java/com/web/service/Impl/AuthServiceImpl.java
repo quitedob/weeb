@@ -409,11 +409,7 @@ public class AuthServiceImpl implements AuthService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
-    @Override
-    public User getUserByIdForTalk(Long userID) {
-        return authMapper.getUserByIdForTalk(userID);
-    }
-
+    
     @Override
     public User getUserById(Integer userId) {
         return authMapper.selectAuthById(userId.longValue());

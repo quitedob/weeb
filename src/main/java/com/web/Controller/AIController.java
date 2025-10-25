@@ -6,10 +6,19 @@ import com.web.service.AIService;
 import com.web.util.ApiResponseUtil;
 import com.web.Config.AIConfig;
 import com.web.vo.ai.ArticleSummaryRequestVo;
+import com.web.vo.ai.ArticleTagsGenerationRequestVo;
 import com.web.vo.ai.ChatRequestVo;
-import com.web.vo.ai.TextRefineRequestVo;
-import com.web.vo.ai.TitleSuggestionRequestVo;
+import com.web.vo.ai.ContentComplianceCheckRequestVo;
+import com.web.vo.ai.ContentOutlineRequestVo;
+import com.web.vo.ai.ContentSuggestionsRequestVo;
+import com.web.vo.ai.ConversationSummaryRequestVo;
+import com.web.vo.ai.KeywordsExtractionRequestVo;
+import com.web.vo.ai.ReplySuggestionsRequestVo;
 import com.web.vo.ai.SentimentAnalysisRequestVo;
+import com.web.vo.ai.TextProofreadRequestVo;
+import com.web.vo.ai.TextRefineRequestVo;
+import com.web.vo.ai.TextTranslationRequestVo;
+import com.web.vo.ai.TitleSuggestionRequestVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -87,12 +96,10 @@ public class AIController {
     @PostMapping("/article/titles")
     @PreAuthorize("hasPermission(null, 'ARTICLE_CREATE_OWN')")
     public ResponseEntity<ApiResponse<List<String>>> generateTitleSuggestions(
-            @RequestBody Map<String, Object> request) {
+            @RequestBody @Valid TitleSuggestionRequestVo request) {
         try {
-            String content = (String) request.get("content");
-            Integer count = (Integer) request.getOrDefault("count", 5);
-
-            ApiResponseUtil.validateNotBlank(content, "文章内容");
+            String content = request.getContent();
+            Integer count = request.getCount();
 
             List<String> titles = aiService.generateTitleSuggestions(content, count);
             return ApiResponseUtil.success(titles, "标题建议生成成功");
@@ -128,12 +135,10 @@ public class AIController {
     @PostMapping("/sentiment/analyze")
     @PreAuthorize("hasPermission(null, 'CONTENT_ANALYZE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> analyzeSentiment(
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid SentimentAnalysisRequestVo request) {
         try {
-            String content = request.get("content");
-
-            ApiResponseUtil.validateNotBlank(content, "分析内容");
-
+            String content = request.getContent();
+            // Use VO validation and parameters, but call existing service method
             Map<String, Object> analysis = aiService.analyzeSentiment(content);
             return ApiResponseUtil.success(analysis, "情感分析完成");
         } catch (Exception e) {
@@ -148,12 +153,10 @@ public class AIController {
     @PostMapping("/keywords/extract")
     @PreAuthorize("hasPermission(null, 'CONTENT_ANALYZE_OWN')")
     public ResponseEntity<ApiResponse<List<String>>> extractKeywords(
-            @RequestBody Map<String, Object> request) {
+            @RequestBody @Valid KeywordsExtractionRequestVo request) {
         try {
-            String content = (String) request.get("content");
-            Integer count = (Integer) request.getOrDefault("count", 10);
-
-            ApiResponseUtil.validateNotBlank(content, "提取内容");
+            String content = request.getContent();
+            Integer count = request.getCount();
 
             List<String> keywords = aiService.extractKeywords(content, count);
             return ApiResponseUtil.success(keywords, "关键词提取成功");
@@ -169,13 +172,10 @@ public class AIController {
     @PostMapping("/text/translate")
     @PreAuthorize("hasPermission(null, 'AI_TRANSLATE_OWN')")
     public ResponseEntity<ApiResponse<String>> translateText(
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid TextTranslationRequestVo request) {
         try {
-            String content = request.get("content");
-            String targetLanguage = request.get("targetLanguage");
-
-            ApiResponseUtil.validateNotBlank(content, "翻译内容");
-            ApiResponseUtil.validateNotBlank(targetLanguage, "目标语言");
+            String content = request.getContent();
+            String targetLanguage = request.getTargetLanguage();
 
             String translation = aiService.translateText(content, targetLanguage);
             return ApiResponseUtil.success(translation, "翻译成功");
@@ -191,12 +191,10 @@ public class AIController {
     @PostMapping("/article/tags")
     @PreAuthorize("hasPermission(null, 'ARTICLE_CREATE_OWN')")
     public ResponseEntity<ApiResponse<List<String>>> generateArticleTags(
-            @RequestBody Map<String, Object> request) {
+            @RequestBody @Valid ArticleTagsGenerationRequestVo request) {
         try {
-            String content = (String) request.get("content");
-            Integer count = (Integer) request.getOrDefault("count", 5);
-
-            ApiResponseUtil.validateNotBlank(content, "文章内容");
+            String content = request.getContent();
+            Integer count = request.getCount();
 
             List<String> tags = aiService.generateArticleTags(content, count);
             return ApiResponseUtil.success(tags, "标签生成成功");
@@ -212,11 +210,9 @@ public class AIController {
     @PostMapping("/content/compliance")
     @PreAuthorize("hasPermission(null, 'CONTENT_MODERATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkContentCompliance(
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid ContentComplianceCheckRequestVo request) {
         try {
-            String content = request.get("content");
-
-            ApiResponseUtil.validateNotBlank(content, "检查内容");
+            String content = request.getContent();
 
             Map<String, Object> compliance = aiService.checkContentCompliance(content);
             return ApiResponseUtil.success(compliance, "合规性检查完成");
@@ -232,12 +228,10 @@ public class AIController {
     @PostMapping("/reply/suggestions")
     @PreAuthorize("hasPermission(null, 'AI_CHAT_OWN')")
     public ResponseEntity<ApiResponse<List<String>>> generateReplySuggestions(
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid ReplySuggestionsRequestVo request) {
         try {
-            String originalMessage = request.get("originalMessage");
-            String context = request.getOrDefault("context", "");
-
-            ApiResponseUtil.validateNotBlank(originalMessage, "原始消息");
+            String originalMessage = request.getOriginalMessage();
+            String context = request.getContext();
 
             List<String> suggestions = aiService.generateReplySuggestions(originalMessage, context);
             return ApiResponseUtil.success(suggestions, "回复建议生成成功");
@@ -253,17 +247,27 @@ public class AIController {
     @PostMapping("/conversation/summary")
     @PreAuthorize("hasPermission(null, 'AI_CHAT_OWN')")
     public ResponseEntity<ApiResponse<String>> summarizeConversation(
-            @RequestBody Map<String, Object> request) {
+            @RequestBody @Valid ConversationSummaryRequestVo request) {
         try {
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> messages = (List<Map<String, Object>>) request.get("messages");
-            Integer maxLength = (Integer) request.getOrDefault("maxLength", 200);
+            List<ConversationSummaryRequestVo.ConversationMessage> messages = request.getMessages();
+            Integer maxLength = request.getMaxLength();
 
             if (messages == null || messages.isEmpty()) {
                 return ApiResponseUtil.badRequestString("对话消息不能为空");
             }
 
-            String summary = aiService.summarizeConversation(messages, maxLength);
+            // Convert ConversationMessage to Map for AI service
+            List<Map<String, Object>> messageMaps = messages.stream()
+                .map(msg -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("role", msg.getRole());
+                    map.put("content", msg.getContent());
+                    map.put("timestamp", msg.getTimestamp());
+                    return map;
+                })
+                .collect(java.util.stream.Collectors.toList());
+
+            String summary = aiService.summarizeConversation(messageMaps, maxLength);
             return ApiResponseUtil.successString(summary);
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionString(e, "对话总结");
@@ -277,12 +281,10 @@ public class AIController {
     @PostMapping("/content/suggestions")
     @PreAuthorize("hasPermission(null, 'ARTICLE_CREATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateContentSuggestions(
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid ContentSuggestionsRequestVo request) {
         try {
-            String topic = request.get("topic");
-            String contentType = request.getOrDefault("contentType", "article");
-
-            ApiResponseUtil.validateNotBlank(topic, "主题");
+            String topic = request.getTopic();
+            String contentType = request.getContentType();
 
             Map<String, Object> suggestions = aiService.generateContentSuggestions(topic, contentType);
             return ApiResponseUtil.success(suggestions, "创作建议生成成功");
@@ -298,11 +300,9 @@ public class AIController {
     @PostMapping("/text/proofread")
     @PreAuthorize("hasPermission(null, 'ARTICLE_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> proofreadText(
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid TextProofreadRequestVo request) {
         try {
-            String content = request.get("content");
-
-            ApiResponseUtil.validateNotBlank(content, "校对内容");
+            String content = request.getContent();
 
             Map<String, Object> result = aiService.proofreadText(content);
             return ApiResponseUtil.success(result, "文本校对完成");
@@ -318,12 +318,10 @@ public class AIController {
     @PostMapping("/content/outline")
     @PreAuthorize("hasPermission(null, 'ARTICLE_CREATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateContentOutline(
-            @RequestBody Map<String, String> request) {
+            @RequestBody @Valid ContentOutlineRequestVo request) {
         try {
-            String topic = request.get("topic");
-            String structure = request.getOrDefault("structure", "introduction-body-conclusion");
-
-            ApiResponseUtil.validateNotBlank(topic, "主题");
+            String topic = request.getTopic();
+            String structure = request.getStructure();
 
             Map<String, Object> outline = aiService.generateContentOutline(topic, structure);
             return ApiResponseUtil.success(outline, "内容大纲生成成功");

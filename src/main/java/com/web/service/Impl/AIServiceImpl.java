@@ -35,6 +35,12 @@ public class AIServiceImpl implements AIService {
     @Value("${ai.deepseek.chat-model:deepseek-chat}")
     private String deepseekChatModel;
 
+    @Value("${ai.ollama.base-url:http://localhost:11434}")
+    private String ollamaBaseUrl;
+
+    @Value("${ai.ollama.chat-model:llama2}")
+    private String ollamaChatModel;
+
     @Override
     public String generateArticleSummary(String content, int maxLength) {
         try {
