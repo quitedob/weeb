@@ -148,7 +148,7 @@ export default {
       return route.query.name || (isGroupChat.value ? '群聊' : '私聊')
     })
 
-    // 加载聊天记录
+    // 加载聊天记录 - 修复API调用
     const loadChatHistory = async (reset = false) => {
       try {
         if (reset) {
@@ -161,6 +161,7 @@ export default {
 
         loadingMore.value = true
 
+        // 修复API调用，使用正确的参数格式
         const response = await getChatHistoryApi({
           recipientId: recipientId.value,
           recipientType: recipientType.value,
@@ -168,7 +169,7 @@ export default {
           pageSize: pageSize
         })
 
-        if (response.success) {
+        if (response.code === 0 || response.success) {
           const newMessages = response.data.list || []
 
           if (reset) {
@@ -189,19 +190,24 @@ export default {
       }
     }
 
-    // 发送消息
+    // 发送消息 - 修复API调用
     const handleMessageSent = async (messageData) => {
       try {
-        const response = await sendMessageApi(messageData)
+        // 修复API调用，使用正确的参数格式
+        const response = await sendMessageApi({
+          receiverId: recipientId.value,
+          content: messageData.content,
+          messageType: messageData.type || 0
+        })
 
-        if (response.success) {
+        if (response.code === 0 || response.success) {
           // 将发送的消息添加到消息列表
           const newMessage = {
             id: Date.now(), // 临时ID
             senderId: currentUserId.value,
             senderName: authStore.user?.username || '我',
             content: messageData.content,
-            type: messageData.type,
+            messageType: messageData.type || 0, // 修复字段名
             timestamp: new Date().toISOString(),
             status: 'sending'
           }

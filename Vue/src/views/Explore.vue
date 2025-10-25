@@ -41,7 +41,11 @@ const fetchRecommendedArticles = async () => {
   if (loading.value || noMoreData.value) return;
   loading.value = true;
   try {
-    const response = await articleApi.getRecommendedArticles(pagination.value.page, pagination.value.pageSize);
+    // 修复API调用，使用正确的参数格式
+    const response = await articleApi.getRecommendedArticles({
+      page: pagination.value.page,
+      pageSize: pagination.value.pageSize
+    });
     const newArticles = response.data.list || [];
     if (newArticles.length < pagination.value.pageSize) {
       noMoreData.value = true;

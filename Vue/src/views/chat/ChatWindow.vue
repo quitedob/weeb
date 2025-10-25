@@ -226,7 +226,7 @@ const sendMessage = async () => {
 
   const messageData = {
     content: newMessage.value.trim(),
-    type: 'TEXT'
+    messageType: 0 // 修复：使用正确的消息类型字段
   }
 
   try {

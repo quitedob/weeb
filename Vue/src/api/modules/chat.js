@@ -1,39 +1,58 @@
 // File path: /Vue/src/api/modules/chat.js
 import axiosInstance from '../axiosInstance';
-import messageApi from './message';
 
 /**
  * 聊天相关的API模块
  */
 
-// 获取聊天列表 (复用获取好友列表的接口)
+// 获取聊天列表 - 修复API路径
 const getChatList = () => {
-  // 假设聊天列表就是好友列表
-  return axiosInstance.get('/api/contacts', {
-    params: {
-      status: 'ACCEPTED'
-    }
+  return axiosInstance.get('/api/v1/chats');
+};
+
+// 获取聊天消息记录 - 修复API路径
+const getChatMessages = (chatId, params = {}) => {
+  const { page = 1, size = 20 } = params;
+  return axiosInstance.get(`/api/v1/chats/${chatId}/messages`, {
+    params: { page, size }
   });
 };
 
-// 获取聊天消息记录 (复用message模块的getChatRecord)
-const getChatMessages = (chatId, index = 0, num = 50) => {
-  return messageApi.getChatRecord(chatId, index, num);
-};
-
-// 发送消息 (复用message模块的sendMessage)
+// 发送消息 - 修复API路径
 const sendMessage = (chatId, messageData) => {
-  // chatId 可能是私聊用户ID或群聊ID
   const payload = {
-    targetId: chatId,
-    ...messageData
+    content: messageData.content,
+    messageType: messageData.messageType || 0
   };
-  return messageApi.sendMessage(payload);
+  return axiosInstance.post(`/api/v1/chats/${chatId}/messages`, payload);
 };
 
+// 创建新的聊天会话
+const createChat = (targetId) => {
+  return axiosInstance.post('/api/v1/chats', { targetId });
+};
+
+// 标记消息为已读
+const markAsRead = (chatId) => {
+  return axiosInstance.post(`/api/v1/chats/${chatId}/read`);
+};
+
+// 删除聊天会话
+const deleteChat = (chatId) => {
+  return axiosInstance.delete(`/api/v1/chats/${chatId}`);
+};
+
+// 对消息添加反应
+const addReaction = (messageId, reactionType) => {
+  return axiosInstance.post(`/api/v1/chats/messages/${messageId}/react`, { reactionType });
+};
 
 export default {
   getChatList,
   getChatMessages,
-  sendMessage
+  sendMessage,
+  createChat,
+  markAsRead,
+  deleteChat,
+  addReaction
 };

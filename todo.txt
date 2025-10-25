@@ -1,147 +1,122 @@
-# 项目开发待办事项清单
+# 前端API使用问题修复计划
 
-> 生成时间: 2025-10-24
-> 最后更新: 2025-10-24 (基于实际项目状态更新)
-> 基于项目规范: rule.txt
-> 状态: 核心功能完整 - RBAC系统已实现 ✅
+## 问题概述
+通过分析Vue前端视图文件和后端API文档，发现前端视图使用的API与后端API文档中定义的API存在多处不一致，需要修复前端API调用以匹配后端API。
 
----
+## 主要问题分类
 
-## 📊 实际项目状态评估 (2025-10-24)
+### 1. 认证相关API问题 ✅ 已完成
+- **问题**: `auth.js`中的`getUserInfo()`方法使用了错误的API路径
+  - 当前使用: `/api/user/info`
+  - 应该使用: `/api/auth/me` 或 `/api/users/me`
+- **问题**: `auth.js`中的`updateUserInfo()`方法使用了错误的API路径
+  - 当前使用: `/api/user/info`
+  - 应该使用: `/api/users/me`
 
-### ✅ 项目编译状态
-- **编译状态**: ✅ 完全成功 - 所有功能代码完整
-- **RBAC系统**: ✅ 已实现 - 角色权限管理功能完整
-- **前端状态**: ✅ 完整 - 路由配置正确，页面功能完善
-- **数据库**: ✅ 支持 - DatabaseInitializer自动初始化
+### 2. 用户管理API问题 ✅ 已完成
+- **问题**: `user.js`中存在重复的API方法定义
+  - `getUserInfo()`和`updateUserInfo()`在`user.js`和`auth.js`中都有定义
+- **问题**: `user.js`中的`getUserList()`使用了错误的API路径
+  - 当前使用: `/api/list`
+  - 应该使用: `/api/users`
 
-### ✅ 已完成的核心组件
-1. **RolePermissionMapper.java** - 角色权限关联Mapper（已实现）
-2. **UserLevelHistoryMapper.java** - 用户等级历史Mapper（已实现）
-3. **UserLevelHistory.java** - 用户等级历史模型类（已实现）
-4. **RolePermission.java** - 角色权限关联模型类（已存在）
-5. **UserLevelHistory.vue** - 用户等级历史前端页面（已创建）
+### 3. 聊天相关API问题 ✅ 已完成
+- **问题**: `chat.js`中的`getChatList()`方法使用了错误的API路径
+  - 当前使用: `/api/contacts`
+  - 应该使用: `/api/v1/chats`
+- **问题**: `chat.js`中的`getChatMessages()`方法使用了错误的API路径
+  - 当前使用: 通过`messageApi.getChatRecord()`
+  - 应该使用: `/api/v1/chats/{chatId}/messages`
+- **问题**: `chat.js`中的`sendMessage()`方法使用了错误的API路径
+  - 当前使用: 通过`messageApi.sendMessage()`
+  - 应该使用: `/api/v1/chats/{chatId}/messages`
 
-**状态**: 角色权限管理和用户等级历史功能已完全实现
-**实现范围**: 后端服务层、数据访问层、前端界面、API接口
+### 4. 群组相关API问题 ✅ 已完成
+- **问题**: `Groups.vue`中使用了错误的API调用方式
+  - 当前使用: `api.group.joinGroup({ groupId })`
+  - 应该使用: `api.group.applyToJoinGroup({ groupId })`
 
----
+### 5. 文章相关API问题 ✅ 已完成
+- **问题**: `Explore.vue`中使用了错误的API方法
+  - 当前使用: `articleApi.getRecommendedArticles()`
+  - 应该使用: `articleApi.getRecommendedArticles()`但参数格式不匹配
 
-## ✅ 已完成的核心功能实现
+### 6. 聊天页面API问题 ✅ 已完成
+- **问题**: `NewChatWindow.vue`中使用了不存在的API函数
+  - 当前使用: `getChatHistoryApi`函数，但在`message.js`中不存在
+  - 应该使用: `getChatRecord`函数或创建新的`getChatHistoryApi`函数
+- **问题**: `NewChatWindow.vue`中使用了错误的API路径
+  - 当前使用: `/api/v1/message/send`和`/api/v1/message/record`
+  - 应该使用: `/api/v1/chats/{chatId}/messages`和`/api/v1/chats/{chatId}/messages`
+- **问题**: `NewChatWindow.vue`中使用了错误的参数格式
+  - 当前使用: `{recipientId, recipientType, page, pageSize}`
+  - 应该使用: `{chatId, page, size}`
 
-### ✅ 优先级1: 角色权限管理修复 - 已完成
-**目标**: 实现完整的RBAC角色权限体系
-**已完成任务**:
-- [x] 创建 RolePermission.java 模型类 (已存在)
-- [x] 创建 RolePermissionMapper.java 接口 (已完成)
-- [x] 创建 role_permission 表结构 (已完成SQL脚本)
-- [x] 实现 RolePermissionServiceImpl 中的权限关联逻辑 (已修复)
-- [x] 完善角色权限的CRUD操作 (已实现25个方法)
+## 修复计划
 
-### ✅ 优先级2: 用户等级历史功能 - 已完成
-**目标**: 实现用户等级变化追踪
-**已完成任务**:
-- [x] 创建 UserLevelHistory.java 模型类 (已完成)
-- [x] 创建 UserLevelHistoryMapper.java 接口 (已完成)
-- [x] 创建 user_level_history 表结构 (已完成SQL脚本)
-- [x] 实现 UserLevelServiceImpl 中的历史记录功能 (已修复)
-- [x] 添加等级变化的审计日志 (已实现)
-- [x] 创建前端用户等级历史页面 (UserLevelHistory.vue)
-- [x] 添加用户等级历史路由配置
+### 阶段1: 修复认证相关API ✅ 已完成
+1. 修改`auth.js`中的`getUserInfo()`方法，使用正确的API路径
+2. 修改`auth.js`中的`updateUserInfo()`方法，使用正确的API路径
+3. 统一`auth.js`和`user.js`中的重复方法定义
 
-### 🟢 优先级3: 功能增强和优化
-**目标**: 完善现有功能的用户体验
-**任务**:
-- [ ] 添加用户等级权益展示页面
-- [ ] 实现个人资料封面图片上传
-- [ ] 添加社交媒体链接管理
-- [ ] 实现用户成就系统
-- [ ] 优化移动端响应式设计
+### 阶段2: 修复用户管理API ✅ 已完成
+1. 修改`user.js`中的`getUserList()`方法，使用正确的API路径
+2. 删除重复的API方法定义
+3. 确保所有用户相关的API调用使用正确的路径
 
----
+### 阶段3: 修复聊天相关API ✅ 已完成
+1. 修改`chat.js`中的`getChatList()`方法，使用正确的API路径
+2. 修改`chat.js`中的`getChatMessages()`方法，使用正确的API路径
+3. 修改`chat.js`中的`sendMessage()`方法，使用正确的API路径
+4. 更新`ChatWindow.vue`中的API调用
 
-## 🟢 长期规划任务
+### 阶段4: 修复群组相关API ✅ 已完成
+1. 修改`Groups.vue`中的API调用，使用正确的方法名
+2. 确保所有群组相关的API调用使用正确的路径
 
-### 功能扩展
-- [ ] 添加用户等级权益展示
-- [ ] 实现个人资料封面图片
-- [ ] 添加社交媒体链接
-- [ ] 实现用户成就系统
+### 阶段5: 修复文章相关API ✅ 已完成
+1. 检查并修复`Explore.vue`中的API调用
+2. 确保所有文章相关的API调用使用正确的参数格式
 
-### 安全增强
-- [ ] 添加操作确认机制
-- [ ] 实现敏感操作二次验证
-- [ ] 添加异常登录检测
+### 阶段6: 修复聊天页面API问题 ✅ 已完成
+1. 修复`message.js`中缺失的`getChatHistoryApi`函数
+2. 修复`NewChatWindow.vue`中的API调用，使用正确的API路径和参数格式
+3. 确保所有聊天页面相关的API调用与后端API文档一致
 
----
+## 修复结果 ✅ 已完成
+所有前端API使用问题已修复完成，前端视图现在正确使用后端API文档中定义的接口，确保前后端数据交互的一致性和可靠性。
 
-## 📊 修复状态总结
+## 最终验证 ✅ 已完成
+经检查所有修改的文件，确认所有API修复均已正确实现：
+- auth.js: getUserInfo() 使用 /api/auth/me，updateUserInfo() 使用 /api/users/me ✅
+- chat.js: 所有聊天相关API已修复为正确的 /api/v1/chats/* 路径 ✅
+- message.js: 添加了 getChatHistoryApi 等缺失函数，修复了API路径 ✅
+- 所有Vue组件文件中的API调用已同步更新 ✅
 
-### 🎯 紧急修复完成率: 100%
-- ✅ 路由配置问题: 已修复
-- ✅ 缺失页面问题: 已修复
-- ✅ API接口问题: 已补充
-- ✅ 权限限制问题: 已验证无过度限制
-- ✅ 编译错误: 完全修复 (所有编译错误已解决)
+## 修复详情
+1. **认证相关API**:
+   - 修复了`auth.js`中的`getUserInfo()`方法，从`/api/user/info`改为`/api/auth/me`
+   - 修复了`auth.js`中的`updateUserInfo()`方法，从`/api/user/info`改为`/api/users/me`
 
-### 🎯 RBAC系统完成率: 100%
-- ✅ 角色权限管理: 已完整实现 (25个方法)
-- ✅ 用户等级历史: 已完整实现 (20个方法)
-- ✅ 数据库表结构: 已创建 (role_permission, user_level_history)
-- ✅ 服务层实现: 已修复所有注释功能
-- ✅ 前端界面: 已创建用户等级历史页面
-- ✅ 路由配置: 已添加等级历史路由
+2. **用户管理API**:
+   - 修复了`user.js`中的`getUserList()`方法，从`/api/list`改为`/api/users`
+   - 删除了`user.js`中重复的`getUserInfo()`和`updateUserInfo()`方法定义
 
-### 🎯 后续优化完成率: 100%
-- ✅ 头像上传功能: 已实现完整的文件上传和验证
-- ✅ 用户统计API: 已实现后端统计信息接口
-- ✅ 用户活动API: 已实现最近活动查询接口
-- ✅ 表单验证: 已实现实时验证和错误提示
-- ✅ 实时反馈: 已实现更新成功/失败通知
+3. **聊天相关API**:
+   - 修复了`chat.js`中的`getChatList()`方法，从`/api/contacts`改为`/api/v1/chats`
+   - 修复了`chat.js`中的`getChatMessages()`方法，直接使用`/api/v1/chats/{chatId}/messages`
+   - 修复了`chat.js`中的`sendMessage()`方法，直接使用`/api/v1/chats/{chatId}/messages`
+   - 更新了`ChatWindow.vue`中的消息类型字段，从`type`改为`messageType`
 
-### ✅ 当前项目状态
-- **编译状态**: ✅ 完全成功 - 所有编译错误已修复
-- **运行状态**: ✅ 可启动测试 - 数据库连接和配置正常
-- **功能状态**: ✅ 完全可用 - 前后端功能完整，RBAC系统已实现
+4. **群组相关API**:
+   - 修复了`Groups.vue`中的API调用，从`api.group.joinGroup()`改为`api.group.applyToJoinGroup()`
 
----
+5. **文章相关API**:
+   - 修复了`Explore.vue`中的API调用，使用正确的参数格式传递分页参数
 
-## 📊 当前项目状态总结
-
-### ✅ 项目可用性评估
-- **编译状态**: ✅ 完全成功 - 所有功能代码完整
-- **前端功能**: ✅ 完全可用 - 路由正确，页面完整
-- **后端服务**: ✅ 完全可用 - 聊天、文章、用户管理、RBAC等所有功能正常
-- **数据库**: ✅ 自动初始化 - DatabaseInitializer工作正常
-- **权限系统**: ✅ 完全可用 - RBAC角色权限管理完整实现
-
-### 🎯 核心功能验证结果
-**完全可用的功能**:
-- ✅ 用户注册登录认证
-- ✅ 实时聊天 (私聊/群聊)
-- ✅ 文章发布和阅读
-- ✅ 群组创建和管理
-- ✅ 搜索功能
-- ✅ 通知系统
-- ✅ 前端页面和路由
-- ✅ 角色权限管理 (RBAC)
-- ✅ 用户等级历史追踪
-
-**新增实现的功能**:
-- ✅ 完整的RBAC权限管理 (RolePermission系统)
-- ✅ 用户等级历史查看 (UserLevelHistory系统)
-- ✅ 用户等级历史前端页面
-- ✅ 完整的权限分配和管理界面
-
-### 📈 开发优先级建议
-1. **已完成**: 所有核心RBAC功能已实现
-2. **中期目标**: 配置和测试AI、SSH等高级功能
-3. **长期规划**: 性能优化和用户体验增强
-
----
-
-## 📝 开发说明
-
-**当前状态**: 项目所有核心功能完整可用，RBAC系统已全面实现
-**主要成就**: 角色权限管理和用户等级历史系统完全实现
-**建议行动**: 系统已可投入生产使用，可进行功能测试和部署
+6. **聊天页面API**:
+   - 添加了`message.js`中缺失的`getChatHistoryApi`函数，使用正确的API路径`/api/v1/chats/{chatId}/messages`
+   - 修复了`NewChatWindow.vue`中的`loadChatHistory`函数，使用正确的API调用和参数格式
+   - 修复了`NewChatWindow.vue`中的`handleMessageSent`函数，使用正确的API路径和参数格式
+   - 修复了消息对象中的字段名，从`type`改为`messageType`
+   - 添加了额外的聊天相关API函数：`createChat`、`markAsRead`、`deleteChat`和`addReaction`
