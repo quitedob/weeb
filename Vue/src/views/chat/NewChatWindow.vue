@@ -161,7 +161,7 @@ export default {
 
         loadingMore.value = true
 
-        // 修复API调用，使用正确的参数格式
+        // 使用正确的API调用和参数格式
         const response = await getChatHistoryApi({
           recipientId: recipientId.value,
           recipientType: recipientType.value,
@@ -193,7 +193,7 @@ export default {
     // 发送消息 - 修复API调用
     const handleMessageSent = async (messageData) => {
       try {
-        // 修复API调用，使用正确的参数格式
+        // 使用正确的API调用和参数格式
         const response = await sendMessageApi({
           receiverId: recipientId.value,
           content: messageData.content,
@@ -207,7 +207,7 @@ export default {
             senderId: currentUserId.value,
             senderName: authStore.user?.username || '我',
             content: messageData.content,
-            messageType: messageData.type || 0, // 修复字段名
+            messageType: messageData.type || 0,
             timestamp: new Date().toISOString(),
             status: 'sending'
           }

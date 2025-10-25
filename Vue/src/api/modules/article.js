@@ -95,9 +95,9 @@ export const getCategories = () => {
     return axiosInstance.get('/api/articles/categories');
 };
 
-// 获取推荐文章列表
+// 获取推荐文章列表 - 使用标准的文章列表接口
 export const getRecommendedArticles = (page, pageSize) => {
-    return axiosInstance.get('/api/articles/recommended', { params: { page, pageSize } });
+    return axiosInstance.get('/api/article/list', { params: { page, pageSize } });
 };
 
 // 搜索文章

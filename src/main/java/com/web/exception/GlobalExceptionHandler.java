@@ -41,6 +41,7 @@ public class GlobalExceptionHandler {
         String eventId = java.util.UUID.randomUUID().toString();
         String path = request.getDescription(false).replace("uri=", "");
 
+        // 只记录简短的错误信息，不打印堆栈
         log.warn("业务异常 eventId={}, path={}, message={}", eventId, path, e.getMessage());
 
         ApiResponse<Object> response = ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR,
@@ -158,7 +159,10 @@ public class GlobalExceptionHandler {
         String eventId = java.util.UUID.randomUUID().toString();
         String path = request.getDescription(false).replace("uri=", "");
 
-        log.error("空指针异常 eventId={}, path={}", eventId, path, e);
+        // 只记录关键信息和简短的堆栈（前5行）
+        log.error("空指针异常 eventId={}, path={}, message={}, location={}", 
+                eventId, path, e.getMessage(), 
+                e.getStackTrace().length > 0 ? e.getStackTrace()[0].toString() : "unknown");
 
         ApiResponse<Object> response = ApiResponse.systemError("系统内部错误，请稍后重试")
                 .withPath(path);
@@ -174,7 +178,10 @@ public class GlobalExceptionHandler {
         String eventId = java.util.UUID.randomUUID().toString();
         String path = request.getDescription(false).replace("uri=", "");
 
-        log.error("运行时异常 eventId={}, path={}", eventId, path, e);
+        // 只记录关键信息，避免打印完整堆栈
+        log.error("运行时异常 eventId={}, path={}, type={}, message={}, location={}", 
+                eventId, path, e.getClass().getSimpleName(), e.getMessage(),
+                e.getStackTrace().length > 0 ? e.getStackTrace()[0].toString() : "unknown");
 
         ApiResponse<Object> response = ApiResponse.systemError("系统运行异常，请稍后重试")
                 .withPath(path);
@@ -204,9 +211,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiResponse<Object>> handleHttpRequestMethodNotSupportedException(
             org.springframework.web.HttpRequestMethodNotSupportedException e, WebRequest request) {
-        String eventId = logException("HTTP方法不支持", e, request);
+        String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
 
+        // 简化日志输出
         log.warn("HTTP方法不支持 eventId={}, path={}, method={}, supported={}",
                 eventId, path, e.getMethod(), e.getSupportedMethods());
 
@@ -223,10 +231,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.dao.DataAccessException.class)
     public ResponseEntity<ApiResponse<Object>> handleDataAccessException(
             org.springframework.dao.DataAccessException e, WebRequest request) {
-        String eventId = logException("数据访问异常", e, request);
+        String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
 
-        log.error("数据库操作失败 eventId={}, path={}", eventId, path, e);
+        // 只记录关键信息，不打印完整堆栈
+        log.error("数据库操作失败 eventId={}, path={}, message={}", eventId, path, e.getMessage());
 
         ApiResponse<Object> response = ApiResponse.systemError("数据操作失败，请稍后重试")
                 .withPath(path);
@@ -240,10 +249,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Object>> handleDataIntegrityViolationException(
             org.springframework.dao.DataIntegrityViolationException e, WebRequest request) {
-        String eventId = logException("数据完整性异常", e, request);
+        String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
 
-        log.error("数据完整性约束违反 eventId={}, path={}", eventId, path, e);
+        // 只记录关键信息
+        log.error("数据完整性约束违反 eventId={}, path={}, message={}", eventId, path, e.getMessage());
 
         String message = "数据操作失败，违反完整性约束";
         if (e.getMessage() != null && e.getMessage().contains("Duplicate entry")) {
@@ -262,10 +272,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.jdbc.BadSqlGrammarException.class)
     public ResponseEntity<ApiResponse<Object>> handleBadSqlGrammarException(
             org.springframework.jdbc.BadSqlGrammarException e, WebRequest request) {
-        String eventId = logException("SQL语法异常", e, request);
+        String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
 
-        log.error("SQL语法错误 eventId={}, path={}", eventId, path, e);
+        // 只记录关键信息
+        log.error("SQL语法错误 eventId={}, path={}, message={}", eventId, path, e.getMessage());
 
         ApiResponse<Object> response = ApiResponse.systemError("数据查询异常，请稍后重试")
                 .withPath(path);
@@ -279,10 +290,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Object>> handleHttpMessageNotReadableException(
             org.springframework.http.converter.HttpMessageNotReadableException e, WebRequest request) {
-        String eventId = logException("消息解析异常", e, request);
+        String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
 
-        log.warn("请求体格式错误 eventId={}, path={}", eventId, path, e);
+        // 简化日志输出
+        log.warn("请求体格式错误 eventId={}, path={}, message={}", eventId, path, e.getMessage());
 
         ApiResponse<Object> response = ApiResponse.badRequest("请求体格式错误，请检查数据格式")
                 .withPath(path);
@@ -296,9 +308,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Object>> handleMissingServletRequestParameterException(
             org.springframework.web.bind.MissingServletRequestParameterException e, WebRequest request) {
-        String eventId = logException("缺少请求参数异常", e, request);
+        String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
 
+        // 简化日志输出
         log.warn("缺少必需的请求参数 eventId={}, path={}, parameter={}",
                 eventId, path, e.getParameterName());
 
@@ -314,9 +327,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ApiResponse<Object>> handleMissingRequestHeaderException(
             MissingRequestHeaderException e, WebRequest request) {
-        String eventId = logException("缺少请求头异常", e, request);
+        String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
 
+        // 简化日志输出
         log.warn("缺少必需的请求头 eventId={}, path={}, header={}",
                 eventId, path, e.getHeaderName());
 
@@ -332,14 +346,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.beans.TypeMismatchException.class)
     public ResponseEntity<ApiResponse<Object>> handleTypeMismatchException(
             org.springframework.beans.TypeMismatchException e, WebRequest request) {
-        String eventId = logException("类型转换异常", e, request);
+        String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
 
+        // 简化日志输出
         log.warn("参数类型转换错误 eventId={}, path={}, property={}, requiredType={}, value={}",
-                eventId, path, e.getPropertyName(), e.getRequiredType().getSimpleName(), e.getValue());
+                eventId, path, e.getPropertyName(), 
+                e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "unknown", 
+                e.getValue());
 
         ApiResponse<Object> response = ApiResponse.badRequest(String.format(
-                "参数 '%s' 类型错误，期望类型: %s", e.getPropertyName(), e.getRequiredType().getSimpleName()))
+                "参数 '%s' 类型错误，期望类型: %s", e.getPropertyName(), 
+                e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "unknown"))
                 .withPath(path);
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
@@ -350,30 +368,19 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleUncaughtException(Exception e, WebRequest request) {
-        String eventId = logException("未捕获异常", e, request);
+        long count = exceptionCounter.incrementAndGet();
+        String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
 
-        log.error("未处理的异常 eventId={}, path={}, exceptionType={}",
-                eventId, path, e.getClass().getName(), e);
+        // 只记录关键信息，避免打印完整堆栈
+        log.error("异常统计 #{}: 未捕获异常 - eventId={}, path={}, exceptionType={}, message={}, location={}",
+                count, eventId, path, e.getClass().getName(), e.getMessage(),
+                e.getStackTrace().length > 0 ? e.getStackTrace()[0].toString() : "unknown");
 
         ApiResponse<Object> response = ApiResponse.systemError("系统内部错误，请联系管理员")
                 .withPath(path);
 
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
-    /**
-     * 记录异常日志并生成事件ID
-     */
-    private String logException(String exceptionType, Exception e, WebRequest request) {
-        long count = exceptionCounter.incrementAndGet();
-        String eventId = UUID.randomUUID().toString();
-        String path = getPath(request);
-
-        log.error("异常统计 #{}: {} - eventId={}, path={}, message={}",
-                count, exceptionType, eventId, path, e.getMessage(), e);
-
-        return eventId;
     }
 
     /**

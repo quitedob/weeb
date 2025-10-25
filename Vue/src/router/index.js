@@ -16,13 +16,13 @@ const routes = [
       {
         path: '/chat',
         name: 'Chat',
-        component: () => import(/* webpackChunkName: "chat" */ '../views/chat/ChatWindow.vue'),
+        component: () => import(/* webpackChunkName: "chat" */ '../views/chat/ChatPage.vue'),
         meta: { title: '聊天', requiresAuth: true }
       },
       {
         path: '/chat/:type/:id',
         name: 'SpecificChat',
-        component: () => import(/* webpackChunkName: "chat" */ '../views/chat/ChatWindow.vue'),
+        component: () => import(/* webpackChunkName: "chat" */ '../views/chat/ChatPage.vue'),
         props: true,
         meta: { title: '聊天', requiresAuth: true }
       },

@@ -141,6 +141,65 @@
     - `endDate` (String, 可选): 结束日期 (yyyy-MM-dd)
     - `keyword` (String, 可选): 关键词搜索
 
+- **GET /api/admin/logs/statistics**
+  - 功能：获取系统日志统计信息
+  - 参数：无
+
+- **GET /api/admin/logs/errors**
+  - 功能：获取错误日志统计
+  - 参数：`hours` (int, 默认24): 统计小时数
+
+- **GET /api/admin/logs/recent-activity**
+  - 功能：获取最近活动统计
+  - 参数：`minutes` (int, 默认15): 统计分钟数
+
+- **GET /api/admin/logs/actions**
+  - 功能：获取可用操作类型列表
+  - 参数：无
+
+- **GET /api/admin/logs/operators**
+  - 功能：获取可用操作员列表
+  - 参数：`days` (int, 默认30): 最近天数
+
+- **GET /api/admin/logs/export**
+  - 功能：导出系统日志
+  - 参数：
+    - `format` (String, 默认csv): 导出格式(csv, xlsx, json)
+    - `startDate` (String): 开始日期 (yyyy-MM-dd)
+    - `endDate` (String): 结束日期 (yyyy-MM-dd)
+    - `operatorId` (Long, 可选): 操作者ID
+    - `action` (String, 可选): 操作类型
+    - `ipAddress` (String, 可选): IP地址
+    - `keyword` (String, 可选): 关键词
+
+- **POST /api/admin/logs/cleanup**
+  - 功能：清理过期日志
+  - 参数：`days` (int, 默认30): 保留天数
+
+- **DELETE /api/admin/logs/batch**
+  - 功能：批量删除日志
+  - 参数：`logIds` (List<Long>): 日志ID列表
+
+- **GET /api/admin/logs/{logId}**
+  - 功能：获取日志详情
+  - 参数：`logId` (Long, 路径): 日志ID
+
+- **GET /api/admin/logs/distribution**
+  - 功能：获取日志级别分布
+  - 参数：
+    - `startDate` (String, 可选): 开始日期 (yyyy-MM-dd)
+    - `endDate` (String, 可选): 结束日期 (yyyy-MM-dd)
+
+- **GET /api/admin/logs/hourly**
+  - 功能：获取每小时日志统计
+  - 参数：`date` (String): 日期 (yyyy-MM-dd)
+
+- **GET /api/admin/logs/search**
+  - 功能：搜索日志
+  - 参数：
+    - `keyword` (String): 搜索关键词
+    - `limit` (int, 默认100): 返回数量限制
+
 #### 系统监控
 - **GET /api/admin/monitor/realtime**
   - 功能：获取实时系统监控数据
@@ -157,6 +216,44 @@
     - `eventType` (String, 可选): 事件类型过滤
     - `page` (int, 默认1): 页码
     - `pageSize` (int, 默认50): 每页大小
+
+- **GET /api/admin/monitor/user-segments**
+  - 功能：获取用户分群统计数据
+  - 参数：`days` (int, 默认30): 统计天数
+
+- **GET /api/admin/monitor/popular-pages**
+  - 功能：获取热门页面统计
+  - 参数：`days` (int, 默认7): 统计天数
+
+- **GET /api/admin/monitor/anomalies**
+  - 功能：获取异常行为检测结果
+  - 参数：`hours` (int, 默认24): 检测时间范围
+
+- **POST /api/admin/monitor/run-anomaly-detection**
+  - 功能：运行异常行为检测
+  - 参数：无
+
+- **GET /api/admin/monitor/export-behavior-data**
+  - 功能：导出用户行为数据
+  - 参数：
+    - `format` (String, 默认csv): 导出格式(csv, xlsx, json)
+    - `days` (int, 默认30): 统计天数
+
+- **GET /api/admin/monitor/activity-heatmap**
+  - 功能：获取用户活动热力图数据
+  - 参数：
+    - `type` (String, 默认hourly): 热力图类型(hourly, weekly, monthly)
+    - `days` (int, 默认7): 统计天数
+
+- **GET /api/admin/monitor/user-retention**
+  - 功能：获取用户留存分析
+  - 参数：
+    - `cohortType` (String, 默认weekly): 队列类型(daily, weekly, monthly)
+    - `periods` (int, 默认12): 分析期数
+
+- **GET /api/admin/monitor/performance**
+  - 功能：获取系统性能指标
+  - 参数：无
 
 #### 内容审核
 - **GET /api/admin/content/articles/pending**
@@ -182,6 +279,27 @@
   - 参数：
     - `articleId` (Long, 路径): 文章ID
     - 请求体：`{"reason": "删除原因"}`
+
+- **GET /api/admin/content/statistics**
+  - 功能：获取内容审核统计
+  - 参数：无
+
+#### 系统管理
+- **POST /api/admin/initialize-permissions**
+  - 功能：初始化系统权限
+  - 参数：无
+
+- **POST /api/admin/initialize-roles**
+  - 功能：初始化系统角色
+  - 参数：无
+
+- **POST /api/admin/refresh-cache**
+  - 功能：刷新权限缓存
+  - 参数：无
+
+- **GET /api/admin/health**
+  - 功能：获取系统健康状态
+  - 参数：无
 
 ### 2. AI功能 API (`/api/ai`)
 
@@ -434,6 +552,59 @@
   - 功能：获取文章评论数量
   - 参数：`articleId` (Long, 路径): 文章ID
 
+### 4.1 文章版本 API (`/api/articles/{articleId}/versions`)
+
+- **GET /api/articles/{articleId}/versions**
+  - 功能：获取文章所有版本
+
+- **GET /api/articles/{articleId}/versions/{versionNumber}**
+  - 功能：获取指定版本
+
+- **GET /api/articles/{articleId}/versions/latest**
+  - 功能：获取最新版本
+
+- **GET /api/articles/{articleId}/versions/latest-published**
+  - 功能：获取最新发布版本
+
+- **GET /api/articles/{articleId}/versions/major**
+  - 功能：获取主要版本列表
+
+- **POST /api/articles/{articleId}/versions/{versionNumber}/rollback**
+  - 功能：回滚到指定版本
+  - 请求体：`{ rollbackNote }`（可选）
+
+- **POST /api/articles/{articleId}/versions/auto-save**
+  - 功能：自动保存版本
+  - 请求体：`{ title, content }`
+
+- **POST /api/articles/{articleId}/versions/major**
+  - 功能：创建主要版本
+  - 请求体：`{ title, content, changeNote }`
+
+- **GET /api/articles/{articleId}/versions/compare?from=&to=**
+  - 功能：比较两个版本
+
+- **GET /api/articles/{articleId}/versions/statistics**
+  - 功能：获取版本统计
+
+- **DELETE /api/articles/{articleId}/versions/cleanup?keepCount=10**
+  - 功能：清理旧版本
+
+- **GET /api/articles/{articleId}/versions/search?keyword=**
+  - 功能：搜索版本
+
+- **GET /api/articles/{articleId}/versions/auto-saves?hours=24**
+  - 功能：获取自动保存版本
+
+- **GET /api/articles/{articleId}/versions/change-stats**
+  - 功能：获取版本变更统计
+
+- **GET /api/articles/{articleId}/versions/export?format=json**
+  - 功能：导出版本历史
+
+- **GET /api/articles/{articleId}/versions/timeline**
+  - 功能：获取版本时间线
+
 ### 5. 聊天 API (`/api/v1/chats`)
 
 - **GET /api/v1/chats**
@@ -477,31 +648,36 @@
 
 - **POST /api/v1/message/send**
   - 功能：发送消息
-  - 参数：
-    - `receiverId` (Long): 接收者ID
+  - 请求体：`SendMessageVo`
     - `content` (String): 消息内容
-    - `messageType` (Integer): 消息类型
+    - `messageType` (Integer, 可选): 消息类型（默认文本）
+    - `targetId`/`groupId` (Long, 二选一): 私聊目标ID或群组ID
+    - `showTime` (Boolean, 可选): 是否显示时间
 
 - **POST /api/v1/message/record**
-  - 功能：记录消息
-  - 参数：Message对象
+  - 功能：获取聊天记录
+  - 请求体：`RecordRequestVo`
+    - `targetId` (Long): 目标ID
+    - `index` (Integer): 起始索引
+    - `num` (Integer): 条数
 
 - **POST /api/v1/message/recall**
   - 功能：撤回消息
-  - 参数：`messageId` (Long): 消息ID
+  - 请求体：`RecallRequestVo`
+    - `msgId` (Long): 消息ID
 
 - **POST /api/v1/message/react**
   - 功能：对消息做出反应
-  - 参数：
+  - 请求体：`ReactionVo`
     - `messageId` (Long): 消息ID
     - `reactionType` (String): 反应类型
 
 #### 消息线程
 - **POST /api/v1/message/thread/create**
   - 功能：创建消息线程
-  - 参数：
+  - 请求体：`ThreadCreationRequestVo`
     - `parentMessageId` (Long): 父消息ID
-    - `title` (String): 线程标题
+    - 其它可选字段
 
 - **GET /api/v1/message/thread/{parentMessageId}**
   - 功能：获取消息线程
@@ -513,8 +689,7 @@
 
 - **POST /api/v1/message/thread/{threadId}/reply**
   - 功能：回复消息线程
-  - 参数：
-    - `threadId` (Long, 路径): 线程ID
+  - 请求体：`ThreadReplyRequestVo`
     - `content` (String): 回复内容
 
 - **DELETE /api/v1/message/thread/{threadId}**
@@ -523,7 +698,57 @@
 
 - **GET /api/v1/message/thread/user**
   - 功能：获取用户消息线程
-  - 参数：`userId` (Long): 用户ID
+  - 参数：无（使用当前登录用户）
+
+### 6.1 消息线索 API (`/api/threads`)
+
+- **POST /api/threads**
+  - 功能：创建消息线索
+  - 请求体：`{ rootMessageId, title }`
+
+- **GET /api/threads/{threadId}**
+  - 功能：获取线索详情
+  - 参数：`threadId` (Long, 路径)
+
+- **GET /api/threads/{threadId}/messages**
+  - 功能：获取线索内消息
+  - 参数：`threadId` (Long, 路径)、`page` (int, 默认1)、`pageSize` (int, 默认20)
+
+- **POST /api/threads/{threadId}/replies**
+  - 功能：在线索中回复
+  - 请求体：`{ content }`
+
+- **POST /api/threads/{threadId}/join** / **DELETE /api/threads/{threadId}/leave**
+  - 功能：加入/离开线索
+
+- **POST /api/threads/{threadId}/archive** / **POST /api/threads/{threadId}/close**
+  - 功能：归档/关闭线索
+
+- **POST /api/threads/{threadId}/pin?isPinned=bool** / **POST /api/threads/{threadId}/lock?isLocked=bool**
+  - 功能：置顶/锁定线索
+
+- **GET /api/threads/my-threads**
+  - 功能：获取我参与的线索
+  - 参数：`page` (int, 默认1)、`pageSize` (int, 默认20)
+
+- **GET /api/threads/active**
+  - 功能：获取活跃线索
+  - 参数：`page` (int, 默认1)、`pageSize` (int, 默认20)
+
+- **GET /api/threads/created**
+  - 功能：获取我创建的线索
+  - 参数：`page` (int, 默认1)、`pageSize` (int, 默认20)
+
+- **GET /api/threads/search**
+  - 功能：搜索线索
+  - 参数：`keyword` (String)、`page` (int, 默认1)、`pageSize` (int, 默认20)
+
+- **GET /api/threads/{threadId}/statistics**
+  - 功能：获取线索统计信息
+
+- **GET /api/threads/context/{messageId}**
+  - 功能：获取消息的线索上下文
+  - 参数：`messageId` (Long, 路径)
 
 ### 7. 认证 API (`/api/auth`)
 
@@ -556,17 +781,19 @@
 
 - **POST /api/auth/refresh**
   - 功能：刷新访问令牌
-  - 参数：`refreshToken` (String)
+  - 参数：Authorization header (Bearer token)
 
 - **POST /api/auth/validate**
   - 功能：验证令牌
-  - 参数：`token` (String)
+  - 参数：Authorization header (Bearer token)
 
 - **POST /api/auth/change-password**
   - 功能：修改密码
-  - 参数：
-    - `oldPassword` (String): 旧密码
+  - 参数：Authorization header (Bearer token)
+  - 请求体：
+    - `currentPassword` (String): 当前密码
     - `newPassword` (String): 新密码
+    - `confirmPassword` (String): 确认新密码
 
 #### 密码重置
 - **POST /api/auth/forgot-password**
@@ -589,6 +816,14 @@
   - 功能：获取当前用户信息
   - 参数：无
 
+- **GET /api/users/me/profile**
+  - 功能：获取当前用户完整信息（包含统计数据）
+  - 参数：无
+
+- **GET /api/users/me/info**
+  - 功能：获取当前用户基本信息
+  - 参数：无
+
 - **PUT /api/users/me**
   - 功能：更新当前用户信息
   - 参数：UpdateUserVo对象
@@ -607,9 +842,8 @@
 - **GET /api/users/search**
   - 功能：搜索用户
   - 参数：
-    - `query` (String): 搜索关键词
-    - `page` (int, 默认1): 页码
-    - `pageSize` (int, 默认10): 每页大小
+    - `q` (String): 搜索关键词
+    - `limit` (int, 默认10): 返回数量
 
 - **GET /api/users/me/groups**
   - 功能：获取当前用户的群组列表
@@ -736,9 +970,8 @@
 - **GET /api/groups/search**
   - 功能：搜索群组
   - 参数：
-    - `query` (String): 搜索关键词
-    - `page` (int, 默认1): 页码
-    - `pageSize` (int, 默认10): 每页大小
+    - `q` (String): 搜索关键词
+    - `limit` (int, 默认10): 返回数量
 
 - **GET /api/groups/my-groups**
   - 功能：获取我的群组
@@ -768,7 +1001,7 @@
 
 - **GET /api/contacts**
   - 功能：获取联系人列表
-  - 参数：无
+  - 参数：`status` (String): 关系状态(如ACCEPTED、PENDING)
 
 - **GET /api/contacts/requests**
   - 功能：获取好友申请列表
@@ -784,7 +1017,7 @@
   - 功能：获取通知列表
   - 参数：
     - `page` (int, 默认1): 页码
-    - `pageSize` (int, 默认20): 每页大小
+    - `size` (int, 默认10): 每页大小
 
 - **GET /api/notifications/unread-count**
   - 功能：获取未读通知数量
@@ -830,9 +1063,11 @@
 
 - **POST /api/security/change-password**
   - 功能：修改密码
-  - 参数：
+  - 参数：Authorization header (Bearer token)
+  - 请求体：
     - `currentPassword` (String): 当前密码
     - `newPassword` (String): 新密码
+    - `confirmPassword` (String): 确认新密码
 
 - **GET /api/security/permissions**
   - 功能：获取用户权限列表
@@ -859,27 +1094,53 @@
 - **GET /api/search/messages**
   - 功能：搜索消息
   - 参数：
-    - `query` (String): 搜索关键词
-    - `userId` (Long, 可选): 用户ID
-    - `chatId` (Long, 可选): 聊天ID
+    - `q` (String): 搜索关键词
+    - `page` (int, 默认0): 页码（从0开始）
+    - `size` (int, 默认10): 每页数量
     - `startDate` (String, 可选): 开始日期
     - `endDate` (String, 可选): 结束日期
-    - `page` (int, 默认1): 页码
-    - `pageSize` (int, 默认20): 每页大小
+    - `messageTypes` (String, 可选): 消息类型，逗号分隔
+    - `userIds` (String, 可选): 用户ID列表，逗号分隔
+    - `groupIds` (String, 可选): 群组ID列表，逗号分隔
+    - `sortBy` (String, 默认relevance): 排序（relevance、time_desc、time_asc、username_asc、username_desc）
 
 - **GET /api/search/group**
   - 功能：搜索群组
   - 参数：
-    - `query` (String): 搜索关键词
-    - `page` (int, 默认1): 页码
-    - `pageSize` (int, 默认10): 每页大小
+    - `keyword` (String): 搜索关键词
+    - `page` (int, 默认0): 页码（从0开始）
+    - `size` (int, 默认10): 每页数量
+    - `startDate` (String, 可选): 开始日期
+    - `endDate` (String, 可选): 结束日期
+    - `sortBy` (String, 默认relevance): 排序（relevance、time_desc、time_asc、name_asc、name_desc）
 
 - **GET /api/search/users**
   - 功能：搜索用户
   - 参数：
+    - `keyword` (String): 搜索关键词
+    - `page` (int, 默认0): 页码（从0开始）
+    - `size` (int, 默认10): 每页数量
+    - `startDate` (String, 可选): 开始日期
+    - `endDate` (String, 可选): 结束日期
+    - `sortBy` (String, 默认relevance): 排序（relevance、time_desc、time_asc、name_asc、name_desc）
+
+- **GET /api/search/articles**
+  - 功能：搜索文章
+  - 参数：
     - `query` (String): 搜索关键词
-    - `page` (int, 默认1): 页码
-    - `pageSize` (int, 默认10): 每页大小
+    - `page` (int, 默认1): 页码（从1开始）
+    - `pageSize` (int, 默认10): 每页数量
+    - `startDate` (String, 可选): 开始日期
+    - `endDate` (String, 可选): 结束日期
+    - `sortBy` (String, 默认created_at): 排序字段（created_at、updated_at、title、relevance）
+    - `sortOrder` (String, 默认desc): 排序方向（asc、desc）
+
+- **GET /api/search/all**
+  - 功能：综合搜索（用户、群组、文章、消息）
+  - 参数：
+    - `q` (String): 搜索关键词
+    - `page` (int, 默认0): 页码（从0开始）
+    - `size` (int, 默认5): 每页数量
 
 ### 14. 关注管理 API (`/api/follow`)
 
@@ -899,13 +1160,13 @@
   - 功能：获取关注列表
   - 参数：
     - `page` (int, 默认1): 页码
-    - `pageSize` (int, 默认20): 每页大小
+    - `size` (int, 默认10): 每页大小
 
 - **GET /api/follow/followers**
   - 功能：获取粉丝列表
   - 参数：
     - `page` (int, 默认1): 页码
-    - `pageSize` (int, 默认20): 每页大小
+    - `size` (int, 默认10): 每页大小
 
 - **GET /api/follow/stats**
   - 功能：获取关注统计
@@ -1002,15 +1263,34 @@
   - 功能：获取所有角色信息（调试用）
   - 参数：无
 
-### 17. WebSocket消息 API (`/api/websocket`)
+- **GET /api/debug/system-health**
+  - 功能：获取系统健康状态
+  - 参数：无
 
-- **POST /api/websocket/message/send**
-  - 功能：发送WebSocket消息
-  - 参数：Message对象
+- **GET /api/debug/database-status**
+  - 功能：获取数据库状态
+  - 参数：无
 
-- **POST /api/websocket/message/broadcast**
-  - 功能：广播WebSocket消息
-  - 参数：Message对象
+- **GET /api/debug/system-config**
+  - 功能：获取系统配置
+  - 参数：无
+
+### 17. WebSocket/STOMP 端点
+
+- 连接与订阅
+  - 订阅：`/topic/chat/{roomId}`（聊天室广播）
+  - 订阅：`/user/queue/private`（私聊消息）
+
+- 发送端点（客户端发送）
+  - `@MessageMapping("/chat.sendMessage")`：发送聊天室消息（服务端转发到 `/topic/chat/{roomId}`）
+  - `@MessageMapping("/chat/join/{roomId}")`：加入聊天室（广播加入事件）
+  - `@MessageMapping("/chat/leave/{roomId}")`：离开聊天室（广播离开事件）
+  - `@MessageMapping("/chat/typing/{roomId}")`：正在输入（广播输入状态）
+  - `@MessageMapping("/chat/private")`：发送私聊消息（发送到 `/user/{target}/queue/private`）
+
+- 其他
+  - 心跳：`/chat/heartbeat`
+  - 连接握手：`/chat/connect`（`@SubscribeMapping`）
 
 ### 18. 迁移 API (`/api/migration`)
 

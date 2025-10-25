@@ -5,9 +5,9 @@ import axiosInstance from '../axiosInstance';
  * 与后端AuthController接口对齐
  */
 
-// 获取用户列表 - 修复API路径
-export function getUserList() {
-  return axiosInstance.get('/api/users');
+// 获取用户列表 - 使用正确的API路径
+export function getUserList(params = {}) {
+  return axiosInstance.get('/api/user/list', { params });
 }
 
 // 获取用户Map

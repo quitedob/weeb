@@ -1,5 +1,6 @@
 package com.web.model;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -49,6 +50,7 @@ public class Role extends BaseEntity {
     /**
      * 角色拥有的权限列表（不持久化到数据库，只在查询时填充）
      */
+    @TableField(exist = false)
     private List<Permission> permissions;
 
     public Role() {

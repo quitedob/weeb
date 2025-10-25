@@ -355,14 +355,14 @@ mvn spring-boot:run
 - **其他**: Netty 4.1.108、Apache SSHD 2.14.0、Hutool 5.8.18、敏感词过滤、IP2Region
 
 ### 前端技术
-- **框架**: Vue 3.5.13 + Composition API
-- **构建工具**: Vite 5.4.11 + 环境变量支持
-- **状态管理**: Pinia 2.1.7 + Token持久化
-- **UI组件**: Element Plus 2.7.8 + @element-plus/icons-vue 2.3.2
-- **HTTP客户端**: Axios 1.7.9 + 拦截器优化 + Token管理
-- **路由**: Vue Router 4.5.0 + 认证守卫
-- **富文本编辑**: Quill 2.0.3
-- **测试**: Vitest 3.2.4 + @vue/test-utils 2.4.6
+- **框架**: Vue 3.x + Composition API
+- **构建工具**: Vite 5.x
+- **状态管理**: Pinia
+- **UI组件**: 自定义 `Apple` 风格组件库 + Element Plus 图标
+- **HTTP客户端**: Axios + 拦截器
+- **路由**: Vue Router 4.x
+- **富文本编辑**: Quill
+- **测试**: Vitest
 
 ### 开发工具
 - **构建**: Maven 3.6+
@@ -812,7 +812,7 @@ weeb/
 - `POST /notifications/read-all` - 标记所有通知为已读
 
 
-> 📖 **详细API文档**: 请查看各个Controller类的注释，或使用Swagger UI (如果配置了) 查看完整的API文档。
+> 📖 **详细API文档**: 请查看 [backend.md](backend.md) 获取最新且完整的API文档。
 
 ---
 
@@ -842,11 +842,11 @@ weeb/
 ## 前端技术栈
 
 ### 技术架构
-- **框架**: Vue 3.0 + Composition API
+- **框架**: Vue 3.x + Composition API
 - **构建工具**: Vite 5.x
-- **状态管理**: Pinia 2.x
-- **UI组件库**: Element Plus
-- **HTTP客户端**: Axios
+- **状态管理**: Pinia
+- **UI组件库**: 自定义 `Apple` 风格组件库 + Element Plus 图标
+- **HTTP客户端**: Axios + 拦截器
 - **路由管理**: Vue Router 4.x
 
 ### 前端项目结构 (Vue/)
