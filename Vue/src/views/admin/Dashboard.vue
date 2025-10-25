@@ -100,6 +100,16 @@
             </el-col>
             <el-col :xs="24" :sm="12" :md="8">
               <el-button
+                type="success"
+                class="action-btn"
+                @click="$router.push('/level-history')"
+              >
+                <el-icon><TrendCharts /></el-icon>
+                等级管理
+              </el-button>
+            </el-col>
+            <el-col :xs="24" :sm="12" :md="8">
+              <el-button
                 type="info"
                 class="action-btn"
                 @click="$router.push('/admin/logs')"
@@ -161,7 +171,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { User, Document, ChatDotRound, Connection, Lock, UserSolid, Management, CheckCircle, Warning } from '@element-plus/icons-vue'
+import { User, Document, ChatDotRound, Connection, Lock, UserSolid, Management, CheckCircle, Warning, TrendCharts } from '@element-plus/icons-vue'
 import { getSystemLogs } from '@/api/modules/admin'
 import axiosInstance from '@/api/axiosInstance'
 import { log } from '@/utils/logger'

@@ -59,7 +59,13 @@
               {{ currentUser.bio }}
             </p>
             <div class="user-meta">
-              <span class="user-level">用户等级: {{ getUserLevelDisplay(currentUser.userLevel) }}</span>
+              <span class="user-level">
+                用户等级: {{ getUserLevelDisplay(currentUser.userLevel) }}
+                <router-link to="/level-history" class="level-history-link">
+                  <el-icon><View /></el-icon>
+                  查看历史
+                </router-link>
+              </span>
               <span class="join-time">加入时间: {{ formatDate(currentUser.createdAt) }}</span>
             </div>
           </div>
@@ -210,6 +216,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
+import { View } from '@element-plus/icons-vue';
 import AppleCard from '@/components/common/AppleCard.vue';
 import AppleButton from '@/components/common/AppleButton.vue';
 import AppleInput from '@/components/common/AppleInput.vue';
@@ -621,6 +628,28 @@ onMounted(() => {
 .join-time {
   font-size: 14px;
   color: var(--apple-text-tertiary);
+}
+
+.level-history-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--apple-blue);
+  text-decoration: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.level-history-link:hover {
+  background-color: var(--apple-hover);
+  color: var(--apple-blue-hover);
+}
+
+.level-history-link .el-icon {
+  font-size: 12px;
 }
 
 .user-actions {

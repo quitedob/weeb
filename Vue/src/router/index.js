@@ -92,6 +92,12 @@ const routes = [
         meta: { title: '个人资料', requiresAuth: true }
       },
       {
+        path: '/level-history',
+        name: 'LevelHistory',
+        component: () => import(/* webpackChunkName: "user" */ '../views/UserLevelHistory.vue'),
+        meta: { title: '等级历史', requiresAuth: true }
+      },
+      {
         path: '/setting',
         name: 'Setting',
         component: () => import(/* webpackChunkName: "settings" */ '../views/Settings.vue'),
