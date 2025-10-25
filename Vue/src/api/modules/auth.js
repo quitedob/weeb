@@ -33,12 +33,12 @@ export default {
     return axiosInstance.post('/api/auth/logout');
   },
 
-  // 获取当前用户信息 - 修复API路径
+  // 获取当前用户信息 - 使用正确的API路径
   getUserInfo() {
-    return axiosInstance.get('/api/auth/me');
+    return axiosInstance.get('/api/users/me');
   },
 
-  // 更新当前用户信息 - 修复API路径
+  // 更新当前用户信息 - 使用正确的API路径
   updateUserInfo(data) {
     return axiosInstance.put('/api/users/me', data);
   },

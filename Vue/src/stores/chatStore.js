@@ -83,9 +83,12 @@ export const useChatStore = defineStore('chat', {
       this.connectionStatus = 'connecting';
 
       try {
+        // 获取WebSocket URL（根据环境配置）
+        const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
+        
         // Create STOMP client with SockJS fallback
         this.stompClient = new Client({
-          webSocketFactory: () => new SockJS('http://localhost:8081/ws'),
+          webSocketFactory: () => new SockJS(wsUrl),
           connectHeaders: {
             'Authorization': `Bearer ${authStore.token}`
           },
@@ -346,13 +349,13 @@ export const useChatStore = defineStore('chat', {
     async fetchMessagesForChat(chatId, page = 1, limit = null) {
       try {
         const batchSize = limit || this.messageBatchSize;
-        const response = await api.message.getRecord({
-          targetId: chatId,
-          index: (page - 1) * batchSize,
-          num: batchSize
+        // 使用新的chat API
+        const response = await api.chat.getChatMessages(chatId, {
+          page,
+          size: batchSize
         });
 
-        if (response.code === 200 && response.data) {
+        if (response.code === 0 && response.data) {
           const hasMore = response.data.length === batchSize;
 
           // Update pagination info
@@ -397,11 +400,11 @@ export const useChatStore = defineStore('chat', {
 
     async fetchRecentChats() {
       try {
-        // This would need a corresponding API endpoint
-        // const response = await api.message.getRecentChats();
-        // if (response.code === 200 && response.data) {
-        //   this.recentSessions = response.data;
-        // }
+        // 使用新的chat API获取聊天列表
+        const response = await api.chat.getChatList();
+        if (response.code === 0 && response.data) {
+          this.recentSessions = response.data;
+        }
       } catch (error) {
         console.error('Failed to fetch recent chats:', error);
       }

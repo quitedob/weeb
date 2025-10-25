@@ -39,8 +39,16 @@ export const useAuthStore = defineStore('auth', {
     },
     async fetchUserInfo() {
       if (!this.accessToken) return null;
+      
+      // 防止重复请求：如果正在请求中，返回同一个Promise
+      if (this._fetchingUserInfo) {
+        return this._fetchingUserInfo;
+      }
+      
       try {
-        const response = await api.user.getUserInfo(); // 注意: 你的api/index.js中user模块才有getUserInfo
+        this._fetchingUserInfo = api.auth.getUserInfo();
+        const response = await this._fetchingUserInfo;
+        
         if (response.code === 0 && response.data) { // 后端返回的是 ApiResponse 格式
           this.currentUser = response.data;
           localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
@@ -51,6 +59,8 @@ export const useAuthStore = defineStore('auth', {
         console.error('fetchUserInfo failed:', error);
         // 抛出错误，让调用者（如路由守卫）知道验证失败
         throw error;
+      } finally {
+        this._fetchingUserInfo = null;
       }
     },
     // Centralized method to clear local state and storage, called internally or by interceptor.

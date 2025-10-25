@@ -27,41 +27,8 @@
           <!-- 通知铃铛 -->
           <NotificationBell />
 
-          <!-- 用户信息 -->
-          <div class="user-info">
-            <AppleDropdown @command="handleUserCommand" placement="bottom-end">
-              <template #trigger>
-                <div class="user-avatar">
-                  <div class="avatar-img">
-                    <img
-                      :src="userAvatar || defaultAvatar"
-                      :alt="currentUser?.username || '用户'"
-                      @error="onAvatarError"
-                    />
-                  </div>
-                  <span class="username">{{ currentUser?.username || '用户' }}</span>
-                  <span class="dropdown-arrow">▼</span>
-                </div>
-              </template>
-
-              <AppleDropdownItem command="profile">
-                <span class="item-icon">👤</span>
-                个人资料
-              </AppleDropdownItem>
-
-              <AppleDropdownItem command="settings">
-                <span class="item-icon">⚙️</span>
-                设置
-              </AppleDropdownItem>
-
-              <div class="apple-dropdown-divider"></div>
-
-              <AppleDropdownItem command="logout" danger>
-                <span class="item-icon">🚪</span>
-                退出登录
-              </AppleDropdownItem>
-            </AppleDropdown>
-          </div>
+          <!-- 用户菜单组件 -->
+          <UserMenu />
         </div>
       </header>
 
@@ -79,10 +46,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 import AppleButton from '@/components/common/AppleButton.vue';
-import AppleDropdown from '@/components/common/AppleDropdown.vue';
-import AppleDropdownItem from '@/components/common/AppleDropdownItem.vue';
 import AsideMenu from './AsideMenu.vue';
 import NotificationBell from './components/NotificationBell.vue';
+import UserMenu from '@/components/UserMenu.vue';
 import api from '@/api';
 
 const route = useRoute();
@@ -90,15 +56,10 @@ const router = useRouter();
 const authStore = useAuthStore();
 const notificationStore = useNotificationStore();
 
-// 默认头像
-const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png';
-
 // 响应式数据
 const isSidebarCollapsed = ref(false);
 
 // 计算属性
-const currentUser = computed(() => authStore.currentUser);
-const userAvatar = computed(() => currentUser.value?.avatar || '');
 const currentPageTitle = computed(() => {
   const routeTitles = {
     '/chat': '聊天',
@@ -116,45 +77,6 @@ const currentPageTitle = computed(() => {
 // 方法
 const toggleSidebar = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
-};
-
-const handleUserCommand = async (command) => {
-  switch (command) {
-    case 'profile':
-      router.push('/profile');
-      break;
-    case 'settings':
-      router.push('/setting');
-      break;
-    case 'logout':
-      await handleLogout();
-      break;
-  }
-};
-
-const handleLogout = async () => {
-  try {
-    // 使用原生 confirm 替代 ElMessageBox
-    const confirmed = confirm('您确定要退出登录吗？');
-    if (!confirmed) {
-      return;
-    }
-
-    await api.auth.logout();
-    authStore.logout();
-    notificationStore.reset(); // 重置通知状态
-    alert('已成功退出登录'); // 使用原生 alert 替代 ElMessage
-    router.push('/login');
-  } catch (error) {
-    console.error('登出失败:', error);
-    alert('登出失败，请稍后再试'); // 使用原生 alert 替代 ElMessage
-    authStore.logout(); // 确保清理状态
-    router.push('/login');
-  }
-};
-
-const onAvatarError = (e) => {
-  e.target.src = defaultAvatar;
 };
 
 // 生命周期
@@ -243,59 +165,7 @@ onMounted(() => {
   gap: 16px;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-}
 
-.user-avatar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-}
-
-.user-avatar:hover {
-  background-color: var(--apple-bg-tertiary);
-  border-color: var(--apple-bg-quaternary);
-}
-
-.avatar-img {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid var(--apple-bg-quaternary);
-  flex-shrink: 0;
-}
-
-.avatar-img img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.username {
-  font-size: 14px;
-  color: var(--apple-text-secondary);
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-  font-weight: 500;
-}
-
-.dropdown-arrow {
-  font-size: 12px;
-  color: var(--apple-text-tertiary);
-  transition: transform 0.2s ease;
-}
-
-.user-avatar:hover .dropdown-arrow {
-  transform: rotate(180deg);
-}
 
 .page-content {
   flex: 1;

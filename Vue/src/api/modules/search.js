@@ -11,8 +11,8 @@ export default {
    * @returns {Promise} Axios promise
    */
   searchGroups(keyword, page = 0, size = 10, filters = {}) {
-    return axiosInstance.get('/api/search/group', {
-      params: { keyword, page, size, ...filters }
+    return axiosInstance.get('/api/search', {
+      params: { q: keyword, type: 'group', page, size, ...filters }
     });
   },
 
@@ -25,8 +25,8 @@ export default {
    * @returns {Promise} Axios promise
    */
   searchUsers(keyword, page = 0, size = 10, filters = {}) {
-    return axiosInstance.get('/api/search/users', {
-      params: { keyword, page, size, ...filters }
+    return axiosInstance.get('/api/search', {
+      params: { q: keyword, type: 'user', page, size, ...filters }
     });
   },
 
@@ -53,8 +53,8 @@ export default {
    * @returns {Promise} Axios promise
    */
   searchArticles(query, page = 1, pageSize = 10, filters = {}) {
-    return axiosInstance.get('/api/search/articles', {
-      params: { query, page, pageSize, ...filters }
+    return axiosInstance.get('/api/search', {
+      params: { q: query, type: 'article', page, pageSize, ...filters }
     });
   },
 
@@ -66,7 +66,7 @@ export default {
    * @returns {Promise} Axios promise
    */
   searchAll(q, page = 0, size = 5) {
-    return axiosInstance.get('/api/search/all', {
+    return axiosInstance.get('/api/search', {
       params: { q, page, size }
     });
   }

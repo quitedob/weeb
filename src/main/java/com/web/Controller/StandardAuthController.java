@@ -65,9 +65,12 @@ public class StandardAuthController {
             user.setNickname(registrationVo.getNickname());
             user.setBio(registrationVo.getBio());
 
+            // 注册用户并自动分配默认角色
             authService.register(user);
             User registeredUser = authService.findByUsername(user.getUsername());
             if (registeredUser != null) {
+                log.info("用户注册成功: userId={}, username={}", registeredUser.getId(), registeredUser.getUsername());
+                
                 // 生成JWT令牌
                 String token = jwtUtil.generateToken(registeredUser.getId(), registeredUser.getUsername());
 
