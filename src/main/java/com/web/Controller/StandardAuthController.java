@@ -131,37 +131,7 @@ public class StandardAuthController {
         }
     }
 
-    /**
-     * 获取当前认证用户信息
-     * GET /api/auth/me
-     */
-    @GetMapping("/me")
-    public ResponseEntity<ApiResponse<User>> getCurrentUser(@RequestHeader("Authorization") String authorization) {
-        try {
-            if (authorization == null || !authorization.startsWith("Bearer ")) {
-                return (ResponseEntity<ApiResponse<User>>) (Object) ApiResponseUtil.badRequestUser("缺少认证令牌");
-            }
-
-            String token = authorization.substring(7);
-            String username = jwtUtil.extractUsername(token);
-
-            if (jwtUtil.isTokenBlacklisted(token)) {
-                return (ResponseEntity<ApiResponse<User>>) (Object) ApiResponseUtil.unauthorizedUser("令牌已失效");
-            }
-
-            User user = authService.findByUsername(username);
-            if (user == null) {
-                return (ResponseEntity<ApiResponse<User>>) (Object) ApiResponseUtil.badRequestUser("用户不存在");
-            }
-
-            // 不返回密码
-            user.setPassword(null);
-            return ApiResponseUtil.successUser(user);
-        } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionUser(e, "获取当前用户");
-        }
-    }
-
+  
     /**
      * 刷新令牌
      * POST /api/auth/refresh

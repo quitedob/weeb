@@ -260,7 +260,7 @@ const loadThreadMessages = async (resetPage = false) => {
 
   loading.value = true
   try {
-    const response = await axiosInstance.get(`/api/v1/message/thread/${props.message.id}`, {
+    const response = await axiosInstance.get(`/api/threads/${props.message.id}/messages`, {
       params: {
         page: currentPage.value,
         pageSize: pageSize
@@ -306,7 +306,7 @@ const createThread = async () => {
     await threadFormRef.value.validate()
 
     createThreadDialog.loading = true
-    const response = await axiosInstance.post('/api/v1/message/thread/create', {
+    const response = await axiosInstance.post('/api/threads', {
       parentMessageId: props.message.id,
       content: createThreadDialog.form.content
     })
@@ -349,7 +349,7 @@ const submitReply = async () => {
 
     replyDialog.loading = true
     const response = await axiosInstance.post(
-      `/api/v1/message/thread/${props.message.threadId}/reply`,
+      `/api/threads/${props.message.threadId}/replies`,
       {
         content: replyDialog.form.content
       }
@@ -409,7 +409,7 @@ const deleteThreadMessage = async (threadMessage) => {
       }
     )
 
-    const response = await axiosInstance.delete(`/api/v1/message/thread/${threadMessage.id}`)
+    const response = await axiosInstance.delete(`/api/threads/${threadMessage.id}`)
 
     if (response.data.code === 0) {
       ElMessage.success('消息已删除')
@@ -486,7 +486,7 @@ onMounted(() => {
 
 const loadThreadSummary = async () => {
   try {
-    const response = await axiosInstance.get(`/api/v1/message/thread/${props.message.id}/summary`)
+    const response = await axiosInstance.get(`/api/threads/${props.message.id}/statistics`)
     if (response.data.code === 0) {
       threadSummary.value = response.data.data
     }

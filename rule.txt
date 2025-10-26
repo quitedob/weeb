@@ -17,7 +17,7 @@
 3. Controller层是API的入口, 负责接收HTTP请求, 使用@Valid注解校验参数, 并调用Service层
 4. Controller层严禁编写复杂业务逻辑, 所有接口返回ResponseEntity<ApiResponse<T>>
 5. 接收请求必须使用com.web.vo包下的VO对象封装请求体
-6. Service层采用接口加实现的设计模式, 接口位于com.web.service包, 实现位于com.web.service.Impl包
+6. Service层采用接口加实现的设计模式, 接口位于com.web.service包, 实现位于com.web.service.Impl包(注意是大写的I(impl))
 7. 涉及多张表读写的复杂数据库操作, 必须在ServiceImpl的方法上使用@Transactional注解
 8. 修改ServiceImpl中的方法签名, 必须立即同步更新其对应的Service接口
 9. Mapper层采用接口加XML的方式, Mapper接口位于com.web.mapper包, XML文件位于resources/Mapper目录

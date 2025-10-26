@@ -2,67 +2,64 @@ import axiosInstance from '../axiosInstance';
 
 /**
  * 消息API模块
- * 与后端MessageController接口对齐
+ * 使用统一的聊天API路径 /api/chats
  */
 
-// 发送消息 - 使用正确的API路径
-export function sendMessage(messageData) {
-  return axiosInstance.post('/api/message/send', messageData);
+// 发送消息 - 使用新的统一API路径
+export function sendMessage(chatId, messageData) {
+  return axiosInstance.post(`/api/chats/${chatId}/messages`, messageData);
 }
 
-// 获取聊天记录 - 使用正确的API路径和参数格式
-export function getChatRecord(targetId, index = 0, num = 20) {
-  return axiosInstance.get('/api/message/record', {
-    params: { targetId, index, num }
+// 获取聊天记录 - 使用新的RESTful API路径
+export function getChatRecord(chatId, page = 1, pageSize = 20) {
+  return axiosInstance.get(`/api/chats/${chatId}/messages`, {
+    params: { page, size: pageSize }
   });
 }
 
-// 获取聊天历史 - 使用正确的API路径和参数格式
+// 获取聊天历史 - 使用新的RESTful API路径
 export function getChatHistoryApi(params) {
-  const { recipientId, recipientType, page = 1, pageSize = 20 } = params;
-  
-  // 计算index (从0开始的偏移量)
-  const index = (page - 1) * pageSize;
-  
-  return axiosInstance.get('/api/message/record', {
-    params: { 
-      targetId: recipientId, 
-      index: index, 
-      num: pageSize 
-    }
+  const { recipientId: chatId, recipientType, page = 1, pageSize = 20 } = params;
+
+  return axiosInstance.get(`/api/chats/${chatId}/messages`, {
+    params: { page, size: pageSize }
   });
 }
 
-// 撤回消息
-export function recallMessage(msgId) {
-  return axiosInstance.post('/api/v1/message/recall', {
-    msgId
+// 撤回消息 - 使用新的DELETE API
+export function recallMessage(messageId) {
+  return axiosInstance.delete(`/api/messages/${messageId}`);
+}
+
+// 对消息添加反应 - 使用新的统一API路径
+export function handleReaction(messageId, reactionType) {
+  return axiosInstance.post(`/api/chats/messages/${messageId}/react`, {
+    reactionType
   });
 }
 
-// 对消息添加反应
-export function handleReaction(reactionData) {
-  return axiosInstance.post('/api/v1/message/react', reactionData);
-}
-
-// 创建新的聊天会话 - 暂时使用现有接口
+// 创建新的聊天会话 - 使用统一的聊天API
 export function createChat(targetId) {
-  return Promise.resolve({ code: 0, data: { id: targetId } });
+  return axiosInstance.post('/api/chats', {
+    targetId
+  });
 }
 
-// 标记消息为已读 - 暂时返回成功
+// 标记消息为已读 - 使用新的统一API路径
 export function markAsRead(chatId) {
-  return Promise.resolve({ code: 0, message: 'success' });
+  return axiosInstance.post(`/api/chats/${chatId}/read`);
 }
 
-// 删除聊天会话 - 暂时返回成功
+// 删除聊天会话 - 使用新的统一API路径
 export function deleteChat(chatId) {
-  return Promise.resolve({ code: 0, message: 'success' });
+  return axiosInstance.delete(`/api/chats/${chatId}`);
 }
 
-// 对消息添加反应 - 暂时返回成功
+// 对消息添加反应 - 使用新的统一API路径
 export function addReaction(messageId, reactionType) {
-  return Promise.resolve({ code: 0, message: 'success' });
+  return axiosInstance.post(`/api/chats/messages/${messageId}/react`, {
+    reactionType
+  });
 }
 
 export default {

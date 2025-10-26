@@ -643,7 +643,7 @@ async function fetchOnlineUsers() {
 
 /**
  * 获取聊天记录接口
- * 调用后端 /api/v1/message/record 接口获取当前聊天对象的消息记录
+ * 调用后端 /api/chats/{chatId}/messages 接口获取当前聊天对象的消息记录
  */
 async function fetchChatRecord() {
   try {
@@ -976,7 +976,7 @@ async function handlerSubmitMsg() {
 
 /**
  * 撤回消息接口
- * 调用后端 /api/v1/message/recall 接口撤回指定消息
+ * 调用后端 /api/messages/{messageId} 接口撤回指定消息
  */
 async function handleRecallMessage(msgId) {
   try {

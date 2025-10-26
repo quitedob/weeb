@@ -23,7 +23,7 @@ import java.util.List;
  * 整合了原有的MessageController和ChatListController功能
  */
 @RestController
-@RequestMapping("/api/v1/chats")
+@RequestMapping("/api/chats")
 public class ChatController {
 
     @Autowired
