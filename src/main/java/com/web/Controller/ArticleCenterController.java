@@ -61,29 +61,7 @@ public class ArticleCenterController {
         }
     }
 
-    /**
-     * 通过用户名获取用户完整信息，包括注册天数（优化版本，避免N+1查询问题）
-     * GET /articles/userinform-by-username?username=alice
-     */
-    @GetMapping("/userinform-by-username")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserInformationByUsername(
-            @RequestParam String username) {
-        try {
-            // 使用优化后的方法，一次JOIN查询获取所有信息
-            Map<String, Object> userInfo = articleService.getUserCompleteInformationByUsername(username);
-            if (userInfo == null || userInfo.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.notFound("用户未找到"));
-            }
-
-            return ResponseEntity.ok(ApiResponse.success(userInfo));
-        } catch (Exception e) {
-            logger.error("通过用户名获取信息时出错, 用户名为 {}", username, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
-        }
-    }
-
+    
     /**
      * 原本的方法：根据 userId 获取用户各类统计信息
      * GET /articles/userinform?userId=123

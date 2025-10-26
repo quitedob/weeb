@@ -473,9 +473,6 @@
   - 功能：获取用户所有文章统计
   - 参数：`userId` (Long): 用户ID
 
-- **GET /api/articles/userinform-by-username**
-  - 功能：通过用户名获取用户信息
-  - 参数：`username` (String): 用户名
 
 - **GET /api/articles/myarticles**
   - 功能：获取当前用户的所有文章
@@ -605,100 +602,46 @@
 - **GET /api/articles/{articleId}/versions/timeline**
   - 功能：获取版本时间线
 
-### 5. 聊天 API (`/api/v1/chats`)
+### 5. 聊天 API (`/api/chats`)
 
-- **GET /api/v1/chats**
+- **GET /api/chats**
   - 功能：获取用户的聊天列表
   - 参数：无
 
-- **POST /api/v1/chats**
+- **POST /api/chats**
   - 功能：创建新的聊天会话
   - 参数：
     - `targetId` (Long): 目标用户ID
 
-- **GET /api/v1/chats/{chatId}/messages**
+- **GET /api/chats/{chatId}/messages**
   - 功能：获取聊天消息历史记录
   - 参数：
     - `chatId` (Long, 路径): 聊天ID
     - `page` (int, 默认1): 页码
     - `size` (int, 默认20): 每页大小
 
-- **POST /api/v1/chats/{chatId}/messages**
+- **POST /api/chats/{chatId}/messages**
   - 功能：发送聊天消息
   - 参数：
     - `chatId` (Long, 路径): 聊天ID
     - `content` (String): 消息内容
     - `messageType` (Integer, 可选): 消息类型
 
-- **POST /api/v1/chats/{chatId}/read**
+- **POST /api/chats/{chatId}/read**
   - 功能：标记消息为已读
   - 参数：`chatId` (Long, 路径): 聊天ID
 
-- **DELETE /api/v1/chats/{chatId}**
+- **DELETE /api/chats/{chatId}**
   - 功能：删除聊天会话
   - 参数：`chatId` (Long, 路径): 聊天ID
 
-- **POST /api/v1/chats/messages/{messageId}/react**
+- **POST /api/chats/messages/{messageId}/react**
   - 功能：对消息添加反应
   - 参数：
     - `messageId` (Long, 路径): 消息ID
     - `reactionType` (String): 反应类型（如👍、❤️等）
 
-### 6. 消息 API (`/api/v1/message`)
 
-- **POST /api/v1/message/send**
-  - 功能：发送消息
-  - 请求体：`SendMessageVo`
-    - `content` (String): 消息内容
-    - `messageType` (Integer, 可选): 消息类型（默认文本）
-    - `targetId`/`groupId` (Long, 二选一): 私聊目标ID或群组ID
-    - `showTime` (Boolean, 可选): 是否显示时间
-
-- **POST /api/v1/message/record**
-  - 功能：获取聊天记录
-  - 请求体：`RecordRequestVo`
-    - `targetId` (Long): 目标ID
-    - `index` (Integer): 起始索引
-    - `num` (Integer): 条数
-
-- **POST /api/v1/message/recall**
-  - 功能：撤回消息
-  - 请求体：`RecallRequestVo`
-    - `msgId` (Long): 消息ID
-
-- **POST /api/v1/message/react**
-  - 功能：对消息做出反应
-  - 请求体：`ReactionVo`
-    - `messageId` (Long): 消息ID
-    - `reactionType` (String): 反应类型
-
-#### 消息线程
-- **POST /api/v1/message/thread/create**
-  - 功能：创建消息线程
-  - 请求体：`ThreadCreationRequestVo`
-    - `parentMessageId` (Long): 父消息ID
-    - 其它可选字段
-
-- **GET /api/v1/message/thread/{parentMessageId}**
-  - 功能：获取消息线程
-  - 参数：`parentMessageId` (Long, 路径): 父消息ID
-
-- **GET /api/v1/message/thread/{parentMessageId}/summary**
-  - 功能：获取消息线程摘要
-  - 参数：`parentMessageId` (Long, 路径): 父消息ID
-
-- **POST /api/v1/message/thread/{threadId}/reply**
-  - 功能：回复消息线程
-  - 请求体：`ThreadReplyRequestVo`
-    - `content` (String): 回复内容
-
-- **DELETE /api/v1/message/thread/{threadId}**
-  - 功能：删除消息线程
-  - 参数：`threadId` (Long, 路径): 线程ID
-
-- **GET /api/v1/message/thread/user**
-  - 功能：获取用户消息线程
-  - 参数：无（使用当前登录用户）
 
 ### 6.1 消息线索 API (`/api/threads`)
 
@@ -775,9 +718,6 @@
   - 功能：用户登出
   - 参数：Authorization header (Bearer token)
 
-- **GET /api/auth/me**
-  - 功能：获取当前用户信息
-  - 参数：Authorization header
 
 - **POST /api/auth/refresh**
   - 功能：刷新访问令牌
@@ -813,16 +753,19 @@
 ### 8. 用户管理 API (`/api/users`)
 
 - **GET /api/users/me**
-  - 功能：获取当前用户信息
+  - 功能：获取当前用户完整信息（包含统计数据）
   - 参数：无
+  - 📝 **统一接口**：整合了原本分散的用户信息获取功能
 
 - **GET /api/users/me/profile**
   - 功能：获取当前用户完整信息（包含统计数据）
   - 参数：无
+  - 📝 **兼容接口**：与 GET /api/users/me 功能相同
 
 - **GET /api/users/me/info**
   - 功能：获取当前用户基本信息
   - 参数：无
+  - 📝 **兼容接口**：返回用户基础信息，不含统计数据
 
 - **PUT /api/users/me**
   - 功能：更新当前用户信息
