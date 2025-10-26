@@ -209,28 +209,24 @@ public class AuthServiceImpl implements AuthService {
         authMapper.insertUser(user);
 
         // 为新用户分配默认角色
-        try {
-            // 查找默认角色（is_default = true）
-            Role defaultRole = roleMapper.selectDefaultRole();
-            if (defaultRole != null) {
-                userRoleMapper.assignRoleToUser(user.getId(), defaultRole.getId());
-                log.info("为用户分配默认角色成功: userId={}, roleId={}, roleName={}",
-                        user.getId(), defaultRole.getId(), defaultRole.getName());
+        // 查找默认角色（is_default = true）
+        Role defaultRole = roleMapper.selectDefaultRole();
+        if (defaultRole != null) {
+            userRoleMapper.assignRoleToUser(user.getId(), defaultRole.getId());
+            log.info("为用户分配默认角色成功: userId={}, roleId={}, roleName={}",
+                    user.getId(), defaultRole.getId(), defaultRole.getName());
+        } else {
+            // 如果没有找到默认角色，尝试查找"用户"角色
+            Role userRole = roleMapper.selectByName("用户");
+            if (userRole != null) {
+                userRoleMapper.assignRoleToUser(user.getId(), userRole.getId());
+                log.info("为用户分配'用户'角色成功: userId={}, roleId={}",
+                        user.getId(), userRole.getId());
             } else {
-                // 如果没有找到默认角色，尝试查找"用户"角色
-                Role userRole = roleMapper.selectByName("用户");
-                if (userRole != null) {
-                    userRoleMapper.assignRoleToUser(user.getId(), userRole.getId());
-                    log.info("为用户分配'用户'角色成功: userId={}, roleId={}",
-                            user.getId(), userRole.getId());
-                } else {
-                    // 如果还是没有找到，记录警告但不影响注册流程
-                    log.warn("未找到默认角色或'用户'角色，新用户注册后无角色权限: userId={}", user.getId());
-                }
+                // 如果没有找到默认角色，抛出异常触发事务回滚
+                log.error("未找到默认角色或'用户'角色，注册失败: userId={}", user.getId());
+                throw new WeebException("系统配置错误：未找到默认用户角色，请联系管理员");
             }
-        } catch (Exception e) {
-            // 角色分配失败不应该阻断用户注册，只记录错误
-            log.error("为新用户分配角色失败: userId={}, error={}", user.getId(), e.getMessage(), e);
         }
     }
 
