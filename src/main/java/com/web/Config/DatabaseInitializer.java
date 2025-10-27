@@ -371,6 +371,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         createUserFollowTable();
         createFileShareTable();
         createSystemLogTable(); // 新增调用
+        createUserLevelHistoryTable(); // 用户等级历史表
 
         log.info("✅ 所有表创建完成");
     }
@@ -536,16 +537,23 @@ public class DatabaseInitializer implements CommandLineRunner {
 
         String sql = """
             CREATE TABLE IF NOT EXISTS `role_permission` (
-                `id` BIGINT NOT NULL AUTO_INCREMENT,
+                `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
                 `role_id` BIGINT NOT NULL COMMENT '角色ID',
                 `permission_id` BIGINT NOT NULL COMMENT '权限ID',
+                `status` INT DEFAULT 1 COMMENT '状态 0:无效 1:有效',
+                `created_by` BIGINT COMMENT '创建人ID',
+                `updated_by` BIGINT COMMENT '更新人ID',
                 `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                PRIMARY KEY (`id`),
-                UNIQUE KEY `uk_role_permission` (`role_id`, `permission_id`),
-                CONSTRAINT `fk_rp_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`) ON DELETE CASCADE,
-                CONSTRAINT `fk_rp_permission` FOREIGN KEY (`permission_id`) REFERENCES `permission` (`id`) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            COMMENT='角色与权限关联表';
+                `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                `remark` VARCHAR(500) COMMENT '备注',
+                INDEX idx_role_id (role_id),
+                INDEX idx_permission_id (permission_id),
+                INDEX idx_status (status),
+                INDEX idx_created_at (created_at),
+                UNIQUE KEY uk_role_permission (role_id, permission_id),
+                CONSTRAINT `fk_role_permission_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_role_permission_permission` FOREIGN KEY (`permission_id`) REFERENCES `permission` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色权限关联表'
             """;
 
         try {
@@ -1403,6 +1411,48 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建系统日志表失败", e);
             throw new RuntimeException("创建系统日志表失败", e);
+        }
+    }
+
+    /**
+     * 创建用户等级历史表
+     */
+    private void createUserLevelHistoryTable() {
+        log.info("创建用户等级历史表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `user_level_history` (
+                `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
+                `user_id` BIGINT NOT NULL COMMENT '用户ID',
+                `old_level` INT COMMENT '原等级',
+                `new_level` INT NOT NULL COMMENT '新等级',
+                `change_reason` VARCHAR(500) COMMENT '变更原因',
+                `change_type` INT NOT NULL COMMENT '变更类型 1:系统自动 2:管理员操作 3:用户行为触发',
+                `operator_id` BIGINT COMMENT '操作者ID',
+                `operator_name` VARCHAR(100) COMMENT '操作者名称',
+                `change_time` DATETIME NOT NULL COMMENT '变更时间',
+                `ip_address` VARCHAR(50) COMMENT 'IP地址',
+                `user_agent` VARCHAR(500) COMMENT '用户代理',
+                `remark` VARCHAR(500) COMMENT '备注',
+                `status` INT DEFAULT 1 COMMENT '状态 0:无效 1:有效',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                INDEX idx_user_id (user_id),
+                INDEX idx_change_type (change_type),
+                INDEX idx_operator_id (operator_id),
+                INDEX idx_change_time (change_time),
+                INDEX idx_status (status),
+                INDEX idx_created_at (created_at),
+                CONSTRAINT `fk_user_level_history_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户等级变更历史表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 用户等级历史表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建用户等级历史表失败", e);
+            throw new RuntimeException("创建用户等级历史表失败", e);
         }
     }
 }

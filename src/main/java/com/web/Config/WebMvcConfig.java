@@ -1,8 +1,11 @@
 package com.web.Config;
 
+import com.web.interceptor.PermissionInterceptor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -17,6 +20,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Value("${weeb.upload.base-path:uploads}")
     private String baseUploadPath;
 
+    @Autowired
+    private PermissionInterceptor permissionInterceptor;
+
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         // 添加自定义参数解析器
@@ -28,5 +34,18 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // 配置本地文件上传目录的静态资源映射
         registry.addResourceHandler("/files/**")
                 .addResourceLocations("file:" + baseUploadPath + "/");
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        // 注册权限验证拦截器
+        registry.addInterceptor(permissionInterceptor)
+                .addPathPatterns("/api/**")  // 拦截所有API请求
+                .excludePathPatterns(
+                        "/api/auth/**",      // 排除认证相关接口
+                        "/api/public/**",    // 排除公开接口
+                        "/api/health",       // 排除健康检查
+                        "/api/actuator/**"   // 排除监控端点
+                );
     }
 }

@@ -6,12 +6,15 @@ import com.web.mapper.UserLevelHistoryMapper;
 import com.web.mapper.UserMapper;
 import com.web.model.User;
 import com.web.model.UserLevelHistory;
+import com.web.service.RolePermissionService;
+import com.web.service.UserLevelHistoryService;
 import com.web.service.UserLevelService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -32,6 +35,15 @@ public class UserLevelServiceImpl implements UserLevelService {
     @Autowired
     private UserLevelHistoryMapper userLevelHistoryMapper;
 
+    @Autowired
+    private UserLevelHistoryService userLevelHistoryService;
+
+    @Autowired
+    private RolePermissionService rolePermissionService;
+
+    @Autowired(required = false)
+    private HttpServletRequest request;
+
     @Override
     public int getUserLevel(Long userId) {
         try {
@@ -50,6 +62,7 @@ public class UserLevelServiceImpl implements UserLevelService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean setUserLevel(Long userId, int level, Long operatorId) {
         try {
             User user = userMapper.selectById(userId);
@@ -57,19 +70,56 @@ public class UserLevelServiceImpl implements UserLevelService {
                 throw new WeebException("用户不存在: " + userId);
             }
 
-            // TODO: 实现用户等级获取逻辑 - User 模型暂无 getUserLevel 方法
-            int oldLevel = UserLevel.LEVEL_NEW_USER;
+            // 获取当前等级
+            int oldLevel = getUserLevel(userId);
+
+            // 如果等级没有变化，直接返回
+            if (oldLevel == level) {
+                log.info("用户等级未变化: userId={}, level={}", userId, level);
+                return true;
+            }
 
             // TODO: 实现用户等级设置逻辑 - User 模型暂无 setUserLevel 方法
+            // 这里需要根据实际的User模型字段来设置等级
             user.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
             int result = userMapper.updateById(user);
 
             if (result > 0) {
-                // 记录等级变更历史
-                String reason = String.format("管理员手动调整等级从 %s 到 %s",
-                    UserLevel.getLevelName(oldLevel),
-                    UserLevel.getLevelName(level));
-                recordLevelChange(userId, oldLevel, level, reason, operatorId);
+                // 1. 记录等级变更历史
+                String changeReason = operatorId != null 
+                    ? String.format("管理员手动调整等级从 %s 到 %s",
+                        UserLevel.getLevelName(oldLevel),
+                        UserLevel.getLevelName(level))
+                    : String.format("系统自动升级从 %s 到 %s",
+                        UserLevel.getLevelName(oldLevel),
+                        UserLevel.getLevelName(level));
+
+                Integer changeType = operatorId != null ? 2 : 1; // 2: 管理员操作, 1: 系统自动
+                
+                // 获取IP和User-Agent
+                String ipAddress = getClientIpAddress();
+                String userAgent = getUserAgent();
+
+                boolean historyRecorded = userLevelHistoryService.recordLevelChange(
+                    userId, oldLevel, level, changeReason, changeType,
+                    operatorId, ipAddress, userAgent
+                );
+
+                if (!historyRecorded) {
+                    log.warn("记录等级变更历史失败: userId={}", userId);
+                }
+
+                // 2. 同步用户角色
+                try {
+                    Map<String, Object> roleSyncResult = rolePermissionService.syncUserRolesOnLevelChange(
+                        userId, oldLevel, level
+                    );
+                    log.info("用户角色同步完成: userId={}, result={}", userId, roleSyncResult);
+                } catch (Exception e) {
+                    log.error("同步用户角色失败: userId={}, oldLevel={}, newLevel={}",
+                            userId, oldLevel, level, e);
+                    // 不抛出异常，允许等级变更继续
+                }
 
                 log.info("用户等级更新成功: userId={}, oldLevel={}, newLevel={}, operatorId={}",
                         userId, oldLevel, level, operatorId);
@@ -82,6 +132,47 @@ public class UserLevelServiceImpl implements UserLevelService {
                      userId, level, operatorId, e);
             throw new WeebException("设置用户等级失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 获取客户端IP地址
+     */
+    private String getClientIpAddress() {
+        if (request == null) {
+            return null;
+        }
+        
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_CLIENT_IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        // 处理多个IP的情况，取第一个
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
+    }
+
+    /**
+     * 获取User-Agent
+     */
+    private String getUserAgent() {
+        if (request == null) {
+            return null;
+        }
+        return request.getHeader("User-Agent");
     }
 
     @Override

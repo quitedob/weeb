@@ -139,6 +139,20 @@ public class UserStats implements Serializable {
         this.updatedAt = updatedAt;
     }
 
+    // UserLevel getter and setter methods
+    public Integer getUserLevel() {
+        return userLevel;
+    }
+
+    public void setUserLevel(Integer userLevel) {
+        this.userLevel = userLevel;
+    }
+
+    // getId method for compatibility
+    public Long getId() {
+        return userId;
+    }
+
     public User getUser() {
         return user;
     }

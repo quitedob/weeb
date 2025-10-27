@@ -2,46 +2,82 @@ import axiosInstance from '../axiosInstance';
 
 /**
  * 用户API模块
- * 与后端AuthController接口对齐
+ * 与后端UserController接口对齐
  */
 
-// 获取用户列表 - 使用正确的API路径
-export function getUserList(params = {}) {
-  return axiosInstance.get('/api/user/list', { params });
+// 获取当前用户信息
+export function getCurrentUser() {
+  return axiosInstance.get('/api/users/me');
 }
 
-// 获取用户Map
-export function getUserMap() {
-  return axiosInstance.get('/api/list/map');
+// 获取当前用户信息（兼容接口）
+export function getCurrentUserProfile() {
+  return axiosInstance.get('/api/users/me/profile');
 }
 
-// 获取在线用户列表
-export function getOnlineUsers() {
-  return axiosInstance.get('/api/online/web');
+// 获取当前用户基本信息
+export function getCurrentUserInfo() {
+  return axiosInstance.get('/api/users/me/info');
 }
 
-// 通过用户名查找用户
-export function findByUsername(username) {
-  return axiosInstance.get('/api/findByUsername', {
-    params: { username }
-  });
+// 更新当前用户信息
+export function updateCurrentUser(userData) {
+  return axiosInstance.put('/api/users/me', userData);
 }
 
-// 通过用户ID查找用户
-export function findByUserID(userID) {
-  return axiosInstance.get('/api/findByUserID', {
-    params: { userID }
-  });
+// 获取用户列表
+export function getUsers(params = {}) {
+  return axiosInstance.get('/api/users', { params });
 }
 
-// 更新用户信息
-export function updateUser(updateData) {
-  return axiosInstance.post('/api/update', updateData);
+// 搜索用户
+export function searchUsers(params = {}) {
+  return axiosInstance.get('/api/users/search', { params });
 }
 
 // 根据用户ID获取用户信息
-export function getUserInfoById(userId) {
+export function getUserById(userId) {
   return axiosInstance.get(`/api/users/${userId}`);
+}
+
+// 获取当前用户的群组列表
+export function getMyGroups() {
+  return axiosInstance.get('/api/users/me/groups');
+}
+
+// 关注用户
+export function followUser(userId) {
+  return axiosInstance.post(`/api/users/${userId}/follow`);
+}
+
+// 取消关注用户
+export function unfollowUser(userId) {
+  return axiosInstance.delete(`/api/users/${userId}/follow`);
+}
+
+// 获取用户关注列表
+export function getUserFollowing(userId, params = {}) {
+  return axiosInstance.get(`/api/users/${userId}/following`, { params });
+}
+
+// 获取用户粉丝列表
+export function getUserFollowers(userId, params = {}) {
+  return axiosInstance.get(`/api/users/${userId}/followers`, { params });
+}
+
+// 检查关注状态
+export function checkFollowStatus(userId) {
+  return axiosInstance.get(`/api/users/${userId}/follow/status`);
+}
+
+// 获取关注统计
+export function getFollowStats() {
+  return axiosInstance.get('/api/follow/stats');
+}
+
+// 获取指定用户的关注统计
+export function getUserFollowStats(userId) {
+  return axiosInstance.get(`/api/follow/stats/${userId}`);
 }
 
 // 获取用户统计信息
@@ -49,8 +85,8 @@ export function getUserStats(userId) {
   return axiosInstance.get(`/api/users/${userId}/stats`);
 }
 
-// 获取用户最近活动
-export function getRecentActivities(userId) {
+// 获取用户活动记录
+export function getUserActivities(userId) {
   return axiosInstance.get(`/api/users/${userId}/activities`);
 }
 
@@ -68,16 +104,40 @@ export function uploadAvatar(formData) {
   });
 }
 
+// 用户操作（管理员功能）
+export function banUser(userId) {
+  return axiosInstance.post(`/api/users/${userId}/ban`);
+}
+
+export function unbanUser(userId) {
+  return axiosInstance.post(`/api/users/${userId}/unban`);
+}
+
+export function resetUserPassword(userId) {
+  return axiosInstance.post(`/api/users/${userId}/reset-password`);
+}
+
 export default {
-  getUserList,
-  getUserMap,
-  getOnlineUsers,
-  findByUsername,
-  findByUserID,
-  updateUser,
-  getUserInfoById,
+  getCurrentUser,
+  getCurrentUserProfile,
+  getCurrentUserInfo,
+  updateCurrentUser,
+  getUsers,
+  searchUsers,
+  getUserById,
+  getMyGroups,
+  followUser,
+  unfollowUser,
+  getUserFollowing,
+  getUserFollowers,
+  checkFollowStatus,
+  getFollowStats,
+  getUserFollowStats,
   getUserStats,
-  getRecentActivities,
+  getUserActivities,
   updateProfile,
-  uploadAvatar
+  uploadAvatar,
+  banUser,
+  unbanUser,
+  resetUserPassword
 };

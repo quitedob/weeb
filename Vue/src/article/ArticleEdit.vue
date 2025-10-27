@@ -1,122 +1,407 @@
 <template>
-  <div class="article-edit-container">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <h2>编辑文章</h2>
-          <div class="header-actions">
-            <el-button @click="goBack">返回</el-button>
-            <el-button type="primary" @click="saveArticle" :loading="isSaving">
-              {{ isSaving ? '保存中...' : '保存' }}
-            </el-button>
+  <div class="article-edit-page">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-content">
+        <div class="header-left">
+          <el-button
+            circle
+            @click="goBack"
+            class="back-btn"
+            :icon="ArrowLeft"
+          >
+          </el-button>
+          <div class="header-info">
+            <h1 class="page-title">编辑文章</h1>
+            <p class="page-subtitle">精心创作，分享你的见解</p>
           </div>
         </div>
-      </template>
-
-      <el-form :model="form" :rules="rules" ref="articleFormRef" label-width="120px">
-        <el-form-item label="文章标题" prop="articleTitle">
-          <el-input v-model="form.articleTitle" placeholder="请输入文章标题" maxlength="200"></el-input>
-        </el-form-item>
-
-        <el-form-item label="文章分类" prop="categoryId">
-          <el-select v-model="form.categoryId" placeholder="请选择文章分类" clearable>
-            <el-option
-              v-for="category in categories"
-              :key="category.id"
-              :label="category.categoryName"
-              :value="category.id"
-            />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="文章链接" prop="articleLink">
-          <el-input v-model="form.articleLink" placeholder="请输入文章链接 (可选)" clearable></el-input>
-          <div class="form-help">如果没有文章链接，可以留空</div>
-        </el-form-item>
-
-        <el-form-item label="文章状态" prop="status">
-          <el-radio-group v-model="form.status">
-            <el-radio :value="1">发布</el-radio>
-            <el-radio :value="0">草稿</el-radio>
-          </el-radio-group>
-        </el-form-item>
-
-        <el-form-item label="文章内容" prop="articleContent">
-          <div class="editor-container">
-            <div class="editor-toolbar">
-              <el-button-group size="small">
-                <el-button @click="insertMarkdown('**', '**')" title="粗体">
-                  <strong>B</strong>
-                </el-button>
-                <el-button @click="insertMarkdown('*', '*')" title="斜体">
-                  <em>I</em>
-                </el-button>
-                <el-button @click="insertMarkdown('`', '`')" title="代码">
-                  Code
-                </el-button>
-                <el-button @click="insertMarkdown('### ', '')" title="标题">
-                  H3
-                </el-button>
-                <el-button @click="insertMarkdown('\n- ', '')" title="列表">
-                  List
-                </el-button>
-                <el-button @click="insertMarkdown('\n> ', '')" title="引用">
-                  Quote
-                </el-button>
-                <el-button @click="insertMarkdown('\n\n```\n', '\n```\n')" title="代码块">
-                  Code Block
-                </el-button>
-              </el-button-group>
-              <el-button size="small" @click="previewArticle" type="info">预览</el-button>
-            </div>
-            <el-input
-              v-model="form.articleContent"
-              type="textarea"
-              :rows="15"
-              placeholder="请输入文章内容...支持Markdown格式"
-              maxlength="10000"
-              show-word-limit
-              resize="vertical"
-              class="content-editor"
-            ></el-input>
-          </div>
-          <div class="form-help">
-            支持Markdown格式：**粗体** *斜体* `代码` ### 标题 - 列表 > 引用 ```代码块```，最多10000字符
-          </div>
-        </el-form-item>
-
-        <el-form-item>
-          <el-button type="primary" @click="saveArticle" :loading="isSaving">
+        <div class="header-actions">
+          <el-button
+            @click="previewArticle"
+            class="preview-btn"
+            :icon="View"
+          >
+            预览
+          </el-button>
+          <el-button
+            type="primary"
+            @click="saveArticle"
+            :loading="isSaving"
+            class="save-btn"
+            :icon="Check"
+          >
             {{ isSaving ? '保存中...' : '保存文章' }}
           </el-button>
-          <el-button @click="resetForm">重置</el-button>
-          <el-button @click="goBack">取消</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading-container">
-      <el-skeleton :rows="5" animated />
+        </div>
+      </div>
     </div>
 
-    <!-- 错误状态 -->
-    <div v-else-if="error" class="error-container">
-      <el-alert :title="error" type="error" :closable="false"></el-alert>
+    <!-- 主内容区域 -->
+    <div class="main-content">
+      <div class="content-wrapper">
+        <!-- 加载状态 -->
+        <div v-if="loading" class="loading-state">
+          <div class="loading-card">
+            <el-skeleton :rows="8" animated />
+          </div>
+        </div>
+
+        <!-- 错误状态 -->
+        <div v-else-if="error" class="error-state">
+          <el-alert
+            :title="error"
+            type="error"
+            :closable="false"
+            show-icon
+            class="error-alert"
+          >
+            <template #title>
+              <div class="error-title">
+                <el-icon class="error-icon"><Warning /></el-icon>
+                <span>{{ error }}</span>
+              </div>
+            </template>
+          </el-alert>
+        </div>
+
+        <!-- 编辑表单 -->
+        <div v-else class="edit-form">
+          <el-form
+            :model="form"
+            :rules="rules"
+            ref="articleFormRef"
+            label-position="top"
+            class="article-form"
+          >
+            <!-- 标题输入 -->
+            <div class="form-section">
+              <el-form-item label="文章标题" prop="articleTitle" class="title-item">
+                <el-input
+                  v-model="form.articleTitle"
+                  placeholder="为你的文章起一个吸引人的标题..."
+                  maxlength="200"
+                  show-word-limit
+                  class="title-input"
+                  size="large"
+                >
+                  <template #prefix>
+                    <el-icon><DocumentAdd /></el-icon>
+                  </template>
+                </el-input>
+              </el-form-item>
+            </div>
+
+            <!-- 基本信息卡片 -->
+            <div class="form-section">
+              <el-card class="info-card" shadow="never">
+                <template #header>
+                  <div class="card-header">
+                    <el-icon><InfoFilled /></el-icon>
+                    <span>基本信息</span>
+                  </div>
+                </template>
+
+                <div class="info-grid">
+                  <el-form-item label="文章分类" prop="categoryId">
+                    <el-select
+                      v-model="form.categoryId"
+                      placeholder="选择合适的分类"
+                      clearable
+                      class="category-select"
+                    >
+                      <el-option
+                        v-for="category in categories"
+                        :key="category.id"
+                        :label="category.categoryName"
+                        :value="category.id"
+                      >
+                        <div class="category-option">
+                          <span>{{ category.categoryName }}</span>
+                        </div>
+                      </el-option>
+                    </el-select>
+                  </el-form-item>
+
+                  <el-form-item label="发布状态" prop="status">
+                    <el-radio-group v-model="form.status" class="status-radio">
+                      <el-radio :value="1" class="status-published">
+                        <el-icon><VideoPlay /></el-icon>
+                        立即发布
+                      </el-radio>
+                      <el-radio :value="0" class="status-draft">
+                        <el-icon><Edit /></el-icon>
+                        保存草稿
+                      </el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                </div>
+
+                <el-form-item label="外部链接" prop="articleLink" class="link-item">
+                  <el-input
+                    v-model="form.articleLink"
+                    placeholder="如果有相关外部链接，请填写..."
+                    clearable
+                  >
+                    <template #prefix>
+                      <el-icon><Link /></el-icon>
+                    </template>
+                  </el-input>
+                  <div class="form-tip">
+                    <el-icon><InfoFilled /></el-icon>
+                    <span>可选字段，用于补充文章相关资源</span>
+                  </div>
+                </el-form-item>
+              </el-card>
+            </div>
+
+            <!-- 内容编辑器 -->
+            <div class="form-section">
+              <el-form-item label="文章内容" prop="articleContent" class="content-item">
+                <div class="editor-wrapper">
+                  <!-- 工具栏 -->
+                  <div class="editor-toolbar">
+                    <div class="toolbar-left">
+                      <div class="toolbar-group">
+                        <el-tooltip content="粗体" placement="top">
+                          <el-button
+                            @click="insertMarkdown('**', '**')"
+                            class="toolbar-btn"
+                            size="small"
+                          >
+                            <el-icon><Bold /></el-icon>
+                          </el-button>
+                        </el-tooltip>
+
+                        <el-tooltip content="斜体" placement="top">
+                          <el-button
+                            @click="insertMarkdown('*', '*')"
+                            class="toolbar-btn"
+                            size="small"
+                          >
+                            <el-icon><Italic /></el-icon>
+                          </el-button>
+                        </el-tooltip>
+
+                        <el-tooltip content="行内代码" placement="top">
+                          <el-button
+                            @click="insertMarkdown('`', '`')"
+                            class="toolbar-btn"
+                            size="small"
+                          >
+                            <el-icon><Code /></el-icon>
+                          </el-button>
+                        </el-tooltip>
+                      </div>
+
+                      <div class="toolbar-divider"></div>
+
+                      <div class="toolbar-group">
+                        <el-tooltip content="标题" placement="top">
+                          <el-button
+                            @click="insertMarkdown('### ', '')"
+                            class="toolbar-btn"
+                            size="small"
+                          >
+                            <el-icon><Title /></el-icon>
+                          </el-button>
+                        </el-tooltip>
+
+                        <el-tooltip content="列表" placement="top">
+                          <el-button
+                            @click="insertMarkdown('\n- ', '')"
+                            class="toolbar-btn"
+                            size="small"
+                          >
+                            <el-icon><List /></el-icon>
+                          </el-button>
+                        </el-tooltip>
+
+                        <el-tooltip content="引用" placement="top">
+                          <el-button
+                            @click="insertMarkdown('\n> ', '')"
+                            class="toolbar-btn"
+                            size="small"
+                          >
+                            <el-icon><Quote /></el-icon>
+                          </el-button>
+                        </el-tooltip>
+                      </div>
+
+                      <div class="toolbar-divider"></div>
+
+                      <div class="toolbar-group">
+                        <el-tooltip content="代码块" placement="top">
+                          <el-button
+                            @click="insertMarkdown('\n\n```\n', '\n```\n')"
+                            class="toolbar-btn"
+                            size="small"
+                          >
+                            <el-icon><CodeBlock /></el-icon>
+                          </el-button>
+                        </el-tooltip>
+
+                        <el-tooltip content="链接" placement="top">
+                          <el-button
+                            @click="insertMarkdown('[', '](url)')"
+                            class="toolbar-btn"
+                            size="small"
+                          >
+                            <el-icon><Link /></el-icon>
+                          </el-button>
+                        </el-tooltip>
+
+                        <el-tooltip content="图片" placement="top">
+                          <el-button
+                            @click="insertMarkdown('![', '](image-url)')"
+                            class="toolbar-btn"
+                            size="small"
+                          >
+                            <el-icon><Picture /></el-icon>
+                          </el-button>
+                        </el-tooltip>
+                      </div>
+                    </div>
+
+                    <div class="toolbar-right">
+                      <el-button
+                        @click="previewArticle"
+                        type="info"
+                        size="small"
+                        class="preview-toolbar-btn"
+                      >
+                        <el-icon><View /></el-icon>
+                        预览
+                      </el-button>
+                    </div>
+                  </div>
+
+                  <!-- 编辑器 -->
+                  <div class="editor-container">
+                    <el-input
+                      v-model="form.articleContent"
+                      type="textarea"
+                      :rows="20"
+                      placeholder="开始创作你的精彩内容...&#10;&#10;支持 Markdown 语法：&#10;**粗体** *斜体* `代码`&#10;### 标题&#10;- 列表项&#10;> 引用内容&#10;```代码块```"
+                      maxlength="10000"
+                      show-word-limit
+                      resize="vertical"
+                      class="content-editor"
+                    ></el-input>
+                  </div>
+
+                  <!-- 格式提示 -->
+                  <div class="format-tips">
+                    <div class="tips-header">
+                      <el-icon><InfoFilled /></el-icon>
+                      <span>支持的 Markdown 格式</span>
+                    </div>
+                    <div class="tips-content">
+                      <span class="tip-item">**粗体**</span>
+                      <span class="tip-item">*斜体*</span>
+                      <span class="tip-item">`行内代码`</span>
+                      <span class="tip-item">### 标题</span>
+                      <span class="tip-item">- 列表</span>
+                      <span class="tip-item">> 引用</span>
+                      <span class="tip-item">[链接](url)</span>
+                    </div>
+                  </div>
+                </div>
+              </el-form-item>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="form-actions">
+              <el-space>
+                <el-button
+                  type="primary"
+                  @click="saveArticle"
+                  :loading="isSaving"
+                  size="large"
+                  class="action-btn primary"
+                >
+                  <el-icon><Check /></el-icon>
+                  {{ isSaving ? '保存中...' : '保存文章' }}
+                </el-button>
+
+                <el-button
+                  @click="resetForm"
+                  size="large"
+                  class="action-btn secondary"
+                >
+                  <el-icon><Refresh /></el-icon>
+                  重置
+                </el-button>
+
+                <el-button
+                  @click="goBack"
+                  size="large"
+                  class="action-btn ghost"
+                >
+                  <el-icon><ArrowLeft /></el-icon>
+                  返回
+                </el-button>
+              </el-space>
+            </div>
+          </el-form>
+        </div>
+      </div>
     </div>
 
     <!-- 预览模态框 -->
-    <el-dialog v-model="previewVisible" title="文章预览" width="80%" :before-close="closePreview">
-      <div class="preview-content">
-        <h2>{{ form.articleTitle }}</h2>
-        <div class="article-meta">
-          <span>作者：{{ authStore.currentUser?.username || '未知' }}</span>
-          <span>更新时间：{{ new Date().toLocaleString() }}</span>
+    <el-dialog
+      v-model="previewVisible"
+      title="文章预览"
+      width="90%"
+      :before-close="closePreview"
+      class="preview-dialog"
+      top="5vh"
+    >
+      <div class="preview-container">
+        <div class="preview-header">
+          <h2 class="preview-title">{{ form.articleTitle || '无标题' }}</h2>
+          <div class="preview-meta">
+            <div class="meta-item">
+              <el-icon><User /></el-icon>
+              <span>{{ authStore.currentUser?.username || '未知作者' }}</span>
+            </div>
+            <div class="meta-item">
+              <el-icon><Clock /></el-icon>
+              <span>{{ new Date().toLocaleString() }}</span>
+            </div>
+            <div class="meta-item" v-if="form.categoryId">
+              <el-icon><FolderOpened /></el-icon>
+              <span>{{ getCategoryName(form.categoryId) }}</span>
+            </div>
+          </div>
         </div>
-        <div class="article-body" v-html="previewContent"></div>
+
+        <div class="preview-content">
+          <div
+            class="article-body"
+            v-html="previewContent"
+          ></div>
+        </div>
       </div>
+
       <template #footer>
-        <el-button @click="closePreview">关闭预览</el-button>
+        <div class="preview-footer">
+          <el-space>
+            <el-button @click="closePreview" size="large">
+              <el-icon><Close /></el-icon>
+              关闭预览
+            </el-button>
+            <el-button
+              type="primary"
+              @click="saveArticle"
+              :loading="isSaving"
+              size="large"
+            >
+              <el-icon><Check /></el-icon>
+              保存文章
+            </el-button>
+          </el-space>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -129,6 +414,30 @@ import { getArticleById, updateArticle, getCategories } from '@/api/modules/arti
 import { useAuthStore } from '@/stores/authStore';
 import { ElMessage } from 'element-plus';
 import { marked } from 'marked';
+import {
+  ArrowLeft,
+  View,
+  Check,
+  Bold,
+  Italic,
+  Code,
+  Title,
+  List,
+  Quote,
+  CodeBlock,
+  Link,
+  Picture,
+  Refresh,
+  Close,
+  User,
+  Clock,
+  FolderOpened,
+  DocumentAdd,
+  InfoFilled,
+  VideoPlay,
+  Edit,
+  Warning
+} from '@element-plus/icons-vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -282,6 +591,12 @@ const previewArticle = () => {
 // 关闭预览模态框
 const closePreview = () => {
   previewVisible.value = false;
+};
+
+// 获取分类名称
+const getCategoryName = (categoryId) => {
+  const category = categories.value.find(cat => cat.id === categoryId);
+  return category ? category.categoryName : '未分类';
 };
 
 // 检查登录状态

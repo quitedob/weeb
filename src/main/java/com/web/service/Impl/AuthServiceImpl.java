@@ -435,4 +435,109 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    @Override
+    public boolean sendPasswordResetEmail(String email) {
+        try {
+            if (email == null || email.trim().isEmpty()) {
+                throw new WeebException("邮箱地址不能为空");
+            }
+
+            // 验证邮箱格式
+            ValidationUtils.validateEmail(email);
+
+            // 检查用户是否存在
+            User user = findByEmail(email);
+            if (user == null) {
+                // 为安全起见，不暴露用户是否存在的信息
+                log.info("尝试重置不存在用户的密码: {}", email);
+                return true; // 仍然返回true以避免泄露用户信息
+            }
+
+            // 生成重置令牌（暂时使用普通JWT令牌，实际应该使用专门的重置令牌）
+            String resetToken = jwtUtil.generateToken(user.getId(), user.getUsername());
+
+            // TODO: 发送邮件逻辑
+            // 这里应该集成邮件服务发送重置邮件
+            log.info("发送密码重置邮件到: {}，令牌: {}", email, resetToken);
+
+            // 暂时记录到日志，实际应该发送邮件
+            log.warn("密码重置功能需要实现邮件发送服务。令牌: {}", resetToken);
+
+            return true;
+
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("发送密码重置邮件失败: email={}", email, e);
+            throw new WeebException("发送密码重置邮件失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean resetPassword(String token, String newPassword) {
+        try {
+            if (token == null || token.trim().isEmpty()) {
+                throw new WeebException("重置令牌不能为空");
+            }
+
+            if (newPassword == null || newPassword.trim().isEmpty()) {
+                throw new WeebException("新密码不能为空");
+            }
+
+            // 验证密码强度
+            ValidationUtils.validatePassword(newPassword);
+
+            // 验证令牌
+            if (!jwtUtil.validateToken(token)) {
+                throw new WeebException("重置令牌无效或已过期");
+            }
+
+            // 从令牌中提取用户ID
+            Long userId = jwtUtil.getUserIdFromToken(token);
+
+            // 获取用户信息
+            User user = userMapper.selectById(userId);
+            if (user == null) {
+                throw new WeebException("用户不存在");
+            }
+
+            // 更新密码
+            String encodedPassword = passwordEncoder.encode(newPassword);
+            user.setPassword(encodedPassword);
+
+            // 保存到数据库
+            int updateResult = userMapper.updateUser(user);
+            if (updateResult <= 0) {
+                throw new WeebException("密码更新失败");
+            }
+
+            // 使所有旧的JWT令牌失效（可选）
+            // redisTemplate.delete("jwt:" + userId);
+
+            log.info("用户密码重置成功: userId={}", userId);
+            return true;
+
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("重置密码失败: token={}", token, e);
+            throw new WeebException("重置密码失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean verifyResetToken(String token) {
+        try {
+            if (token == null || token.trim().isEmpty()) {
+                return false;
+            }
+
+            return jwtUtil.validateToken(token);
+
+        } catch (Exception e) {
+            log.error("验证重置令牌失败: token={}", token, e);
+            return false;
+        }
+    }
+
     }
