@@ -177,6 +177,9 @@ public class Permissions {
     public static final String FOLLOW_READ_OWN = "FOLLOW_READ_OWN";
     public static final String FOLLOW_DELETE_OWN = "FOLLOW_DELETE_OWN";
 
+    // 用户关注权限（额外的用户关注相关权限）
+    public static final String USER_FOLLOW_OWN = "USER_FOLLOW_OWN";
+
     // 认证权限
     public static final String AUTH_LOGIN = "AUTH_LOGIN";
     public static final String AUTH_LOGOUT = "AUTH_LOGOUT";
@@ -188,6 +191,24 @@ public class Permissions {
     public static final String AUTH_LOGIN_OWN = "AUTH_LOGIN_OWN";
     public static final String AUTH_LOGOUT_OWN = "AUTH_LOGOUT_OWN";
     public static final String AUTH_PASSWORD_CHANGE_OWN = "AUTH_PASSWORD_CHANGE_OWN";
+
+    // AI服务权限
+    public static final String AI_CHAT_OWN = "AI_CHAT_OWN";
+    public static final String AI_MANAGE_ANY = "AI_MANAGE_ANY";
+
+    // 内容分析权限
+    public static final String CONTENT_ANALYZE_OWN = "CONTENT_ANALYZE_OWN";
+
+    // 内容举报权限
+    public static final String CONTENT_REPORT_CREATE_OWN = "CONTENT_REPORT_CREATE_OWN";
+    public static final String CONTENT_REPORT_UPDATE_OWN = "CONTENT_REPORT_UPDATE_OWN";
+    public static final String CONTENT_REPORT_READ_OWN = "CONTENT_REPORT_READ_OWN";
+
+    // 内容审核权限
+    public static final String CONTENT_REVIEW_ANY = "CONTENT_REVIEW_ANY";
+    public static final String CONTENT_MODERATE_ANY = "CONTENT_MODERATE_ANY";
+    public static final String CONTENT_REPORT_READ = "CONTENT_REPORT_READ";
+    public static final String CONTENT_REPORT_PROCESS = "CONTENT_REPORT_PROCESS";
 
     // ==================== 扩展用户权限等级 ====================
 
@@ -259,7 +280,7 @@ public class Permissions {
             USER_RESET_PASSWORD, USER_VIEW_PROFILE, USER_EDIT_PROFILE,
 
             // 用户自有权限
-            USER_READ_OWN, USER_UPDATE_OWN, USER_EDIT_PROFILE_OWN, USER_SETTINGS_OWN,
+            USER_READ_OWN, USER_UPDATE_OWN, USER_EDIT_PROFILE_OWN, USER_SETTINGS_OWN, USER_FOLLOW_OWN,
 
             // 文章管理
             ARTICLE_CREATE, ARTICLE_READ, ARTICLE_UPDATE, ARTICLE_DELETE,
@@ -325,6 +346,18 @@ public class Permissions {
             // 认证权限
             AUTH_LOGIN, AUTH_LOGOUT, AUTH_REGISTER, AUTH_PASSWORD_CHANGE, AUTH_PASSWORD_RESET,
             AUTH_LOGIN_OWN, AUTH_LOGOUT_OWN, AUTH_PASSWORD_CHANGE_OWN,
+
+            // AI服务权限
+            AI_CHAT_OWN, AI_MANAGE_ANY,
+
+            // 内容分析权限
+            CONTENT_ANALYZE_OWN,
+
+            // 内容举报权限
+            CONTENT_REPORT_CREATE_OWN, CONTENT_REPORT_UPDATE_OWN, CONTENT_REPORT_READ_OWN,
+
+            // 内容审核权限
+            CONTENT_REVIEW_ANY, CONTENT_MODERATE_ANY, CONTENT_REPORT_READ, CONTENT_REPORT_PROCESS,
 
             // 扩展用户等级权限
             ADVANCED_USER_GROUP_CREATE_LIMITED, ADVANCED_USER_ARTICLE_FEATURE_OWN,

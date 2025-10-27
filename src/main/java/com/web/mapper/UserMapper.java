@@ -433,4 +433,20 @@ public interface UserMapper extends BaseMapper<User> {
      * @return 用户数量
      */
     int countUsersByLevel(@Param("level") int level);
+
+    /**
+     * 查询所有用户的基本信息（仅包含ID和userLevel字段）
+     * 用于批量同步用户等级信息
+     * @return 用户列表（仅包含ID和userLevel）
+     */
+    @Select("SELECT id, user_level as userLevel FROM user WHERE id IS NOT NULL")
+    List<User> selectAllUserLevels();
+
+    /**
+     * 仅更新用户等级信息
+     * @param user 用户对象（仅包含ID和userLevel字段）
+     * @return 受影响行数
+     */
+    @Update("UPDATE user SET user_level = #{userLevel} WHERE id = #{id}")
+    int updateUserLevel(User user);
 }

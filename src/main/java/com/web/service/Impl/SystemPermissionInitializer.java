@@ -20,6 +20,7 @@ import java.util.Map;
 @Component
 @Slf4j
 @Order(2) // 确保在DatabaseInitializer之后执行
+@Deprecated // 已废弃，功能迁移至 SystemSecurityInitializer
 public class SystemPermissionInitializer implements CommandLineRunner {
 
     private final PermissionService permissionService;
@@ -31,14 +32,9 @@ public class SystemPermissionInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        log.info("开始初始化系统权限...");
-
-        Map<String, Object> result = permissionService.initializeSystemPermissions();
-
-        int createdCount = (Integer) result.get("createdCount");
-        int totalCount = (Integer) result.get("totalCount");
-
-        log.info("系统权限初始化完成: 新创建 {} 个权限，总共 {} 个权限", createdCount, totalCount);
+        log.warn("⚠️  SystemPermissionInitializer 已废弃，权限初始化功能已迁移至 SystemSecurityInitializer");
+        // 不再执行权限初始化，避免与 SystemSecurityInitializer 冲突
+        return;
     }
 
     /**

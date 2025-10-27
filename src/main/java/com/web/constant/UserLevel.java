@@ -138,192 +138,29 @@ public class UserLevel {
     }
 
     /**
-     * 获取等级权限列表
-     * @param level 等级数值
-     * @return 权限列表
+     * @deprecated 此方法已废弃，请使用RBAC权限系统进行权限检查
+     * 硬编码的权限逻辑已迁移至 SystemSecurityInitializer 统一管理
+     *
+     * 请使用以下方式替代：
+     * 1. 通过 @PreAuthorize 注解进行方法级权限控制
+     * 2. 通过 PermissionService 进行权限检查
+     * 3. 通过用户的角色进行权限判断
+     *
+     * @param level 等级数值（不再使用）
+     * @return 空列表（不再支持硬编码权限）
      */
+    @Deprecated
     public static List<String> getLevelPermissions(int level) {
-        List<String> permissions = new ArrayList<>();
+        // ⚠️ 重大安全变更：不再支持基于用户等级的硬编码权限分配
+        // 所有权限必须通过RBAC系统（角色-权限）进行管理
+        // 这样确保权限的一致性和安全性
 
-        // 基础权限（所有用户都有）
-        permissions.addAll(Arrays.asList(
-            Permissions.USER_READ_OWN,
-            Permissions.USER_UPDATE_OWN,
-            Permissions.USER_EDIT_PROFILE_OWN,
-            Permissions.USER_SETTINGS_OWN,
+        // 开发者注意事项：
+        // 1. 如果需要基于用户等级的功能，请通过角色分配实现
+        // 2. 可以在用户升级时自动分配新的角色
+        // 3. 权限检查应统一使用 @PreAuthorize 注解
 
-            Permissions.ARTICLE_CREATE_OWN,
-            Permissions.ARTICLE_READ_OWN,
-            Permissions.ARTICLE_UPDATE_OWN,
-            Permissions.ARTICLE_DELETE_OWN_USER,
-            Permissions.ARTICLE_FAVORITE_OWN,
-            Permissions.ARTICLE_COMMENT_OWN,
-            Permissions.ARTICLE_LIKE,
-
-            Permissions.MESSAGE_CREATE_OWN,
-            Permissions.MESSAGE_READ_OWN,
-            Permissions.MESSAGE_UPDATE_OWN,
-            Permissions.MESSAGE_DELETE_OWN_USER,
-            Permissions.MESSAGE_RECALL_OWN,
-
-            Permissions.GROUP_CREATE_OWN,
-            Permissions.GROUP_READ_OWN,
-            Permissions.GROUP_UPDATE_OWN,
-            Permissions.GROUP_JOIN_OWN,
-            Permissions.GROUP_LEAVE_OWN,
-
-            Permissions.SEARCH_BASIC,
-            Permissions.SEARCH_USER_BASIC,
-            Permissions.SEARCH_CONTENT_BASIC,
-
-            Permissions.CONTACT_CREATE_OWN,
-            Permissions.CONTACT_READ_OWN,
-            Permissions.CONTACT_UPDATE_OWN,
-            Permissions.CONTACT_DELETE_OWN,
-
-            Permissions.FOLLOW_CREATE_OWN,
-            Permissions.FOLLOW_READ_OWN,
-            Permissions.FOLLOW_DELETE_OWN,
-
-            Permissions.AUTH_LOGIN_OWN,
-            Permissions.AUTH_LOGOUT_OWN,
-            Permissions.AUTH_PASSWORD_CHANGE_OWN,
-
-            Permissions.NOTIFICATION_READ,
-            Permissions.LEVEL_UP_VIEW_REQUIREMENTS,
-            Permissions.LEVEL_UP_TRACK_PROGRESS,
-            Permissions.LEVEL_UP_NOTIFICATIONS
-        ));
-
-        // 根据等级添加额外权限
-        if (level >= LEVEL_ADVANCED_USER) {
-            permissions.addAll(Arrays.asList(
-                Permissions.ADVANCED_USER_GROUP_CREATE_LIMITED,
-                Permissions.ADVANCED_USER_ARTICLE_FEATURE_OWN,
-                Permissions.ADVANCED_USER_MESSAGE_THREAD_OWN,
-                Permissions.ADVANCED_USER_CONTACT_LIMIT_INCREASED,
-                Permissions.ADVANCED_USER_SEARCH_ENHANCED,
-                Permissions.ADVANCED_USER_NOTIFICATION_PREFERENCES,
-                Permissions.ADVANCED_USER_EXPORT_DATA_OWN
-            ));
-        }
-
-        if (level >= LEVEL_ACTIVE_USER) {
-            permissions.addAll(Arrays.asList(
-                Permissions.ACTIVE_USER_GROUP_CREATE_EXTENDED,
-                Permissions.ACTIVE_USER_ARTICLE_MODERATE_ASSIST,
-                Permissions.ACTIVE_USER_MESSAGE_BROADCAST_LIMITED,
-                Permissions.ACTIVE_USER_ANALYTICS_VIEW_OWN,
-                Permissions.ACTIVE_USER_CONTENT_MANAGEMENT_EXTENDED,
-                Permissions.ACTIVE_USER_API_ACCESS_BASIC,
-                Permissions.ACTIVE_USER_CUSTOM_PROFILE,
-                Permissions.ACTIVE_USER_INVITE_USERS
-            ));
-        }
-
-        if (level >= LEVEL_VIP_USER) {
-            permissions.addAll(Arrays.asList(
-                Permissions.VIP_USER_GROUP_CREATE_UNLIMITED,
-                Permissions.VIP_USER_ARTICLE_PRIORITY,
-                Permissions.VIP_USER_MESSAGE_PIN_OWN,
-                Permissions.VIP_USER_ANALYTICS_ADVANCED,
-                Permissions.VIP_USER_CONTENT_MANAGEMENT_FULL,
-                Permissions.VIP_USER_API_ACCESS_EXTENDED,
-                Permissions.VIP_USER_CUSTOM_THEME,
-                Permissions.VIP_USER_PRIORITY_SUPPORT,
-                Permissions.VIP_USER_BETA_FEATURES,
-                Permissions.VIP_USER_EXTENDED_STORAGE
-            ));
-        }
-
-        if (level >= LEVEL_CONTENT_CREATOR) {
-            permissions.addAll(Arrays.asList(
-                Permissions.CONTENT_CREATOR_ARTICLE_MONETIZE,
-                Permissions.CONTENT_CREATOR_ANALYTICS_DETAILED,
-                Permissions.CONTENT_CREATOR_BRAND_CUSTOMIZATION,
-                Permissions.CONTENT_CREATOR_FOLLOWER_ANALYTICS,
-                Permissions.CONTENT_CREATOR_SCHEDULED_POSTING,
-                Permissions.CONTENT_CREATOR_SPONSORED_CONTENT
-            ));
-        }
-
-        if (level >= LEVEL_COMMUNITY_MODERATOR) {
-            permissions.addAll(Arrays.asList(
-                Permissions.COMMUNITY_MODERATE_CONTENT,
-                Permissions.COMMUNITY_MANAGE_REPORTS,
-                Permissions.COMMUNITY_WARN_USERS,
-                Permissions.COMMUNITY_FEATURE_CONTENT,
-                Permissions.COMMUNITY_ANNOUNCE_LOCAL,
-                Permissions.COMMUNITY_ANALYTICS_BASIC,
-                Permissions.COMMUNITY_ESCALATE_ISSUES
-            ));
-        }
-
-        if (level >= LEVEL_ADMIN) {
-            permissions.addAll(Arrays.asList(
-                Permissions.SYSTEM_ADMIN,
-                Permissions.SYSTEM_CONFIG,
-                Permissions.SYSTEM_LOG,
-                Permissions.SYSTEM_MONITOR,
-
-                Permissions.USER_CREATE,
-                Permissions.USER_READ,
-                Permissions.USER_UPDATE,
-                Permissions.USER_DELETE,
-                Permissions.USER_BAN,
-                Permissions.USER_UNBAN,
-                Permissions.USER_RESET_PASSWORD,
-                Permissions.USER_VIEW_PROFILE,
-                Permissions.USER_EDIT_PROFILE,
-
-                Permissions.ARTICLE_DELETE_ANY,
-                Permissions.ARTICLE_PUBLISH,
-                Permissions.ARTICLE_UNPUBLISH,
-                Permissions.ARTICLE_FEATURE,
-
-                Permissions.COMMENT_DELETE_ANY,
-                Permissions.COMMENT_MODERATE,
-
-                Permissions.GROUP_DELETE_ANY,
-                Permissions.GROUP_MANAGE,
-                Permissions.GROUP_MODERATE,
-
-                Permissions.MESSAGE_DELETE_ANY,
-                Permissions.MESSAGE_RECALL_ANY,
-
-                Permissions.NOTIFICATION_SEND,
-                Permissions.NOTIFICATION_MANAGE,
-
-                Permissions.PERMISSION_CREATE,
-                Permissions.PERMISSION_READ,
-                Permissions.PERMISSION_UPDATE,
-                Permissions.PERMISSION_DELETE,
-                Permissions.ROLE_CREATE,
-                Permissions.ROLE_READ,
-                Permissions.ROLE_UPDATE,
-                Permissions.ROLE_DELETE,
-                Permissions.ROLE_ASSIGN,
-                Permissions.ROLE_UNASSIGN,
-
-                Permissions.SEARCH_ADVANCED,
-
-                Permissions.SECURITY_AUDIT,
-                Permissions.SECURITY_CONFIG,
-                Permissions.SECURITY_SESSION,
-                Permissions.SECURITY_SESSION_KILL,
-
-                Permissions.API_ADMIN,
-
-                Permissions.SYSTEM_BACKUP,
-                Permissions.SYSTEM_RESTORE
-            ));
-        }
-
-        if (level >= LEVEL_SUPER_ADMIN) {
-            permissions.add(Permissions.SECURITY_PASSWORD);
-        }
-
-        return permissions;
+        return Collections.emptyList();
     }
 
     /**

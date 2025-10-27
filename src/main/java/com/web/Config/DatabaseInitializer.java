@@ -1047,11 +1047,9 @@ public class DatabaseInitializer implements CommandLineRunner {
                 log.info("✅ 默认文章标签创建成功");
             }
 
-            // 初始化角色和权限数据
-            initializeRolesAndPermissions();
-
-            // 为初始用户分配特定角色
-            assignRolesToInitialUsers();
+            // 注意：角色和权限的初始化已经委托给SystemSecurityInitializer统一处理
+            // 这里不再重复初始化，避免冲突
+            log.info("角色和权限初始化委托给SystemSecurityInitializer处理");
 
         } catch (Exception e) {
             log.error("插入初始数据失败", e);
@@ -1059,246 +1057,41 @@ public class DatabaseInitializer implements CommandLineRunner {
         }
     }
 
+    // ========================================
+    // 🔒 DEPRECATED - 以下方法已废弃
+    // 角色和权限初始化功能已迁移至 SystemSecurityInitializer 统一处理
+    // ========================================
+
     /**
-     * 初始化角色和权限数据
+     * @deprecated 角色和权限初始化已迁移至 SystemSecurityInitializer
      */
+    @Deprecated
     private void initializeRolesAndPermissions() {
-        try {
-            log.info("开始初始化角色和权限数据...");
-
-            // 检查是否已有角色数据
-            Integer roleCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM role", Integer.class);
-
-            if (roleCount == null || roleCount == 0) {
-                // 插入默认角色
-                jdbcTemplate.update("""
-                    INSERT INTO role (name, description, status, type, level, is_default, created_at, updated_at) VALUES
-                    ('超级管理员', '系统最高权限管理员', 1, 0, 1, FALSE, NOW(), NOW()),
-                    ('管理员', '系统管理员', 1, 0, 10, FALSE, NOW(), NOW()),
-                    ('版主', '内容版主', 1, 0, 50, FALSE, NOW(), NOW()),
-                    ('用户', '普通用户', 1, 0, 100, TRUE, NOW(), NOW())
-                    """);
-
-                log.info("✅ 默认角色创建成功");
-            } else {
-                log.info("角色数据已存在，跳过创建");
-            }
-
-            // 注意：权限的初始化已经委托给SystemPermissionInitializer处理
-            // 这里不再重复创建权限，避免冲突
-            log.info("权限初始化委托给SystemPermissionInitializer处理");
-
-            // 为角色分配权限
-            assignPermissionsToRoles();
-
-            // 为现有用户分配默认角色
-            assignDefaultRolesToExistingUsers();
-
-            log.info("✅ 角色和权限数据初始化完成");
-
-        } catch (Exception e) {
-            log.error("初始化角色和权限数据失败", e);
-            throw new RuntimeException("初始化角色和权限数据失败", e);
-        }
+        log.warn("⚠️  此方法已废弃，请使用 SystemSecurityInitializer 进行角色权限初始化");
     }
 
     /**
-     * 为角色分配权限
+     * @deprecated 权限分配已迁移至 SystemSecurityInitializer
      */
+    @Deprecated
     private void assignPermissionsToRoles() {
-        try {
-            log.info("开始为角色分配权限...");
-
-            // 清空现有的角色权限关联（重新分配）
-            jdbcTemplate.update("DELETE FROM role_permission");
-
-            // 为超级管理员分配所有权限
-            Long superAdminRoleId = jdbcTemplate.queryForObject(
-                "SELECT id FROM role WHERE name = '超级管理员'", Long.class);
-
-            if (superAdminRoleId != null) {
-                jdbcTemplate.update("""
-                    INSERT INTO role_permission (role_id, permission_id, created_at)
-                    SELECT ?, id, NOW() FROM permission
-                    """, superAdminRoleId);
-                log.info("✅ 超级管理员权限分配完成");
-            }
-
-            // 为管理员分配大部分权限（除了系统管理）
-            Long adminRoleId = jdbcTemplate.queryForObject(
-                "SELECT id FROM role WHERE name = '管理员'", Long.class);
-
-            if (adminRoleId != null) {
-                jdbcTemplate.update("""
-                    INSERT INTO role_permission (role_id, permission_id, created_at)
-                    SELECT ?, id, NOW() FROM permission
-                    WHERE name NOT IN ('SYSTEM_ADMIN', 'ROLE_MANAGE')
-                    """, adminRoleId);
-                log.info("✅ 管理员权限分配完成");
-            }
-
-            // 为版主分配文章管理权限
-            Long moderatorRoleId = jdbcTemplate.queryForObject(
-                "SELECT id FROM role WHERE name = '版主'", Long.class);
-
-            if (moderatorRoleId != null) {
-                jdbcTemplate.update("""
-                    INSERT INTO role_permission (role_id, permission_id, created_at)
-                    SELECT ?, id, NOW() FROM permission
-                    WHERE name IN ('ARTICLE_READ', 'ARTICLE_CREATE', 'ARTICLE_UPDATE', 'ARTICLE_DELETE')
-                    """, moderatorRoleId);
-                log.info("✅ 版主权限分配完成");
-            }
-
-            // 为普通用户分配基础权限
-            Long userRoleId = jdbcTemplate.queryForObject(
-                "SELECT id FROM role WHERE name = '用户'", Long.class);
-
-            if (userRoleId != null) {
-                jdbcTemplate.update("""
-                    INSERT INTO role_permission (role_id, permission_id, created_at)
-                    SELECT ?, id, NOW() FROM permission
-                    WHERE name IN (
-                        -- 用户基础权限
-                        'USER_READ_OWN', 'USER_UPDATE_OWN', 'USER_EDIT_PROFILE_OWN', 'USER_SETTINGS_OWN',
-                        'USER_FOLLOW_OWN',
-
-                        -- 消息和聊天权限
-                        'MESSAGE_CREATE_OWN', 'MESSAGE_READ_OWN', 'MESSAGE_UPDATE_OWN', 'MESSAGE_DELETE_OWN_USER',
-                        'MESSAGE_RECALL_OWN', 'MESSAGE_SEND',
-
-                        -- 群组基础权限
-                        'GROUP_CREATE_OWN', 'GROUP_READ_OWN', 'GROUP_JOIN_OWN', 'GROUP_LEAVE_OWN',
-
-                        -- 文章创作和互动权限
-                        'ARTICLE_CREATE_OWN', 'ARTICLE_READ_OWN', 'ARTICLE_UPDATE_OWN', 'ARTICLE_DELETE_OWN_USER',
-                        'ARTICLE_FAVORITE_OWN', 'ARTICLE_COMMENT_OWN', 'ARTICLE_LIKE',
-
-                        -- 搜索权限
-                        'SEARCH_BASIC', 'SEARCH_USER_BASIC', 'SEARCH_CONTENT_BASIC',
-                        'SEARCH_USER', 'SEARCH_ARTICLE', 'SEARCH_GROUP',
-
-                        -- 通知管理
-                        'NOTIFICATION_READ',
-
-                        -- 联系人管理
-                        'CONTACT_CREATE_OWN', 'CONTACT_READ_OWN', 'CONTACT_UPDATE_OWN', 'CONTACT_DELETE_OWN',
-
-                        -- 文件管理
-                        'FILE_CREATE_OWN', 'FILE_READ_OWN', 'FILE_UPLOAD_OWN', 'FILE_UPDATE_OWN',
-                        'FILE_DELETE_OWN', 'FILE_SHARE_OWN', 'FILE_DOWNLOAD',
-
-                        -- 关注功能
-                        'FOLLOW_CREATE_OWN', 'FOLLOW_READ_OWN', 'FOLLOW_DELETE_OWN',
-
-                        -- 认证功能
-                        'AUTH_LOGIN_OWN', 'AUTH_LOGOUT_OWN', 'AUTH_PASSWORD_CHANGE_OWN',
-                        'AUTH_LOGIN', 'AUTH_REGISTER', 'AUTH_PASSWORD_CHANGE'
-                    )
-                    """, userRoleId);
-                log.info("✅ 普通用户权限分配完成（扩展版）");
-            }
-
-            log.info("✅ 角色权限分配完成");
-
-        } catch (Exception e) {
-            log.error("为角色分配权限失败", e);
-            throw new RuntimeException("为角色分配权限失败", e);
-        }
+        log.warn("⚠️  此方法已废弃，请使用 SystemSecurityInitializer 进行权限分配");
     }
 
     /**
-     * 为现有用户分配默认角色
+     * @deprecated 用户角色分配已迁移至 SystemSecurityInitializer
      */
+    @Deprecated
     private void assignDefaultRolesToExistingUsers() {
-        try {
-            log.info("开始为现有用户分配默认角色...");
-
-            // 获取所有没有角色的用户
-            List<Long> usersWithoutRoles = jdbcTemplate.queryForList(
-                "SELECT u.id FROM user u LEFT JOIN user_role ur ON u.id = ur.user_id WHERE ur.user_id IS NULL",
-                Long.class);
-
-            if (usersWithoutRoles.isEmpty()) {
-                log.info("所有用户都已有角色，跳过分配");
-                return;
-            }
-
-            // 获取默认角色ID（标记为 is_default = TRUE 的角色）
-            Long defaultRoleId = jdbcTemplate.queryForObject(
-                "SELECT id FROM role WHERE is_default = TRUE AND status = 1", Long.class);
-
-            if (defaultRoleId == null) {
-                // 如果没有默认角色，获取"用户"角色的ID
-                defaultRoleId = jdbcTemplate.queryForObject(
-                    "SELECT id FROM role WHERE name = '用户' AND status = 1", Long.class);
-            }
-
-            if (defaultRoleId == null) {
-                log.warn("未找到合适的默认角色，无法为现有用户分配角色");
-                return;
-            }
-
-            // 为所有没有角色的用户分配默认角色
-            int assignedCount = 0;
-            for (Long userId : usersWithoutRoles) {
-                try {
-                    jdbcTemplate.update(
-                        "INSERT INTO user_role (user_id, role_id, created_at) VALUES (?, ?, NOW())",
-                        userId, defaultRoleId);
-                    assignedCount++;
-                } catch (Exception e) {
-                    log.warn("为用户分配角色失败: userId={}, error={}", userId, e.getMessage());
-                }
-            }
-
-            log.info("✅ 为 {} 个现有用户分配了默认角色", assignedCount);
-
-        } catch (Exception e) {
-            log.error("为现有用户分配默认角色失败", e);
-            throw new RuntimeException("为现有用户分配默认角色失败", e);
-        }
+        log.warn("⚠️  此方法已废弃，请使用 SystemSecurityInitializer 进行用户角色分配");
     }
 
     /**
-     * 为初始用户分配特定角色
+     * @deprecated 用户角色分配已迁移至 SystemSecurityInitializer
      */
+    @Deprecated
     private void assignRolesToInitialUsers() {
-        try {
-            log.info("开始为初始用户分配特定角色...");
-
-            // 清空现有的用户角色关联（重新分配）
-            jdbcTemplate.update("DELETE FROM user_role");
-
-            // 获取角色ID
-            Long superAdminRoleId = getRoleIdByName("超级管理员");
-            Long adminRoleId = getRoleIdByName("管理员");
-            Long userRoleId = getRoleIdByName("用户");
-
-            if (userRoleId == null) {
-                log.warn("未找到基础角色，无法为用户分配角色");
-                return;
-            }
-
-            // 为初始用户分配角色
-            assignRoleToUser("admin", superAdminRoleId, "超级管理员");
-            assignRoleToUser("testuser", adminRoleId, "管理员");
-            assignRoleToUser("alice", userRoleId, "用户");
-            assignRoleToUser("bob", userRoleId, "用户");
-            assignRoleToUser("charlie", userRoleId, "用户");
-            assignRoleToUser("diana", userRoleId, "用户");
-            assignRoleToUser("eve", userRoleId, "用户");
-
-            // 为所有其他用户分配默认角色
-            assignDefaultRolesToExistingUsers();
-
-            log.info("✅ 初始用户角色分配完成");
-
-        } catch (Exception e) {
-            log.error("为初始用户分配特定角色失败", e);
-            throw new RuntimeException("为初始用户分配特定角色失败", e);
-        }
+        log.warn("⚠️  此方法已废弃，请使用 SystemSecurityInitializer 进行用户角色分配");
     }
 
     /**

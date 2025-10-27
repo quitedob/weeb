@@ -44,30 +44,83 @@ public class AIServiceImpl implements AIService {
     @Override
     public String generateArticleSummary(String content, int maxLength) {
         try {
-            log.debug("生成文章摘要: contentLength={}, maxLength={}", content.length(), maxLength);
+            log.debug("生成文章摘要: contentLength={}, maxLength={}, provider={}", content.length(), maxLength, aiProvider);
 
             if (content == null || content.trim().isEmpty()) {
                 return "";
             }
 
-            // 简单的摘要生成实现（实际项目中应调用AI API）
-            String[] sentences = content.split("[。！？.!?]");
-            StringBuilder summary = new StringBuilder();
+            // 准备AI请求
+            Map<String, Object> request = new HashMap<>();
+            request.put("model", deepseekChatModel);
+            request.put("messages", List.of(
+                Map.of(
+                    "role", "user",
+                    "content", "请为以下内容生成一个简洁的摘要，摘要长度不超过" + maxLength + "个字符：\n\n" + content
+                )
+            ));
+            request.put("stream", false);
+            request.put("temperature", 0.3);
+            request.put("max_tokens", Math.min(maxLength / 2, 1000));
 
-            for (String sentence : sentences) {
-                if (summary.length() + sentence.length() > maxLength) {
-                    break;
-                }
-                if (sentence.trim().length() > 0) {
-                    summary.append(sentence.trim()).append("。");
+            // 调用DeepSeek API
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Authorization", "Bearer " + deepseekApiKey);
+            headers.put("Content-Type", "application/json");
+
+            Map<String, Object> response = restTemplate.postForObject(
+                deepseekBaseUrl + "/chat/completions",
+                request,
+                Map.class,
+                headers
+            );
+
+            if (response != null && response.containsKey("choices")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+                if (!choices.isEmpty()) {
+                    Map<String, Object> choice = choices.get(0);
+                    Map<String, Object> message = (Map<String, Object>) choice.get("message");
+                    if (message != null && message.containsKey("content")) {
+                        String summary = (String) message.get("content");
+                        log.info("AI文章摘要生成成功: summaryLength={}", summary.length());
+                        return summary;
+                    }
                 }
             }
 
-            return summary.length() > 0 ? summary.toString() : content.substring(0, Math.min(maxLength, content.length()));
+            log.warn("AI文章摘要生成失败: response={}", response);
+            // 降级到简单摘要
+            return generateSimpleSummary(content, maxLength);
+
         } catch (Exception e) {
-            log.error("生成文章摘要失败", e);
-            return content.substring(0, Math.min(maxLength, content.length()));
+            log.error("调用AI API生成文章摘要失败: provider={}, error={}", aiProvider, e.getMessage(), e);
+            // 降级到简单摘要
+            return generateSimpleSummary(content, maxLength);
         }
+    }
+
+    /**
+     * 生成简单摘要（降级方案）
+     */
+    private String generateSimpleSummary(String content, int maxLength) {
+        if (content == null || content.trim().isEmpty()) {
+            return "";
+        }
+
+        String[] sentences = content.split("[。！？.!?]");
+        StringBuilder summary = new StringBuilder();
+
+        for (String sentence : sentences) {
+            if (summary.length() + sentence.length() > maxLength) {
+                break;
+            }
+            if (sentence.trim().length() > 0) {
+                summary.append(sentence.trim()).append("。");
+            }
+        }
+
+        return summary.length() > 0 ? summary.toString() : content.substring(0, Math.min(maxLength, content.length()));
     }
 
     @Override

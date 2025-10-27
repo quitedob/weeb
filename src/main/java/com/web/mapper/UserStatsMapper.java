@@ -151,4 +151,12 @@ public interface UserStatsMapper extends BaseMapper<UserStats> {
      * @return 用户统计摘要
      */
     Map<String, Object> selectUserStatsSummary();
+
+    /**
+     * 仅更新用户统计数据中的等级信息
+     * @param userStats 用户统计数据对象（仅包含userId和userLevel字段）
+     * @return 受影响行数
+     */
+    @Update("UPDATE user_stats SET user_level = #{userLevel} WHERE user_id = #{userId}")
+    int updateUserLevel(UserStats userStats);
 }

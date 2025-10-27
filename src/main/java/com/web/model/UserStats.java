@@ -17,6 +17,9 @@ public class UserStats implements Serializable {
     @TableId(type = IdType.INPUT)
     private Long userId;
     
+    // 用户等级信息（与User表中的userLevel字段同步）
+    private Integer userLevel = 1;           // 用户等级，默认为1（基础用户）
+
     // 统计数据字段
     private Long fansCount = 0L;             // 粉丝数量
     private Long followerCount = 0L;         // 关注者数量

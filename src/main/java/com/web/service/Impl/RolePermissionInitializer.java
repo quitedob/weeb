@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 @Order(3) // 确保在SystemPermissionInitializer之后执行
+@Deprecated // 已废弃，功能迁移至 SystemSecurityInitializer
 public class RolePermissionInitializer implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;
@@ -25,20 +26,9 @@ public class RolePermissionInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        log.info("开始初始化角色权限...");
-
-        try {
-            // 确保USER角色存在
-            ensureUserRoleExists();
-            
-            // 为USER角色添加必要的权限
-            assignPermissionsToUserRole();
-            
-            log.info("角色权限初始化完成");
-        } catch (Exception e) {
-            log.error("角色权限初始化失败", e);
-            throw e;
-        }
+        log.warn("⚠️  RolePermissionInitializer 已废弃，角色权限初始化功能已迁移至 SystemSecurityInitializer");
+        // 不再执行角色权限初始化，避免与 SystemSecurityInitializer 冲突
+        return;
     }
 
     /**
