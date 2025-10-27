@@ -8,7 +8,7 @@ import com.web.model.Role;
 import com.web.model.User;
 import com.web.model.UserStats;
 import com.web.service.UserCreationService;
-import com.web.util.WeebException;
+import com.web.exception.WeebException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

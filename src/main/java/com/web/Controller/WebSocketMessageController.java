@@ -1,8 +1,7 @@
 package com.web.Controller;
 
-import com.web.annotation.Userid;
-import com.web.common.ApiResponse;
 import com.web.model.Message;
+import com.web.service.ChatService;
 import com.web.service.MessageService;
 import com.web.security.SecurityUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +14,6 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -35,7 +33,106 @@ public class WebSocketMessageController {
     private MessageService messageService;
 
     @Autowired
+    private ChatService chatService;
+
+    @Autowired
     private SimpMessageSendingOperations messagingTemplate;
+
+    /**
+     * 将WebSocket消息数据转换为Message对象
+     * @param messageData WebSocket消息数据
+     * @param userId 发送者ID
+     * @return Message对象
+     */
+    private Message convertWebSocketMessageToMessage(Map<String, Object> messageData, Long userId) {
+        Message message = new Message();
+
+        // 设置基本信息
+        message.setSenderId(userId);
+        message.setCreatedAt(new java.sql.Timestamp(System.currentTimeMillis()));
+        message.setUpdatedAt(new java.sql.Timestamp(System.currentTimeMillis()));
+
+        // 从Map中提取数据
+        String content = (String) messageData.get("content");
+        String roomId = (String) messageData.get("roomId");
+        String type = (String) messageData.getOrDefault("type", "text");
+
+        // 设置消息内容
+        com.web.vo.message.TextMessageContent textContent = new com.web.vo.message.TextMessageContent();
+        textContent.setContent(content);
+
+        // 根据类型设置contentType
+        if ("image".equals(type)) {
+            textContent.setContentType(com.web.constant.TextContentType.IMAGE.getCode());
+            textContent.setUrl((String) messageData.get("url"));
+        } else if ("file".equals(type)) {
+            textContent.setContentType(com.web.constant.TextContentType.FILE.getCode());
+            textContent.setUrl((String) messageData.get("url"));
+        } else {
+            textContent.setContentType(com.web.constant.TextContentType.TEXT.getCode());
+        }
+
+        message.setContent(textContent);
+
+        // 设置消息类型和chatId
+        if (roomId != null && roomId.startsWith("group_")) {
+            message.setMessageType(1); // 群聊
+            message.setChatId(extractChatIdFromRoomId(roomId));
+        } else {
+            message.setMessageType(0); // 私聊
+            message.setChatId(extractChatIdFromRoomId(roomId));
+        }
+
+        // 设置其他默认值
+        message.setReadStatus(0); // 未读
+        message.setIsRecalled(0); // 未撤回
+        message.setIsShowTime(1); // 显示时间
+        message.setUserIp("WebSocket"); // 标记来源为WebSocket
+        message.setSource("WebSocket");
+
+        // 设置回复信息（如果有）
+        if (messageData.containsKey("replyToMessageId")) {
+            Object replyToId = messageData.get("replyToMessageId");
+            if (replyToId != null) {
+                message.setReplyToMessageId(Long.valueOf(replyToId.toString()));
+            }
+        }
+
+        // 设置线程信息（如果有）
+        if (messageData.containsKey("threadId")) {
+            Object threadId = messageData.get("threadId");
+            if (threadId != null) {
+                message.setThreadId(Long.valueOf(threadId.toString()));
+            }
+        }
+
+        return message;
+    }
+
+    /**
+     * 从roomId中提取chatId
+     * @param roomId 房间ID
+     * @return chatId
+     */
+    private Long extractChatIdFromRoomId(String roomId) {
+        if (roomId == null) return null;
+
+        try {
+            // 假设roomId格式为 "private_{userId}" 或 "group_{chatId}"
+            if (roomId.startsWith("private_")) {
+                // 对于私聊，需要根据发送者和接收者查找或创建chatId
+                // 这里暂时返回一个默认值，实际实现需要更复杂的逻辑
+                return 1L; // 临时返回值
+            } else if (roomId.startsWith("group_")) {
+                // 对于群聊，直接提取chatId
+                return Long.valueOf(roomId.substring(6));
+            }
+        } catch (Exception e) {
+            log.warn("无法从roomId提取chatId: {}", roomId, e);
+        }
+
+        return 1L; // 默认值
+    }
 
     /**
      * 处理连接事件
@@ -82,8 +179,9 @@ public class WebSocketMessageController {
                 chatMessage.put("url", message.get("url"));
             }
 
-            // 保存消息到数据库
-            Message savedMessage = messageService.saveWebSocketMessage(chatMessage, SecurityUtils.getCurrentUserId());
+            // 保存消息到数据库 - 使用ChatService统一消息存储逻辑
+            Message messageObj = convertWebSocketMessageToMessage(chatMessage, SecurityUtils.getCurrentUserId());
+            Message savedMessage = chatService.sendMessage(SecurityUtils.getCurrentUserId(), messageObj);
 
             // 构建返回的消息对象
             Map<String, Object> responseMessage = new HashMap<>();
@@ -198,8 +296,9 @@ public class WebSocketMessageController {
                 chatMessage.put("url", message.get("url"));
             }
 
-            // 保存消息到数据库
-            Message savedMessage = messageService.saveWebSocketMessage(chatMessage, SecurityUtils.getCurrentUserId());
+            // 保存消息到数据库 - 使用ChatService统一消息存储逻辑
+            Message messageObj = convertWebSocketMessageToMessage(chatMessage, SecurityUtils.getCurrentUserId());
+            Message savedMessage = chatService.sendMessage(SecurityUtils.getCurrentUserId(), messageObj);
 
             // 构建私聊消息对象
             Map<String, Object> privateMessage = new HashMap<>();
