@@ -9,6 +9,7 @@ import com.web.model.User;
 import com.web.model.UserWithStats;
 import com.web.model.Role;
 import com.web.service.AuthService;
+import com.web.service.UserCreationService;
 import com.web.constant.UserOnlineStatus;
 import com.web.util.JwtUtil;
 import com.web.util.SecurityAuditUtils;
@@ -37,15 +38,17 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
     private final RoleMapper roleMapper;
+    private final UserCreationService userCreationService;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> redisTemplate;
     private final JwtUtil jwtUtil;
 
-    public AuthServiceImpl(AuthMapper authMapper, UserMapper userMapper, UserRoleMapper userRoleMapper, RoleMapper roleMapper, PasswordEncoder passwordEncoder, RedisTemplate<String, Object> redisTemplate, JwtUtil jwtUtil) {
+    public AuthServiceImpl(AuthMapper authMapper, UserMapper userMapper, UserRoleMapper userRoleMapper, RoleMapper roleMapper, UserCreationService userCreationService, PasswordEncoder passwordEncoder, RedisTemplate<String, Object> redisTemplate, JwtUtil jwtUtil) {
         this.authMapper = authMapper;
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.roleMapper = roleMapper;
+        this.userCreationService = userCreationService;
         this.passwordEncoder = passwordEncoder;
         this.redisTemplate = redisTemplate;
         this.jwtUtil = jwtUtil;
@@ -121,7 +124,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void register(User user) {
         // 参数验证
         if (user == null) {
@@ -206,28 +209,8 @@ public class AuthServiceImpl implements AuthService {
         // 设置默认用户状态为启用
         user.setStatus(1);
 
-        authMapper.insertUser(user);
-
-        // 为新用户分配默认角色
-        // 查找默认角色（is_default = true）
-        Role defaultRole = roleMapper.selectDefaultRole();
-        if (defaultRole != null) {
-            userRoleMapper.assignRoleToUser(user.getId(), defaultRole.getId());
-            log.info("为用户分配默认角色成功: userId={}, roleId={}, roleName={}",
-                    user.getId(), defaultRole.getId(), defaultRole.getName());
-        } else {
-            // 如果没有找到默认角色，尝试查找"用户"角色
-            Role userRole = roleMapper.selectByName("用户");
-            if (userRole != null) {
-                userRoleMapper.assignRoleToUser(user.getId(), userRole.getId());
-                log.info("为用户分配'用户'角色成功: userId={}, roleId={}",
-                        user.getId(), userRole.getId());
-            } else {
-                // 如果没有找到默认角色，抛出异常触发事务回滚
-                log.error("未找到默认角色或'用户'角色，注册失败: userId={}", user.getId());
-                throw new WeebException("系统配置错误：未找到默认用户角色，请联系管理员");
-            }
-        }
+        // 使用UserCreationService创建用户及其相关数据，确保事务安全
+        userCreationService.createUserWithDependencies(user);
     }
 
     @Override
@@ -452,43 +435,4 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    @Override
-    public boolean verifyResetToken(String token) {
-        try {
-            // 这里应该实现实际的令牌验证逻辑
-            // 暂时返回false，表示没有重置令牌功能
-            return false;
-        } catch (Exception e) {
-            log.warn("验证重置令牌失败: token={}", token, e);
-            return false;
-        }
     }
-
-    @Override
-    public boolean resetPassword(String token, String newPassword) {
-        try {
-            // 这里应该实现实际的密码重置逻辑
-            // 验证令牌有效性并更新用户密码
-            log.info("重置密码: token={}", token);
-            return false; // 暂时返回false，表示没有重置令牌功能
-        } catch (Exception e) {
-            log.error("重置密码失败: token={}", token, e);
-            return false;
-        }
-    }
-
-    @Override
-    public boolean sendPasswordResetEmail(String email) {
-        try {
-            // 实现发送密码重置邮件的逻辑
-            log.info("发送密码重置邮件: email={}", email);
-            // 这里应该调用邮件服务发送重置链接
-            // 暂时记录日志，实际邮件发送功能需要邮件服务集成
-            return true; // 暂时返回成功，实际应该根据邮件发送结果返回
-        } catch (Exception e) {
-            log.error("发送密码重置邮件失败: email={}", email, e);
-            // 邮件发送失败不应该阻断用户操作，只记录错误
-            return false;
-        }
-    }
-}
