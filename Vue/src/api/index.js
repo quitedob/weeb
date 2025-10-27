@@ -11,7 +11,12 @@ import message from './modules/message';
 import comment from './modules/comment';
 import follow from './modules/follow';
 import contact from './modules/contact';
-import chat from './modules/chat'; // 导入 chat 模块
+import chat from './modules/chat';
+import ai from './modules/ai';
+import rolePermission from './modules/rolePermission';
+import userLevelHistory from './modules/userLevelHistory';
+import userLevelIntegration from './modules/userLevelIntegration';
+import admin from './modules/admin';
 
 export default {
   auth,
@@ -24,5 +29,10 @@ export default {
   comment,
   follow,
   contact,
-  chat, // 导出 chat 模块
+  chat,
+  ai,
+  rolePermission,
+  userLevelHistory,
+  userLevelIntegration,
+  admin
 };

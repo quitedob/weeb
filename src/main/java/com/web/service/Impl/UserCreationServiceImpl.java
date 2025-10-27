@@ -7,6 +7,7 @@ import com.web.mapper.UserStatsMapper;
 import com.web.model.Role;
 import com.web.model.User;
 import com.web.model.UserStats;
+import com.web.service.AuthService;
 import com.web.service.UserCreationService;
 import com.web.exception.WeebException;
 import lombok.extern.slf4j.Slf4j;
@@ -28,17 +29,20 @@ public class UserCreationServiceImpl implements UserCreationService {
     private final UserRoleMapper userRoleMapper;
     private final UserStatsMapper userStatsMapper;
     private final RoleMapper roleMapper;
+    private final AuthService authService;
 
     @Autowired
     public UserCreationServiceImpl(
             UserMapper userMapper,
             UserRoleMapper userRoleMapper,
             UserStatsMapper userStatsMapper,
-            RoleMapper roleMapper) {
+            RoleMapper roleMapper,
+            AuthService authService) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.userStatsMapper = userStatsMapper;
         this.roleMapper = roleMapper;
+        this.authService = authService;
     }
 
     @Override
@@ -199,7 +203,7 @@ public class UserCreationServiceImpl implements UserCreationService {
 
         // 验证邮箱是否已存在
         if (user.getUserEmail() != null && !user.getUserEmail().trim().isEmpty()) {
-            User existingEmailUser = userMapper.selectByEmail(user.getUserEmail());
+            User existingEmailUser = authService.findByEmail(user.getUserEmail());
             if (existingEmailUser != null) {
                 throw new WeebException("邮箱已被使用：" + user.getUserEmail());
             }

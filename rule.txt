@@ -68,7 +68,7 @@
 3. 安全事件通过SecurityAuditUtils记录, 包括登录失败、异常操作等
 4. JWT Token管理通过authStore.js, 过期自动刷新
 5. 敏感信息必须使用环境变量配置, 不得硬编码
-6.禁止使用select * 等操作
+6. 禁止使用select * 等操作
 
 === 本地开发健康规范 ===
 1. 开发环境启动前必须确保MySQL、Redis、Elasticsearch服务正常运行

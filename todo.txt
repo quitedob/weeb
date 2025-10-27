@@ -1,82 +1,82 @@
-# Weeb项目任务清单
+=== 用户等级历史和角色权限功能实现TODO ===
 
-## 架构重构任务
 
-### API统一化 - ✅ 已完成 (2025-10-26)
-- ~~设计统一的聊天API，整合/api/v1/chats、/api/v1/message、/api/threads三套接口统一为/api/chats禁止添加v1或则v2~~
-- ~~Chatcontroller.chatservice统一处理聊天业务逻辑~~
-- ~~重构WebSocketMessageController，剥离业务逻辑，仅作为消息传输层~~
-- ~~统一用户信息获取接口，整合/api/auth/me、/api/users/me等多个端点统一为/api/users/~~
-- ~~制定API设计规范，统一URL命名约定和版本管理策略~~
+## 需要完善的功能
 
-### 权限系统重构
-- 废弃UserLevel.java中的权限授予逻辑，统一使用RBAC系统
-- 整合DatabaseInitializer、SystemPermissionInitializer、RolePermissionInitializer的权限初始化逻辑
-- 创建SystemSecurityInitializer统一管理权限和角色初始化
-- 移除fix_user_permissions.sql脚本，消除独立配置源
-- 审计所有@PreAuthorize注解，确保权限定义完整一致
+### 1. 数据库表创建（高优先级）
+**文件位置**: src/main/resources/db/migration/ 或 DatabaseInitializer.java
+**功能**: 创建role_permission和user_level_history表
+**实现方式**:
+```sql
+-- role_permission表
+CREATE TABLE IF NOT EXISTS role_permission (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    role_id BIGINT NOT NULL COMMENT '角色ID',
+    permission_id BIGINT NOT NULL COMMENT '权限ID',
+    status INT DEFAULT 1 COMMENT '状态 0:无效 1:有效',
+    created_by BIGINT COMMENT '创建人ID',
+    updated_by BIGINT COMMENT '更新人ID',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    remark VARCHAR(500) COMMENT '备注',
+    INDEX idx_role_id (role_id),
+    INDEX idx_permission_id (permission_id),
+    INDEX idx_status (status),
+    UNIQUE KEY uk_role_permission (role_id, permission_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色权限关联表';
 
-### 数据库管理优化
-- 数据库确认和前端和后端的需求一样
+-- user_level_history表
+CREATE TABLE IF NOT EXISTS user_level_history (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    old_level INT COMMENT '原等级',
+    new_level INT NOT NULL COMMENT '新等级',
+    change_reason VARCHAR(500) COMMENT '变更原因',
+    change_type INT NOT NULL COMMENT '变更类型 1:系统自动 2:管理员操作 3:用户行为触发',
+    operator_id BIGINT COMMENT '操作者ID',
+    operator_name VARCHAR(100) COMMENT '操作者名称',
+    change_time DATETIME NOT NULL COMMENT '变更时间',
+    ip_address VARCHAR(50) COMMENT 'IP地址',
+    user_agent VARCHAR(500) COMMENT '用户代理',
+    remark VARCHAR(500) COMMENT '备注',
+    status INT DEFAULT 1 COMMENT '状态 0:无效 1:有效',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id (user_id),
+    INDEX idx_change_type (change_type),
+    INDEX idx_operator_id (operator_id),
+    INDEX idx_change_time (change_time),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户等级变更历史表';
 
-## 功能模块修复
 
-### 用户认证系统
-- 重构AuthServiceImpl注册方法，确保用户创建和角色分配在同一事务中
-- 创建UserCreationService专门处理用户创建业务流程
-- 同步前后端验证逻辑，统一用户名、密码等字段的校验规则
-- 修复默认角色分配失败时的静默错误处理
+### 5. 前端逻辑对齐问题
+**发现的问题**:
+- 前端页面已创建，但需要验证与后端API的接口对齐
+- 权限验证流程是否与后端拦截器逻辑一致
+- 数据格式和错误处理是否匹配
+**解决方案**: 运行前端页面测试API调用和数据展示
 
-### 文章内容管理
-- 在用户域创建专门的用户统计信息接口
-- 重构usermain.vue组件，移除对文章域API的错误依赖
-- 限制PUT /api/articles/{id}接口，禁止普通用户修改文章状态
-- 创建管理员专用的文章状态管理接口
-- 整合文章交互操作到统一子路径/api/articles/{id}/interactions
+### 6. 单元测试（低优先级）
+**文件位置**: src/test/java/com/web/service/
+**功能**: 为Service层编写单元测试
+**实现方式**:
+- RolePermissionServiceTest.java - 测试角色权限服务
+- UserLevelHistoryServiceTest.java - 测试等级历史服务
+- 使用Mockito模拟依赖
+- 测试覆盖率达到80%以上
 
-### 社交关系系统
-- 制定联系人系统和关注系统合并策略
-- 废弃ContactController，统一使用关注模型
-- 实现互相关注逻辑判断好友关系
-- 创建定期后台任务校准粉丝数数据一致性
+### 7. API文档更新（低优先级）
+**文件位置**: backend.md
+**功能**: 更新API文档，添加新增的接口说明
+**实现方式**:
+- 添加/api/role-permissions/*接口文档
+- 添加/api/user-level-history/*接口文档
+- 包含请求参数、响应格式、错误码说明
 
-### 搜索功能
-- 为用户、文章、群组创建Elasticsearch文档模型
-- 重构ArticleService和UserService的搜索方法，使用Elasticsearch替代LIKE查询
-- 设计统一的SearchController和SearchService接口
-- 在开发环境默认启用Elasticsearch
-
-## 代码质量提升
-
-### 静态代码分析
-- 清理582个linter警告，移除未使用的导入、变量和方法
-- 修复PasswordResetService等接口与实现不匹配问题
-- 在CI/CD流程中加入代码质量门禁
-
-### 功能实现完善
-- 替换AIServiceImpl中的占位符逻辑，集成真实AI服务API
-- 实现所有API文档中声明的查询过滤功能
-- 将前端业务逻辑计算迁移到后端，通过DTO提供
-
-### 前端架构优化
-- 审计所有Vue组件的API调用，修复跨领域调用问题
-- 重构stores/authStore.js，实现健壮的令牌刷新和跨标签页同步
-- 优化axiosInstance.js的请求重试策略，仅对瞬态错误重试
-- 实现前端验证逻辑与后端SecurityConstants的严格同步
-
-## 系统集成与测试
-
-### 功能开关管理
-- 为未实现的AI功能添加Feature Flag
-- 确保占位符API返回明确的"功能未实现"错误
-- 建立功能开关的配置管理机制
-
-### 文档与规范
-- 更新API文档，确保与代码实现一致
-- 制定数据库迁移操作规范
-- 建立代码审查和架构治理流程
-
-### 监控与日志
-- 为废弃的API端点添加@Deprecated注解和调用日志
-- 建立权限变更的审计日志机制
-- 实现数据一致性监控和告警
+### 8. 性能优化（低优先级）
+**优化点**:
+- 为role_permission和user_level_history表添加合适的索引
+- 实现角色权限缓存机制（使用Redis）
+- 批量操作优化
+- 分页查询性能优化

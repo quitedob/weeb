@@ -437,7 +437,6 @@ weeb/
 │   │   ├── ContactController.java # 联系人控制器
 │   │   ├── ContentReportController.java # 内容举报控制器
 │   │   ├── GroupController.java   # 群组控制器
-│   │   ├── MessageController.java # 消息控制器
 │   │   ├── MessageThreadController.java # 消息线索控制器
 │   │   ├── MigrationController.java # 数据迁移控制器
 │   │   ├── NotificationController.java # 通知控制器

@@ -1,4 +1,4 @@
-package com.web.config;
+package com.web.Config;
 
 import com.web.model.Permission;
 import com.web.service.PermissionService;
@@ -27,6 +27,11 @@ public class SystemSecurityInitializer implements CommandLineRunner {
     private final JdbcTemplate jdbcTemplate;
     private final PermissionService permissionService;
     private final RolePermissionService rolePermissionService;
+
+    /**
+     * 初始化默认角色和权限
+     * 这个方法会在系统启动时自动执行
+     */
 
     @Override
     public void run(String... args) throws Exception {
