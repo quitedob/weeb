@@ -14,6 +14,16 @@
 ## 架构规范
 项目遵循分层架构：Controller -> Service -> ServiceImpl -> Mapper -> Database
 
+## 权限系统说明
+项目采用RBAC权限管理系统，主要权限类型：
+- `ADMIN_*`: 管理员权限
+- `USER_*_OWN`: 用户对自己资源的权限
+- `USER_*_ANY`: 用户对所有资源的权限
+- `ARTICLE_*_OWN`: 文章相关权限
+- `CONTENT_*`: 内容管理权限
+- `AI_*`: AI功能权限
+- `GROUP_*`: 群组管理权限
+
 ---
 
 ## API接口列表
@@ -23,6 +33,7 @@
 #### 权限管理
 - **GET /api/admin/permissions**
   - 功能：获取权限管理页面数据
+  - 权限：管理员权限
   - 参数：
     - `page` (int, 默认1): 页码
     - `pageSize` (int, 默认10): 每页大小
@@ -32,6 +43,7 @@
 
 - **POST /api/admin/permissions**
   - 功能：创建权限
+  - 权限：管理员权限
   - 参数：Permission对象 (JSON)
     - `name`: 权限名称
     - `resource`: 资源标识
@@ -40,12 +52,14 @@
 
 - **PUT /api/admin/permissions/{permissionId}**
   - 功能：更新权限
+  - 权限：管理员权限
   - 参数：
     - `permissionId` (Long, 路径): 权限ID
     - `permission` (Permission对象): 更新的权限信息
 
 - **DELETE /api/admin/permissions/{permissionId}**
   - 功能：删除权限
+  - 权限：管理员权限
   - 参数：`permissionId` (Long, 路径): 权限ID
 
 #### 角色管理
@@ -306,102 +320,103 @@
 #### 文章处理
 - **POST /api/ai/article/summary**
   - 功能：生成文章摘要
+  - 权限：ARTICLE_READ_OWN
   - 参数：
     - `content` (String): 文章内容
     - `maxLength` (Integer, 可选): 摘要最大长度
-  - 权限：ARTICLE_READ_OWN
 
 - **POST /api/ai/article/titles**
   - 功能：生成文章标题建议
+  - 权限：ARTICLE_CREATE_OWN
   - 参数：
     - `content` (String): 文章内容
     - `count` (Integer, 默认5): 生成数量
-  - 权限：ARTICLE_CREATE_OWN
 
 - **POST /api/ai/article/tags**
   - 功能：生成文章标签
+  - 权限：ARTICLE_CREATE_OWN
   - 参数：
     - `content` (String): 文章内容
     - `count` (Integer, 默认5): 生成数量
-  - 权限：ARTICLE_CREATE_OWN
 
 #### 文本处理
 - **POST /api/ai/text/refine**
   - 功能：润色文本内容
+  - 权限：ARTICLE_UPDATE_OWN
   - 参数：
     - `content` (String): 文本内容
     - `tone` (String): 语气风格
-  - 权限：ARTICLE_UPDATE_OWN
 
 - **POST /api/ai/text/translate**
   - 功能：翻译文本
+  - 权限：AI_TRANSLATE_OWN
   - 参数：
     - `content` (String): 原文内容
     - `targetLanguage` (String): 目标语言
-  - 权限：AI_TRANSLATE_OWN
 
 - **POST /api/ai/text/proofread**
   - 功能：校对和修正文本
-  - 参数：`content` (String): 待校对文本
   - 权限：ARTICLE_UPDATE_OWN
+  - 参数：`content` (String): 待校对文本
 
 #### AI对话
 - **POST /api/ai/chat**
   - 功能：AI聊天对话
+  - 权限：AI_CHAT_OWN
   - 参数：
     - `messages` (List<Message>): 消息列表
     - `sessionId` (String, 可选): 会话ID
-  - 权限：AI_CHAT_OWN
 
 - **POST /api/ai/reply/suggestions**
   - 功能：生成回复建议
+  - 权限：AI_CHAT_OWN
   - 参数：
     - `originalMessage` (String): 原始消息
     - `context` (String, 可选): 上下文
-  - 权限：AI_CHAT_OWN
 
 - **POST /api/ai/conversation/summary**
   - 功能：总结对话历史
+  - 权限：AI_CHAT_OWN
   - 参数：
     - `messages` (List<Map>): 消息历史
     - `maxLength` (Integer, 默认200): 摘要最大长度
-  - 权限：AI_CHAT_OWN
 
 #### 内容分析
 - **POST /api/ai/sentiment/analyze**
   - 功能：分析内容情感
-  - 参数：`content` (String): 分析内容
   - 权限：CONTENT_ANALYZE_OWN
+  - 参数：`content` (String): 分析内容
 
 - **POST /api/ai/keywords/extract**
   - 功能：提取关键词
+  - 权限：CONTENT_ANALYZE_OWN
   - 参数：
     - `content` (String): 提取内容
     - `count` (Integer, 默认10): 关键词数量
-  - 权限：CONTENT_ANALYZE_OWN
 
 - **POST /api/ai/content/compliance**
   - 功能：检查内容合规性
-  - 参数：`content` (String): 检查内容
   - 权限：CONTENT_MODERATE_OWN
+  - 参数：`content` (String): 检查内容
 
 - **POST /api/ai/content/suggestions**
   - 功能：生成内容创作建议
+  - 权限：ARTICLE_CREATE_OWN
   - 参数：
     - `topic` (String): 主题
     - `contentType` (String, 默认"article"): 内容类型
-  - 权限：ARTICLE_CREATE_OWN
 
 - **POST /api/ai/content/outline**
   - 功能：生成内容大纲
+  - 权限：ARTICLE_CREATE_OWN
   - 参数：
     - `topic` (String): 主题
     - `structure` (String, 默认"introduction-body-conclusion"): 结构
-  - 权限：ARTICLE_CREATE_OWN
 
 #### 配置管理
 - **GET /api/ai/config**
   - 功能：获取AI配置信息
+  - 权限：无特殊权限要求
   - 参数：无
 
 ### 3. 文章管理 API (`/api/articles`)
@@ -409,10 +424,12 @@
 #### 基础文章操作
 - **GET /api/articles/{id}**
   - 功能：根据ID获取文章信息
+  - 权限：无特殊权限要求
   - 参数：`id` (Long, 路径): 文章ID
 
 - **PUT /api/articles/{id}**
   - 功能：修改文章内容
+  - 权限：ARTICLE_UPDATE_OWN
   - 参数：
     - `id` (Long, 路径): 文章ID
     - `articleTitle` (String): 文章标题
@@ -420,22 +437,21 @@
     - `articleLink` (String): 文章链接
     - `categoryId` (Long): 分类ID
     - `status` (Integer): 文章状态
-  - 权限：ARTICLE_UPDATE_OWN
 
 - **DELETE /api/articles/{id}**
   - 功能：删除文章
-  - 参数：`id` (Long, 路径): 文章ID
   - 权限：ARTICLE_DELETE_OWN
+  - 参数：`id` (Long, 路径): 文章ID
 
 - **POST /api/articles/new**
   - 功能：创建新文章
+  - 权限：ARTICLE_CREATE_OWN
   - 参数：
     - `articleTitle` (String): 文章标题
     - `articleContent` (String): 文章内容
     - `articleLink` (String): 文章链接
     - `categoryId` (Long): 分类ID
     - `status` (Integer): 文章状态
-  - 权限：ARTICLE_CREATE_OWN
 
 #### 文章交互
 - **POST /api/articles/{id}/like**
@@ -604,24 +620,31 @@
 
 ### 5. 聊天 API (`/api/chats`)
 
+#### 📋 功能职责说明
+**ChatController** 负责聊天会话的管理和历史消息查询，专注于REST API形式的聊天业务逻辑。与WebSocketMessageController的实时通信功能相辅相成。
+
 - **GET /api/chats**
   - 功能：获取用户的聊天列表
+  - 权限：已认证用户
   - 参数：无
 
 - **POST /api/chats**
   - 功能：创建新的聊天会话
+  - 权限：已认证用户
   - 参数：
     - `targetId` (Long): 目标用户ID
 
 - **GET /api/chats/{chatId}/messages**
-  - 功能：获取聊天消息历史记录
+  - 功能：获取聊天消息历史记录（分页查询）
+  - 权限：已认证用户
   - 参数：
     - `chatId` (Long, 路径): 聊天ID
     - `page` (int, 默认1): 页码
     - `size` (int, 默认20): 每页大小
 
 - **POST /api/chats/{chatId}/messages**
-  - 功能：发送聊天消息
+  - 功能：发送聊天消息（REST API方式，主要用于兼容性）
+  - 权限：已认证用户
   - 参数：
     - `chatId` (Long, 路径): 聊天ID
     - `content` (String): 消息内容
@@ -629,14 +652,17 @@
 
 - **POST /api/chats/{chatId}/read**
   - 功能：标记消息为已读
+  - 权限：已认证用户
   - 参数：`chatId` (Long, 路径): 聊天ID
 
 - **DELETE /api/chats/{chatId}**
   - 功能：删除聊天会话
+  - 权限：已认证用户
   - 参数：`chatId` (Long, 路径): 聊天ID
 
 - **POST /api/chats/messages/{messageId}/react**
   - 功能：对消息添加反应
+  - 权限：已认证用户
   - 参数：
     - `messageId` (Long, 路径): 消息ID
     - `reactionType` (String): 反应类型（如👍、❤️等）
@@ -698,6 +724,7 @@
 #### 标准认证
 - **POST /api/auth/register**
   - 功能：用户注册
+  - 权限：公开访问
   - 参数：
     - `username` (String): 用户名 (必需，3-20字符)
     - `password` (String): 密码 (必需，6-50字符)
@@ -709,6 +736,7 @@
 
 - **POST /api/auth/login**
   - 功能：用户登录
+  - 权限：公开访问
   - 参数：
     - `username` (String): 用户名 (必需，3-50字符)
     - `password` (String): 密码 (必需，6-100字符)
@@ -716,19 +744,22 @@
 
 - **POST /api/auth/logout**
   - 功能：用户登出
+  - 权限：已认证用户
   - 参数：Authorization header (Bearer token)
-
 
 - **POST /api/auth/refresh**
   - 功能：刷新访问令牌
+  - 权限：已认证用户
   - 参数：Authorization header (Bearer token)
 
 - **POST /api/auth/validate**
   - 功能：验证令牌
+  - 权限：公开访问
   - 参数：Authorization header (Bearer token)
 
 - **POST /api/auth/change-password**
   - 功能：修改密码
+  - 权限：已认证用户
   - 参数：Authorization header (Bearer token)
   - 请求体：
     - `currentPassword` (String): 当前密码
@@ -738,45 +769,54 @@
 #### 密码重置
 - **POST /api/auth/forgot-password**
   - 功能：发送密码重置链接
+  - 权限：公开访问
   - 参数：`email` (String): 邮箱地址
 
 - **POST /api/auth/reset-password**
   - 功能：重置密码
+  - 权限：公开访问
   - 参数：
     - `token` (String): 重置令牌
     - `newPassword` (String): 新密码
 
 - **GET /api/auth/verify-reset-token**
   - 功能：验证重置令牌
+  - 权限：公开访问
   - 参数：`token` (String): 重置令牌
 
 ### 8. 用户管理 API (`/api/users`)
 
 - **GET /api/users/me**
   - 功能：获取当前用户完整信息（包含统计数据）
+  - 权限：isAuthenticated()
   - 参数：无
   - 📝 **统一接口**：整合了原本分散的用户信息获取功能
 
 - **GET /api/users/me/profile**
   - 功能：获取当前用户完整信息（包含统计数据）
+  - 权限：isAuthenticated()
   - 参数：无
   - 📝 **兼容接口**：与 GET /api/users/me 功能相同
 
 - **GET /api/users/me/info**
   - 功能：获取当前用户基本信息
+  - 权限：isAuthenticated()
   - 参数：无
   - 📝 **兼容接口**：返回用户基础信息，不含统计数据
 
 - **PUT /api/users/me**
   - 功能：更新当前用户信息
+  - 权限：USER_UPDATE_OWN
   - 参数：UpdateUserVo对象
 
 - **GET /api/users/{userId}**
   - 功能：获取指定用户信息
+  - 权限：USER_READ_ANY
   - 参数：`userId` (Long, 路径): 用户ID
 
 - **GET /api/users**
   - 功能：获取用户列表
+  - 权限：USER_READ_ANY
   - 参数：
     - `page` (int, 默认1): 页码
     - `pageSize` (int, 默认10): 每页大小
@@ -784,12 +824,14 @@
 
 - **GET /api/users/search**
   - 功能：搜索用户
+  - 权限：USER_READ_ANY
   - 参数：
     - `q` (String): 搜索关键词
     - `limit` (int, 默认10): 返回数量
 
 - **GET /api/users/me/groups**
   - 功能：获取当前用户的群组列表
+  - 权限：GROUP_READ_OWN
   - 参数：无
 
 #### 用户操作
@@ -848,63 +890,76 @@
 
 - **POST /api/groups**
   - 功能：创建群组
-  - 参数：
-    - `name` (String): 群组名称
-    - `description` (String): 群组描述
-    - `avatar` (String, 可选): 群组头像
+  - 权限：GROUP_CREATE_OWN
+  - 参数：GroupCreateVo对象
+    - `groupName` (String): 群组名称
+    - `groupDescription` (String): 群组描述
 
 - **GET /api/groups/{groupId}**
   - 功能：获取群组信息
+  - 权限：GROUP_READ_OWN
   - 参数：`groupId` (Long, 路径): 群组ID
 
 - **PUT /api/groups/{groupId}**
   - 功能：更新群组信息
+  - 权限：GROUP_UPDATE_OWN
   - 参数：
     - `groupId` (Long, 路径): 群组ID
-    - `name` (String): 群组名称
-    - `description` (String): 群组描述
+    - GroupCreateVo对象：更新的群组信息
 
 - **DELETE /api/groups/{groupId}**
   - 功能：删除群组
+  - 权限：GROUP_DELETE_OWN
   - 参数：`groupId` (Long, 路径): 群组ID
 
 - **GET /api/groups/{groupId}/members**
   - 功能：获取群组成员列表
+  - 权限：GROUP_READ_OWN
   - 参数：`groupId` (Long, 路径): 群组ID
 
 - **POST /api/groups/{groupId}/members**
-  - 功能：添加群组成员
+  - 功能：邀请用户加入群组
+  - 权限：GROUP_MANAGE_MEMBERS_OWN
   - 参数：
     - `groupId` (Long, 路径): 群组ID
-    - `userId` (Long): 用户ID
+    - GroupInviteVo对象：邀请信息
 
 - **DELETE /api/groups/{groupId}/members/me**
   - 功能：退出群组
+  - 权限：GROUP_LEAVE_OWN
   - 参数：`groupId` (Long, 路径): 群组ID
 
 - **DELETE /api/groups/{groupId}/members/{userId}**
   - 功能：移除群组成员
+  - 权限：GROUP_MANAGE_MEMBERS_OWN
   - 参数：
     - `groupId` (Long, 路径): 群组ID
     - `userId` (Long, 路径): 用户ID
 
 - **POST /api/groups/{groupId}/applications**
   - 功能：申请加入群组
-  - 参数：`groupId` (Long, 路径): 群组ID
+  - 权限：GROUP_JOIN_OWN
+  - 参数：
+    - `groupId` (Long, 路径): 群组ID
+    - `message` (String, 可选): 申请消息
 
 - **GET /api/groups/{groupId}/applications**
   - 功能：获取群组申请列表
+  - 权限：GROUP_MANAGE_MEMBERS_OWN
   - 参数：`groupId` (Long, 路径): 群组ID
 
 - **PUT /api/groups/{groupId}/applications/{applicationId}**
   - 功能：处理群组申请
+  - 权限：GROUP_MANAGE_MEMBERS_OWN
   - 参数：
     - `groupId` (Long, 路径): 群组ID
     - `applicationId` (Long, 路径): 申请ID
     - `action` (String): 处理动作 (approve/reject)
+    - `reason` (String, 可选): 处理原因
 
 - **PUT /api/groups/{groupId}/members/{userId}/role**
-  - 功能：更改成员角色
+  - 功能：设置成员角色
+  - 权限：GROUP_MANAGE_MEMBERS_OWN
   - 参数：
     - `groupId` (Long, 路径): 群组ID
     - `userId` (Long, 路径): 用户ID
@@ -912,16 +967,19 @@
 
 - **GET /api/groups/search**
   - 功能：搜索群组
+  - 权限：GROUP_READ_OWN
   - 参数：
     - `q` (String): 搜索关键词
     - `limit` (int, 默认10): 返回数量
 
 - **GET /api/groups/my-groups**
   - 功能：获取我的群组
+  - 权限：GROUP_READ_OWN
   - 参数：无
 
 - **GET /api/groups/my-created**
   - 功能：获取我创建的群组
+  - 权限：GROUP_READ_OWN
   - 参数：无
 
 ### 10. 联系人管理 API (`/api/contacts`)
@@ -1220,20 +1278,69 @@
 
 ### 17. WebSocket/STOMP 端点
 
-- 连接与订阅
-  - 订阅：`/topic/chat/{roomId}`（聊天室广播）
-  - 订阅：`/user/queue/private`（私聊消息）
+#### 📋 功能职责说明
+**WebSocketMessageController** 负责实时消息通信协议的处理，与ChatController的REST API相辅相成。主要处理WebSocket连接、实时消息推送和用户状态同步。
 
-- 发送端点（客户端发送）
-  - `@MessageMapping("/chat.sendMessage")`：发送聊天室消息（服务端转发到 `/topic/chat/{roomId}`）
-  - `@MessageMapping("/chat/join/{roomId}")`：加入聊天室（广播加入事件）
-  - `@MessageMapping("/chat/leave/{roomId}")`：离开聊天室（广播离开事件）
-  - `@MessageMapping("/chat/typing/{roomId}")`：正在输入（广播输入状态）
-  - `@MessageMapping("/chat/private")`：发送私聊消息（发送到 `/user/{target}/queue/private`）
+#### 连接与订阅
+- **订阅端点**
+  - `/topic/chat/{roomId}`：聊天室广播消息
+  - `/user/queue/private`：私聊消息
+  - `/queue/errors`：错误消息
 
-- 其他
-  - 心跳：`/chat/heartbeat`
-  - 连接握手：`/chat/connect`（`@SubscribeMapping`）
+#### 发送端点（客户端发送）
+- **@MessageMapping("/chat.sendMessage")**
+  - 功能：发送聊天室消息（实时通信）
+  - 参数：`roomId` (路径), `content`, `type`, `replyToMessageId` (可选)
+  - 广播到：`/topic/chat/{roomId}`
+  - 💡 **与REST API互补**：此为实时发送，ChatController的POST为兼容性接口
+
+- **@MessageMapping("/chat/join/{roomId}")**
+  - 功能：加入聊天室
+  - 参数：`roomId` (路径)
+  - 广播到：`/topic/chat/{roomId}`
+
+- **@MessageMapping("/chat/leave/{roomId}")**
+  - 功能：离开聊天室
+  - 参数：`roomId` (路径)
+  - 广播到：`/topic/chat/{roomId}`
+
+- **@MessageMapping("/chat/typing/{roomId}")**
+  - 功能：正在输入状态
+  - 参数：`roomId` (路径)
+  - 广播到：`/topic/chat/{roomId}`
+
+- **@MessageMapping("/chat/private")**
+  - 功能：发送私聊消息（实时通信）
+  - 参数：`targetUser`, `content`, `type`, `replyToMessageId` (可选)
+  - 发送到：`/user/{target}/queue/private`
+
+- **@MessageMapping("/chat/recall/{messageId}")**
+  - 功能：撤回消息
+  - 参数：`messageId` (路径), `roomId` (路径)
+  - 广播到：`/topic/chat/{roomId}`
+
+- **@MessageMapping("/chat/heartbeat")**
+  - 功能：心跳检测
+  - 参数：无
+
+#### 订阅端点（客户端订阅）
+- **@SubscribeMapping("/chat/connect")**
+  - 功能：连接握手
+  - 返回：连接状态信息
+
+#### 消息格式
+```json
+{
+  "id": "消息ID",
+  "fromId": "发送者ID",
+  "fromName": "发送者用户名",
+  "content": "消息内容",
+  "roomId": "房间ID",
+  "timestamp": "时间戳",
+  "type": "消息类型(text/image/file/etc)",
+  "replyToMessageId": "回复消息ID(可选)"
+}
+```
 
 ### 18. 迁移 API (`/api/migration`)
 
@@ -1363,7 +1470,7 @@
 ## 🔍 项目问题分析与状态报告
 
 ### 最新分析时间
-**2025年10月25日** - 基于当前项目状态的全面分析
+**2025年10月27日** - 消息API优化完成，统一消息存储逻辑
 
 ### 🎯 当前项目状态
 
@@ -1376,8 +1483,8 @@
 
 #### ⚠️ 发现的问题分类
 
-##### 1. 代码质量问题 (582个linter警告)
-- **未使用的导入**: 约200+个未使用的import语句
+##### 1. 代码质量问题 (575个linter警告)
+- **未使用的导入**: 约195+个未使用的import语句（已清理WebSocketMessageController的冗余导入）
 - **未使用的变量**: 约150+个未使用的局部变量和字段
 - **未使用的方法**: 约50+个未使用的方法
 - **类型安全警告**: 约30+个unchecked cast和类型安全问题
@@ -1389,6 +1496,11 @@
 ##### 3. 依赖管理问题
 - **循环依赖**: 部分模块存在潜在的循环依赖风险
 - **未使用的依赖**: pom.xml中存在未使用的依赖包
+
+##### 4. 最近修复的问题 ✅
+- **消息存储逻辑统一**: 修复了ChatController和WebSocketMessageController重复的消息保存逻辑，现在统一使用ChatService.sendMessage()
+- **WebSocket数据转换**: 添加了convertWebSocketMessageToMessage()辅助方法，提高代码复用性
+- **代码清理**: 移除了WebSocketMessageController中未使用的导入和权限注解，减少linter警告
 
 ### 📊 问题严重程度评估
 

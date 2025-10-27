@@ -3,7 +3,7 @@ package com.web.service;
 import com.web.model.Role;
 import com.web.model.User;
 import com.web.model.UserStats;
-import com.web.util.WeebException;
+import com.web.exception.WeebException;
 
 /**
  * 用户创建服务
