@@ -6,6 +6,7 @@ import com.web.model.*;
 import com.web.service.*;
 import com.web.service.UserTypeSecurityService;
 import com.web.vo.message.SendMessageVo;
+import com.web.vo.message.TextMessageContent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,9 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
     @Autowired
     private UserTypeSecurityService userTypeSecurityService;
+    
+    @Autowired
+    private com.web.service.UserService userService;
 
     @Autowired
     private com.web.service.MessageCacheService messageCacheService;
@@ -67,18 +71,19 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             com.web.util.MessageValidator.validateSendMessageVo(sendMessageVo);
             com.web.util.MessageValidator.validateUserId(userId);
 
-            // 清理消息内容
-            String sanitizedContent = com.web.util.MessageValidator.sanitizeContent(sendMessageVo.getContent());
+            // 清理消息内容（将Object转换为String）
+            String contentStr = sendMessageVo.getContent() != null ? sendMessageVo.getContent().toString() : "";
+            String sanitizedContent = com.web.util.MessageValidator.sanitizeContent(contentStr);
             sendMessageVo.setContent(sanitizedContent);
 
             // 根据目标类型选择发送方式
             Message message;
             switch (sendMessageVo.getTargetType().toUpperCase()) {
                 case MESSAGE_TYPE_PRIVATE:
-                    message = sendPrivateMessage(sendMessageVo.getTargetId(), sendMessageVo.getContent(), userId);
+                    message = sendPrivateMessage(sendMessageVo.getTargetId(), sanitizedContent, userId);
                     break;
                 case MESSAGE_TYPE_GROUP:
-                    message = sendGroupMessage(sendMessageVo.getTargetId(), sendMessageVo.getContent(), userId);
+                    message = sendGroupMessage(sendMessageVo.getTargetId(), sanitizedContent, userId);
                     break;
                 default:
                     throw new WeebException("不支持的消息类型: " + sendMessageVo.getTargetType());
@@ -110,8 +115,8 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     @Override
     public Message sendPrivateMessage(Long targetUserId, String content, Long senderId) {
         try {
-            // 验证目标用户是否存在
-            User targetUser = chatService.findUserById(targetUserId);
+            // 验证目标用户是否存在（使用UserService替代ChatService）
+            com.web.model.User targetUser = userService.getUserBasicInfo(targetUserId);
             if (targetUser == null) {
                 throw new WeebException("目标用户不存在");
             }
@@ -119,19 +124,24 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             // 创建或获取私聊会话
             ChatList chatList = chatService.createChat(senderId, targetUserId);
 
+            // 创建消息内容对象
+            TextMessageContent messageContent = new TextMessageContent();
+            messageContent.setContent(content);
+
             // 创建消息对象
             Message message = new Message();
-            message.setChatId(chatList.getId());
+            message.setChatId(Long.parseLong(chatList.getId()));
             message.setSenderId(senderId);
             message.setReceiverId(targetUserId);
-            message.setContent(content);
-            message.setType(MESSAGE_TYPE_PRIVATE);
+            message.setContent(messageContent);
+            message.setMessageType(1); // 1表示文本消息
             message.setStatus(MESSAGE_STATUS_NORMAL);
+            message.setIsRead(0);
             message.setCreatedAt(new Timestamp(System.currentTimeMillis()));
             message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
 
             // 保存消息
-            messageMapper.insertMessage(message);
+            messageMapper.insert(message);
 
             // 更新聊天列表
             chatListMapper.updateLastMessageAndUnreadCount(chatList.getId(), content);
@@ -162,19 +172,24 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
                 throw new WeebException("您不是该群组成员");
             }
 
+            // 创建消息内容对象
+            TextMessageContent messageContent = new TextMessageContent();
+            messageContent.setContent(content);
+
             // 创建消息对象
             Message message = new Message();
             message.setChatId(groupId); // 群聊使用groupId作为chatId
             message.setSenderId(senderId);
-            message.setReceiverId(groupId); // 群聊消息接收者为群组
-            message.setContent(content);
-            message.setType(MESSAGE_TYPE_GROUP);
+            message.setGroupId(groupId); // 设置群组ID
+            message.setContent(messageContent);
+            message.setMessageType(1); // 1表示文本消息
             message.setStatus(MESSAGE_STATUS_NORMAL);
+            message.setIsRead(0);
             message.setCreatedAt(new Timestamp(System.currentTimeMillis()));
             message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
 
             // 保存消息
-            messageMapper.insertMessage(message);
+            messageMapper.insert(message);
 
             // 更新群组成员的未读消息数（这里简化处理）
             updateGroupUnreadCounts(groupId, senderId);
@@ -195,14 +210,28 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
         try {
             Map<String, Object> result = new HashMap<>();
 
-            // 获取私聊消息
-            List<Message> privateMessages = messageService.getUserMessages(userId, page, size);
+            // 获取私聊消息（使用MessageMapper直接查询）
+            int offset = (page - 1) * size;
+            List<Message> privateMessages = messageMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Message>()
+                    .and(wrapper -> wrapper.eq("sender_id", userId).or().eq("receiver_id", userId))
+                    .orderByDesc("created_at")
+                    .last("LIMIT " + offset + ", " + size)
+            );
 
             // 获取群聊消息
-            List<Long> userGroupIds = groupMemberMapper.findGroupIdsByUserId(userId);
+            List<GroupMember> userGroups = groupMemberMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<GroupMember>()
+                    .eq("user_id", userId)
+            );
             List<Message> groupMessages = new ArrayList<>();
-            for (Long groupId : userGroupIds) {
-                List<Message> groupMsgs = messageMapper.selectMessagesByChatId(groupId, 0, size);
+            for (GroupMember groupMember : userGroups) {
+                List<Message> groupMsgs = messageMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Message>()
+                        .eq("group_id", groupMember.getGroupId())
+                        .orderByDesc("created_at")
+                        .last("LIMIT " + size)
+                );
                 groupMessages.addAll(groupMsgs);
             }
 
@@ -257,7 +286,15 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
             // 从数据库查询
             int offset = (page - 1) * size;
-            List<Message> messages = messageMapper.selectPrivateMessagesByUsers(userId, targetUserId, offset, size);
+            List<Message> messages = messageMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Message>()
+                    .and(wrapper -> wrapper
+                        .and(w -> w.eq("sender_id", userId).eq("receiver_id", targetUserId))
+                        .or(w -> w.eq("sender_id", targetUserId).eq("receiver_id", userId))
+                    )
+                    .orderByDesc("created_at")
+                    .last("LIMIT " + offset + ", " + size)
+            );
 
             // 缓存查询结果
             if (!messages.isEmpty()) {
@@ -298,7 +335,12 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
             // 从数据库查询
             int offset = (page - 1) * size;
-            List<Message> messages = messageMapper.selectMessagesByChatId(groupId, offset, size);
+            List<Message> messages = messageMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Message>()
+                    .eq("group_id", groupId)
+                    .orderByDesc("created_at")
+                    .last("LIMIT " + offset + ", " + size)
+            );
 
             // 缓存查询结果
             if (!messages.isEmpty()) {
@@ -332,14 +374,15 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             }
 
             // 根据消息类型标记已读
-            if (MESSAGE_TYPE_PRIVATE.equals(message.getType())) {
-                return markPrivateChatAsRead(message.getSenderId().equals(userId) ?
-                    message.getReceiverId() : message.getSenderId(), userId);
-            } else if (MESSAGE_TYPE_GROUP.equals(message.getType())) {
-                return markGroupChatAsRead(message.getChatId(), userId);
+            if (message.getGroupId() != null && message.getGroupId() > 0) {
+                // 群聊消息
+                return markGroupChatAsRead(message.getGroupId(), userId);
+            } else {
+                // 私聊消息
+                Long targetUserId = message.getSenderId().equals(userId) ?
+                    message.getReceiverId() : message.getSenderId();
+                return markPrivateChatAsRead(targetUserId, userId);
             }
-
-            return false;
 
         } catch (Exception e) {
             log.error("标记消息已读失败: messageId={}, userId={}", messageId, userId, e);
@@ -386,7 +429,10 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
                 .sum();
 
             // 获取群聊未读数（简化处理）
-            List<Long> groupIds = groupMemberMapper.findGroupIdsByUserId(userId);
+            List<GroupMember> userGroups = groupMemberMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<GroupMember>()
+                    .eq("user_id", userId)
+            );
             int groupUnread = 0; // 这里应该根据实际的群聊未读逻辑计算
 
             stats.put("privateUnread", privateUnread);
@@ -419,6 +465,7 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
             // 软删除消息
             message.setStatus(MESSAGE_STATUS_DELETED);
+            message.setIsRead(1);
             message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
 
             boolean result = messageMapper.updateById(message) > 0;
@@ -459,7 +506,10 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
             // 撤回消息
             message.setStatus(MESSAGE_STATUS_RECALLED);
-            message.setContent("[消息已撤回]");
+            message.setIsRecalled(1);
+            TextMessageContent recalledContent = new TextMessageContent();
+            recalledContent.setContent("[消息已撤回]");
+            message.setContent(recalledContent);
             message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
 
             return messageMapper.updateById(message) > 0;
@@ -483,14 +533,30 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             // 清理搜索关键词
             String sanitizedKeyword = com.web.util.MessageValidator.sanitizeContent(keyword);
 
-            // 搜索私聊消息
-            List<Message> privateMessages = messageMapper.searchPrivateMessages(userId, sanitizedKeyword, page, size);
+            // 搜索私聊消息（使用JSON_EXTRACT搜索content字段）
+            int offset = (page - 1) * size;
+            List<Message> privateMessages = messageMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Message>()
+                    .and(wrapper -> wrapper.eq("sender_id", userId).or().eq("receiver_id", userId))
+                    .apply("JSON_EXTRACT(content, '$.text') LIKE {0}", "%" + sanitizedKeyword + "%")
+                    .orderByDesc("created_at")
+                    .last("LIMIT " + offset + ", " + size)
+            );
 
             // 搜索群聊消息
-            List<Long> groupIds = groupMemberMapper.findGroupIdsByUserId(userId);
+            List<GroupMember> userGroups = groupMemberMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<GroupMember>()
+                    .eq("user_id", userId)
+            );
             List<Message> groupMessages = new ArrayList<>();
-            for (Long groupId : groupIds) {
-                List<Message> groupMsgs = messageMapper.searchGroupMessages(groupId, sanitizedKeyword, page, size);
+            for (GroupMember groupMember : userGroups) {
+                List<Message> groupMsgs = messageMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Message>()
+                        .eq("group_id", groupMember.getGroupId())
+                        .apply("JSON_EXTRACT(content, '$.text') LIKE {0}", "%" + sanitizedKeyword + "%")
+                        .orderByDesc("created_at")
+                        .last("LIMIT " + size)
+                );
                 groupMessages.addAll(groupMsgs);
             }
 
@@ -537,19 +603,22 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             }
 
             // 发送者和接收者都有权限查看消息
-            if (message.getSenderId().equals(userId) || message.getReceiverId().equals(userId)) {
+            if (message.getSenderId().equals(userId)) {
+                return true;
+            }
+            if (message.getReceiverId() != null && message.getReceiverId().equals(userId)) {
                 return true;
             }
 
             // 管理员有所有权限
-            User user = chatService.findUserById(userId);
+            com.web.model.User user = userService.getUserBasicInfo(userId);
             if (user != null && userTypeSecurityService.isAdmin(user.getUsername())) {
                 return true;
             }
 
             // 群聊消息需要检查群组成员身份
-            if (MESSAGE_TYPE_GROUP.equals(message.getType())) {
-                return hasGroupMessagePermission(message.getChatId(), userId);
+            if (message.getGroupId() != null && message.getGroupId() > 0) {
+                return hasGroupMessagePermission(message.getGroupId(), userId);
             }
 
             return false;
@@ -567,10 +636,14 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             List<ChatList> privateChats = chatService.getChatList(userId);
 
             // 获取群聊列表（需要创建对应的ChatList记录）
-            List<Long> groupIds = groupMemberMapper.findGroupIdsByUserId(userId);
+            List<GroupMember> userGroups = groupMemberMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<GroupMember>()
+                    .eq("user_id", userId)
+            );
             List<ChatList> groupChats = new ArrayList<>();
 
-            for (Long groupId : groupIds) {
+            for (GroupMember groupMember : userGroups) {
+                Long groupId = groupMember.getGroupId();
                 Group group = groupMapper.selectById(groupId);
                 if (group != null) {
                     ChatList groupChat = new ChatList();
@@ -582,8 +655,15 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
                     groupChat.setUnreadCount(0); // 这里需要实际计算
 
                     // 获取最后一条消息
-                    Message lastMessage = messageMapper.selectLastMessageByChatId(groupId);
-                    groupChat.setLastMessage(lastMessage != null ? lastMessage.getContent().toString() : "");
+                    List<Message> lastMessages = messageMapper.selectList(
+                        new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Message>()
+                            .eq("group_id", groupId)
+                            .orderByDesc("created_at")
+                            .last("LIMIT 1")
+                    );
+                    Message lastMessage = lastMessages.isEmpty() ? null : lastMessages.get(0);
+                    groupChat.setLastMessage(lastMessage != null && lastMessage.getContent() != null ? 
+                        lastMessage.getContent().getContent() : "");
 
                     groupChats.add(groupChat);
                 }
@@ -618,7 +698,7 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     private boolean hasGroupMessagePermission(Long groupId, Long userId) {
         try {
             // 管理员有所有权限
-            User user = chatService.findUserById(userId);
+            com.web.model.User user = userService.getUserBasicInfo(userId);
             if (user != null && userTypeSecurityService.isAdmin(user.getUsername())) {
                 return true;
             }
@@ -643,15 +723,15 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             }
 
             // 管理员可以删除任何消息
-            User user = chatService.findUserById(userId);
+            com.web.model.User user = userService.getUserBasicInfo(userId);
             if (user != null && userTypeSecurityService.isAdmin(user.getUsername())) {
                 return true;
             }
 
             // 群聊中，群主和管理员可以删除群聊消息
-            if (MESSAGE_TYPE_GROUP.equals(message.getType())) {
-                GroupMember member = groupMemberMapper.findByGroupAndUser(message.getChatId(), userId);
-                return member != null && member.getRole() >= 1; // 群主或管理员
+            if (message.getGroupId() != null && message.getGroupId() > 0) {
+                GroupMember member = groupMemberMapper.findByGroupAndUser(message.getGroupId(), userId);
+                return member != null && member.getRole() <= 2; // 群主(1)或管理员(2)
             }
 
             return false;
@@ -667,7 +747,10 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
      */
     private void updateGroupUnreadCounts(Long groupId, Long excludeUserId) {
         try {
-            List<GroupMember> members = groupMemberMapper.findMembersByGroupId(groupId);
+            List<GroupMember> members = groupMemberMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<GroupMember>()
+                    .eq("group_id", groupId)
+            );
             for (GroupMember member : members) {
                 if (!member.getUserId().equals(excludeUserId)) {
                     // 这里应该实现群聊未读数更新逻辑

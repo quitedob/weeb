@@ -25,15 +25,18 @@ public class Message implements Serializable {
     private Long id; // 消息ID
 
     private Long senderId; // 发送者ID
+    private Long receiverId; // 接收者ID（私聊时使用）
+    private Long groupId; // 群组ID（群聊时使用）
     private Long chatId;   // 会话列表ID
 
     @TableField(typeHandler = JacksonTypeHandler.class) // MyBatis Plus自动处理JSON转换
     private TextMessageContent content; // 消息内容，结构化对象
 
     private Integer messageType; // 消息类型
-
     private Integer readStatus; // 已读状态
+    private Integer isRead; // 是否已读：0未读，1已读
     private Integer isRecalled; // 是否撤回
+    private Integer status; // 消息状态：0正常，1已删除，2已撤回
     private String userIp; // 用户IP
     private String source; // 消息来源
     private Integer isShowTime; // 是否显示时间
@@ -43,6 +46,10 @@ public class Message implements Serializable {
     private Long replyToMessageId; // 回复的消息ID
 
     private Long threadId; // 话题ID，用于消息线程
+    
+    // 消息类型常量
+    public static final String TYPE_PRIVATE = "PRIVATE";
+    public static final String TYPE_GROUP = "GROUP";
 
     /**
      * 获取用户ID (别名方法，兼容性考虑)
@@ -90,5 +97,29 @@ public class Message implements Serializable {
      */
     public void setChatListId(Long chatListId) {
         this.chatId = chatListId;
+    }
+    
+    /**
+     * 获取消息类型（字符串形式）
+     * @return 消息类型
+     */
+    public String getType() {
+        if (this.groupId != null && this.groupId > 0) {
+            return TYPE_GROUP;
+        }
+        return TYPE_PRIVATE;
+    }
+    
+    /**
+     * 设置消息类型（字符串形式）
+     * @param type 消息类型
+     */
+    public void setType(String type) {
+        // 根据类型设置groupId或receiverId
+        if (TYPE_GROUP.equals(type)) {
+            // 群聊消息，groupId会单独设置
+        } else {
+            // 私聊消息，receiverId会单独设置
+        }
     }
 }
