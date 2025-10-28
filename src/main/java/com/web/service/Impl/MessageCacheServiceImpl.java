@@ -89,7 +89,7 @@ public class MessageCacheServiceImpl implements MessageCacheService {
     }
 
     @Override
-    public void cacheMessageList(Long chatId, List<Message> messages) {
+    public void cacheMessageList(Object chatId, List<Message> messages) {
         if (chatId == null || messages == null || messages.isEmpty()) {
             return;
         }
@@ -99,7 +99,7 @@ public class MessageCacheServiceImpl implements MessageCacheService {
             List<Message> messagesToCache = messages.size() > MAX_CACHED_MESSAGES ?
                     messages.subList(0, MAX_CACHED_MESSAGES) : messages;
 
-            String key = MESSAGE_LIST_KEY_PREFIX + chatId;
+            String key = MESSAGE_LIST_KEY_PREFIX + chatId.toString();
             redisTemplate.opsForValue().set(key, messagesToCache, MESSAGE_LIST_CACHE_TTL, TimeUnit.SECONDS);
 
             // 同时缓存单个消息
@@ -116,13 +116,13 @@ public class MessageCacheServiceImpl implements MessageCacheService {
 
     @Override
     @SuppressWarnings("unchecked")
-    public List<Message> getCachedMessageList(Long chatId, int page, int size) {
+    public List<Message> getCachedMessageList(Object chatId, int page, int size) {
         if (chatId == null) {
             return null;
         }
 
         try {
-            String key = MESSAGE_LIST_KEY_PREFIX + chatId;
+            String key = MESSAGE_LIST_KEY_PREFIX + chatId.toString();
             Object cached = redisTemplate.opsForValue().get(key);
 
             if (cached != null) {
@@ -175,13 +175,13 @@ public class MessageCacheServiceImpl implements MessageCacheService {
     }
 
     @Override
-    public void evictMessageList(Long chatId) {
+    public void evictMessageList(Object chatId) {
         if (chatId == null) {
             return;
         }
 
         try {
-            String key = MESSAGE_LIST_KEY_PREFIX + chatId;
+            String key = MESSAGE_LIST_KEY_PREFIX + chatId.toString();
             redisTemplate.delete(key);
 
             log.debug("消息列表缓存已清除: chatId={}", chatId);
@@ -192,11 +192,11 @@ public class MessageCacheServiceImpl implements MessageCacheService {
     }
 
     @Override
-    public void preloadMessages(Long chatId, int page, int size) {
+    public void preloadMessages(Object chatId, int page, int size) {
         // 预加载逻辑由调用方实现
         // 这里只是标记预加载请求
         try {
-            String preloadKey = "message:preload:" + chatId + ":" + page + ":" + size;
+            String preloadKey = "message:preload:" + chatId.toString() + ":" + page + ":" + size;
             redisTemplate.opsForValue().set(preloadKey, System.currentTimeMillis(), 60, TimeUnit.SECONDS);
 
             log.debug("消息预加载请求已记录: chatId={}, page={}, size={}", chatId, page, size);

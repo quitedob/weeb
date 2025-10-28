@@ -72,12 +72,23 @@ spring:
   # Elasticsearch配置（HTTP模式，无需认证）
   elasticsearch:
     uris: http://localhost:9200
-    enabled: true # 暂时禁用Elasticsearch搜索功能
 
   # Spring AI OpenAI配置 - 添加虚拟API key避免启动失败
   ai:
     openai:
       api-key: "sk-fake-key-for-startup-only" # 虚拟API key，仅用于避免启动失败
+
+  # 可选：临时关闭 Reactive ES 自动装配，纯用阻塞式客户端即可
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      # 禁用OpenAI自动配置，避免API key缺失导致的启动失败
+      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
+
+# Elasticsearch功能开关
+elasticsearch:
+  enabled: true
 
 management:
   # 完全禁用 Redis 健康检查
@@ -101,16 +112,6 @@ weeb:
   expires: 7 # 数据过期时间（天）
   upload:
     base-path: uploads # 本地文件上传基础路径
-
-  # 可选：临时关闭 Reactive ES 自动装配，纯用阻塞式客户端即可
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.elasticsearch.ReactiveElasticsearchClientAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchRepositoriesAutoConfiguration
-      # 禁用OpenAI自动配置，避免API key缺失导致的启动失败
-      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
 
   # Redis配置优化（已合并到上面的Redis配置中）
   # repositories.enabled已在上面配置

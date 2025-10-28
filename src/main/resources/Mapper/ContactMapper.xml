@@ -85,7 +85,7 @@
     <select id="countByStatus" resultType="int">
         SELECT COUNT(*)
         FROM contact
-        WHERE status = #{status, typeHandler=org.apache.ibatis.type.EnumOrdinalTypeHandler}
+        WHERE status = #{status}
     </select>
 
 </mapper>

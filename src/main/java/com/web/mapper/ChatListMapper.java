@@ -97,18 +97,18 @@ public interface ChatListMapper extends BaseMapper<ChatList> {
 
     /**
      * 根据聊天ID重置未读消息数
-     * @param chatId 聊天ID
+     * @param chatId 聊天ID（String类型）
      * @return 受影响的行数
      */
-    int resetUnreadCountByChatId(@Param("chatId") Long chatId);
+    int resetUnreadCountByChatId(@Param("chatId") String chatId);
 
     /**
      * 更新聊天记录的最后消息和未读数
-     * @param chatId 聊天ID
+     * @param chatId 聊天ID（String类型）
      * @param lastMessage 最后消息内容
      * @return 受影响的行数
      */
-    int updateLastMessageAndUnreadCount(@Param("chatId") Long chatId, @Param("lastMessage") String lastMessage);
+    int updateLastMessageAndUnreadCount(@Param("chatId") String chatId, @Param("lastMessage") String lastMessage);
 
     /**
      * 根据聊天ID删除聊天记录

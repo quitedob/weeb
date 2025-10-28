@@ -77,15 +77,15 @@ public class ChatServiceImpl implements ChatService {
         messageMapper.insertMessage(message);
 
         // 更新聊天列表的最后消息和未读数
-        chatListMapper.updateLastMessageAndUnreadCount(message.getChatId(),
-                message.getContent().toString());
+        chatListMapper.updateLastMessageAndUnreadCount(String.valueOf(message.getChatId()),
+                message.getContent() != null ? message.getContent().getContent() : "");
 
         return message;
     }
 
     @Override
     public boolean markAsRead(Long userId, Long chatId) {
-        return chatListMapper.resetUnreadCountByChatId(chatId) > 0;
+        return chatListMapper.resetUnreadCountByChatId(String.valueOf(chatId)) > 0;
     }
 
     @Override

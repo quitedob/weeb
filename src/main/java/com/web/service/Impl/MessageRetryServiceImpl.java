@@ -1,4 +1,4 @@
-package com.web.service.Impl;
+ package com.web.service.Impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.web.model.Message;
@@ -26,6 +26,7 @@ public class MessageRetryServiceImpl implements MessageRetryService {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
+    @org.springframework.context.annotation.Lazy
     private UnifiedMessageService unifiedMessageService;
 
     @Autowired
