@@ -1,6 +1,7 @@
-package com.web.security;
+    package com.web.security;
 
 import com.web.service.UserService;
+import com.web.service.UserTypeSecurityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -40,6 +41,7 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final PasswordEncoder passwordEncoder;
     private final CorsConfigurationSource corsConfigurationSource;
+    private final UserTypeSecurityService userTypeSecurityService;
 
 
     /**
@@ -84,7 +86,15 @@ public class SecurityConfig {
                 .requestMatchers("/topic/**").permitAll()
                 .requestMatchers("/user/**").permitAll()
                 // 管理员端点 - 基于用户类型检查
-                .requestMatchers("/api/admin/**").access("@userTypeSecurityService.isAdmin(authentication.name)")
+                .requestMatchers("/api/admin/**").access((authentication, context) -> {
+                    if (authentication.get().isAuthenticated()) {
+                        String username = authentication.get().getName();
+                        return new org.springframework.security.authorization.AuthorizationDecision(
+                            userTypeSecurityService.isAdmin(username)
+                        );
+                    }
+                    return new org.springframework.security.authorization.AuthorizationDecision(false);
+                })
                 // 其他需要认证的端点
                 .anyRequest().authenticated()
             )

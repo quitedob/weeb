@@ -1,0 +1,277 @@
+=== 编译错误修复记录 ===
+日期: 2025-10-28
+状态: 正在修复编译错误，已完成部分修复
+
+=== 已修复的错误 (第一批) ===
+
+1. ContactServiceImpl.java
+   - 错误: Cannot resolve method 'findByUserID' in 'UserService'
+   - 修复: 将 findByUserID 改为 getUserBasicInfo
+   - 位置: getContactsByGroup 方法
+
+2. ContactServiceImpl.java
+   - 错误: Cannot resolve method 'setUsername' in 'UserDto'
+   - 修复: 将 setUsername 改为 setName (UserDto使用name字段而非username)
+   - 位置: getContactsByGroup 方法
+
+3. UserLevelServiceImpl.java
+   - 错误: Cannot resolve method 'selectByUserId' in 'UserLevelHistoryMapper'
+   - 修复: 将 selectByUserId 改为 findByUserId (根据Mapper接口定义)
+   - 位置: hasPermission 方法
+   
+4. UserLevelServiceImpl.java
+   - 错误: Cannot resolve method 'getLevel' in 'UserLevelHistory'
+   - 修复: UserLevelHistory模型中没有getLevel方法，应该使用getNewLevel或getOldLevel
+   - 位置: hasPermission 方法
+   - 解决方案: 直接使用getUserLevel(userId)获取当前等级
+
+5. UserLevelServiceImpl.java
+   - 错误: Cannot resolve method 'isPermissionMatch' in 'UserLevelServiceImpl'
+   - 修复: 删除了未实现的isPermissionMatch方法调用
+   - 位置: hasPermission 方法
+
+6. ContactRequestCleanupTask.java
+   - 错误: 不兼容的类型: ContactStatus无法转换为Integer
+   - 修复: 使用ContactStatus.getCode()获取Integer值
+   - 位置: 第52行和统计方法
+
+7. MessageValidator.java
+   - 错误: 不兼容的类型: Object无法转换为String
+   - 修复: 添加类型检查和转换逻辑
+   - 位置: validateSendMessageVo方法
+
+8. SecurityConfig.java
+   - 错误: String无法转换为AuthorizationManager
+   - 修复: 使用Lambda表达式创建AuthorizationManager
+   - 位置: 第87行管理员端点配置
+
+9. SocialRelationshipServiceImpl.java
+   - 错误: void无法转换为boolean
+   - 修复: 修改方法调用逻辑，不依赖返回值
+   - 位置: followUser和unfollowUser方法
+
+10. SocialRelationshipServiceImpl.java
+    - 错误: Cannot resolve method 'getUsername' in 'UserDto'
+    - 修复: 将getUsername改为getName
+    - 位置: 第266行
+
+11. SocialRelationshipServiceImpl.java
+    - 错误: Long无法转换为int
+    - 修复: 使用.intValue()进行类型转换
+    - 位置: 第404和431行
+
+12. GroupPermissionServiceImpl.java
+    - 错误: set方法参数不匹配
+    - 修复: 移除TimeUnit参数，直接使用秒数
+    - 位置: 第72行
+
+13. GroupPermissionServiceImpl.java
+    - 错误: Cannot resolve method 'deleteByPattern'
+    - 修复: 暂时注释掉，等待缓存自动过期
+    - 位置: 第257行
+
+14. GroupServiceImpl.java
+    - 错误: Cannot resolve method 'executeRawSql'
+    - 修复: 注释掉直接SQL执行，添加TODO标记
+    - 位置: 第573行
+
+15. ArticleServiceImpl.java
+    - 错误: 找不到符号 User
+    - 修复: 使用完整类名com.web.model.User，并改用getUserBasicInfo方法
+    - 位置: 第98行
+
+=== 需要定位的错误 ===
+
+以下错误在代码搜索中未找到具体位置，可能在编译时动态生成或在其他文件中：
+
+1. SecurityConfig.java:87:58
+   - 错误: 不兼容的类型: java.lang.String无法转换为AuthorizationManager
+   - 说明: 这个错误信息不完整，SecurityConfig.java第87行实际上是正常的
+   - 状态: 需要重新编译确认
+
+2. RedisCacheService相关
+   - 错误: 'set(String, Object, long)' cannot be applied to '(String, int, long, TimeUnit)'
+   - 说明: RedisCacheService.set方法签名是(String, Object, long)，单位是秒
+   - 状态: 需要查找调用处，将TimeUnit参数转换为秒数
+
+3. RedisCacheService相关
+   - 错误: Cannot resolve method 'deleteByPattern' in 'RedisCacheService'
+   - 说明: RedisCacheService接口中没有定义deleteByPattern方法
+   - 状态: 需要添加该方法或修改调用处
+
+4. GroupMapper相关
+   - 错误: Cannot resolve method 'executeRawSql' in 'GroupMapper'
+   - 说明: GroupMapper接口中没有定义executeRawSql方法
+   - 状态: 需要添加该方法或修改调用处
+
+5. Contact.setStatus相关
+   - 错误: 'setStatus(Integer)' cannot be applied to '(ContactStatus)'
+   - 说明: Contact.status字段是Integer类型，需要使用ContactStatus.getCode()
+   - 状态: 需要查找所有setStatus(ContactStatus)调用并修改为setStatus(ContactStatus.getCode())
+
+6. MessageValidator相关
+   - 错误: 'validateMessageContent(String)' cannot be applied to '(@NotNull Object)'
+   - 说明: 传入的参数类型不匹配，应该是String类型
+   - 状态: 需要查找调用处并确保传入String类型
+
+7. UserDto.getUsername相关
+   - 错误: Cannot resolve method 'getUsername' in 'UserDto'
+   - 说明: UserDto使用name字段而非username
+   - 状态: 需要查找所有UserDto.getUsername()调用并改为getName()
+
+8. 类型转换错误
+   - 错误: Incompatible types. Found: 'void', required: 'boolean'
+   - 说明: 某个方法返回void但期望返回boolean
+   - 状态: 需要定位具体位置
+
+9. 类型转换错误
+   - 错误: Incompatible types. Found: 'java.lang.Long', required: 'int'
+   - 说明: Long类型无法直接赋值给int类型
+   - 状态: 需要使用.intValue()转换
+
+=== 修复建议 ===
+
+1. 运行完整编译以获取准确的错误位置
+   命令: mvn clean compile
+
+2. 添加缺失的方法到接口
+   - RedisCacheService.deleteByPattern(String pattern)
+   - GroupMapper.executeRawSql(String sql)
+
+3. 统一UserDto字段命名
+   - 确认是使用username还是name
+   - 更新所有相关调用
+
+4. 修复Contact.setStatus调用
+   - 查找所有setStatus(ContactStatus)
+   - 改为setStatus(ContactStatus.getCode())
+
+5. 类型转换修复
+   - Long转int: 使用.intValue()
+   - 确保方法返回类型匹配
+
+=== 下一步行动 ===
+
+1. 执行mvn clean compile获取完整错误列表
+2. 根据错误信息定位具体文件和行号
+3. 逐个修复剩余错误
+4. 运行测试确保功能正常
+5. 更新文档说明修改内容
+
+
+=== 剩余需要修复的错误 (第二批) ===
+
+文件: ArticleVersionServiceImpl.java (11个错误)
+问题: Mapper方法不存在或ArticleVersion模型字段不匹配
+需要修复的方法:
+- setUserId, getUserId
+- selectByArticleId, selectLatestVersion
+- countByArticleId, deleteOldVersions, deleteByArticleId
+建议: 检查ArticleVersion模型和ArticleVersionMapper接口，确保方法和字段匹配
+
+文件: UnifiedMessageServiceImpl.java (44个错误)
+问题: Message模型方法不存在，类型转换错误，Mapper方法缺失
+需要修复的方法:
+- Message.setReceiverId, getReceiverId, setType, getType, setStatus
+- ChatService.findUserById
+- MessageMapper.selectPrivateMessagesByUsers, searchPrivateMessages, searchGroupMessages
+- GroupMemberMapper.findGroupIdsByUserId, findMembersByGroupId
+- MessageService.getUserMessages
+建议: 这个文件需要大量重构，建议暂时禁用或重写
+
+文件: ContactRequestCleanupTask.java (5个错误)
+问题: countByStatus方法返回int但期望ContactStatus类型
+修复: 将countByStatus(int)改为返回int类型，不要转换为ContactStatus
+
+=== 修复优先级 ===
+
+高优先级:
+1. ContactRequestCleanupTask.java - 简单修复
+2. ArticleVersionServiceImpl.java - 需要检查模型和Mapper
+
+低优先级:
+3. UnifiedMessageServiceImpl.java - 需要大量重构，建议后续处理
+
+=== 建议的下一步 ===
+
+1. 修复ContactRequestCleanupTask.java的简单错误
+2. 检查ArticleVersion模型和ArticleVersionMapper，补充缺失的方法
+3. 暂时注释掉UnifiedMessageServiceImpl中有问题的方法，添加TODO标记
+4. 或者创建一个简化版的UnifiedMessageServiceImpl
+5. 完成后重新编译测试
+
+
+=== 紧急修复任务 ===
+
+文件: UnifiedMessageServiceImpl.java
+状态: 需要完全重构
+错误数量: 39个
+优先级: 低（该服务未被使用）
+
+问题分析:
+1. Message模型字段不匹配
+   - 缺少方法: setReceiverId, getReceiverId, setType, getType, setStatus
+   - 数据库表结构: receiver_id, message_type, status
+   - 需要检查Message模型是否与数据库表对齐
+
+2. ChatService方法缺失
+   - 缺少方法: findUserById
+   - 建议使用UserService.getUserBasicInfo替代
+
+3. MessageMapper方法缺失
+   - selectPrivateMessagesByUsers
+   - searchPrivateMessages
+   - searchGroupMessages
+   - 需要在MessageMapper中添加这些方法
+
+4. GroupMemberMapper方法缺失
+   - findGroupIdsByUserId
+   - findMembersByGroupId
+   - 需要在GroupMemberMapper中添加这些方法
+
+5. MessageService方法缺失
+   - getUserMessages
+   - 需要检查MessageService接口定义
+
+修复建议:
+方案A（推荐）: 暂时禁用UnifiedMessageServiceImpl
+- 将类标记为@Component(value = "unifiedMessageService")并添加@ConditionalOnProperty
+- 在application.yml中设置 unified-message.enabled=false
+- 使用现有的MessageService和ChatService替代
+
+方案B: 完全重构
+1. 检查Message模型与DatabaseInitializer中message表结构的对齐
+2. 补充所有缺失的Mapper方法
+3. 修复所有类型转换错误
+4. 添加完整的单元测试
+
+当前决策: 采用方案A，暂时禁用该服务
+原因: 
+- 该服务未被Controller使用
+- 功能与现有MessageService重复
+- 重构工作量大，优先级低
+- 不影响核心功能
+
+=== 已完成的修复 (第二批) ===
+
+16. ArticleVersionServiceImpl.java
+    - 错误: setUserId方法不存在
+    - 修复: 改为setCreatedBy（与ArticleVersion模型字段对齐）
+    - 位置: 多处
+
+17. ArticleVersionServiceImpl.java
+    - 错误: getUserId方法不存在
+    - 修复: 改为getCreatedBy
+    - 位置: 多处
+
+18. ArticleVersionMapper.java
+    - 错误: 缺少selectByArticleId等方法
+    - 修复: 添加了selectByArticleId, selectLatestVersion, countByArticleId, deleteOldVersions, deleteByArticleId方法
+    - 位置: 接口定义
+
+=== 编译状态 ===
+- 初始错误: 68个
+- 第一批修复后: 50个
+- 第二批修复后: 39个
+- 剩余错误: 39个（全部在UnifiedMessageServiceImpl.java中）
+- 建议: 暂时禁用UnifiedMessageServiceImpl，标记为TODO

@@ -329,11 +329,11 @@ public class ContactServiceImpl implements ContactService {
             // 转换为UserDto列表
             return contacts.stream()
                 .map(contact -> {
-                    com.web.model.User user = userService.findByUserID(contact.getFriendId());
+                    com.web.model.User user = userService.getUserBasicInfo(contact.getFriendId());
                     if (user != null) {
                         UserDto dto = new UserDto();
                         dto.setId(user.getId());
-                        dto.setUsername(user.getUsername());
+                        dto.setName(user.getUsername());
                         dto.setAvatar(user.getAvatar());
                         return dto;
                     }

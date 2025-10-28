@@ -49,7 +49,7 @@ public class ContactRequestCleanupTask {
             for (Contact contact : expiredRequests) {
                 try {
                     // 更新状态为EXPIRED
-                    contact.setStatus(ContactStatus.EXPIRED);
+                    contact.setStatus(ContactStatus.EXPIRED.getCode());
                     contactMapper.updateById(contact);
 
                     // TODO: 发送过期通知给申请人
@@ -99,11 +99,11 @@ public class ContactRequestCleanupTask {
             log.info("开始统计好友请求数据...");
 
             // 统计各状态的请求数量
-            int pendingCount = contactMapper.countByStatus(ContactStatus.PENDING);
-            int acceptedCount = contactMapper.countByStatus(ContactStatus.ACCEPTED);
-            int rejectedCount = contactMapper.countByStatus(ContactStatus.REJECTED);
-            int expiredCount = contactMapper.countByStatus(ContactStatus.EXPIRED);
-            int blockedCount = contactMapper.countByStatus(ContactStatus.BLOCKED);
+            int pendingCount = contactMapper.countByStatus(ContactStatus.PENDING.getCode());
+            int acceptedCount = contactMapper.countByStatus(ContactStatus.ACCEPTED.getCode());
+            int rejectedCount = contactMapper.countByStatus(ContactStatus.REJECTED.getCode());
+            int expiredCount = contactMapper.countByStatus(ContactStatus.EXPIRED.getCode());
+            int blockedCount = contactMapper.countByStatus(ContactStatus.BLOCKED.getCode());
 
             log.info("好友请求统计 - 待处理: {}, 已接受: {}, 已拒绝: {}, 已过期: {}, 已拉黑: {}",
                 pendingCount, acceptedCount, rejectedCount, expiredCount, blockedCount);

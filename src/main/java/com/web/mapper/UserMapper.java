@@ -1,7 +1,6 @@
 package com.web.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.web.model.Permission;
 import com.web.model.User;
 import com.web.model.UserWithStats;
 import org.apache.ibatis.annotations.Mapper;
@@ -350,17 +349,7 @@ public interface UserMapper extends BaseMapper<User> {
     @Select("SELECT * FROM `user` WHERE username = #{username}")
     User selectByUsername(@Param("username") String username);
 
-    /**
-     * 获取用户的所有权限
-     * @param userId 用户ID
-     * @return 用户权限列表
-     */
-    @Select("SELECT DISTINCT p.* FROM permission p " +
-            "INNER JOIN role_permission rp ON p.id = rp.permission_id " +
-            "INNER JOIN user_role ur ON rp.role_id = ur.role_id " +
-            "WHERE ur.user_id = #{userId} AND p.status = 1")
-    List<Permission> selectUserPermissions(@Param("userId") Long userId);
-
+  
     /**
      * 获取文章的所有者ID
      * @param articleId 文章ID

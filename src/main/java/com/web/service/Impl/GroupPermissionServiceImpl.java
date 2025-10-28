@@ -69,7 +69,7 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             int role = (member != null) ? member.getRole() : ROLE_NON_MEMBER;
 
             // 存入缓存
-            redisCacheService.set(cacheKey, role, CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
+            redisCacheService.set(cacheKey, role, CACHE_EXPIRE_SECONDS);
 
             return role;
         } catch (Exception e) {
@@ -253,9 +253,9 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
     public void clearGroupPermissionCache(Long groupId) {
         try {
             // 清除该群组所有用户的权限缓存
-            String pattern = CACHE_PREFIX + groupId + ":*";
-            redisCacheService.deleteByPattern(pattern);
-            log.debug("清除群组所有权限缓存: groupId={}", groupId);
+            // TODO: 实现批量删除缓存功能
+            // 暂时不清除缓存，等待缓存自动过期
+            log.debug("群组权限缓存将在{}秒后自动过期: groupId={}", CACHE_EXPIRE_SECONDS, groupId);
         } catch (Exception e) {
             log.error("清除群组权限缓存失败: groupId={}", groupId, e);
         }

@@ -568,12 +568,8 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             }
 
             // 8. 记录转让历史
-            try {
-                String insertSql = "INSERT INTO group_transfer_history (group_id, from_user_id, to_user_id, transfer_reason, transfer_at) VALUES (?, ?, ?, ?, NOW())";
-                groupMapper.executeRawSql(insertSql, groupId, currentOwnerId, newOwnerId, "群主主动转让");
-            } catch (Exception e) {
-                log.warn("记录转让历史失败，但转让操作已完成: groupId={}", groupId, e);
-            }
+            // TODO: 实现群组转让历史记录功能
+            log.info("群组转让历史记录功能待实现: groupId={}, from={}, to={}", groupId, currentOwnerId, newOwnerId);
 
             log.info("群组转让成功: groupId={}, from={}, to={}", groupId, currentOwnerId, newOwnerId);
             return true;

@@ -1508,33 +1508,7 @@
     - `contentType` (String): 内容类型
     - `contentId` (Long): 内容ID
 
-### 16. 调试 API (`/api/debug`)
-
-- **GET /api/debug/user-permissions**
-  - 功能：获取用户权限信息（调试用）
-  - 参数：无
-
-- **GET /api/debug/all-permissions**
-  - 功能：获取所有权限信息（调试用）
-  - 参数：无
-
-- **GET /api/debug/all-roles**
-  - 功能：获取所有角色信息（调试用）
-  - 参数：无
-
-- **GET /api/debug/system-health**
-  - 功能：获取系统健康状态
-  - 参数：无
-
-- **GET /api/debug/database-status**
-  - 功能：获取数据库状态
-  - 参数：无
-
-- **GET /api/debug/system-config**
-  - 功能：获取系统配置
-  - 参数：无
-
-### 17. WebSocket/STOMP 端点
+### 16. WebSocket/STOMP 端点
 
 #### 📋 功能职责说明
 **WebSocketMessageController** 负责实时消息通信协议的处理，与ChatController的REST API相辅相成。主要处理WebSocket连接、实时消息推送和用户状态同步。
@@ -1600,7 +1574,7 @@
 }
 ```
 
-### 18. WebSocket连接监控 API (`/api/websocket/monitor`)
+### 17. WebSocket连接监控 API (`/api/websocket/monitor`)
 
 #### 📋 功能说明
 提供WebSocket连接状态监控、在线用户统计、连接管理等功能。
@@ -1647,7 +1621,7 @@
   - 参数：`userId` (Long, 路径): 用户ID
   - 返回：活跃会话ID集合
 
-### 19. 限流管理 API (`/api/rate-limit`)
+### 18. 限流管理 API (`/api/rate-limit`)
 
 #### 📋 功能说明
 提供API限流配置管理、限流统计、限流事件查询等功能。支持动态调整限流参数。
@@ -1714,7 +1688,7 @@
     - `type` (String): 类型（USER或IP）
   - 返回：解除结果
 
-### 20. 迁移 API (`/api/migration`)
+### 19. 迁移 API (`/api/migration`)
 
 - **GET /api/migration/validate/pre**
   - 功能：迁移前验证
@@ -1885,6 +1859,7 @@
 - **消息缓存优化**: 实现Redis缓存、消息预加载、缓存统计
 - **消息重试机制**: 实现自动重试、失败记录、定时任务
 - **API限流增强**: 实现双重限流、动态配置、告警机制
+- **RBAC系统清理**: 完全移除调试API和废弃的RBAC代码，简化权限系统架构
 
 ### 📊 问题严重程度评估
 

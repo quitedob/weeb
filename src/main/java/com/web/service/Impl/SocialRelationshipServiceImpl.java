@@ -109,10 +109,8 @@ public class SocialRelationshipServiceImpl implements SocialRelationshipService 
             }
 
             // 创建关注关系
-            boolean followed = userFollowService.followUser(userId, targetUserId);
-            if (!followed) {
-                return false;
-            }
+            userFollowService.followUser(userId, targetUserId);
+            boolean followed = true;
 
             // 检查是否互相关注，如果是则自动建立好友关系
             if (userFollowMapper.isFollowing(targetUserId, userId)) {
@@ -132,9 +130,9 @@ public class SocialRelationshipServiceImpl implements SocialRelationshipService 
     @Transactional
     public boolean unfollowUser(Long userId, Long targetUserId) {
         try {
-            boolean unfollowed = userFollowService.unfollowUser(userId, targetUserId);
-            log.info("取消关注: userId={}, targetUserId={}, success={}", userId, targetUserId, unfollowed);
-            return unfollowed;
+            userFollowService.unfollowUser(userId, targetUserId);
+            log.info("取消关注: userId={}, targetUserId={}", userId, targetUserId);
+            return true;
         } catch (Exception e) {
             log.error("取消关注失败: userId={}, targetUserId={}", userId, targetUserId, e);
             return false;
@@ -263,7 +261,7 @@ public class SocialRelationshipServiceImpl implements SocialRelationshipService 
             return friends.stream().map(friend -> {
                 Map<String, Object> friendInfo = new HashMap<>();
                 friendInfo.put("userId", friend.getId());
-                friendInfo.put("username", friend.getUsername());
+                friendInfo.put("username", friend.getName());
                 friendInfo.put("avatar", friend.getAvatar());
                 friendInfo.put("relationshipStatus", RelationshipStatus.FRIEND.name());
                 return friendInfo;
@@ -401,7 +399,7 @@ public class SocialRelationshipServiceImpl implements SocialRelationshipService 
             Map<String, Object> stats = new HashMap<>();
             
             // 好友数
-            int friendCount = contactMapper.selectCount(
+            Long friendCountLong = contactMapper.selectCount(
                 new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Contact>()
                     .and(wrapper -> wrapper
                         .eq("user_id", userId)
@@ -410,6 +408,7 @@ public class SocialRelationshipServiceImpl implements SocialRelationshipService 
                     )
                     .eq("status", ContactStatus.ACCEPTED.getCode())
             );
+            int friendCount = friendCountLong != null ? friendCountLong.intValue() : 0;
             stats.put("friendCount", friendCount);
 
             // 关注数
@@ -428,11 +427,12 @@ public class SocialRelationshipServiceImpl implements SocialRelationshipService 
             stats.put("mutualFollowCount", mutualFollowSet.size());
 
             // 待处理好友请求数
-            int pendingRequestCount = contactMapper.selectCount(
+            Long pendingRequestCountLong = contactMapper.selectCount(
                 new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Contact>()
                     .eq("friend_id", userId)
                     .eq("status", ContactStatus.PENDING.getCode())
             );
+            int pendingRequestCount = pendingRequestCountLong != null ? pendingRequestCountLong.intValue() : 0;
             stats.put("pendingRequestCount", pendingRequestCount);
 
             return stats;

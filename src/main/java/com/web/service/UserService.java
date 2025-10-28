@@ -1,6 +1,6 @@
 package com.web.service;
 
-import com.web.model.Permission;
+// import com.web.model.Permission; // 权限系统已禁用
 import com.web.model.User;
 import com.web.model.UserStats;
 import com.web.model.UserWithStats;
@@ -228,11 +228,11 @@ public interface UserService {
     User findByUsername(String username);
 
     /**
-     * 获取用户的所有权限
+     * 获取用户的所有权限（权限系统已禁用）
      * @param userId 用户ID
-     * @return 用户权限列表
+     * @return 用户权限列表（空列表）
      */
-    List<Permission> getUserPermissions(Long userId);
+    List<String> getUserPermissions(Long userId);
 
     /**
      * 检查用户是否是文章的所有者

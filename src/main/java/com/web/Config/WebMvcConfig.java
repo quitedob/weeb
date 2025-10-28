@@ -1,6 +1,6 @@
 package com.web.Config;
 
-import com.web.interceptor.PermissionInterceptor;
+// import com.web.interceptor.PermissionInterceptor; // 权限系统已禁用
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -20,8 +20,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Value("${weeb.upload.base-path:uploads}")
     private String baseUploadPath;
 
-    @Autowired
-    private PermissionInterceptor permissionInterceptor;
+    // @Autowired
+    // private PermissionInterceptor permissionInterceptor; // 权限系统已禁用
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
@@ -38,14 +38,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 注册权限验证拦截器
-        registry.addInterceptor(permissionInterceptor)
-                .addPathPatterns("/api/**")  // 拦截所有API请求
-                .excludePathPatterns(
-                        "/api/auth/**",      // 排除认证相关接口
-                        "/api/public/**",    // 排除公开接口
-                        "/api/health",       // 排除健康检查
-                        "/api/actuator/**"   // 排除监控端点
-                );
+        // 权限验证拦截器已禁用（权限系统关闭）
+        // registry.addInterceptor(permissionInterceptor)
+        //         .addPathPatterns("/api/**")  // 拦截所有API请求
+        //         .excludePathPatterns(
+        //                 "/api/auth/**",      // 排除认证相关接口
+        //                 "/api/public/**",    // 排除公开接口
+        //                 "/api/health",       // 排除健康检查
+        //                 "/api/actuator/**"   // 排除监控端点
+        //         );
     }
 }

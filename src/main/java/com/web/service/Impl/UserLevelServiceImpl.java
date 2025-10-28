@@ -6,7 +6,6 @@ import com.web.mapper.UserLevelHistoryMapper;
 import com.web.mapper.UserMapper;
 import com.web.model.User;
 import com.web.model.UserLevelHistory;
-import com.web.service.RolePermissionService;
 import com.web.service.UserLevelHistoryService;
 import com.web.service.UserLevelService;
 import lombok.extern.slf4j.Slf4j;
@@ -38,9 +37,7 @@ public class UserLevelServiceImpl implements UserLevelService {
     @Autowired
     private UserLevelHistoryService userLevelHistoryService;
 
-    @Autowired
-    private RolePermissionService rolePermissionService;
-
+    
     @Autowired(required = false)
     private HttpServletRequest request;
 
@@ -109,18 +106,7 @@ public class UserLevelServiceImpl implements UserLevelService {
                     log.warn("记录等级变更历史失败: userId={}", userId);
                 }
 
-                // 2. 同步用户角色
-                try {
-                    Map<String, Object> roleSyncResult = rolePermissionService.syncUserRolesOnLevelChange(
-                        userId, oldLevel, level
-                    );
-                    log.info("用户角色同步完成: userId={}, result={}", userId, roleSyncResult);
-                } catch (Exception e) {
-                    log.error("同步用户角色失败: userId={}, oldLevel={}, newLevel={}",
-                            userId, oldLevel, level, e);
-                    // 不抛出异常，允许等级变更继续
-                }
-
+                
                 log.info("用户等级更新成功: userId={}, oldLevel={}, newLevel={}, operatorId={}",
                         userId, oldLevel, level, operatorId);
                 return true;
@@ -401,26 +387,13 @@ public class UserLevelServiceImpl implements UserLevelService {
                 return false;
             }
 
-            // 获取用户等级信息
-            UserLevelHistory userLevelHistory = userLevelHistoryMapper.selectByUserId(userId);
-            if (userLevelHistory == null) {
-                log.warn("用户等级信息不存在: userId={}", userId);
-                return false;
-            }
-
-            int currentLevel = userLevelHistory.getLevel();
+            // 获取用户当前等级
+            int currentLevel = getUserLevel(userId);
             List<String> levelPermissions = UserLevel.getLevelPermissions(currentLevel);
 
             // 检查是否有直接权限匹配
             if (levelPermissions.contains(permission.trim())) {
                 return true;
-            }
-
-            // 检查是否有模糊权限匹配（例如：READ_OWN 匹配 READ_OWN_ARTICLE）
-            for (String levelPermission : levelPermissions) {
-                if (isPermissionMatch(permission.trim(), levelPermission)) {
-                    return true;
-                }
             }
 
             // 管理员等级的特权检查
