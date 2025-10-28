@@ -45,6 +45,12 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     @Autowired
     private UserTypeSecurityService userTypeSecurityService;
 
+    @Autowired
+    private com.web.service.MessageCacheService messageCacheService;
+
+    @Autowired
+    private com.web.service.MessageRetryService messageRetryService;
+
     // 消息类型常量
     private static final String MESSAGE_TYPE_PRIVATE = "PRIVATE";
     private static final String MESSAGE_TYPE_GROUP = "GROUP";
@@ -57,23 +63,46 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     @Override
     public Message sendMessage(SendMessageVo sendMessageVo, Long userId) {
         try {
-            // 验证消息内容
-            if (sendMessageVo.getContent() == null || sendMessageVo.getContent().trim().isEmpty()) {
-                throw new WeebException("消息内容不能为空");
-            }
+            // 统一消息格式验证
+            com.web.util.MessageValidator.validateSendMessageVo(sendMessageVo);
+            com.web.util.MessageValidator.validateUserId(userId);
+
+            // 清理消息内容
+            String sanitizedContent = com.web.util.MessageValidator.sanitizeContent(sendMessageVo.getContent());
+            sendMessageVo.setContent(sanitizedContent);
 
             // 根据目标类型选择发送方式
+            Message message;
             switch (sendMessageVo.getTargetType().toUpperCase()) {
                 case MESSAGE_TYPE_PRIVATE:
-                    return sendPrivateMessage(sendMessageVo.getTargetId(), sendMessageVo.getContent(), userId);
+                    message = sendPrivateMessage(sendMessageVo.getTargetId(), sendMessageVo.getContent(), userId);
+                    break;
                 case MESSAGE_TYPE_GROUP:
-                    return sendGroupMessage(sendMessageVo.getTargetId(), sendMessageVo.getContent(), userId);
+                    message = sendGroupMessage(sendMessageVo.getTargetId(), sendMessageVo.getContent(), userId);
+                    break;
                 default:
                     throw new WeebException("不支持的消息类型: " + sendMessageVo.getTargetType());
             }
+
+            // 缓存消息
+            if (message != null) {
+                messageCacheService.cacheMessage(message);
+                // 清除会话消息列表缓存，强制重新加载
+                messageCacheService.evictMessageList(message.getChatId());
+            }
+
+            return message;
+
+        } catch (WeebException e) {
+            // 业务异常直接抛出，不重试
+            throw e;
         } catch (Exception e) {
             log.error("发送消息失败: userId={}, targetType={}, targetId={}",
                 userId, sendMessageVo.getTargetType(), sendMessageVo.getTargetId(), e);
+
+            // 记录失败消息，稍后重试
+            messageRetryService.recordFailedMessage(sendMessageVo, userId, e.getMessage());
+
             throw new WeebException("发送消息失败: " + e.getMessage());
         }
     }
@@ -208,14 +237,39 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     @Override
     public List<Message> getPrivateMessageHistory(Long userId, Long targetUserId, int page, int size) {
         try {
+            // 验证参数
+            com.web.util.MessageValidator.validateUserId(userId);
+            com.web.util.MessageValidator.validateUserId(targetUserId);
+            com.web.util.MessageValidator.validatePagination(page, size);
+
             // 检查私聊会话是否存在
             ChatList chatList = chatListMapper.selectChatListByUserAndTarget(userId, targetUserId);
             if (chatList == null) {
                 return new ArrayList<>();
             }
 
+            // 尝试从缓存获取
+            List<Message> cachedMessages = messageCacheService.getCachedMessageList(chatList.getId(), page, size);
+            if (cachedMessages != null) {
+                log.debug("从缓存获取私聊消息: chatId={}, page={}, size={}", chatList.getId(), page, size);
+                return cachedMessages;
+            }
+
+            // 从数据库查询
             int offset = (page - 1) * size;
-            return messageMapper.selectPrivateMessagesByUsers(userId, targetUserId, offset, size);
+            List<Message> messages = messageMapper.selectPrivateMessagesByUsers(userId, targetUserId, offset, size);
+
+            // 缓存查询结果
+            if (!messages.isEmpty()) {
+                messageCacheService.cacheMessageList(chatList.getId(), messages);
+            }
+
+            // 预加载下一页
+            if (messages.size() == size) {
+                messageCacheService.preloadMessages(chatList.getId(), page + 1, size);
+            }
+
+            return messages;
 
         } catch (Exception e) {
             log.error("获取私聊消息历史失败: userId={}, targetUserId={}", userId, targetUserId, e);
@@ -226,13 +280,37 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     @Override
     public List<Message> getGroupMessageHistory(Long groupId, Long userId, int page, int size) {
         try {
+            // 验证参数
+            com.web.util.MessageValidator.validateUserId(userId);
+            com.web.util.MessageValidator.validatePagination(page, size);
+
             // 检查用户是否有权限查看群聊消息
             if (!hasGroupMessagePermission(groupId, userId)) {
                 throw new WeebException("无权限查看该群聊消息");
             }
 
+            // 尝试从缓存获取
+            List<Message> cachedMessages = messageCacheService.getCachedMessageList(groupId, page, size);
+            if (cachedMessages != null) {
+                log.debug("从缓存获取群聊消息: groupId={}, page={}, size={}", groupId, page, size);
+                return cachedMessages;
+            }
+
+            // 从数据库查询
             int offset = (page - 1) * size;
-            return messageMapper.selectMessagesByChatId(groupId, offset, size);
+            List<Message> messages = messageMapper.selectMessagesByChatId(groupId, offset, size);
+
+            // 缓存查询结果
+            if (!messages.isEmpty()) {
+                messageCacheService.cacheMessageList(groupId, messages);
+            }
+
+            // 预加载下一页
+            if (messages.size() == size) {
+                messageCacheService.preloadMessages(groupId, page + 1, size);
+            }
+
+            return messages;
 
         } catch (Exception e) {
             log.error("获取群聊消息历史失败: groupId={}, userId={}", groupId, userId, e);
@@ -326,6 +404,9 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     @Override
     public boolean deleteMessage(Long messageId, Long userId) {
         try {
+            com.web.util.MessageValidator.validateMessageId(messageId);
+            com.web.util.MessageValidator.validateUserId(userId);
+
             Message message = messageMapper.selectById(messageId);
             if (message == null) {
                 return false;
@@ -340,7 +421,15 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             message.setStatus(MESSAGE_STATUS_DELETED);
             message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
 
-            return messageMapper.updateById(message) > 0;
+            boolean result = messageMapper.updateById(message) > 0;
+
+            // 清除缓存
+            if (result) {
+                messageCacheService.evictMessage(messageId);
+                messageCacheService.evictMessageList(message.getChatId());
+            }
+
+            return result;
 
         } catch (Exception e) {
             log.error("删除消息失败: messageId={}, userId={}", messageId, userId, e);
@@ -384,16 +473,24 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     @Override
     public Map<String, Object> searchMessages(Long userId, String keyword, int page, int size) {
         try {
+            // 验证参数
+            com.web.util.MessageValidator.validateUserId(userId);
+            com.web.util.MessageValidator.validateSearchKeyword(keyword);
+            com.web.util.MessageValidator.validatePagination(page, size);
+
             Map<String, Object> result = new HashMap<>();
 
+            // 清理搜索关键词
+            String sanitizedKeyword = com.web.util.MessageValidator.sanitizeContent(keyword);
+
             // 搜索私聊消息
-            List<Message> privateMessages = messageMapper.searchPrivateMessages(userId, keyword, page, size);
+            List<Message> privateMessages = messageMapper.searchPrivateMessages(userId, sanitizedKeyword, page, size);
 
             // 搜索群聊消息
             List<Long> groupIds = groupMemberMapper.findGroupIdsByUserId(userId);
             List<Message> groupMessages = new ArrayList<>();
             for (Long groupId : groupIds) {
-                List<Message> groupMsgs = messageMapper.searchGroupMessages(groupId, keyword, page, size);
+                List<Message> groupMsgs = messageMapper.searchGroupMessages(groupId, sanitizedKeyword, page, size);
                 groupMessages.addAll(groupMsgs);
             }
 
@@ -405,7 +502,9 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
             result.put("messages", allMessages);
             result.put("total", allMessages.size());
-            result.put("keyword", keyword);
+            result.put("keyword", sanitizedKeyword);
+            result.put("page", page);
+            result.put("size", size);
 
             return result;
 

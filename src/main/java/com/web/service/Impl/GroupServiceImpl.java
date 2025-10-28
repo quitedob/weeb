@@ -499,9 +499,91 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
             // 移除成员
             groupMemberMapper.deleteById(targetMember.getId());
+            
+            // 更新群组成员数
+            Group group = getById(groupId);
+            if (group != null && group.getMemberCount() != null && group.getMemberCount() > 0) {
+                group.setMemberCount(group.getMemberCount() - 1);
+                updateById(group);
+            }
+            
             return true;
         } catch (Exception e) {
+            log.error("移除群组成员失败: groupId={}, userId={}, operatorId={}", groupId, userId, operatorId, e);
             return false;
+        }
+    }
+
+    @Override
+    @Transactional
+    public boolean transferGroup(Long groupId, Long newOwnerId, Long currentOwnerId) {
+        try {
+            log.info("开始转让群组: groupId={}, from={}, to={}", groupId, currentOwnerId, newOwnerId);
+
+            // 1. 验证群组是否存在
+            Group group = getById(groupId);
+            if (group == null) {
+                log.warn("群组不存在: groupId={}", groupId);
+                throw new WeebException("群组不存在");
+            }
+
+            // 2. 验证当前用户是否为群主
+            if (!group.getOwnerId().equals(currentOwnerId)) {
+                log.warn("用户不是群主，无权转让: groupId={}, userId={}", groupId, currentOwnerId);
+                throw new WeebException("只有群主可以转让群组");
+            }
+
+            // 3. 验证新群主是否为群成员
+            GroupMember newOwnerMember = groupMemberMapper.findByGroupAndUser(groupId, newOwnerId);
+            if (newOwnerMember == null) {
+                log.warn("新群主不是群成员: groupId={}, newOwnerId={}", groupId, newOwnerId);
+                throw new WeebException("新群主必须是群组成员");
+            }
+
+            // 4. 验证新群主不是当前群主
+            if (currentOwnerId.equals(newOwnerId)) {
+                log.warn("不能转让给自己: groupId={}, userId={}", groupId, currentOwnerId);
+                throw new WeebException("不能转让给自己");
+            }
+
+            // 5. 更新群组所有者
+            group.setOwnerId(newOwnerId);
+            group.setLastTransferAt(new Date());
+            if (group.getTransferCount() == null) {
+                group.setTransferCount(1);
+            } else {
+                group.setTransferCount(group.getTransferCount() + 1);
+            }
+            updateById(group);
+
+            // 6. 更新新群主的角色为群主（role=2）
+            newOwnerMember.setRole(2);
+            groupMemberMapper.updateById(newOwnerMember);
+
+            // 7. 更新原群主的角色为普通成员（role=0）
+            GroupMember oldOwnerMember = groupMemberMapper.findByGroupAndUser(groupId, currentOwnerId);
+            if (oldOwnerMember != null) {
+                oldOwnerMember.setRole(0);
+                groupMemberMapper.updateById(oldOwnerMember);
+            }
+
+            // 8. 记录转让历史
+            try {
+                String insertSql = "INSERT INTO group_transfer_history (group_id, from_user_id, to_user_id, transfer_reason, transfer_at) VALUES (?, ?, ?, ?, NOW())";
+                groupMapper.executeRawSql(insertSql, groupId, currentOwnerId, newOwnerId, "群主主动转让");
+            } catch (Exception e) {
+                log.warn("记录转让历史失败，但转让操作已完成: groupId={}", groupId, e);
+            }
+
+            log.info("群组转让成功: groupId={}, from={}, to={}", groupId, currentOwnerId, newOwnerId);
+            return true;
+
+        } catch (WeebException e) {
+            log.error("群组转让失败: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("群组转让失败: groupId={}, from={}, to={}", groupId, currentOwnerId, newOwnerId, e);
+            throw new WeebException("群组转让失败: " + e.getMessage());
         }
     }
 }

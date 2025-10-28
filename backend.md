@@ -797,6 +797,13 @@
 #### 📋 功能职责说明
 **ChatController** 负责聊天会话的管理和历史消息查询，专注于REST API形式的聊天业务逻辑。与WebSocketMessageController的实时通信功能相辅相成。
 
+#### 🚀 消息处理增强功能
+- **统一消息验证**: 使用MessageValidator统一验证消息格式、内容长度、非法字符
+- **Redis缓存**: 最近100条消息缓存1小时，消息列表缓存30分钟
+- **自动重试**: 失败消息自动重试，最多3次，每2分钟执行一次
+- **消息预加载**: 自动预加载下一页消息，提高用户体验
+- **缓存统计**: 提供缓存命中率统计，监控缓存效果
+
 - **GET /api/chats**
   - 功能：获取用户的聊天列表
   - 权限：已认证用户
@@ -809,20 +816,22 @@
     - `targetId` (Long): 目标用户ID
 
 - **GET /api/chats/{chatId}/messages**
-  - 功能：获取聊天消息历史记录（分页查询）
+  - 功能：获取聊天消息历史记录（分页查询，支持缓存）
   - 权限：已认证用户
   - 参数：
     - `chatId` (Long, 路径): 聊天ID
     - `page` (int, 默认1): 页码
     - `size` (int, 默认20): 每页大小
+  - 💡 **性能优化**: 优先从Redis缓存读取，自动预加载下一页
 
 - **POST /api/chats/{chatId}/messages**
   - 功能：发送聊天消息（REST API方式，主要用于兼容性）
   - 权限：已认证用户
   - 参数：
     - `chatId` (Long, 路径): 聊天ID
-    - `content` (String): 消息内容
+    - `content` (String): 消息内容（1-5000字符）
     - `messageType` (Integer, 可选): 消息类型
+  - 💡 **增强功能**: 自动验证、清理内容、失败重试、缓存更新
 
 - **POST /api/chats/{chatId}/read**
   - 功能：标记消息为已读
@@ -840,6 +849,13 @@
   - 参数：
     - `messageId` (Long, 路径): 消息ID
     - `reactionType` (String): 反应类型（如👍、❤️等）
+
+- **DELETE /api/messages/{messageId}**
+  - 功能：撤回消息
+  - 权限：已认证用户（仅限消息发送者）
+  - 参数：`messageId` (Long, 路径): 消息ID
+  - 限制：消息发送时间不超过2分钟
+  - 返回：撤回结果
 
 
 
@@ -1584,7 +1600,121 @@
 }
 ```
 
-### 18. 迁移 API (`/api/migration`)
+### 18. WebSocket连接监控 API (`/api/websocket/monitor`)
+
+#### 📋 功能说明
+提供WebSocket连接状态监控、在线用户统计、连接管理等功能。
+
+- **GET /api/websocket/monitor/online-count**
+  - 功能：获取在线用户数
+  - 权限：无特殊权限要求
+  - 参数：无
+  - 返回：在线用户数量
+
+- **GET /api/websocket/monitor/online-users**
+  - 功能：获取在线用户列表
+  - 权限：ADMIN用户类型
+  - 参数：无
+  - 返回：在线用户ID集合
+
+- **GET /api/websocket/monitor/user/{userId}/online**
+  - 功能：检查用户是否在线
+  - 权限：无特殊权限要求
+  - 参数：`userId` (Long, 路径): 用户ID
+  - 返回：在线状态（true/false）
+
+- **GET /api/websocket/monitor/user/{userId}/info**
+  - 功能：获取用户连接信息
+  - 权限：ADMIN或本人
+  - 参数：`userId` (Long, 路径): 用户ID
+  - 返回：用户连接详细信息（会话列表、连接时间等）
+
+- **GET /api/websocket/monitor/statistics**
+  - 功能：获取连接统计信息
+  - 权限：ADMIN用户类型
+  - 参数：无
+  - 返回：总连接数、总断开数、当前在线数、心跳统计等
+
+- **POST /api/websocket/monitor/clean-expired**
+  - 功能：手动清理过期连接
+  - 权限：ADMIN用户类型
+  - 参数：无
+  - 返回：清理的连接数量
+
+- **GET /api/websocket/monitor/user/{userId}/sessions**
+  - 功能：获取用户活跃会话列表
+  - 权限：ADMIN或本人
+  - 参数：`userId` (Long, 路径): 用户ID
+  - 返回：活跃会话ID集合
+
+### 19. 限流管理 API (`/api/rate-limit`)
+
+#### 📋 功能说明
+提供API限流配置管理、限流统计、限流事件查询等功能。支持动态调整限流参数。
+
+#### 配置管理
+- **POST /api/rate-limit/config**
+  - 功能：设置动态限流配置
+  - 权限：ADMIN用户类型
+  - 参数：
+    - `path` (String): API路径
+    - `maxRequests` (int): 最大请求数
+  - 返回：配置结果
+
+- **GET /api/rate-limit/config**
+  - 功能：获取动态限流配置
+  - 权限：ADMIN用户类型
+  - 参数：`path` (String): API路径
+  - 返回：最大请求数配置
+
+- **DELETE /api/rate-limit/config**
+  - 功能：删除动态限流配置
+  - 权限：ADMIN用户类型
+  - 参数：`path` (String): API路径
+  - 返回：删除结果
+
+- **GET /api/rate-limit/config/all**
+  - 功能：获取所有动态限流配置
+  - 权限：ADMIN用户类型
+  - 参数：无
+  - 返回：所有路径的限流配置映射
+
+#### 统计与监控
+- **GET /api/rate-limit/statistics**
+  - 功能：获取限流统计信息
+  - 权限：ADMIN用户类型
+  - 参数：无
+  - 返回：总请求数、被阻止数、告警数等统计信息
+
+- **GET /api/rate-limit/events**
+  - 功能：获取限流事件列表
+  - 权限：ADMIN用户类型
+  - 参数：`limit` (int, 默认100): 返回数量限制
+  - 返回：限流事件列表（包含时间、标识符、路径等）
+
+- **GET /api/rate-limit/alerts**
+  - 功能：获取限流告警列表
+  - 权限：ADMIN用户类型
+  - 参数：无
+  - 返回：限流告警列表（达到80%阈值的告警）
+
+- **DELETE /api/rate-limit/statistics**
+  - 功能：清除限流统计
+  - 权限：ADMIN用户类型
+  - 参数：无
+  - 返回：清除结果
+
+#### 限流解除
+- **POST /api/rate-limit/unlock**
+  - 功能：手动解除限流
+  - 权限：ADMIN用户类型
+  - 参数：
+    - `identifier` (String): 标识符（用户ID或IP）
+    - `path` (String): API路径
+    - `type` (String): 类型（USER或IP）
+  - 返回：解除结果
+
+### 20. 迁移 API (`/api/migration`)
 
 - **GET /api/migration/validate/pre**
   - 功能：迁移前验证
@@ -1691,11 +1821,15 @@
 ### 📝 当前实现状态
 
 #### ✅ 已完全实现的核心功能
-1. **实时消息推送**: WebSocket消息推送机制已实现
+1. **实时消息推送**: WebSocket消息推送机制已实现，包含心跳监控和连接管理
 2. **RBAC权限系统**: 完整的角色权限管理
 3. **AI功能框架**: 支持多种AI服务提供商
 4. **搜索功能**: Elasticsearch全文搜索
 5. **用户等级系统**: 完整的等级历史追踪
+6. **消息缓存系统**: Redis缓存消息历史，提高查询性能
+7. **消息重试机制**: 自动重试失败消息，最多3次
+8. **API限流系统**: 支持用户和IP双重限流，动态配置
+9. **WebSocket连接监控**: 实时监控在线用户和连接状态
 
 #### 🟡 部分实现的模块
 1. **文件上传**: 用户头像上传功能部分实现
@@ -1703,7 +1837,7 @@
 3. **定时任务**: 基础的定时任务框架已建立
 
 #### 📋 待优化项目
-1. **代码质量**: 清理582个linter警告
+1. **代码质量**: 清理剩余linter警告
 2. **API文档**: Swagger/OpenAPI文档生成
 3. **性能优化**: 数据库查询和缓存优化
 
@@ -1712,7 +1846,7 @@
 ## 🔍 项目问题分析与状态报告
 
 ### 最新分析时间
-**2025年10月28日** - 消息线索API完善，权限系统优化，文档更新
+**2024年10月28日** - WebSocket连接管理、消息缓存重试、API限流系统完善
 
 ### 🎯 当前项目状态
 
@@ -1747,6 +1881,10 @@
 - **依赖冲突修复**: javax.servlet和javax.validation已替换为jakarta包
 - **编译问题解决**: 所有编译错误已修复，AuthService和UserStats方法已完善
 - **API文档更新**: 新增了17个角色权限API和10个等级历史API的详细文档
+- **WebSocket连接管理**: 实现完整的连接监控、心跳机制、自动清理
+- **消息缓存优化**: 实现Redis缓存、消息预加载、缓存统计
+- **消息重试机制**: 实现自动重试、失败记录、定时任务
+- **API限流增强**: 实现双重限流、动态配置、告警机制
 
 ### 📊 问题严重程度评估
 
@@ -1783,10 +1921,16 @@
 - **参数验证统一**: 使用@Valid注解和ValidationUtils
 - **权限控制完善**: 使用@PreAuthorize注解
 - **事务管理规范**: ServiceImpl使用@Transactional
+- **消息验证统一**: MessageValidator统一验证消息格式和内容
+- **缓存策略完善**: Redis缓存消息和连接状态，提高性能
 
 #### ✅ 功能完整性
 - **RBAC权限系统**: 完整的角色权限管理（16个API接口）
-- **实时通信系统**: WebSocket消息推送
+- **实时通信系统**: WebSocket消息推送，心跳监控（25秒间隔）
+- **WebSocket连接管理**: 连接状态跟踪、自动清理、统计监控（7个API接口）
+- **消息缓存系统**: Redis缓存最近100条消息，30分钟TTL
+- **消息重试机制**: 自动重试失败消息，最多3次，每2分钟执行
+- **API限流系统**: 用户+IP双重限流，动态配置，告警机制（10个API接口）
 - **AI功能框架**: 支持多种AI服务提供商
 - **搜索功能**: Elasticsearch全文搜索
 - **用户等级系统**: 完整的等级历史追踪和集成（13个API接口）
@@ -1807,17 +1951,21 @@
 ## 📋 API接口统计
 
 ### 当前API接口总数
-- **总接口数量**: 45个核心业务API
+- **总接口数量**: 72个核心业务API
 - **角色权限模块**: 16个API接口
 - **等级历史模块**: 9个API接口
 - **等级集成模块**: 4个API接口
 - **消息线索模块**: 16个API接口
+- **WebSocket监控模块**: 7个API接口
+- **限流管理模块**: 10个API接口
 
 ### 接口分布
 - **管理API**: 管理员权限管理、用户管理、系统监控等
 - **业务API**: 文章、聊天、AI功能、搜索等
 - **用户API**: 认证、个人资料、关注等
 - **系统API**: 通知、安全中心、调试等
+- **监控API**: WebSocket连接监控、限流统计等
+- **配置API**: 限流配置管理、动态调整等
 
 ---
 

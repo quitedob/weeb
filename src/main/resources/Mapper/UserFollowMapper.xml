@@ -54,4 +54,29 @@
         WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
     </delete>
 
+    <select id="isFollowing" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM user_follow
+        WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
+    </select>
+
+    <select id="getFollowingIds" resultType="java.lang.Long">
+        SELECT followee_id
+        FROM user_follow
+        WHERE follower_id = #{followerId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="getFollowerIds" resultType="java.lang.Long">
+        SELECT follower_id
+        FROM user_follow
+        WHERE followee_id = #{followeeId}
+        ORDER BY created_at DESC
+    </select>
+
+    <delete id="unfollowUser">
+        DELETE FROM user_follow
+        WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
+    </delete>
+
 </mapper>

@@ -64,4 +64,28 @@
         ORDER BY c.create_time DESC
     </select>
 
+    <!-- 查找过期的PENDING状态请求 -->
+    <select id="findExpiredPendingRequests" resultType="com.web.model.Contact">
+        SELECT *
+        FROM contact
+        WHERE status = 0
+          AND expire_at IS NOT NULL
+          AND expire_at &lt; #{expireTime}
+        ORDER BY expire_at ASC
+    </select>
+
+    <!-- 删除旧的已拒绝请求 -->
+    <delete id="deleteOldRejectedRequests">
+        DELETE FROM contact
+        WHERE status = 2
+          AND update_time &lt; #{cleanTime}
+    </delete>
+
+    <!-- 统计指定状态的联系人数量 -->
+    <select id="countByStatus" resultType="int">
+        SELECT COUNT(*)
+        FROM contact
+        WHERE status = #{status, typeHandler=org.apache.ibatis.type.EnumOrdinalTypeHandler}
+    </select>
+
 </mapper>

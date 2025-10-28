@@ -366,14 +366,27 @@ public class WebSocketMessageController {
         }
     }
 
+    @Autowired
+    private com.web.service.WebSocketConnectionService connectionService;
+
     /**
      * 处理心跳消息
      */
     @MessageMapping("/chat/heartbeat")
-    public void handleHeartbeat(Principal principal) {
-        // 更新用户最后活跃时间
-        // 可以在这里实现用户在线状态管理
-        log.debug("收到用户 {} 的心跳", principal.getName());
+    public void handleHeartbeat(Principal principal, SimpMessageHeaderAccessor headerAccessor) {
+        try {
+            String sessionId = headerAccessor.getSessionId();
+            
+            // 更新心跳时间
+            if (sessionId != null) {
+                connectionService.updateHeartbeat(sessionId);
+            }
+            
+            log.debug("收到用户 {} 的心跳, sessionId={}", principal.getName(), sessionId);
+            
+        } catch (Exception e) {
+            log.error("处理心跳消息失败: user={}", principal.getName(), e);
+        }
     }
 
     /**

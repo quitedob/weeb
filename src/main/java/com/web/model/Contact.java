@@ -42,6 +42,18 @@ public class Contact implements Serializable {
      */
     private String remarks;
 
+    /**
+     * 好友请求过期时间
+     * PENDING状态下有效，默认7天后过期
+     */
+    private Date expireAt;
+
+    /**
+     * 所属分组ID
+     * 关联到contact_group表
+     */
+    private Long groupId;
+
     private Date createTime; // 创建时间
 
     private Date updateTime; // 更新时间

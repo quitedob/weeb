@@ -30,11 +30,25 @@ public class Group implements Serializable {
 
     private String groupAvatarUrl; // 群头像URL
 
+    private Integer status; // 群组状态: 0=已解散, 1=正常, 2=冻结
+
+    private Integer maxMembers; // 最大成员数
+
+    private Integer memberCount; // 当前成员数
+
+    private Date lastTransferAt; // 最后转让时间
+
+    private Integer transferCount; // 转让次数
+
     private Date createTime; // 创建时间
 
     // 默认构造函数
     public Group() {
         this.createTime = new Date();
+        this.status = 1; // 默认正常状态
+        this.maxMembers = 500; // 默认最大500人
+        this.memberCount = 0; // 默认0人
+        this.transferCount = 0; // 默认未转让
     }
 
     // 创建时的构造函数

@@ -217,16 +217,19 @@ public class DatabaseInitializer implements CommandLineRunner {
         String[][] tables = {
             {"user", "id,username,password,sex,phone_number,user_email,unique_article_link,unique_video_link,registration_date,ip_ownership,type,avatar,nickname,badge,login_time,bio,online_status,status"},
             {"user_stats", "user_id,fans_count,total_likes,total_favorites,total_sponsorship,total_article_exposure,website_coins,created_at,updated_at"},
-            {"`group`", "id,group_name,owner_id,group_avatar_url,create_time"},
+            {"`group`", "id,group_name,owner_id,group_avatar_url,group_description,status,max_members,member_count,last_transfer_at,transfer_count,create_time"},
             {"group_member", "id,group_id,user_id,role,join_time,update_time"},
-            {"contact", "id,user_id,friend_id,status,remarks,create_time,update_time"},
+            {"group_transfer_history", "id,group_id,from_user_id,to_user_id,transfer_reason,transfer_at"},
+            {"contact", "id,user_id,friend_id,status,remarks,expire_at,group_id,create_time,update_time"},
+            {"contact_group", "id,user_id,group_name,group_order,is_default,created_at,updated_at"},
             {"chat_list", "id,user_id,target_id,group_id,target_info,type,unread_count,last_message,create_time,update_time"},
-            {"message", "id,sender_id,chat_id,content,message_type,read_status,is_recalled,user_ip,source,is_show_time,reply_to_message_id,created_at,updated_at"},
+            {"message", "id,sender_id,receiver_id,group_id,chat_id,content,message_type,read_status,is_read,is_recalled,status,user_ip,source,is_show_time,reply_to_message_id,created_at,updated_at"},
             {"message_reaction", "id,message_id,user_id,reaction_type,create_time"},
             {"notifications", "id,recipient_id,actor_id,type,entity_type,entity_id,is_read,created_at"},
             {"file_transfer", "id,initiator_id,target_id,offer_sdp,answer_sdp,candidate,status,created_at,updated_at"},
             {"article_category", "id,category_name,parent_id,created_at"},
-            {"articles", "article_id,user_id,category_id,article_title,article_content,article_link,likes_count,favorites_count,sponsors_count,exposure_count,created_at,updated_at,status"},
+            {"articles", "article_id,user_id,category_id,article_title,article_content,article_link,likes_count,favorites_count,sponsors_count,exposure_count,status,reviewer_id,reviewed_at,review_note,has_sensitive_words,review_priority,created_at,updated_at"},
+            {"article_moderation_history", "id,article_id,reviewer_id,action,reason,previous_status,new_status,created_at"},
             {"article_comment", "id,article_id,user_id,content,parent_id,created_at,updated_at"},
             {"article_favorite", "id,user_id,article_id,created_at"},
             {"article_tag", "id,tag_name,created_at"},
@@ -364,6 +367,9 @@ public class DatabaseInitializer implements CommandLineRunner {
         createUserLevelHistoryTable(); // 用户等级历史表
         createArticleVersionTable(); // 文章版本表
         createContentReportTable(); // 内容举报表
+        createContactGroupTable(); // 联系人分组表
+        createGroupTransferHistoryTable(); // 群组转让历史表
+        createArticleModerationHistoryTable(); // 文章审核历史表
 
         log.info("✅ 所有表创建完成");
     }
@@ -468,11 +474,15 @@ public class DatabaseInitializer implements CommandLineRunner {
             CREATE TABLE IF NOT EXISTS `message` (
                 `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '消息ID',
                 `sender_id` BIGINT NOT NULL COMMENT '发送者ID',
+                `receiver_id` BIGINT COMMENT '接收者ID（私聊时使用）',
+                `group_id` BIGINT COMMENT '群组ID（群聊时使用）',
                 `chat_id` BIGINT COMMENT '聊天列表ID',
                 `content` JSON NOT NULL COMMENT '消息内容（JSON格式）',
                 `message_type` INT DEFAULT 1 COMMENT '消息类型：1文本，2图片，3文件等',
                 `read_status` INT DEFAULT 0 COMMENT '读取状态：0未读，1已读',
+                `is_read` TINYINT(1) DEFAULT 0 COMMENT '是否已读：0未读，1已读',
                 `is_recalled` INT DEFAULT 0 COMMENT '是否撤回：0否，1是',
+                `status` INT DEFAULT 0 COMMENT '消息状态：0正常，1已删除，2已撤回',
                 `user_ip` VARCHAR(45) COMMENT '发送者IP地址',
                 `source` VARCHAR(50) COMMENT '消息来源：WEB、MOBILE、API等',
                 `is_show_time` INT DEFAULT 0 COMMENT '是否显示时间：0否，1是',
@@ -486,6 +496,11 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_message_type` (`message_type`),
                 KEY `idx_read_status` (`read_status`),
                 KEY `idx_reply_to_message_id` (`reply_to_message_id`),
+                KEY `idx_message_private_chat` (`sender_id`, `receiver_id`, `created_at` DESC),
+                KEY `idx_message_group_chat` (`group_id`, `created_at` DESC),
+                KEY `idx_message_receiver_read` (`receiver_id`, `is_read`, `created_at` DESC),
+                KEY `idx_message_type_time` (`message_type`, `created_at` DESC),
+                KEY `idx_message_status` (`status`, `created_at` DESC),
                 CONSTRAINT `fk_message_sender` FOREIGN KEY (`sender_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `fk_message_reply` FOREIGN KEY (`reply_to_message_id`) REFERENCES `message` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
@@ -510,10 +525,18 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `group_name` VARCHAR(100) NOT NULL COMMENT '群组名称',
                 `owner_id` BIGINT NOT NULL COMMENT '群主ID',
                 `group_avatar_url` VARCHAR(500) COMMENT '群组头像URL',
+                `group_description` TEXT NULL COMMENT '群组描述',
+                `status` TINYINT(1) DEFAULT 1 COMMENT '群组状态: 0=已解散, 1=正常, 2=冻结',
+                `max_members` INT DEFAULT 500 COMMENT '最大成员数',
+                `member_count` INT DEFAULT 0 COMMENT '当前成员数',
+                `last_transfer_at` TIMESTAMP NULL COMMENT '最后转让时间',
+                `transfer_count` INT DEFAULT 0 COMMENT '转让次数',
                 `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                 PRIMARY KEY (`id`),
                 KEY `idx_owner_id` (`owner_id`),
                 KEY `idx_create_time` (`create_time`),
+                KEY `idx_group_status` (`status`),
+                KEY `idx_group_owner` (`owner_id`, `status`),
                 CONSTRAINT `fk_group_owner` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
             COMMENT='群组信息表'
@@ -525,6 +548,37 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建群组表失败", e);
             throw new RuntimeException("创建群组表失败", e);
+        }
+    }
+
+    private void createGroupTransferHistoryTable() {
+        log.info("创建群组转让历史表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `group_transfer_history` (
+                `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '记录ID',
+                `group_id` BIGINT NOT NULL COMMENT '群组ID',
+                `from_user_id` BIGINT NOT NULL COMMENT '原群主ID',
+                `to_user_id` BIGINT NOT NULL COMMENT '新群主ID',
+                `transfer_reason` VARCHAR(255) NULL COMMENT '转让原因',
+                `transfer_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '转让时间',
+                INDEX `idx_group_id` (`group_id`),
+                INDEX `idx_from_user` (`from_user_id`),
+                INDEX `idx_to_user` (`to_user_id`),
+                INDEX `idx_transfer_time` (`transfer_at`),
+                CONSTRAINT `fk_transfer_group` FOREIGN KEY (`group_id`) REFERENCES `group` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_transfer_from_user` FOREIGN KEY (`from_user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_transfer_to_user` FOREIGN KEY (`to_user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='群组转让历史表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 群组转让历史表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建群组转让历史表失败", e);
+            throw new RuntimeException("创建群组转让历史表失败", e);
         }
     }
 
@@ -609,9 +663,14 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `favorites_count` INT DEFAULT 0 COMMENT '收藏数',
                 `sponsors_count` DECIMAL(10,2) DEFAULT 0.00 COMMENT '赞助金额',
                 `exposure_count` BIGINT DEFAULT 0 COMMENT '曝光/阅读数',
+                `status` TINYINT(1) DEFAULT 1 COMMENT '文章状态: 0=待审核, 1=审核通过, 2=审核拒绝, 3=已删除',
+                `reviewer_id` BIGINT NULL COMMENT '审核人ID',
+                `reviewed_at` TIMESTAMP NULL COMMENT '审核时间',
+                `review_note` TEXT NULL COMMENT '审核备注（拒绝原因等）',
+                `has_sensitive_words` TINYINT(1) DEFAULT 0 COMMENT '是否包含敏感词',
+                `review_priority` INT DEFAULT 0 COMMENT '审核优先级: 0=普通, 1=高, 2=紧急',
                 `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                 `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-                `status` TINYINT DEFAULT 1 COMMENT '状态：0草稿，1发布，2删除',
                 PRIMARY KEY (`article_id`),
                 KEY `idx_user_id` (`user_id`),
                 KEY `idx_category_id` (`category_id`),
@@ -619,9 +678,13 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_status` (`status`),
                 KEY `idx_likes_count` (`likes_count`),
                 KEY `idx_exposure_count` (`exposure_count`),
+                KEY `idx_article_status_created` (`status`, `created_at` DESC),
+                KEY `idx_article_reviewer` (`reviewer_id`, `reviewed_at`),
+                KEY `idx_article_priority` (`review_priority` DESC, `created_at` DESC),
                 FULLTEXT KEY `ft_title_content` (`article_title`, `article_content`),
                 CONSTRAINT `fk_articles_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
-                CONSTRAINT `fk_articles_category` FOREIGN KEY (`category_id`) REFERENCES `article_category` (`id`) ON DELETE SET NULL
+                CONSTRAINT `fk_articles_category` FOREIGN KEY (`category_id`) REFERENCES `article_category` (`id`) ON DELETE SET NULL,
+                CONSTRAINT `fk_articles_reviewer` FOREIGN KEY (`reviewer_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
             COMMENT='文章内容表'
             """;
@@ -632,6 +695,37 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建文章表失败", e);
             throw new RuntimeException("创建文章表失败", e);
+        }
+    }
+
+    private void createArticleModerationHistoryTable() {
+        log.info("创建文章审核历史表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `article_moderation_history` (
+                `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '记录ID',
+                `article_id` BIGINT NOT NULL COMMENT '文章ID',
+                `reviewer_id` BIGINT NOT NULL COMMENT '审核人ID',
+                `action` VARCHAR(20) NOT NULL COMMENT '审核动作: APPROVE, REJECT, DELETE',
+                `reason` TEXT NULL COMMENT '审核原因',
+                `previous_status` TINYINT(1) NULL COMMENT '之前的状态',
+                `new_status` TINYINT(1) NULL COMMENT '新状态',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '审核时间',
+                INDEX `idx_article_id` (`article_id`),
+                INDEX `idx_reviewer_id` (`reviewer_id`),
+                INDEX `idx_created_at` (`created_at` DESC),
+                CONSTRAINT `fk_moderation_article` FOREIGN KEY (`article_id`) REFERENCES `articles` (`article_id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_moderation_reviewer` FOREIGN KEY (`reviewer_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='文章审核历史表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 文章审核历史表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建文章审核历史表失败", e);
+            throw new RuntimeException("创建文章审核历史表失败", e);
         }
     }
 
@@ -708,8 +802,10 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '关系ID',
                 `user_id` BIGINT NOT NULL COMMENT '用户ID',
                 `friend_id` BIGINT NOT NULL COMMENT '好友ID',
-                `status` INT NOT NULL DEFAULT 0 COMMENT '关系状态：0待确认，1已确认，2已拒绝，3已删除',
+                `status` INT NOT NULL DEFAULT 0 COMMENT '关系状态：0待确认，1已确认，2已拒绝，3已删除，4已过期',
                 `remarks` VARCHAR(255) COMMENT '备注/申请附言',
+                `expire_at` TIMESTAMP NULL COMMENT '好友请求过期时间，PENDING状态下有效',
+                `group_id` BIGINT NULL COMMENT '所属分组ID',
                 `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                 `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                 PRIMARY KEY (`id`),
@@ -717,6 +813,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_friend_id` (`friend_id`),
                 KEY `idx_status` (`status`),
                 KEY `idx_create_time` (`create_time`),
+                KEY `idx_contact_status_expire` (`status`, `expire_at`),
+                KEY `idx_contact_group_id` (`group_id`),
                 CONSTRAINT `fk_contact_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `fk_contact_friend` FOREIGN KEY (`friend_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
@@ -729,6 +827,34 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建联系人表失败", e);
             throw new RuntimeException("创建联系人表失败", e);
+        }
+    }
+
+    private void createContactGroupTable() {
+        log.info("创建联系人分组表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `contact_group` (
+                `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '分组ID',
+                `user_id` BIGINT NOT NULL COMMENT '用户ID',
+                `group_name` VARCHAR(50) NOT NULL COMMENT '分组名称',
+                `group_order` INT DEFAULT 0 COMMENT '分组排序',
+                `is_default` TINYINT(1) DEFAULT 0 COMMENT '是否为默认分组',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                INDEX `idx_user_id` (`user_id`),
+                INDEX `idx_user_order` (`user_id`, `group_order`),
+                CONSTRAINT `fk_contact_group_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='联系人分组表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 联系人分组表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建联系人分组表失败", e);
+            throw new RuntimeException("创建联系人分组表失败", e);
         }
     }
 
