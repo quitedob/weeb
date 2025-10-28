@@ -6,8 +6,9 @@
     <select id="isContactExists" resultType="boolean">
         SELECT COUNT(1) > 0
         FROM contact
-        WHERE (user_id = #{userId} AND friend_id = #{friendId})
-           OR (user_id = #{friendId} AND friend_id = #{userId})
+        WHERE ((user_id = #{userId} AND friend_id = #{friendId})
+           OR (user_id = #{friendId} AND friend_id = #{userId}))
+          AND status IN (0, 1)  <!-- 0=PENDING, 1=ACCEPTED, 只检查待处理和已接受的关系 -->
     </select>
 
     <!-- 创建联系人申请记录 -->
@@ -55,8 +56,15 @@
     </select>
 
     <!-- 查询发送给指定用户的待处理好友申请列表 -->
-    <select id="selectPendingContactsReceivedByUser" resultType="com.web.dto.UserDto">
-        SELECT u.id, u.username, u.avatar, c.create_time as contactTime, c.remarks
+    <select id="selectPendingContactsReceivedByUser" resultType="com.web.dto.ContactRequestDto">
+        SELECT 
+            c.id as contactId,
+            u.id,
+            u.username,
+            u.nickname,
+            u.avatar,
+            c.remarks,
+            c.create_time as createdAt
         FROM contact c
         LEFT JOIN user u ON c.user_id = u.id
         WHERE c.friend_id = #{userId}

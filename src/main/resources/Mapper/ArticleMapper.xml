@@ -6,7 +6,7 @@
 <mapper namespace="com.web.mapper.ArticleMapper">
 
     <resultMap id="ArticleResultMap" type="com.web.model.Article">
-        <id property="id" column="article_id"/>
+        <id property="articleId" column="article_id"/>
         <result property="userId" column="user_id"/>
         <result property="categoryId" column="category_id"/>
         <result property="articleTitle" column="article_title"/>
@@ -230,7 +230,7 @@
         VALUES (#{userId}, #{targetUserId})
     </insert>
 
-    <insert id="insertArticle" parameterType="com.web.model.Article" useGeneratedKeys="true" keyProperty="id" keyColumn="article_id">
+    <insert id="insertArticle" parameterType="com.web.model.Article" useGeneratedKeys="true" keyProperty="articleId" keyColumn="article_id">
         INSERT INTO articles (user_id, category_id, article_title, article_content, article_link, status, 
                               likes_count, favorites_count, sponsors_count, exposure_count, 
                               created_at, updated_at)
@@ -250,7 +250,7 @@
             sponsors_count = #{sponsorsCount},
             exposure_count = #{exposureCount},
             updated_at = NOW()
-        WHERE article_id = #{id}
+        WHERE article_id = #{articleId}
     </update>
     <delete id="deleteArticleById" parameterType="long">
         DELETE FROM articles WHERE article_id = #{id}

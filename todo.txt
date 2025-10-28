@@ -1,0 +1,407 @@
+# TODO List - 联系人和群组功能完善
+
+## 已完成
+1. ✅ 好友申请功能 - 添加通知发送
+2. ✅ 好友申请DTO - 创建ContactRequestDto包含前端需要的字段
+3. ✅ 联系人分组API - 在ContactController中添加完整的分组管理接口
+4. ✅ 好友申请列表API - /api/contacts/requests返回ContactRequestDto
+
+## 进行中
+### 群组功能DTO重构
+**文件**: src/main/java/com/web/dto/GroupDto.java
+**状态**: 已创建基础结构
+**需要完成**:
+1. 在GroupService接口中添加返回GroupDto的方法
+2. 在GroupServiceImpl中实现DTO转换逻辑
+3. 更新StandardGroupController使用GroupDto
+4. 创建GroupMapper.xml查询语句，JOIN user表获取ownerUsername
+5. 创建GroupMapper.xml查询语句，JOIN group_member表获取用户角色
+
+### 具体实现步骤
+
+#### 1. GroupService接口更新
+**文件**: src/main/java/com/web/service/GroupService.java
+**需要添加的方法**:
+```java
+List<GroupDto> getUserGroupsWithDetails(Long userId);
+List<GroupDto> getUserCreatedGroupsWithDetails(Long userId);
+GroupDto getGroupWithDetails(Long groupId, Long userId);
+```
+
+#### 2. GroupMapper接口和XML
+**文件**: src/main/java/com/web/mapper/GroupMapper.java
+**需要添加的方法**:
+```java
+List<GroupDto> selectUserGroupsWithDetails(@Param("userId") Long userId);
+List<GroupDto> selectUserCreatedGroupsWithDetails(@Param("userId") Long userId);
+GroupDto selectGroupWithDetails(@Param("groupId") Long groupId, @Param("userId") Long userId);
+```
+
+**文件**: src/main/resources/mapper/GroupMapper.xml
+**需要添加的查询**:
+- selectUserGroupsWithDetails: JOIN group, group_member, user表
+- selectUserCreatedGroupsWithDetails: JOIN group, user表
+- selectGroupWithDetails: JOIN group, user表，可选JOIN group_member
+
+#### 3. GroupServiceImpl实现
+**文件**: src/main/java/com/web/service/Impl/GroupServiceImpl.java
+**需要实现**:
+- getUserGroupsWithDetails(): 调用mapper获取用户加入的群组（包含角色）
+- getUserCreatedGroupsWithDetails(): 调用mapper获取用户创建的群组
+- getGroupWithDetails(): 获取群组详情（包含群主信息和用户角色）
+
+#### 4. StandardGroupController更新
+**文件**: src/main/java/com/web/Controller/StandardGroupController.java
+**需要修改的方法**:
+- getMyGroups(): 返回List<GroupDto>
+- getMyCreatedGroups(): 返回List<GroupDto>
+- getGroup(): 返回GroupDto
+
+#### 5. 前端适配（可选）
+**文件**: Vue/src/group/GroupPage.vue
+**说明**: 如果后端字段名与前端不匹配，需要在前端做映射
+- createTime → createdAt
+
+## 待完成功能
+
+### 数据库初始化
+**文件**: src/main/java/com/web/Config/DatabaseInitializer.java
+**功能**: 初始化测试好友关系和群组数据
+**状态**: 代码已添加但可能未生效
+**需要验证**: 
+- initializeTestContacts()方法是否被调用
+- initializeTestGroups()方法是否被调用
+- 测试数据是否正确创建
+
+### 群组申请通知
+**文件**: src/main/java/com/web/service/Impl/GroupServiceImpl.java
+**功能**: 用户申请加入群组时发送通知给群主
+**需要实现**:
+```java
+// 在applyToJoinGroup方法中添加
+notificationService.createAndPublishNotification(
+    group.getOwnerId(),  // 接收者：群主
+    userId,              // 操作者：申请人
+    "GROUP_APPLICATION", // 通知类型
+    "GROUP",             // 实体类型
+    groupId              // 实体ID
+);
+```
+
+### 群组申请处理通知
+**文件**: src/main/java/com/web/service/Impl/GroupServiceImpl.java
+**功能**: 群主处理申请后通知申请人
+**需要实现**:
+```java
+// 在approveApplication方法中添加
+notificationService.createAndPublishNotification(
+    applicantId,              // 接收者：申请人
+    userId,                   // 操作者：群主
+    "GROUP_APPLICATION_APPROVED", // 通知类型
+    "GROUP",                  // 实体类型
+    groupId                   // 实体ID
+);
+```
+
+### 群组成员变更通知
+**功能**: 成员加入/退出群组时通知所有成员
+**需要实现**: 群组消息广播机制
+
+## 代码质量问题
+
+### 需要清理的警告
+1. 检查所有Service接口与实现的方法签名是否一致
+2. 清理未使用的import语句
+3. 确保所有@Transactional注解正确使用
+
+### 需要重构的代码
+1. ContactServiceImpl中的getContacts方法返回类型不一致（PENDING时应返回ContactRequestDto）
+2. 群组相关的VO类需要验证是否符合规范
+
+## 测试计划
+1. 测试好友申请功能（发送、接受、拒绝）
+2. 测试好友申请通知是否正常发送
+3. 测试群组创建和加入功能
+4. 测试群组列表API返回数据格式
+5. 验证前端能否正确显示群组信息
+
+## 文档更新
+1. 更新backend.md - 添加ContactRequestDto和GroupDto说明
+2. 更新README.md - 更新好友和群组功能说明
+3. 更新API文档 - 添加新增的API端点
+
+## 紧急问题修复
+
+### 问题1: 前端获取好友列表失败
+**文件**: Vue/src/contact/ContactPage.vue
+**问题描述**: 
+- 前端调用 `GET /api/contacts?status=ACCEPTED` 获取好友列表
+- 后端返回 `List<UserDto>`，但UserDto字段与前端期望不匹配
+- UserDto只有id, name, avatar等基础字段
+- 前端期望有username, nickname等字段
+
+**根本原因**:
+1. UserDto设计不完整，缺少username, nickname, bio等字段
+2. ContactMapper.xml中的selectContactsByUserAndStatus查询返回字段不完整
+3. 前端直接使用axiosInstance而不是统一的API模块（违反规范）
+
+**解决方案**:
+1. **创建ContactDto** (推荐)
+   - 文件: src/main/java/com/web/dto/ContactDto.java
+   - 包含字段: id, username, nickname, avatar, bio, contactTime
+   - 用于返回好友列表信息
+   
+2. **更新ContactMapper.xml**
+   - 文件: src/main/resources/mapper/ContactMapper.xml
+   - 修改selectContactsByUserAndStatus查询
+   - 返回类型改为ContactDto
+   - SELECT语句包含: u.id, u.username, u.nickname, u.avatar, u.bio, c.create_time as contactTime
+
+3. **更新ContactService接口**
+   - 文件: src/main/java/com/web/service/ContactService.java
+   - 修改getContacts方法签名: `List<ContactDto> getContacts(Long userId, ContactStatus status);`
+   - 或添加新方法: `List<ContactDto> getContactsWithDetails(Long userId, ContactStatus status);`
+
+4. **更新ContactServiceImpl**
+   - 文件: src/main/java/com/web/service/Impl/ContactServiceImpl.java
+   - 实现新的方法，调用mapper返回ContactDto
+
+5. **更新ContactController**
+   - 文件: src/main/java/com/web/Controller/ContactController.java
+   - 修改getContacts方法返回类型: `ResponseEntity<ApiResponse<List<ContactDto>>>`
+
+6. **创建前端API模块** (遵循规范)
+   - 文件: Vue/src/api/modules/contact.js
+   - 封装所有联系人相关的API调用
+   - 包含: getContacts, getFriendRequests, sendRequest, acceptRequest, rejectRequest等
+
+7. **更新前端ContactPage**
+   - 文件: Vue/src/contact/ContactPage.vue
+   - 使用contact.js模块而不是直接使用axiosInstance
+   - 遵循前端开发规范第3条
+
+**实现优先级**: 高（影响核心功能）
+**预计工作量**: 2-3小时
+
+---
+
+### 问题2: 前端获取群组列表字段不匹配
+**文件**: Vue/src/group/GroupPage.vue
+**问题描述**:
+- 前端调用 `GET /api/groups/my-groups` 和 `GET /api/groups/my-created`
+- 后端返回 `List<Group>`，字段名与前端期望不匹配
+- 后端: createTime, ownerId
+- 前端期望: createdAt, ownerUsername, role
+
+**根本原因**:
+1. Group模型直接返回给前端，违反DTO设计原则
+2. 缺少ownerUsername字段（需要JOIN user表）
+3. 缺少role字段（需要JOIN group_member表）
+4. 字段命名不一致（createTime vs createdAt）
+
+**解决方案**:
+1. **完善GroupDto** (已创建基础结构)
+   - 文件: src/main/java/com/web/dto/GroupDto.java
+   - 确保包含所有前端需要的字段
+   - 字段命名与前端保持一致（使用createdAt而不是createTime）
+
+2. **创建GroupMapper.xml**
+   - 文件: src/main/resources/mapper/GroupMapper.xml (需要创建)
+   - 添加查询: selectUserGroupsWithDetails
+     ```xml
+     SELECT 
+         g.id, g.group_name as groupName, g.group_description as groupDescription,
+         g.owner_id as ownerId, u.username as ownerUsername,
+         g.group_avatar_url as groupAvatarUrl, g.status, g.max_members as maxMembers,
+         g.member_count as memberCount, gm.role, g.create_time as createdAt,
+         g.last_transfer_at as lastTransferAt, g.transfer_count as transferCount
+     FROM `group` g
+     LEFT JOIN user u ON g.owner_id = u.id
+     LEFT JOIN group_member gm ON g.id = gm.group_id AND gm.user_id = #{userId}
+     WHERE gm.user_id = #{userId}
+     ORDER BY g.create_time DESC
+     ```
+   - 添加查询: selectUserCreatedGroupsWithDetails
+     ```xml
+     SELECT 
+         g.id, g.group_name as groupName, g.group_description as groupDescription,
+         g.owner_id as ownerId, u.username as ownerUsername,
+         g.group_avatar_url as groupAvatarUrl, g.status, g.max_members as maxMembers,
+         g.member_count as memberCount, 1 as role, g.create_time as createdAt,
+         g.last_transfer_at as lastTransferAt, g.transfer_count as transferCount
+     FROM `group` g
+     LEFT JOIN user u ON g.owner_id = u.id
+     WHERE g.owner_id = #{userId}
+     ORDER BY g.create_time DESC
+     ```
+
+3. **更新GroupMapper接口**
+   - 文件: src/main/java/com/web/mapper/GroupMapper.java
+   - 添加方法:
+     ```java
+     List<GroupDto> selectUserGroupsWithDetails(@Param("userId") Long userId);
+     List<GroupDto> selectUserCreatedGroupsWithDetails(@Param("userId") Long userId);
+     GroupDto selectGroupWithDetails(@Param("groupId") Long groupId, @Param("userId") Long userId);
+     ```
+
+4. **更新GroupService接口**
+   - 文件: src/main/java/com/web/service/GroupService.java
+   - 添加方法:
+     ```java
+     List<GroupDto> getUserGroupsWithDetails(Long userId);
+     List<GroupDto> getUserCreatedGroupsWithDetails(Long userId);
+     GroupDto getGroupWithDetails(Long groupId, Long userId);
+     ```
+   - 保持原有方法不变（向后兼容）
+
+5. **更新GroupServiceImpl**
+   - 文件: src/main/java/com/web/service/Impl/GroupServiceImpl.java
+   - 实现新方法，调用mapper返回GroupDto
+   - 添加@Transactional注解（如果涉及多表操作）
+
+6. **更新StandardGroupController**
+   - 文件: src/main/java/com/web/Controller/StandardGroupController.java
+   - 修改getMyGroups方法: 返回 `ResponseEntity<ApiResponse<List<GroupDto>>>`
+   - 修改getMyCreatedGroups方法: 返回 `ResponseEntity<ApiResponse<List<GroupDto>>>`
+   - 修改getGroup方法: 返回 `ResponseEntity<ApiResponse<GroupDto>>`
+
+7. **前端适配（可选）**
+   - 文件: Vue/src/group/GroupPage.vue
+   - 如果后端统一使用createdAt，前端无需修改
+   - 如果保持createTime，前端需要映射: `createdAt: group.createTime`
+
+**实现优先级**: 高（影响核心功能）
+**预计工作量**: 3-4小时
+
+---
+
+### 问题3: 前端API调用不规范
+**问题描述**:
+- 前端组件直接使用axiosInstance调用API
+- 违反前端开发规范第3条: "新的API请求应根据业务领域添加到src/api/modules/目录下的对应模块中"
+- 缺少统一的API封装，代码重复
+
+**影响范围**:
+- Vue/src/contact/ContactPage.vue - 直接使用axiosInstance
+- Vue/src/group/GroupPage.vue - 使用groupApi但可能不完整
+
+**解决方案**:
+1. **创建contact.js API模块**
+   - 文件: Vue/src/api/modules/contact.js (需要创建)
+   - 封装所有联系人相关API:
+     ```javascript
+     export default {
+       // 获取好友列表
+       getContacts(status = 'ACCEPTED') {
+         return axiosInstance.get('/api/contacts', { params: { status } });
+       },
+       
+       // 获取好友申请列表
+       getFriendRequests() {
+         return axiosInstance.get('/api/contacts/requests');
+       },
+       
+       // 发送好友申请（通过用户名）
+       sendRequestByUsername(username, message) {
+         return axiosInstance.post('/api/contacts/request/by-username', { username, message });
+       },
+       
+       // 接受好友申请
+       acceptRequest(requestId) {
+         return axiosInstance.post(`/api/contacts/request/${requestId}/accept`);
+       },
+       
+       // 拒绝好友申请
+       rejectRequest(requestId) {
+         return axiosInstance.post(`/api/contacts/request/${requestId}/reject`);
+       },
+       
+       // 删除联系人
+       deleteContact(contactId) {
+         return axiosInstance.delete(`/api/contacts/${contactId}`);
+       },
+       
+       // 分组管理
+       getGroups() {
+         return axiosInstance.get('/api/contacts/groups');
+       },
+       
+       createGroup(groupName, groupOrder) {
+         return axiosInstance.post('/api/contacts/groups', { groupName, groupOrder });
+       },
+       
+       updateGroupName(groupId, groupName) {
+         return axiosInstance.put(`/api/contacts/groups/${groupId}/name`, { groupName });
+       },
+       
+       deleteGroup(groupId) {
+         return axiosInstance.delete(`/api/contacts/groups/${groupId}`);
+       },
+       
+       addContactToGroup(groupId, contactId) {
+         return axiosInstance.post(`/api/contacts/groups/${groupId}/contacts/${contactId}`);
+       },
+       
+       getContactsByGroup(groupId) {
+         return axiosInstance.get(`/api/contacts/groups/${groupId}/contacts`);
+       }
+     };
+     ```
+
+2. **更新ContactPage.vue**
+   - 文件: Vue/src/contact/ContactPage.vue
+   - 导入contact API模块: `import contactApi from '@/api/modules/contact';`
+   - 替换所有axiosInstance调用为contactApi方法
+   - 示例:
+     ```javascript
+     // 修改前
+     const response = await axiosInstance.get('/api/contacts', { params: { status: 'ACCEPTED' } });
+     
+     // 修改后
+     const response = await contactApi.getContacts('ACCEPTED');
+     ```
+
+3. **验证group.js API模块**
+   - 文件: Vue/src/api/modules/group.js
+   - 确保所有方法都已实现
+   - 确保返回数据格式与后端一致
+
+**实现优先级**: 中（代码规范问题）
+**预计工作量**: 1-2小时
+
+---
+
+### 问题4: UserDto设计不完整
+**文件**: src/main/java/com/web/dto/UserDto.java
+**问题描述**:
+- UserDto只有id, name, avatar, type, badge, ipOwnership字段
+- 缺少username, nickname, bio等常用字段
+- 多个场景需要不同的用户信息，但都使用同一个UserDto
+
+**解决方案**:
+1. **扩展UserDto** (快速方案)
+   - 添加字段: username, nickname, email, bio, onlineStatus
+   - 保持向后兼容，新字段可为null
+
+2. **创建专用DTO** (推荐方案)
+   - ContactDto: 用于好友列表
+   - GroupMemberDto: 用于群组成员
+   - UserProfileDto: 用于用户详情
+   - UserSearchDto: 用于搜索结果
+   - 遵循单一职责原则
+
+**实现优先级**: 中（架构优化）
+**预计工作量**: 2-3小时
+
+---
+
+## 注意事项
+1. 所有数据库操作必须在ServiceImpl中使用@Transactional
+2. 所有DTO必须包含前端需要的完整字段
+3. 字段命名必须保持一致性（createTime vs createdAt需要统一）
+4. 所有通知发送失败不应影响主业务流程
+5. 遵循rule.txt中的所有规范
+6. Service接口与实现必须保持严格一致，修改签名必须同步
+7. 前端必须使用API模块封装，禁止直接使用axiosInstance
+8. 新增DTO必须在backend.md中记录
+9. API变更必须同步更新前端API模块

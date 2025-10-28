@@ -68,7 +68,7 @@ public interface ContactMapper extends BaseMapper<Contact> {
      * @param userId 当前用户ID (作为接收者)
      * @return 发起好友申请的用户列表
      */
-    List<com.web.dto.UserDto> selectPendingContactsReceivedByUser(@Param("userId") Long userId);
+    List<com.web.dto.ContactRequestDto> selectPendingContactsReceivedByUser(@Param("userId") Long userId);
 
     /**
      * 查找过期的PENDING状态请求

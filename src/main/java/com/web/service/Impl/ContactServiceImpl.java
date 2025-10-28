@@ -6,6 +6,7 @@ import com.web.exception.WeebException;
 import com.web.mapper.ContactMapper;
 import com.web.service.ContactService;
 import com.web.vo.contact.ContactApplyVo;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import java.util.List;
  * 联系人服务实现类
  * 处理好友申请、接受、拒绝、拉黑等业务逻辑
  */
+@Slf4j
 @Service
 @Transactional
 public class ContactServiceImpl implements ContactService {
@@ -25,6 +27,9 @@ public class ContactServiceImpl implements ContactService {
 
     @Autowired
     private com.web.service.UserService userService;
+
+    @Autowired
+    private com.web.service.NotificationService notificationService;
 
     @Override
     public void apply(ContactApplyVo applyVo, Long fromUserId) {
@@ -54,16 +59,80 @@ public class ContactServiceImpl implements ContactService {
             throw new WeebException("不能添加自己为好友");
         }
         
-        // 检查是否已经存在联系人关系
-        boolean exists = contactMapper.isContactExists(fromUserId, targetUser.getId());
-        if (exists) {
-            throw new WeebException("联系人关系已存在或申请已发送");
+        // 查询所有相关的联系人记录
+        java.util.List<com.web.model.Contact> existingContacts = contactMapper.selectList(
+            new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.web.model.Contact>()
+                .and(wrapper -> wrapper
+                    .and(w -> w.eq("user_id", fromUserId).eq("friend_id", targetUser.getId()))
+                    .or(w -> w.eq("user_id", targetUser.getId()).eq("friend_id", fromUserId))
+                )
+        );
+        
+        log.info("好友申请检查 - 申请人ID: {}, 目标用户: {} (ID: {}), 找到 {} 条记录", 
+                 fromUserId, username, targetUser.getId(), existingContacts.size());
+        
+        // 打印每条记录的详细信息
+        for (com.web.model.Contact contact : existingContacts) {
+            log.info("  记录详情 - ID: {}, user_id: {}, friend_id: {}, status: {} ({})", 
+                     contact.getId(), contact.getUserId(), contact.getFriendId(), 
+                     contact.getStatus(), getStatusName(contact.getStatus()));
         }
+        
+        // 检查是否有ACCEPTED状态的关系
+        boolean hasAccepted = existingContacts.stream()
+            .anyMatch(c -> c.getStatus() == ContactStatus.ACCEPTED.getCode());
+        
+        if (hasAccepted) {
+            throw new WeebException("你们已经是好友了");
+        }
+        
+        // 检查是否有PENDING状态的关系
+        java.util.List<com.web.model.Contact> pendingContacts = existingContacts.stream()
+            .filter(c -> c.getStatus() == ContactStatus.PENDING.getCode())
+            .collect(java.util.stream.Collectors.toList());
+        
+        if (!pendingContacts.isEmpty()) {
+            // 检查是否是当前用户发起的PENDING请求
+            boolean hasSelfPending = pendingContacts.stream()
+                .anyMatch(c -> c.getUserId().equals(fromUserId));
+            
+            if (hasSelfPending) {
+                throw new WeebException("你已经发送过好友申请，请等待对方处理");
+            } else {
+                throw new WeebException("对方已向你发送好友申请，请在好友申请列表中处理");
+            }
+        }
+        
+        // 删除所有REJECTED和BLOCKED状态的旧记录，允许重新申请
+        existingContacts.stream()
+            .filter(c -> c.getStatus() == ContactStatus.REJECTED.getCode() 
+                      || c.getStatus() == ContactStatus.BLOCKED.getCode())
+            .forEach(c -> {
+                contactMapper.deleteById(c.getId());
+                log.info("删除旧的联系人记录 - ID: {}, 状态: {}", c.getId(), c.getStatus());
+            });
         
         // 创建联系人申请记录
         int result = contactMapper.createContactApply(fromUserId, targetUser.getId(), message);
         if (result <= 0) {
             throw new WeebException("申请添加好友失败");
+        }
+        
+        log.info("好友申请创建成功 - 申请人ID: {}, 目标用户ID: {}", fromUserId, targetUser.getId());
+        
+        // 发送好友申请通知
+        try {
+            notificationService.createAndPublishNotification(
+                targetUser.getId(),  // 接收者：被申请的用户
+                fromUserId,          // 操作者：发起申请的用户
+                "FRIEND_REQUEST",    // 通知类型
+                "CONTACT",           // 实体类型
+                null                 // 实体ID（好友申请没有特定ID）
+            );
+            log.info("好友申请通知已发送 - 接收者ID: {}", targetUser.getId());
+        } catch (Exception e) {
+            log.error("发送好友申请通知失败", e);
+            // 不抛出异常，通知失败不应影响好友申请的创建
         }
     }
 
@@ -75,10 +144,32 @@ public class ContactServiceImpl implements ContactService {
             throw new WeebException("无权限操作此联系人记录");
         }
         
+        // 获取联系人记录以便发送通知
+        com.web.model.Contact contact = contactMapper.selectById(contactId);
+        if (contact == null) {
+            throw new WeebException("联系人记录不存在");
+        }
+        
         // 更新联系人状态为已接受
         int result = contactMapper.updateContactStatus(contactId, ContactStatus.ACCEPTED.getCode());
         if (result <= 0) {
             throw new WeebException("接受好友申请失败");
+        }
+        
+        // 发送好友申请被接受的通知
+        try {
+            // 通知申请人：他的好友申请被接受了
+            Long applicantId = contact.getUserId(); // 申请人ID
+            notificationService.createAndPublishNotification(
+                applicantId,              // 接收者：申请人
+                toUserId,                 // 操作者：接受申请的人
+                "FRIEND_ACCEPTED",        // 通知类型
+                "CONTACT",                // 实体类型
+                contactId                 // 实体ID
+            );
+            log.info("好友申请接受通知已发送 - 接收者ID: {}", applicantId);
+        } catch (Exception e) {
+            log.error("发送好友申请接受通知失败", e);
         }
     }
 
@@ -124,6 +215,20 @@ public class ContactServiceImpl implements ContactService {
 
     @Autowired
     private com.web.mapper.ContactGroupMapper contactGroupMapper;
+
+    /**
+     * 获取状态名称（用于日志）
+     */
+    private String getStatusName(Integer status) {
+        if (status == null) return "NULL";
+        return switch (status) {
+            case 0 -> "PENDING";
+            case 1 -> "ACCEPTED";
+            case 2 -> "REJECTED";
+            case 3 -> "BLOCKED";
+            default -> "UNKNOWN(" + status + ")";
+        };
+    }
 
     @Override
     @Transactional
@@ -364,6 +469,16 @@ public class ContactServiceImpl implements ContactService {
 
         } catch (Exception e) {
             throw new WeebException("获取默认分组失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<com.web.dto.ContactRequestDto> getPendingRequests(Long userId) {
+        try {
+            return contactMapper.selectPendingContactsReceivedByUser(userId);
+        } catch (Exception e) {
+            log.error("获取待处理好友申请失败", e);
+            throw new WeebException("获取待处理好友申请失败: " + e.getMessage());
         }
     }
 }

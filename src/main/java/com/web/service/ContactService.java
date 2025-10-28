@@ -132,4 +132,11 @@ public interface ContactService {
      * @return 默认分组
      */
     com.web.model.ContactGroup getDefaultContactGroup(Long userId);
+
+    /**
+     * 获取待处理的好友申请列表（包含详细信息）
+     * @param userId 用户ID
+     * @return 好友申请列表
+     */
+    List<com.web.dto.ContactRequestDto> getPendingRequests(Long userId);
 }
