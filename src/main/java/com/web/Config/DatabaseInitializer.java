@@ -1054,9 +1054,164 @@ public class DatabaseInitializer implements CommandLineRunner {
             // 权限系统已完全移除，不再初始化权限相关数据
             log.info("✅ 权限系统已禁用，跳过权限初始化");
 
+            // 初始化测试好友关系
+            initializeTestContacts();
+
+            // 初始化测试群组
+            initializeTestGroups();
+
         } catch (Exception e) {
             log.error("插入初始数据失败", e);
             throw new RuntimeException("插入初始数据失败", e);
+        }
+    }
+
+    /**
+     * 初始化测试好友关系
+     */
+    private void initializeTestContacts() {
+        log.info("开始初始化测试好友关系...");
+
+        try {
+            // 检查是否已有好友关系
+            Integer contactCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM contact", Integer.class);
+
+            if (contactCount != null && contactCount > 0) {
+                log.info("好友关系已存在，跳过初始化");
+                return;
+            }
+
+            // 获取测试用户ID
+            Long aliceId = getUserIdByUsername("alice");
+            Long bobId = getUserIdByUsername("bob");
+            Long charlieId = getUserIdByUsername("charlie");
+            Long dianaId = getUserIdByUsername("diana");
+            Long eveId = getUserIdByUsername("eve");
+
+            if (aliceId == null || bobId == null || charlieId == null) {
+                log.warn("测试用户不存在，跳过好友关系初始化");
+                return;
+            }
+
+            // 创建好友关系（status: 1=已接受）
+            // alice 和 bob 是好友
+            jdbcTemplate.update(
+                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '测试好友', NOW(), NOW())",
+                aliceId, bobId);
+
+            // alice 和 charlie 是好友
+            jdbcTemplate.update(
+                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '测试好友', NOW(), NOW())",
+                aliceId, charlieId);
+
+            // bob 和 charlie 是好友
+            jdbcTemplate.update(
+                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '测试好友', NOW(), NOW())",
+                bobId, charlieId);
+
+            if (dianaId != null) {
+                // diana 向 alice 发送待处理的好友申请（status: 0=待处理）
+                jdbcTemplate.update(
+                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 0, '你好，我想加你为好友', NOW(), NOW())",
+                    dianaId, aliceId);
+            }
+
+            if (eveId != null) {
+                // eve 向 bob 发送待处理的好友申请
+                jdbcTemplate.update(
+                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 0, '认识一下', NOW(), NOW())",
+                    eveId, bobId);
+            }
+
+            log.info("✅ 测试好友关系初始化成功");
+
+        } catch (Exception e) {
+            log.error("❌ 初始化测试好友关系失败", e);
+            // 不抛出异常，允许继续初始化其他数据
+        }
+    }
+
+    /**
+     * 初始化测试群组
+     */
+    private void initializeTestGroups() {
+        log.info("开始初始化测试群组...");
+
+        try {
+            // 检查是否已有群组
+            Integer groupCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM `group`", Integer.class);
+
+            if (groupCount != null && groupCount > 0) {
+                log.info("群组已存在，跳过初始化");
+                return;
+            }
+
+            // 获取测试用户ID
+            Long aliceId = getUserIdByUsername("alice");
+            Long bobId = getUserIdByUsername("bob");
+            Long charlieId = getUserIdByUsername("charlie");
+            Long dianaId = getUserIdByUsername("diana");
+
+            if (aliceId == null || bobId == null) {
+                log.warn("测试用户不存在，跳过群组初始化");
+                return;
+            }
+
+            // 创建测试群组1：技术交流群（alice 是群主）
+            jdbcTemplate.update(
+                "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, create_time) " +
+                "VALUES ('技术交流群', ?, '讨论技术问题的群组', 1, 500, 3, NOW())",
+                aliceId);
+            Long group1Id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+            // 添加群成员
+            jdbcTemplate.update(
+                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())", // 1=群主
+                group1Id, aliceId);
+            jdbcTemplate.update(
+                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
+                group1Id, bobId);
+            jdbcTemplate.update(
+                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())",
+                group1Id, charlieId);
+
+            // 创建测试群组2：生活分享群（bob 是群主）
+            jdbcTemplate.update(
+                "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, create_time) " +
+                "VALUES ('生活分享群', ?, '分享生活点滴', 1, 500, 2, NOW())",
+                bobId);
+            Long group2Id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+            // 添加群成员
+            jdbcTemplate.update(
+                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())",
+                group2Id, bobId);
+            if (dianaId != null) {
+                jdbcTemplate.update(
+                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())",
+                    group2Id, dianaId);
+            }
+
+            log.info("✅ 测试群组初始化成功");
+
+        } catch (Exception e) {
+            log.error("❌ 初始化测试群组失败", e);
+            // 不抛出异常，允许继续初始化其他数据
+        }
+    }
+
+    /**
+     * 根据用户名获取用户ID
+     */
+    private Long getUserIdByUsername(String username) {
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT id FROM user WHERE username = ?", Long.class, username);
+        } catch (Exception e) {
+            log.warn("用户 {} 不存在", username);
+            return null;
         }
     }
 

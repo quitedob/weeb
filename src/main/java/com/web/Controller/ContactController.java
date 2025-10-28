@@ -143,16 +143,109 @@ public class ContactController {
     /**
      * 获取待处理的好友申请列表 (方便前端调用)
      * @param userId 当前用户ID (from @Userid)
-     * @return 待处理的申请列表 (List<UserDto> representing the applicants)
+     * @return 待处理的申请列表（包含详细信息）
      */
     @GetMapping("/requests")
-    public ResponseEntity<ApiResponse<List<UserDto>>> getPendingApplications(@Userid Long userId) {
-        // This service method might need to return more info than just UserDto,
-        // perhaps a list of Contact objects or a custom DTO that includes remarks and contactId.
-        // For now, assuming getContacts can handle fetching users who sent PENDING requests to current user.
-        // The service method getContacts(userId, ContactStatus.PENDING) should be implemented
-        // to fetch users who sent requests TO 'userId'.
-        List<UserDto> pendingRequests = contactService.getContacts(userId, ContactStatus.PENDING);
+    public ResponseEntity<ApiResponse<List<com.web.dto.ContactRequestDto>>> getPendingApplications(@Userid Long userId) {
+        List<com.web.dto.ContactRequestDto> pendingRequests = contactService.getPendingRequests(userId);
         return ResponseEntity.ok(ApiResponse.success(pendingRequests));
+    }
+
+    // ==================== 联系人分组管理接口 ====================
+
+    /**
+     * 创建联系人分组
+     */
+    @PostMapping("/groups")
+    public ResponseEntity<ApiResponse<Long>> createGroup(
+            @RequestBody java.util.Map<String, Object> requestBody,
+            @Userid Long userId) {
+        String groupName = requestBody.get("groupName").toString();
+        Integer groupOrder = requestBody.containsKey("groupOrder") 
+            ? Integer.valueOf(requestBody.get("groupOrder").toString()) 
+            : 0;
+        
+        Long groupId = contactService.createContactGroup(userId, groupName, groupOrder);
+        return ResponseEntity.ok(ApiResponse.success(groupId));
+    }
+
+    /**
+     * 获取用户的所有联系人分组
+     */
+    @GetMapping("/groups")
+    public ResponseEntity<ApiResponse<List<com.web.model.ContactGroup>>> getUserGroups(@Userid Long userId) {
+        List<com.web.model.ContactGroup> groups = contactService.getUserContactGroups(userId);
+        return ResponseEntity.ok(ApiResponse.success(groups));
+    }
+
+    /**
+     * 更新分组名称
+     */
+    @PutMapping("/groups/{groupId}/name")
+    public ResponseEntity<ApiResponse<String>> updateGroupName(
+            @PathVariable Long groupId,
+            @RequestBody java.util.Map<String, String> requestBody,
+            @Userid Long userId) {
+        String newName = requestBody.get("groupName");
+        boolean success = contactService.updateContactGroupName(groupId, userId, newName);
+        return ResponseEntity.ok(ApiResponse.success(success ? "分组名称已更新" : "更新失败"));
+    }
+
+    /**
+     * 更新分组排序
+     */
+    @PutMapping("/groups/{groupId}/order")
+    public ResponseEntity<ApiResponse<String>> updateGroupOrder(
+            @PathVariable Long groupId,
+            @RequestBody java.util.Map<String, Integer> requestBody,
+            @Userid Long userId) {
+        Integer newOrder = requestBody.get("groupOrder");
+        boolean success = contactService.updateContactGroupOrder(groupId, userId, newOrder);
+        return ResponseEntity.ok(ApiResponse.success(success ? "分组排序已更新" : "更新失败"));
+    }
+
+    /**
+     * 删除分组
+     */
+    @DeleteMapping("/groups/{groupId}")
+    public ResponseEntity<ApiResponse<String>> deleteGroup(
+            @PathVariable Long groupId,
+            @Userid Long userId) {
+        boolean success = contactService.deleteContactGroup(groupId, userId);
+        return ResponseEntity.ok(ApiResponse.success(success ? "分组已删除" : "删除失败"));
+    }
+
+    /**
+     * 将联系人添加到分组
+     */
+    @PostMapping("/groups/{groupId}/contacts/{contactId}")
+    public ResponseEntity<ApiResponse<String>> addContactToGroup(
+            @PathVariable Long groupId,
+            @PathVariable Long contactId,
+            @Userid Long userId) {
+        boolean success = contactService.addContactToGroup(contactId, groupId, userId);
+        return ResponseEntity.ok(ApiResponse.success(success ? "已添加到分组" : "添加失败"));
+    }
+
+    /**
+     * 从分组中移除联系人（移到默认分组）
+     */
+    @DeleteMapping("/groups/contacts/{contactId}")
+    public ResponseEntity<ApiResponse<String>> removeContactFromGroup(
+            @PathVariable Long contactId,
+            @Userid Long userId) {
+        boolean success = contactService.removeContactFromGroup(contactId, userId);
+        return ResponseEntity.ok(ApiResponse.success(success ? "已移到默认分组" : "移除失败"));
+    }
+
+    /**
+     * 获取指定分组的联系人列表
+     */
+    @GetMapping("/groups/{groupId}/contacts")
+    public ResponseEntity<ApiResponse<List<UserDto>>> getContactsByGroup(
+            @PathVariable Long groupId,
+            @Userid Long userId) {
+        List<UserDto> contacts = contactService.getContactsByGroup(groupId, userId);
+        return ResponseEntity.ok(ApiResponse.success(contacts));
     }
 }

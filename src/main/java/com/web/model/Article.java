@@ -39,6 +39,10 @@ public class Article implements Serializable {
         return this.articleId;
     }
 
+    public void setId(Long id) {
+        this.articleId = id;
+    }
+
     // Constructor with all fields (example provided by user)
     public Article(Long articleId, Long userId, Long categoryId, String articleTitle, String articleContent, String articleLink,
                    Integer status, Integer likesCount, Integer favoritesCount, Double sponsorsCount,
