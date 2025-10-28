@@ -138,29 +138,83 @@ public class UserLevel {
     }
 
     /**
-     * @deprecated 此方法已废弃，请使用RBAC权限系统进行权限检查
-     * 硬编码的权限逻辑已迁移至 SystemSecurityInitializer 统一管理
+     * 获取等级对应的权限列表
+     * 更新为基于简化的用户类型系统（ADMIN/USER/BOT）
      *
-     * 请使用以下方式替代：
-     * 1. 通过 @PreAuthorize 注解进行方法级权限控制
-     * 2. 通过 PermissionService 进行权限检查
-     * 3. 通过用户的角色进行权限判断
-     *
-     * @param level 等级数值（不再使用）
-     * @return 空列表（不再支持硬编码权限）
+     * @param level 用户等级
+     * @return 权限列表
      */
-    @Deprecated
     public static List<String> getLevelPermissions(int level) {
-        // ⚠️ 重大安全变更：不再支持基于用户等级的硬编码权限分配
-        // 所有权限必须通过RBAC系统（角色-权限）进行管理
-        // 这样确保权限的一致性和安全性
+        List<String> permissions = new ArrayList<>();
 
-        // 开发者注意事项：
-        // 1. 如果需要基于用户等级的功能，请通过角色分配实现
-        // 2. 可以在用户升级时自动分配新的角色
-        // 3. 权限检查应统一使用 @PreAuthorize 注解
+        // 基础权限：所有用户都有
+        permissions.add("READ_OWN");
+        permissions.add("CREATE_ARTICLE");
+        permissions.add("UPDATE_OWN_ARTICLE");
+        permissions.add("DELETE_OWN_ARTICLE");
+        permissions.add("SEND_MESSAGE");
 
-        return Collections.emptyList();
+        switch (level) {
+            case LEVEL_ADMIN:
+            case LEVEL_SUPER_ADMIN:
+                // 管理员权限
+                permissions.add("ROLE_ADMIN");
+                permissions.add("READ_ANY");
+                permissions.add("UPDATE_ANY");
+                permissions.add("DELETE_ANY");
+                permissions.add("MANAGE_USERS");
+                permissions.add("SYSTEM_CONFIG");
+                permissions.add("VIEW_LOGS");
+                break;
+
+            case LEVEL_COMMUNITY_MODERATOR:
+                // 社区管理员权限
+                permissions.add("MODERATE_CONTENT");
+                permissions.add("DELETE_ANY_ARTICLE");
+                permissions.add("BAN_USERS");
+                permissions.add("VIEW_REPORTS");
+                break;
+
+            case LEVEL_CONTENT_CREATOR:
+                // 内容创作者权限
+                permissions.add("FEATURED_ARTICLE");
+                permissions.add("PIN_ARTICLE");
+                permissions.add("VIEW_ANALYTICS");
+                break;
+
+            case LEVEL_VIP_USER:
+                // VIP用户权限
+                permissions.add("READ_VIP_CONTENT");
+                permissions.add("DOWNLOAD_CONTENT");
+                permissions.add("PRIORITY_SUPPORT");
+                break;
+
+            case LEVEL_ACTIVE_USER:
+                // 活跃用户权限
+                permissions.add("CREATE_GROUP");
+                permissions.add("JOIN_MULTIPLE_GROUPS");
+                permissions.add("EXTENDED_PROFILE");
+                break;
+
+            case LEVEL_ADVANCED_USER:
+                // 高级用户权限
+                permissions.add("CREATE_ALBUM");
+                permissions.add("UPLOAD_LARGE_FILES");
+                permissions.add("CUSTOM_PROFILE");
+                break;
+
+            case LEVEL_BASIC_USER:
+                // 基础用户权限（已有基础权限）
+                break;
+
+            case LEVEL_NEW_USER:
+                // 新用户权限（有限制）
+                permissions.remove("CREATE_ARTICLE"); // 新用户不能创建文章
+                permissions.add("READ_PUBLIC_ONLY");
+                break;
+        }
+
+        return permissions;
     }
 
     /**

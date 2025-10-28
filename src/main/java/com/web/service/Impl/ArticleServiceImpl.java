@@ -5,6 +5,8 @@ import com.web.mapper.ArticleCategoryMapper;
 import com.web.model.Article;
 import com.web.model.ArticleCategory;
 import com.web.service.ArticleService;
+import com.web.service.UserTypeSecurityService;
+import com.web.service.AuthService;
 import com.web.exception.WeebException;
 import com.web.util.ValidationUtils;
 import com.web.util.SqlInjectionUtils;
@@ -45,6 +47,12 @@ public class ArticleServiceImpl implements ArticleService {
     @Autowired
     private ArticleCategoryMapper articleCategoryMapper;
 
+    @Autowired
+    private UserTypeSecurityService userTypeSecurityService;
+
+    @Autowired
+    private AuthService authService;
+
     /**
      * 验证排序参数
      * @param sortBy 排序字段
@@ -76,21 +84,57 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public boolean deleteArticle(Long id, Long authenticatedUserId) {
-        // 先检查文章是否存在且属于当前用户
-        Article article = articleMapper.selectArticleById(id);
-        if (article == null || !article.getUserId().equals(authenticatedUserId)) {
-            return false;
+        try {
+            // 先检查文章是否存在
+            Article article = articleMapper.selectArticleById(id);
+            if (article == null) {
+                log.warn("文章不存在: articleId={}", id);
+                return false;
+            }
+
+            // 获取当前用户信息
+            User currentUser = authService.findByUserID(authenticatedUserId);
+            if (currentUser == null || currentUser.getUsername() == null) {
+                log.error("无法获取用户信息: userId={}", authenticatedUserId);
+                return false;
+            }
+
+            // 检查权限：文章作者或管理员可以删除
+            boolean isAuthor = article.getUserId().equals(authenticatedUserId);
+            boolean isAdmin = userTypeSecurityService.isAdmin(currentUser.getUsername());
+
+            if (!isAuthor && !isAdmin) {
+                log.warn("用户无权删除文章: articleId={}, userId={}, isAuthor={}, isAdmin={}",
+                    id, authenticatedUserId, isAuthor, isAdmin);
+                return false;
+            }
+
+            // 执行删除操作
+            int result = articleMapper.deleteArticleById(id);
+            if (result > 0) {
+                // 更新文章作者的统计数据
+                articleMapper.updateUserStatsTotals(article.getUserId());
+
+                // 记录删除日志
+                if (isAdmin && !isAuthor) {
+                    log.info("管理员删除用户文章: articleId={}, adminId={}, authorId={}, articleTitle={}",
+                        id, authenticatedUserId, article.getUserId(), article.getArticleTitle());
+                } else {
+                    log.info("用户删除自己的文章: articleId={}, userId={}, articleTitle={}",
+                        id, authenticatedUserId, article.getArticleTitle());
+                }
+
+                return true;
+            } else {
+                log.error("删除文章失败: articleId={}, userId={}", id, authenticatedUserId);
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("删除文章时发生异常: articleId={}, userId={}", id, authenticatedUserId, e);
+            throw new WeebException("删除文章失败: " + e.getMessage());
         }
-        
-        int result = articleMapper.deleteArticleById(id);
-        if (result > 0) {
-            // 更新用户统计数据
-            articleMapper.updateUserStatsTotals(authenticatedUserId);
-            return true;
-        }
-        return false;
     }
 
     @Override

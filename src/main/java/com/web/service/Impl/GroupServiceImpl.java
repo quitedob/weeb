@@ -9,11 +9,14 @@ import com.web.model.Group;
 import com.web.model.GroupMember;
 import com.web.model.User;
 import com.web.service.GroupService;
+import com.web.service.UserTypeSecurityService;
+import com.web.service.AuthService;
 import com.web.util.ValidationUtils;
 import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
 import com.web.vo.group.GroupKickVo;
 import com.web.vo.group.GroupApplyVo;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +31,9 @@ import java.util.Map;
 /**
  * 群组服务实现类
  * 处理群组创建、成员管理、群组信息维护等业务逻辑
+ * 修复了权限检查逻辑，统一使用UserTypeSecurityService进行权限验证
  */
+@Slf4j
 @Service
 @Transactional
 public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements GroupService {
@@ -41,6 +46,73 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private UserTypeSecurityService userTypeSecurityService;
+
+    @Autowired
+    private AuthService authService;
+
+    // 群组角色常量
+    private static final int ROLE_OWNER = 1;    // 群主
+    private static final int ROLE_ADMIN = 2;    // 管理员
+    private static final int ROLE_MEMBER = 0;   // 普通成员
+
+    /**
+     * 检查用户在群组中的权限
+     * @param groupId 群组ID
+     * @param userId 用户ID
+     * @param requiredRole 需要的最低角色
+     * @return 是否有权限
+     */
+    private boolean hasGroupPermission(Long groupId, Long userId, int requiredRole) {
+        try {
+            // 管理员拥有所有权限
+            User currentUser = authService.findByUserID(userId);
+            if (currentUser != null && userTypeSecurityService.isAdmin(currentUser.getUsername())) {
+                log.debug("管理员用户拥有所有群组权限: userId={}, groupId={}", userId, groupId);
+                return true;
+            }
+
+            // 检查群组成员身份和角色
+            GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
+            if (member == null) {
+                log.debug("用户不是群组成员: userId={}, groupId={}", userId, groupId);
+                return false;
+            }
+
+            boolean hasPermission = member.getRole() >= requiredRole;
+            log.debug("用户群组权限检查: userId={}, groupId={}, userRole={}, requiredRole={}, hasPermission={}",
+                userId, groupId, member.getRole(), requiredRole, hasPermission);
+
+            return hasPermission;
+
+        } catch (Exception e) {
+            log.error("检查群组权限时发生异常: groupId={}, userId={}", groupId, userId, e);
+            return false;
+        }
+    }
+
+    /**
+     * 检查用户是否为群主
+     */
+    private boolean isGroupOwner(Long groupId, Long userId) {
+        return hasGroupPermission(groupId, userId, ROLE_OWNER);
+    }
+
+    /**
+     * 检查用户是否为群主或管理员
+     */
+    private boolean isGroupAdmin(Long groupId, Long userId) {
+        return hasGroupPermission(groupId, userId, ROLE_ADMIN);
+    }
+
+    /**
+     * 检查用户是否为群组成员
+     */
+    private boolean isGroupMember(Long groupId, Long userId) {
+        return hasGroupPermission(groupId, userId, ROLE_MEMBER);
+    }
 
     @Override
     public Group createGroup(GroupCreateVo createVo, Long userId) {
@@ -71,9 +143,8 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Override
     public boolean inviteMembers(GroupInviteVo inviteVo, Long userId) {
-        // 检查用户是否有权限邀请（是否为群主或管理员）
-        GroupMember inviter = groupMemberMapper.findByGroupAndUser(inviteVo.getGroupId(), userId);
-        if (inviter == null || inviter.getRole() < 1) {
+        // 检查用户是否有权限邀请（群主或管理员）
+        if (!isGroupAdmin(inviteVo.getGroupId(), userId)) {
             throw new WeebException("无权限邀请成员");
         }
         
@@ -96,9 +167,8 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Override
     public void kickMember(GroupKickVo kickVo, Long userId) {
-        // 检查操作者是否有权限踢人（是否为群主或管理员）
-        GroupMember operator = groupMemberMapper.findByGroupAndUser(kickVo.getGroupId(), userId);
-        if (operator == null || operator.getRole() < 1) {
+        // 检查操作者是否有权限踢人（群主或管理员）
+        if (!isGroupAdmin(kickVo.getGroupId(), userId)) {
             throw new WeebException("无权限踢出成员");
         }
 
@@ -108,9 +178,17 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             throw new WeebException("用户不是群成员");
         }
 
-        // 不能踢出群主
-        if (targetMember.getRole() >= 2) {
+        // 不能踢出群主（只有群主可以踢出管理员，管理员不能踢出群主）
+        if (targetMember.getRole() == ROLE_OWNER) {
             throw new WeebException("不能踢出群主");
+        }
+
+        // 检查操作者权限：普通管理员不能踢出其他管理员
+        if (targetMember.getRole() == ROLE_ADMIN) {
+            GroupMember operator = groupMemberMapper.findByGroupAndUser(kickVo.getGroupId(), userId);
+            if (operator == null || operator.getRole() != ROLE_OWNER) {
+                throw new WeebException("只有群主可以踢出管理员");
+            }
         }
 
         // 移除群成员
@@ -129,13 +207,14 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Override
     public void dissolveGroup(Long groupId, Long userId) {
-        // 检查用户是否为群主
+        // 检查群组是否存在
         Group group = getById(groupId);
         if (group == null) {
             throw new WeebException("群组不存在");
         }
-        
-        if (!group.getOwnerId().equals(userId)) {
+
+        // 检查用户是否为群主或管理员（管理员有特殊权限）
+        if (!isGroupOwner(groupId, userId)) {
             throw new WeebException("只有群主可以解散群组");
         }
         
