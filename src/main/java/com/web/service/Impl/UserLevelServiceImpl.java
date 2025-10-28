@@ -397,10 +397,52 @@ public class UserLevelServiceImpl implements UserLevelService {
     @Override
     public boolean hasPermission(Long userId, String permission) {
         try {
-            List<String> permissions = getUserPermissions(userId);
-            return permissions.contains(permission);
+            if (userId == null || permission == null || permission.trim().isEmpty()) {
+                return false;
+            }
+
+            // 获取用户等级信息
+            UserLevelHistory userLevelHistory = userLevelHistoryMapper.selectByUserId(userId);
+            if (userLevelHistory == null) {
+                log.warn("用户等级信息不存在: userId={}", userId);
+                return false;
+            }
+
+            int currentLevel = userLevelHistory.getLevel();
+            List<String> levelPermissions = UserLevel.getLevelPermissions(currentLevel);
+
+            // 检查是否有直接权限匹配
+            if (levelPermissions.contains(permission.trim())) {
+                return true;
+            }
+
+            // 检查是否有模糊权限匹配（例如：READ_OWN 匹配 READ_OWN_ARTICLE）
+            for (String levelPermission : levelPermissions) {
+                if (isPermissionMatch(permission.trim(), levelPermission)) {
+                    return true;
+                }
+            }
+
+            // 管理员等级的特权检查
+            if (currentLevel >= UserLevel.LEVEL_ADMIN) {
+                // 管理员拥有所有权限（除了系统限制的特殊权限）
+                if (!permission.equals("SYSTEM_RESTRICTED")) {
+                    return true;
+                }
+            }
+
+            // 特殊权限检查：资源所有者权限
+            if (permission.endsWith("_OWN")) {
+                // 这里需要结合具体的资源ID来检查所有权
+                // 在Service层实现中应该传入具体的资源ID
+                log.debug("检测到资源所有者权限检查: {}", permission);
+                // 实际实现中，这里需要调用相应的所有权检查逻辑
+            }
+
+            return false;
+
         } catch (Exception e) {
-            log.error("检查用户权限失败: userId={}, permission={}", userId, permission, e);
+            log.error("检查用户权限时发生错误: userId={}, permission={}", userId, permission, e);
             return false;
         }
     }

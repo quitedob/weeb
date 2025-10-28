@@ -2,6 +2,7 @@ package com.web.security;
 
 import com.web.model.User;
 import com.web.service.UserService;
+import com.web.service.UserTypeSecurityService;
 import com.web.util.SecurityAuditUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -23,9 +24,11 @@ import java.util.stream.Collectors;
 public class SecurityUtils {
 
     private static UserService userService;
+    private static UserTypeSecurityService userTypeSecurityService;
 
-    public SecurityUtils(UserService userService) {
+    public SecurityUtils(UserService userService, UserTypeSecurityService userTypeSecurityService) {
         SecurityUtils.userService = userService;
+        SecurityUtils.userTypeSecurityService = userTypeSecurityService;
     }
 
     /**
@@ -81,30 +84,73 @@ public class SecurityUtils {
 
     /**
      * 检查当前用户是否具有指定权限
+     * @deprecated 使用基于用户类型的权限检查替代
      */
+    @Deprecated
     public static boolean hasPermission(String permission) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
+        try {
+            String username = getCurrentUsername();
+            if (username == null) {
+                return false;
+            }
+
+            // 基于用户类型进行简单权限检查
+            String userType = userTypeSecurityService.getUserType(username);
+
+            // 管理员拥有所有权限
+            if ("ADMIN".equals(userType)) {
+                return true;
+            }
+
+            // 机器人和普通用户只有基本权限
+            if ("BOT".equals(userType) || "USER".equals(userType)) {
+                return "READ".equals(permission) || "READ_SELF".equals(permission);
+            }
+
+            return false;
+
+        } catch (Exception e) {
+            log.error("Error checking permission: {}", permission, e);
             return false;
         }
-
-        return authentication.getAuthorities().stream()
-                .anyMatch(authority -> authority.getAuthority().equals(permission));
     }
 
     /**
      * 检查当前用户是否具有指定角色
+     * @deprecated 使用UserTypeSecurityService的方法替代
      */
+    @Deprecated
     public static boolean hasRole(String role) {
-        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-        return hasPermission(roleWithPrefix);
+        try {
+            String username = getCurrentUsername();
+            if (username == null) {
+                return false;
+            }
+
+            return switch (role.toUpperCase()) {
+                case "ADMIN" -> userTypeSecurityService.isAdmin(username);
+                case "BOT" -> userTypeSecurityService.isBot(username);
+                case "USER" -> userTypeSecurityService.isRegularUser(username);
+                default -> false;
+            };
+
+        } catch (Exception e) {
+            log.error("Error checking role: {}", role, e);
+            return false;
+        }
     }
 
     /**
      * 检查当前用户是否为管理员
      */
     public static boolean isAdmin() {
-        return hasRole("ADMIN");
+        try {
+            String username = getCurrentUsername();
+            return username != null && userTypeSecurityService.isAdmin(username);
+        } catch (Exception e) {
+            log.error("Error checking admin status", e);
+            return false;
+        }
     }
 
     /**
@@ -178,17 +224,41 @@ public class SecurityUtils {
      * 检查当前用户是否有权限执行操作
      */
     public static boolean canPerformOperation(String permission, String resource, Long resourceId) {
-        // 如果有ANY级别的权限，直接返回true
-        if (hasPermission(permission.replace("_OWN", "_ANY"))) {
-            return true;
-        }
+        try {
+            String username = getCurrentUsername();
+            if (username == null) {
+                return false;
+            }
 
-        // 如果有OWN级别的权限，检查所有权
-        if (hasPermission(permission)) {
-            return isOwner(resource, resourceId);
-        }
+            // 管理员拥有所有权限
+            if (userTypeSecurityService.isAdmin(username)) {
+                return true;
+            }
 
-        return false;
+            // 检查读权限
+            if (permission.startsWith("READ")) {
+                return userTypeSecurityService.canRead(username);
+            }
+
+            // 检查写权限
+            if (permission.startsWith("WRITE") || permission.startsWith("CREATE") || permission.startsWith("UPDATE") || permission.startsWith("DELETE")) {
+                if (!userTypeSecurityService.canWrite(username)) {
+                    return false;
+                }
+            }
+
+            // 检查资源所有权
+            if (permission.endsWith("_OWN")) {
+                return isOwner(resource, resourceId);
+            }
+
+            // 默认情况
+            return false;
+
+        } catch (Exception e) {
+            log.error("Error checking operation permission: {}, resource: {}", permission, resource, e);
+            return false;
+        }
     }
 
     /**

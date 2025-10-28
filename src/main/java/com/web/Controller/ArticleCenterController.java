@@ -440,11 +440,10 @@ public class ArticleCenterController {
                 .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
         }
     }
-    // RESTful 删除文章接口
+    // RESTful 删除文章接口（用户删除自己的文章）
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> deleteArticle(@PathVariable("id") Long id, @Userid Long authenticatedUserId) {
         try {
-            // 安全验证：确保用户只能删除自己的文章
             boolean deleted = articleService.deleteArticle(id, authenticatedUserId);
             if (deleted) {
                 return ResponseEntity.ok(ApiResponse.success(ApiResponse.Messages.ARTICLE_DELETE_SUCCESS));
@@ -454,6 +453,102 @@ public class ArticleCenterController {
             }
         } catch (Exception e) {
             logger.error("删除文章失败，文章ID为 {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    // 管理员删除文章接口
+    @DeleteMapping("/{id}/admin")
+    public ResponseEntity<ApiResponse<String>> deleteArticleByAdmin(
+            @PathVariable("id") Long id,
+            @Userid Long authenticatedUserId,
+            @RequestBody(required = false) Map<String, String> requestBody) {
+        try {
+            String reason = requestBody != null ? requestBody.get("reason") : "管理员删除";
+            boolean deleted = articleService.deleteArticleByAdmin(id, reason);
+            if (deleted) {
+                return ResponseEntity.ok(ApiResponse.success("管理员删除文章成功"));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.articleDeleteFailed("文章不存在或删除失败"));
+            }
+        } catch (Exception e) {
+            logger.error("管理员删除文章失败，文章ID为 {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    // 获取待审核文章列表
+    @GetMapping("/moderation/pending")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getPendingArticles(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String keyword) {
+        try {
+            Map<String, Object> pendingArticles = articleService.getPendingArticlesForModeration(page, pageSize, status, keyword);
+            return ResponseEntity.ok(ApiResponse.success(pendingArticles));
+        } catch (Exception e) {
+            logger.error("获取待审核文章失败", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    // 审核通过文章
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<String>> approveArticle(@PathVariable("id") Long id) {
+        try {
+            boolean approved = articleService.approveArticle(id);
+            if (approved) {
+                return ResponseEntity.ok(ApiResponse.success("文章审核通过"));
+            } else {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("审核失败，文章可能不存在或状态不正确"));
+            }
+        } catch (Exception e) {
+            logger.error("审核文章失败，文章ID为 {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    // 审核拒绝文章
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<String>> rejectArticle(
+            @PathVariable("id") Long id,
+            @RequestBody Map<String, String> requestBody) {
+        try {
+            String reason = requestBody.get("reason");
+            if (reason == null || reason.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("拒绝原因不能为空"));
+            }
+
+            boolean rejected = articleService.rejectArticle(id, reason);
+            if (rejected) {
+                return ResponseEntity.ok(ApiResponse.success("文章审核拒绝"));
+            } else {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("审核失败，文章可能不存在或状态不正确"));
+            }
+        } catch (Exception e) {
+            logger.error("审核拒绝文章失败，文章ID为 {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    // 获取内容审核统计数据
+    @GetMapping("/moderation/statistics")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getModerationStatistics() {
+        try {
+            Map<String, Object> statistics = articleService.getContentModerationStatistics();
+            return ResponseEntity.ok(ApiResponse.success(statistics));
+        } catch (Exception e) {
+            logger.error("获取审核统计数据失败", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
         }
