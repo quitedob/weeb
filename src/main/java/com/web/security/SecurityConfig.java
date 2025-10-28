@@ -83,8 +83,8 @@ public class SecurityConfig {
                 .requestMatchers("/app/**").permitAll()
                 .requestMatchers("/topic/**").permitAll()
                 .requestMatchers("/user/**").permitAll()
-                // 管理员端点
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // 管理员端点 - 基于用户类型检查
+                .requestMatchers("/api/admin/**").access("@userTypeSecurityService.isAdmin(authentication.name)")
                 // 其他需要认证的端点
                 .anyRequest().authenticated()
             )

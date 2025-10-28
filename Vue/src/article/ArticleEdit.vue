@@ -282,7 +282,7 @@
                       v-model="form.articleContent"
                       type="textarea"
                       :rows="20"
-                      placeholder="开始创作你的精彩内容...&#10;&#10;支持 Markdown 语法：&#10;**粗体** *斜体* `代码`&#10;### 标题&#10;- 列表项&#10;> 引用内容&#10;```代码块```"
+                      :placeholder="editorPlaceholder"
                       maxlength="10000"
                       show-word-limit
                       resize="vertical"
@@ -460,6 +460,16 @@ const form = reactive({
   status: 1,
   articleContent: '' // 新增文章内容字段
 });
+
+// 编辑器占位符文本
+const editorPlaceholder = `开始创作你的精彩内容...
+
+支持 Markdown 格式：
+**粗体** *斜体* \`代码\`
+### 标题
+- 列表项
+> 引用内容
+\`\`\`代码块\`\`\``;
 
 // 预览内容（使用marked库进行Markdown渲染）
 const previewContent = computed(() => {

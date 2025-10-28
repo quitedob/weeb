@@ -12,7 +12,6 @@ import com.web.vo.group.GroupApplyVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -36,7 +35,6 @@ public class StandardGroupController {
      * POST /api/groups
      */
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'GROUP_CREATE_OWN')")
     public ResponseEntity<ApiResponse<Group>> createGroup(
             @RequestBody @Valid GroupCreateVo createVo,
             @Userid Long userId) {
@@ -54,7 +52,6 @@ public class StandardGroupController {
      * GET /api/groups/{groupId}
      */
     @GetMapping("/{groupId}")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_READ_OWN')")
     public ResponseEntity<ApiResponse<Group>> getGroup(@PathVariable Long groupId) {
         try {
             Group group = groupService.getGroupById(groupId);
@@ -72,7 +69,6 @@ public class StandardGroupController {
      * PUT /api/groups/{groupId}
      */
     @PutMapping("/{groupId}")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<Group>> updateGroup(
             @PathVariable Long groupId,
             @RequestBody @Valid GroupCreateVo updateVo,
@@ -98,7 +94,6 @@ public class StandardGroupController {
      * DELETE /api/groups/{groupId}
      */
     @DeleteMapping("/{groupId}")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_DELETE_OWN')")
     public ResponseEntity<ApiResponse<String>> deleteGroup(
             @PathVariable Long groupId,
             @Userid Long userId) {
@@ -119,7 +114,6 @@ public class StandardGroupController {
      * GET /api/groups/{groupId}/members
      */
     @GetMapping("/{groupId}/members")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_READ_OWN')")
     public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> getGroupMembers(@PathVariable Long groupId) {
         try {
             java.util.List<java.util.Map<String, Object>> members = groupService.getGroupMembers(groupId);
@@ -134,7 +128,6 @@ public class StandardGroupController {
      * POST /api/groups/{groupId}/members
      */
     @PostMapping("/{groupId}/members")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_MANAGE_MEMBERS_OWN')")
     public ResponseEntity<ApiResponse<String>> inviteUserToGroup(
             @PathVariable Long groupId,
             @RequestBody @Valid GroupInviteVo inviteVo,
@@ -157,7 +150,6 @@ public class StandardGroupController {
      * DELETE /api/groups/{groupId}/members/me
      */
     @DeleteMapping("/{groupId}/members/me")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_LEAVE_OWN')")
     public ResponseEntity<ApiResponse<String>> leaveGroup(
             @PathVariable Long groupId,
             @Userid Long userId) {
@@ -178,7 +170,6 @@ public class StandardGroupController {
      * DELETE /api/groups/{groupId}/members/{userId}
      */
     @DeleteMapping("/{groupId}/members/{userId}")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_MANAGE_MEMBERS_OWN')")
     public ResponseEntity<ApiResponse<String>> removeGroupMember(
             @PathVariable Long groupId,
             @PathVariable Long userId,
@@ -200,7 +191,6 @@ public class StandardGroupController {
      * POST /api/groups/{groupId}/applications
      */
     @PostMapping("/{groupId}/applications")
-    @PreAuthorize("hasPermission(null, 'GROUP_JOIN_OWN')")
     public ResponseEntity<ApiResponse<String>> applyToJoinGroup(
             @PathVariable Long groupId,
             @RequestBody Map<String, String> application,
@@ -229,7 +219,6 @@ public class StandardGroupController {
      * GET /api/groups/{groupId}/applications
      */
     @GetMapping("/{groupId}/applications")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_MANAGE_MEMBERS_OWN')")
     public ResponseEntity<ApiResponse<Object>> getGroupApplications(@PathVariable Long groupId) {
         try {
             // 这里需要实现获取群组申请的逻辑
@@ -244,7 +233,6 @@ public class StandardGroupController {
      * PUT /api/groups/{groupId}/applications/{applicationId}
      */
     @PutMapping("/{groupId}/applications/{applicationId}")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_MANAGE_MEMBERS_OWN')")
     public ResponseEntity<ApiResponse<String>> processGroupApplication(
             @PathVariable Long groupId,
             @PathVariable Long applicationId,
@@ -277,7 +265,6 @@ public class StandardGroupController {
      * PUT /api/groups/{groupId}/members/{userId}/role
      */
     @PutMapping("/{groupId}/members/{userId}/role")
-    @PreAuthorize("hasPermission(#groupId, 'GROUP_MANAGE_MEMBERS_OWN')")
     public ResponseEntity<ApiResponse<String>> setMemberRole(
             @PathVariable Long groupId,
             @PathVariable Long userId,
@@ -305,7 +292,6 @@ public class StandardGroupController {
      * GET /api/groups/search?q=keyword&limit=10
      */
     @GetMapping("/search")
-    @PreAuthorize("hasPermission(null, 'GROUP_READ_OWN')")
     public ResponseEntity<ApiResponse<List<Group>>> searchGroups(
             @RequestParam("q") String keyword,
             @RequestParam(defaultValue = "10") int limit) {
@@ -322,7 +308,6 @@ public class StandardGroupController {
      * GET /api/groups/my-groups
      */
     @GetMapping("/my-groups")
-    @PreAuthorize("hasPermission(null, 'GROUP_READ_OWN')")
     public ResponseEntity<ApiResponse<List<Group>>> getMyGroups(@Userid Long userId) {
         try {
             List<Group> groups = groupService.getUserGroups(userId);
@@ -337,7 +322,6 @@ public class StandardGroupController {
      * GET /api/groups/my-created
      */
     @GetMapping("/my-created")
-    @PreAuthorize("hasPermission(null, 'GROUP_READ_OWN')")
     public ResponseEntity<ApiResponse<List<Group>>> getMyCreatedGroups(@Userid Long userId) {
         try {
             List<Group> groups = groupService.getUserCreatedGroups(userId);

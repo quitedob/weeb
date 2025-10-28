@@ -1,31 +1,31 @@
 import axiosInstance from '../axiosInstance';
 
 const followApi = {
-  // 关注用户
+  // 关注用户 - 统一使用 /api/users/{userId}/follow 路径
   followUser(userId) {
-    return axiosInstance.post(`/api/follow/${userId}`);
+    return axiosInstance.post(`/api/users/${userId}/follow`);
   },
 
-  // 取消关注
+  // 取消关注 - 统一使用 /api/users/{userId}/follow 路径
   unfollowUser(userId) {
-    return axiosInstance.delete(`/api/follow/${userId}`);
+    return axiosInstance.delete(`/api/users/${userId}/follow`);
   },
 
   // 检查是否已关注
   checkFollowing(userId) {
-    return axiosInstance.get(`/api/follow/check/${userId}`);
+    return axiosInstance.get(`/api/users/${userId}/follow/status`);
   },
 
   // 获取关注列表
-  getFollowingList(page = 1, size = 10) {
-    return axiosInstance.get('/api/follow/following', {
+  getFollowingList(userId, page = 1, size = 10) {
+    return axiosInstance.get(`/api/users/${userId}/following`, {
       params: { page, size }
     });
   },
 
   // 获取粉丝列表
-  getFollowersList(page = 1, size = 10) {
-    return axiosInstance.get('/api/follow/followers', {
+  getFollowersList(userId, page = 1, size = 10) {
+    return axiosInstance.get(`/api/users/${userId}/followers`, {
       params: { page, size }
     });
   },

@@ -1,10 +1,12 @@
 package com.web.service.Impl;
 
-import com.web.mapper.RoleMapper;
+// RBAC相关mapper已删除
+// import com.web.mapper.RoleMapper;
 import com.web.mapper.UserMapper;
-import com.web.mapper.UserRoleMapper;
+// import com.web.mapper.UserRoleMapper;
 import com.web.mapper.UserStatsMapper;
-import com.web.model.Role;
+// RBAC相关model已删除
+// import com.web.model.Role;
 import com.web.model.User;
 import com.web.model.UserStats;
 import com.web.service.AuthService;
@@ -12,6 +14,7 @@ import com.web.service.UserCreationService;
 import com.web.exception.WeebException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,22 +29,22 @@ import java.time.LocalDateTime;
 public class UserCreationServiceImpl implements UserCreationService {
 
     private final UserMapper userMapper;
-    private final UserRoleMapper userRoleMapper;
+    // RBAC相关mapper已删除
+    // private final UserRoleMapper userRoleMapper;
     private final UserStatsMapper userStatsMapper;
-    private final RoleMapper roleMapper;
+    // private final RoleMapper roleMapper;
     private final AuthService authService;
 
     @Autowired
     public UserCreationServiceImpl(
             UserMapper userMapper,
-            UserRoleMapper userRoleMapper,
             UserStatsMapper userStatsMapper,
-            RoleMapper roleMapper,
-            AuthService authService) {
+            @Lazy AuthService authService) {
         this.userMapper = userMapper;
-        this.userRoleMapper = userRoleMapper;
+        // RBAC相关mapper已删除
+        // this.userRoleMapper = userRoleMapper;
         this.userStatsMapper = userStatsMapper;
-        this.roleMapper = roleMapper;
+        // this.roleMapper = roleMapper;
         this.authService = authService;
     }
 
@@ -64,11 +67,8 @@ public class UserCreationServiceImpl implements UserCreationService {
 
             log.info("用户基本信息创建成功: userId={}, username={}", user.getId(), user.getUsername());
 
-            // Step 3: 分配默认角色
-            log.debug("为用户分配默认角色");
-            assignDefaultRole(user.getId());
-
-            // Step 4: 初始化用户统计数据
+            // RBAC系统已移除，不再分配默认角色
+            // Step 3: 初始化用户统计数据
             log.debug("初始化用户统计数据");
             initializeUserStats(user.getId());
 
@@ -88,69 +88,7 @@ public class UserCreationServiceImpl implements UserCreationService {
         }
     }
 
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void assignDefaultRole(Long userId) {
-        log.debug("开始为用户分配默认角色: userId={}", userId);
-
-        try {
-            // 查找默认角色（is_default = true）
-            Role defaultRole = roleMapper.selectDefaultRole();
-
-            if (defaultRole != null) {
-                // 分配默认角色
-                int rowsAffected = userRoleMapper.assignRoleToUser(userId, defaultRole.getId());
-
-                if (rowsAffected <= 0) {
-                    throw new WeebException("默认角色分配失败：未更新任何记录");
-                }
-
-                log.info("默认角色分配成功: userId={}, roleId={}, roleName={}",
-                        userId, defaultRole.getId(), defaultRole.getName());
-                return;
-            }
-
-            // 如果没有默认角色，尝试查找"USER"角色
-            log.warn("未找到默认角色，尝试查找'USER'角色");
-            Role userRole = roleMapper.selectByName("USER");
-
-            if (userRole != null) {
-                int rowsAffected = userRoleMapper.assignRoleToUser(userId, userRole.getId());
-
-                if (rowsAffected <= 0) {
-                    throw new WeebException("USER角色分配失败：未更新任何记录");
-                }
-
-                log.info("USER角色分配成功: userId={}, roleId={}", userId, userRole.getId());
-                return;
-            }
-
-            // 尝试查找"用户"角色（中文角色名）
-            log.warn("未找到'USER'角色，尝试查找'用户'角色");
-            Role chineseUserRole = roleMapper.selectByName("用户");
-
-            if (chineseUserRole != null) {
-                int rowsAffected = userRoleMapper.assignRoleToUser(userId, chineseUserRole.getId());
-
-                if (rowsAffected <= 0) {
-                    throw new WeebException("用户角色分配失败：未更新任何记录");
-                }
-
-                log.info("用户角色分配成功: userId={}, roleId={}", userId, chineseUserRole.getId());
-                return;
-            }
-
-            // 所有角色查找都失败
-            throw new WeebException("系统配置错误：未找到任何可用的用户角色，请联系管理员");
-
-        } catch (WeebException e) {
-            log.error("角色分配失败: userId={}, error={}", userId, e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("角色分配时发生未知错误: userId={}, error={}", userId, e.getMessage(), e);
-            throw new WeebException("角色分配失败：" + e.getMessage());
-        }
-    }
+    // assignDefaultRole方法已删除 - RBAC系统已移除
 
     @Override
     @Transactional(rollbackFor = Exception.class)

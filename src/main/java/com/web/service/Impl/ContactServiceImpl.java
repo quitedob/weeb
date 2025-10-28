@@ -23,6 +23,9 @@ public class ContactServiceImpl implements ContactService {
     @Autowired
     private ContactMapper contactMapper;
 
+    @Autowired
+    private com.web.service.UserService userService;
+
     @Override
     public void apply(ContactApplyVo applyVo, Long fromUserId) {
         // 检查是否已经存在联系人关系
@@ -33,6 +36,32 @@ public class ContactServiceImpl implements ContactService {
         
         // 创建联系人申请记录
         int result = contactMapper.createContactApply(fromUserId, applyVo.getFriendId(), applyVo.getRemarks());
+        if (result <= 0) {
+            throw new WeebException("申请添加好友失败");
+        }
+    }
+
+    @Override
+    public void applyByUsername(String username, String message, Long fromUserId) {
+        // 根据用户名查找用户
+        com.web.model.User targetUser = userService.findByUsername(username);
+        if (targetUser == null) {
+            throw new WeebException("用户不存在");
+        }
+        
+        // 不能添加自己为好友
+        if (targetUser.getId().equals(fromUserId)) {
+            throw new WeebException("不能添加自己为好友");
+        }
+        
+        // 检查是否已经存在联系人关系
+        boolean exists = contactMapper.isContactExists(fromUserId, targetUser.getId());
+        if (exists) {
+            throw new WeebException("联系人关系已存在或申请已发送");
+        }
+        
+        // 创建联系人申请记录
+        int result = contactMapper.createContactApply(fromUserId, targetUser.getId(), message);
         if (result <= 0) {
             throw new WeebException("申请添加好友失败");
         }

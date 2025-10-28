@@ -19,6 +19,14 @@ public interface ContactService {
     void apply(ContactApplyVo applyVo, Long fromUserId);
 
     /**
+     * 通过用户名申请添加好友
+     * @param username 目标用户的用户名
+     * @param message 申请消息
+     * @param fromUserId 申请人ID (Long)
+     */
+    void applyByUsername(String username, String message, Long fromUserId);
+
+    /**
      * 同意好友申请
      * @param contactId 申请记录的ID (ID of the Contact entity)
      * @param toUserId 被申请人ID（当前用户, Long）

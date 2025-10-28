@@ -15,11 +15,13 @@
     "precommit": "npm run dev:check && npm run clean:console"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "@stomp/stompjs": "^7.2.1",
     "@tanstack/vue-virtual": "^3.13.12",
     "axios": "^1.7.9",
     "dayjs": "^1.11.18",
     "dompurify": "^3.3.0",
+    "element-plus": "^2.11.5",
     "lodash-es": "^4.17.21",
     "marked": "^16.4.1",
     "pinia": "^2.1.7",

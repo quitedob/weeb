@@ -1,6 +1,7 @@
 package com.web.service;
 
-import com.web.model.Role;
+// RBAC相关model已删除
+// import com.web.model.Role;
 import com.web.model.User;
 import com.web.model.UserStats;
 import com.web.exception.WeebException;
@@ -21,14 +22,7 @@ public interface UserCreationService {
      */
     User createUserWithDependencies(User user);
 
-    /**
-     * 为用户分配默认角色
-     * 确保角色分配的事务安全性
-     *
-     * @param userId 用户ID
-     * @throws WeebException 角色分配失败时抛出异常
-     */
-    void assignDefaultRole(Long userId);
+    // assignDefaultRole方法已删除 - RBAC系统已移除
 
     /**
      * 初始化用户统计数据

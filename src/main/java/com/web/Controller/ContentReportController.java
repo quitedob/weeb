@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -33,7 +32,6 @@ public class ContentReportController {
      * POST /api/content-reports
      */
     @PostMapping
-    @PreAuthorize("hasPermission(null, 'CONTENT_REPORT_CREATE_OWN')")
     public ResponseEntity<ApiResponse<ContentReport>> createReport(
             @RequestBody @Valid ContentReport report,
             @Userid Long userId) {
@@ -62,7 +60,6 @@ public class ContentReportController {
      * GET /api/content-reports/pending?page=1&pageSize=20&contentType=article&reason=spam
      */
     @GetMapping("/pending")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REVIEW_ANY')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getPendingReports(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
@@ -84,7 +81,6 @@ public class ContentReportController {
      * PUT /api/content-reports/{reportId}/process
      */
     @PutMapping("/{reportId}/process")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REVIEW_ANY')")
     public ResponseEntity<ApiResponse<String>> processReport(
             @PathVariable Long reportId,
             @RequestBody Map<String, Object> processRequest,
@@ -117,7 +113,6 @@ public class ContentReportController {
      * PUT /api/content-reports/batch-process
      */
     @PutMapping("/batch-process")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REVIEW_ANY')")
     public ResponseEntity<ApiResponse<String>> batchProcessReports(
             @RequestBody Map<String, Object> batchRequest,
             @Userid Long reviewerId) {
@@ -143,7 +138,6 @@ public class ContentReportController {
      * GET /api/content-reports/my-reports?page=1&pageSize=20
      */
     @GetMapping("/my-reports")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REPORT_READ_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserReportHistory(
             @Userid Long userId,
             @RequestParam(defaultValue = "1") int page,
@@ -163,7 +157,6 @@ public class ContentReportController {
      * GET /api/content-reports/content/{contentType}/{contentId}
      */
     @GetMapping("/content/{contentType}/{contentId}")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REVIEW_ANY')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getContentReportDetails(
             @PathVariable String contentType,
             @PathVariable Long contentId) {
@@ -182,7 +175,6 @@ public class ContentReportController {
      * GET /api/content-reports/statistics
      */
     @GetMapping("/statistics")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REVIEW_ANY')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getReportStatistics() {
         try {
             Map<String, Object> statistics = contentReportService.getReportStatistics();
@@ -199,7 +191,6 @@ public class ContentReportController {
      * GET /api/content-reports/top-reported?limit=10
      */
     @GetMapping("/top-reported")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REVIEW_ANY')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTopReportedContent(
             @RequestParam(defaultValue = "10") int limit) {
         try {
@@ -217,7 +208,6 @@ public class ContentReportController {
      * GET /api/content-reports/reviewer-stats?reviewerId=123&days=7
      */
     @GetMapping("/reviewer-stats")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REVIEW_ANY')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getReviewerStats(
             @RequestParam(required = false) Long reviewerId,
             @RequestParam(defaultValue = "7") int days) {
@@ -236,7 +226,6 @@ public class ContentReportController {
      * PUT /api/content-reports/{reportId}/withdraw
      */
     @PutMapping("/{reportId}/withdraw")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REPORT_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<String>> withdrawReport(
             @PathVariable Long reportId,
             @Userid Long userId) {
@@ -260,7 +249,6 @@ public class ContentReportController {
      * PUT /api/content-reports/{reportId}/mark-urgent
      */
     @PutMapping("/{reportId}/mark-urgent")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REVIEW_ANY')")
     public ResponseEntity<ApiResponse<String>> markReportAsUrgent(
             @PathVariable Long reportId,
             @Userid Long reviewerId) {
@@ -284,7 +272,6 @@ public class ContentReportController {
      * GET /api/content-reports/{reportId}
      */
     @GetMapping("/{reportId}")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REVIEW_ANY')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getReportDetails(@PathVariable Long reportId) {
         try {
             Map<String, Object> details = contentReportService.getReportDetails(reportId);
@@ -301,7 +288,6 @@ public class ContentReportController {
      * GET /api/content-reports/can-report?contentType=article&contentId=123
      */
     @GetMapping("/can-report")
-    @PreAuthorize("hasPermission(null, 'CONTENT_REPORT_CREATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> canUserReportContent(
             @RequestParam String contentType,
             @RequestParam Long contentId,

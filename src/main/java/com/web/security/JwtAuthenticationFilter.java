@@ -78,6 +78,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
 
+                        // 设置userinfo属性供UserInfoArgumentResolver使用
+                        Map<String, Object> userinfo = new HashMap<>();
+                        userinfo.put("userId", userId);
+                        userinfo.put("username", userDetails.getUsername());
+                        request.setAttribute("userinfo", userinfo);
+
                         // 记录成功的认证
                         SecurityAuditUtils.logAuthenticationSuccess(userDetails.getUsername(), request.getRemoteAddr());
                     } else {

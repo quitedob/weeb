@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;  // 注意导入
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -129,7 +128,6 @@ public class ArticleCenterController {
      * 请求体：ArticleUpdateVo
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission(#id, 'ARTICLE_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<String>> editArticle(
             @PathVariable Long id,
             @RequestBody @Valid ArticleUpdateVo updateVo,
@@ -205,7 +203,6 @@ public class ArticleCenterController {
      * 请求体：ArticleCreateVo 对象 JSON 格式
      */
     @PostMapping("/new")
-    @PreAuthorize("hasPermission(null, 'ARTICLE_CREATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> createArticle(
             @RequestBody @Valid ArticleCreateVo createVo, 
             @Userid Long authenticatedUserId) {
@@ -445,7 +442,6 @@ public class ArticleCenterController {
     }
     // RESTful 删除文章接口
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission(#id, 'ARTICLE_DELETE_OWN')")
     public ResponseEntity<ApiResponse<String>> deleteArticle(@PathVariable("id") Long id, @Userid Long authenticatedUserId) {
         try {
             // 安全验证：确保用户只能删除自己的文章

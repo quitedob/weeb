@@ -25,7 +25,7 @@ public class ContactController {
     private ContactService contactService;
 
     /**
-     * 发送好友申请
+     * 发送好友申请（通过用户ID）
      * @param applyVo 申请信息 (friendId, remarks)
      * @param userId 申请人ID (from @Userid)
      * @return 操作结果
@@ -34,6 +34,44 @@ public class ContactController {
     public ResponseEntity<ApiResponse<String>> apply(@RequestBody @Valid ContactApplyVo applyVo, @Userid Long userId) {
         contactService.apply(applyVo, userId);
         return ResponseEntity.ok(ApiResponse.success("申请发送成功"));
+    }
+
+    /**
+     * 发送好友申请（兼容前端 /request 路径）
+     * @param requestBody 包含 targetUserId 和 message
+     * @param userId 申请人ID (from @Userid)
+     * @return 操作结果
+     */
+    @PostMapping("/request")
+    public ResponseEntity<ApiResponse<String>> sendRequest(
+            @RequestBody java.util.Map<String, Object> requestBody, 
+            @Userid Long userId) {
+        Long targetUserId = Long.valueOf(requestBody.get("targetUserId").toString());
+        String message = requestBody.getOrDefault("message", "").toString();
+        
+        ContactApplyVo applyVo = new ContactApplyVo();
+        applyVo.setFriendId(targetUserId);
+        applyVo.setRemarks(message);
+        
+        contactService.apply(applyVo, userId);
+        return ResponseEntity.ok(ApiResponse.success("好友申请已发送"));
+    }
+
+    /**
+     * 通过用户名发送好友申请
+     * @param requestBody 包含 username 和 message
+     * @param userId 申请人ID (from @Userid)
+     * @return 操作结果
+     */
+    @PostMapping("/request/by-username")
+    public ResponseEntity<ApiResponse<String>> sendRequestByUsername(
+            @RequestBody java.util.Map<String, String> requestBody, 
+            @Userid Long userId) {
+        String username = requestBody.get("username");
+        String message = requestBody.getOrDefault("message", "");
+        
+        contactService.applyByUsername(username, message, userId);
+        return ResponseEntity.ok(ApiResponse.success("好友申请已发送"));
     }
 
     /**
@@ -49,6 +87,15 @@ public class ContactController {
     }
 
     /**
+     * 同意好友申请（兼容前端 /request/{id}/accept 路径）
+     */
+    @PostMapping("/request/{requestId}/accept")
+    public ResponseEntity<ApiResponse<String>> acceptRequest(@PathVariable("requestId") Long requestId, @Userid Long userId) {
+        contactService.accept(requestId, userId);
+        return ResponseEntity.ok(ApiResponse.success("已接受好友申请"));
+    }
+
+    /**
      * 拒绝好友申请
      * @param contactId 申请记录的ID (Contact entity ID)
      * @param userId 当前用户ID (被申请人, from @Userid)
@@ -58,6 +105,15 @@ public class ContactController {
     public ResponseEntity<ApiResponse<String>> decline(@PathVariable("contactId") Long contactId, @Userid Long userId) {
         contactService.declineOrBlock(contactId, userId, ContactStatus.REJECTED);
         return ResponseEntity.ok(ApiResponse.success("申请已拒绝"));
+    }
+
+    /**
+     * 拒绝好友申请（兼容前端 /request/{id}/reject 路径）
+     */
+    @PostMapping("/request/{requestId}/reject")
+    public ResponseEntity<ApiResponse<String>> rejectRequest(@PathVariable("requestId") Long requestId, @Userid Long userId) {
+        contactService.declineOrBlock(requestId, userId, ContactStatus.REJECTED);
+        return ResponseEntity.ok(ApiResponse.success("已拒绝好友申请"));
     }
 
     /**
