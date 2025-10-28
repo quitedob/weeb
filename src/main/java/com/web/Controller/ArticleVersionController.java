@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -33,7 +32,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions
      */
     @GetMapping
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getArticleVersions(
             @PathVariable Long articleId) {
         try {
@@ -51,7 +49,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/{versionNumber}
      */
     @GetMapping("/{versionNumber}")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getArticleVersion(
             @PathVariable Long articleId,
             @PathVariable Integer versionNumber) {
@@ -70,7 +67,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/latest
      */
     @GetMapping("/latest")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getLatestVersion(
             @PathVariable Long articleId) {
         try {
@@ -88,7 +84,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/latest-published
      */
     @GetMapping("/latest-published")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getLatestPublishedVersion(
             @PathVariable Long articleId) {
         try {
@@ -106,7 +101,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/major
      */
     @GetMapping("/major")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMajorVersions(
             @PathVariable Long articleId) {
         try {
@@ -124,7 +118,6 @@ public class ArticleVersionController {
      * POST /api/articles/{articleId}/versions/{versionNumber}/rollback
      */
     @PostMapping("/{versionNumber}/rollback")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<String>> rollbackToVersion(
             @PathVariable Long articleId,
             @PathVariable Integer versionNumber,
@@ -152,7 +145,6 @@ public class ArticleVersionController {
      * POST /api/articles/{articleId}/versions/auto-save
      */
     @PostMapping("/auto-save")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<String>> autoSaveVersion(
             @PathVariable Long articleId,
             @RequestBody Map<String, String> autoSaveRequest,
@@ -184,7 +176,6 @@ public class ArticleVersionController {
      * POST /api/articles/{articleId}/versions/major
      */
     @PostMapping("/major")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<Integer>> createMajorVersion(
             @PathVariable Long articleId,
             @RequestBody Map<String, String> versionRequest,
@@ -218,7 +209,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/compare?from=1&to=2
      */
     @GetMapping("/compare")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> compareVersions(
             @PathVariable Long articleId,
             @RequestParam Integer from,
@@ -238,7 +228,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/statistics
      */
     @GetMapping("/statistics")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getVersionStatistics(
             @PathVariable Long articleId) {
         try {
@@ -256,7 +245,6 @@ public class ArticleVersionController {
      * DELETE /api/articles/{articleId}/versions/cleanup?keepCount=10
      */
     @DeleteMapping("/cleanup")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<String>> cleanupOldVersions(
             @PathVariable Long articleId,
             @RequestParam(defaultValue = "10") int keepCount) {
@@ -275,7 +263,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/search?keyword=example
      */
     @GetMapping("/search")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> searchVersions(
             @PathVariable Long articleId,
             @RequestParam String keyword) {
@@ -299,7 +286,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/auto-saves?hours=24
      */
     @GetMapping("/auto-saves")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAutoSaveVersions(
             @PathVariable Long articleId,
             @RequestParam(defaultValue = "24") int hours) {
@@ -318,7 +304,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/change-stats
      */
     @GetMapping("/change-stats")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getChangeStatistics(
             @PathVariable Long articleId) {
         try {
@@ -336,7 +321,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/export?format=json
      */
     @GetMapping("/export")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<String> exportVersionHistory(
             @PathVariable Long articleId,
             @RequestParam(defaultValue = "json") String format) {
@@ -375,7 +359,6 @@ public class ArticleVersionController {
      * GET /api/articles/{articleId}/versions/timeline
      */
     @GetMapping("/timeline")
-    @PreAuthorize("hasPermission(#articleId, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getVersionTimeline(
             @PathVariable Long articleId) {
         try {

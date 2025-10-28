@@ -3,7 +3,6 @@ package com.web.service.Impl;
 import com.web.dto.UserDetailsDTO;
 import com.web.mapper.AuthMapper;
 import com.web.mapper.UserMapper;
-import com.web.model.Permission;
 import com.web.model.User;
 import com.web.service.UserSecurityService;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 用户安全认证服务实现类
@@ -118,38 +116,67 @@ public class UserSecurityServiceImpl implements UserSecurityService {
     @Override
     public List<String> getUserAuthorities(Long userId) {
         try {
-            // 通过UserMapper获取用户权限
-            List<Permission> permissions = userMapper.selectUserPermissions(userId);
-
-            if (permissions == null || permissions.isEmpty()) {
-                log.debug("No permissions found for user: {}, adding default USER role", userId);
+            // 获取用户信息
+            User user = authMapper.findByUserID(userId);
+            if (user == null) {
+                log.debug("User not found for authority check: {}", userId);
                 return Collections.singletonList("ROLE_USER");
             }
 
-            List<String> authorities = permissions.stream()
-                    .filter(permission -> permission.getStatus() != null && permission.getStatus() == 1)
-                    .map(permission -> {
-                        String authority = permission.getName();
-                        // 确保权限名以ROLE_开头（Spring Security规范）
-                        if (!authority.startsWith("ROLE_") && !authority.startsWith("ROLE:")) {
-                            return "ROLE_" + authority;
-                        }
-                        return authority;
-                    })
-                    .collect(Collectors.toList());
+            // 基于简化的用户类型系统分配权限
+            List<String> authorities = new java.util.ArrayList<>();
 
-            // 确保至少有基本用户角色
-            if (!authorities.contains("ROLE_USER")) {
+            // 检查用户名模式确定用户类型
+            String username = user.getUsername();
+            if (username != null) {
+                if (isAdminUsername(username)) {
+                    authorities.add("ROLE_ADMIN");
+                    authorities.add("ROLE_USER"); // 管理员也是用户
+                } else if (isBotUsername(username)) {
+                    authorities.add("ROLE_BOT");
+                    authorities.add("ROLE_USER"); // 机器人也有基本用户权限
+                } else {
+                    authorities.add("ROLE_USER");
+                }
+            } else {
+                // 默认权限
                 authorities.add("ROLE_USER");
             }
 
-            log.debug("User {} has {} authorities: {}", userId, authorities.size(), authorities);
+            log.debug("User {} has authorities: {}", userId, authorities);
             return authorities;
 
         } catch (Exception e) {
             log.error("Error loading authorities for userId: {}", userId, e);
             return Collections.singletonList("ROLE_USER");
         }
+    }
+
+    /**
+     * 基于用户名模式判断是否为管理员
+     */
+    private boolean isAdminUsername(String username) {
+        return username.startsWith("admin_") ||
+               username.startsWith("root_") ||
+               username.startsWith("sys_") ||
+               username.equals("admin") ||
+               username.equals("root") ||
+               username.equals("system") ||
+               username.contains("_admin");
+    }
+
+    /**
+     * 基于用户名模式判断是否为机器人
+     */
+    private boolean isBotUsername(String username) {
+        return username.startsWith("bot_") ||
+               username.startsWith("robot_") ||
+               username.startsWith("auto_") ||
+               username.startsWith("service_") ||
+               username.equals("bot") ||
+               username.equals("system_bot") ||
+               username.contains("_bot") ||
+               username.endsWith("_bot");
     }
 
     @Override

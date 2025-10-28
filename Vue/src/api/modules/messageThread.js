@@ -8,13 +8,14 @@ import api from '../axiosInstance'
 export const messageThreadApi = {
   /**
    * Get messages for a specific thread
+   * 统一使用 /api/threads/* 路径
    * @param {number} threadId - The thread ID
    * @param {number} page - Page number (default: 1)
    * @param {number} pageSize - Page size (default: 20)
    * @returns {Promise} API response
    */
   getThreadMessages(threadId, page = 1, pageSize = 20) {
-    return api.get(`/api/messages/thread/${threadId}`, {
+    return api.get(`/api/threads/${threadId}/messages`, {
       params: {
         page,
         pageSize
@@ -28,7 +29,7 @@ export const messageThreadApi = {
    * @returns {Promise} API response
    */
   getThreadSummary(parentMessageId) {
-    return api.get(`/api/messages/thread-summary/${parentMessageId}`)
+    return api.get(`/api/threads/summary/${parentMessageId}`)
   },
 
   /**
@@ -38,7 +39,7 @@ export const messageThreadApi = {
    * @returns {Promise} API response
    */
   createThread(parentMessageId, content) {
-    return api.post('/api/messages/create-thread', {
+    return api.post('/api/threads', {
       parentMessageId,
       content
     })
@@ -52,8 +53,7 @@ export const messageThreadApi = {
    * @returns {Promise} API response
    */
   replyToThread(threadId, content, replyToMessageId = null) {
-    return api.post('/api/messages/reply-thread', {
-      threadId,
+    return api.post(`/api/threads/${threadId}/reply`, {
       content,
       replyToMessageId
     })
@@ -65,7 +65,7 @@ export const messageThreadApi = {
    * @returns {Promise} API response
    */
   deleteThread(threadId) {
-    return api.delete(`/api/messages/thread/${threadId}`)
+    return api.delete(`/api/threads/${threadId}`)
   },
 
   /**
@@ -75,7 +75,7 @@ export const messageThreadApi = {
    * @returns {Promise} API response
    */
   getUserThreads(page = 1, pageSize = 20) {
-    return api.get('/api/messages/user-threads', {
+    return api.get('/api/threads/user', {
       params: {
         page,
         pageSize
@@ -89,7 +89,7 @@ export const messageThreadApi = {
    * @returns {Promise} API response
    */
   markThreadAsRead(threadId) {
-    return api.post(`/api/messages/thread/${threadId}/read`)
+    return api.post(`/api/threads/${threadId}/read`)
   },
 
   /**
@@ -97,7 +97,7 @@ export const messageThreadApi = {
    * @returns {Promise} API response
    */
   getUnreadThreadCount() {
-    return api.get('/api/messages/unread-threads-count')
+    return api.get('/api/threads/unread-count')
   }
 }
 

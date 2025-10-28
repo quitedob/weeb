@@ -22,7 +22,6 @@ import com.web.vo.ai.TitleSuggestionRequestVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -50,7 +49,6 @@ public class AIController {
      * POST /api/ai/article/summary
      */
     @PostMapping("/article/summary")
-    @PreAuthorize("hasPermission(null, 'ARTICLE_READ_OWN')")
     public ResponseEntity<ApiResponse<String>> generateArticleSummary(
             @RequestBody @Valid ArticleSummaryRequestVo summaryRequest) {
         try {
@@ -78,7 +76,6 @@ public class AIController {
      * POST /api/ai/text/refine
      */
     @PostMapping("/text/refine")
-    @PreAuthorize("hasPermission(null, 'ARTICLE_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<String>> refineText(
             @RequestBody @Valid TextRefineRequestVo request) {
         try {
@@ -94,7 +91,6 @@ public class AIController {
      * POST /api/ai/article/titles
      */
     @PostMapping("/article/titles")
-    @PreAuthorize("hasPermission(null, 'ARTICLE_CREATE_OWN')")
     public ResponseEntity<ApiResponse<List<String>>> generateTitleSuggestions(
             @RequestBody @Valid TitleSuggestionRequestVo request) {
         try {
@@ -113,7 +109,6 @@ public class AIController {
      * POST /api/ai/chat
      */
     @PostMapping("/chat")
-    @PreAuthorize("hasPermission(null, 'AI_CHAT_OWN')")
     public ResponseEntity<ApiResponse<String>> chat(
             @RequestBody @Valid ChatRequestVo request,
             @Userid Long userId) {
@@ -133,7 +128,6 @@ public class AIController {
      * POST /api/ai/sentiment/analyze
      */
     @PostMapping("/sentiment/analyze")
-    @PreAuthorize("hasPermission(null, 'CONTENT_ANALYZE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> analyzeSentiment(
             @RequestBody @Valid SentimentAnalysisRequestVo request) {
         try {
@@ -151,7 +145,6 @@ public class AIController {
      * POST /api/ai/keywords/extract
      */
     @PostMapping("/keywords/extract")
-    @PreAuthorize("hasPermission(null, 'CONTENT_ANALYZE_OWN')")
     public ResponseEntity<ApiResponse<List<String>>> extractKeywords(
             @RequestBody @Valid KeywordsExtractionRequestVo request) {
         try {
@@ -170,7 +163,6 @@ public class AIController {
      * POST /api/ai/text/translate
      */
     @PostMapping("/text/translate")
-    @PreAuthorize("hasPermission(null, 'AI_TRANSLATE_OWN')")
     public ResponseEntity<ApiResponse<String>> translateText(
             @RequestBody @Valid TextTranslationRequestVo request) {
         try {
@@ -189,7 +181,6 @@ public class AIController {
      * POST /api/ai/article/tags
      */
     @PostMapping("/article/tags")
-    @PreAuthorize("hasPermission(null, 'ARTICLE_CREATE_OWN')")
     public ResponseEntity<ApiResponse<List<String>>> generateArticleTags(
             @RequestBody @Valid ArticleTagsGenerationRequestVo request) {
         try {
@@ -208,7 +199,6 @@ public class AIController {
      * POST /api/ai/content/compliance
      */
     @PostMapping("/content/compliance")
-    @PreAuthorize("hasPermission(null, 'CONTENT_MODERATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkContentCompliance(
             @RequestBody @Valid ContentComplianceCheckRequestVo request) {
         try {
@@ -226,7 +216,6 @@ public class AIController {
      * POST /api/ai/reply/suggestions
      */
     @PostMapping("/reply/suggestions")
-    @PreAuthorize("hasPermission(null, 'AI_CHAT_OWN')")
     public ResponseEntity<ApiResponse<List<String>>> generateReplySuggestions(
             @RequestBody @Valid ReplySuggestionsRequestVo request) {
         try {
@@ -245,7 +234,6 @@ public class AIController {
      * POST /api/ai/conversation/summary
      */
     @PostMapping("/conversation/summary")
-    @PreAuthorize("hasPermission(null, 'AI_CHAT_OWN')")
     public ResponseEntity<ApiResponse<String>> summarizeConversation(
             @RequestBody @Valid ConversationSummaryRequestVo request) {
         try {
@@ -279,7 +267,6 @@ public class AIController {
      * POST /api/ai/content/suggestions
      */
     @PostMapping("/content/suggestions")
-    @PreAuthorize("hasPermission(null, 'ARTICLE_CREATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateContentSuggestions(
             @RequestBody @Valid ContentSuggestionsRequestVo request) {
         try {
@@ -298,7 +285,6 @@ public class AIController {
      * POST /api/ai/text/proofread
      */
     @PostMapping("/text/proofread")
-    @PreAuthorize("hasPermission(null, 'ARTICLE_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> proofreadText(
             @RequestBody @Valid TextProofreadRequestVo request) {
         try {
@@ -316,7 +302,6 @@ public class AIController {
      * POST /api/ai/content/outline
      */
     @PostMapping("/content/outline")
-    @PreAuthorize("hasPermission(null, 'ARTICLE_CREATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateContentOutline(
             @RequestBody @Valid ContentOutlineRequestVo request) {
         try {

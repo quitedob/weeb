@@ -180,6 +180,7 @@
       v-model="showAddDialog"
       title="添加联系人"
       width="500px"
+      :show-footer="true"
     >
       <div class="add-contact-form">
         <div class="form-item">

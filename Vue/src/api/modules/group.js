@@ -71,5 +71,50 @@ export default {
   // 获取用户在群组中的权限 - 对应 GET /api/groups/{groupId}/permissions
   getUserGroupPermissions(groupId) {
     return axiosInstance.get(`/api/groups/${groupId}/permissions`);
+  },
+
+  // 群组申请管理
+  getGroupApplications(groupId, params) {
+    return axiosInstance.get(`/api/groups/${groupId}/applications`, { params });
+  },
+
+  approveApplication(groupId, applicationId) {
+    return axiosInstance.post(`/api/groups/${groupId}/applications/${applicationId}/approve`);
+  },
+
+  rejectApplication(groupId, applicationId) {
+    return axiosInstance.post(`/api/groups/${groupId}/applications/${applicationId}/reject`);
+  },
+
+  // 成员角色管理
+  updateMemberRole(groupId, userId, role) {
+    return axiosInstance.put(`/api/groups/${groupId}/members/${userId}/role`, { role });
+  },
+
+  removeMember(groupId, userId) {
+    return axiosInstance.delete(`/api/groups/${groupId}/members/${userId}`);
+  },
+
+  muteMember(groupId, userId, data) {
+    return axiosInstance.post(`/api/groups/${groupId}/members/${userId}/mute`, data);
+  },
+
+  // 群组权限设置
+  updateGroupPermissions(groupId, permissions) {
+    return axiosInstance.put(`/api/groups/${groupId}/permissions`, permissions);
+  },
+
+  getGroupPermissions(groupId) {
+    return axiosInstance.get(`/api/groups/${groupId}/permissions`);
+  },
+
+  // 群组统计信息
+  getGroupStatistics(groupId) {
+    return axiosInstance.get(`/api/groups/${groupId}/statistics`);
+  },
+
+  // 获取群组详情（别名）
+  getGroupById(groupId) {
+    return axiosInstance.get(`/api/groups/${groupId}`);
   }
 };

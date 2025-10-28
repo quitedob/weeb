@@ -14,7 +14,6 @@ import com.web.util.ValidationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -42,7 +41,6 @@ public class StandardUserController {
      * GET /api/users/me
      */
     @GetMapping("/me")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<UserWithStats>> getCurrentUser() {
         try {
             Long userId = SecurityUtils.getCurrentUserId();
@@ -65,7 +63,6 @@ public class StandardUserController {
      * GET /api/users/me/profile
      */
     @GetMapping("/me/profile")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<UserWithStats>> getCurrentUserProfile() {
         try {
             Long userId = SecurityUtils.getCurrentUserId();
@@ -88,7 +85,6 @@ public class StandardUserController {
      * GET /api/users/me/info
      */
     @GetMapping("/me/info")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<User>> getCurrentUserInfo() {
         try {
             Long userId = SecurityUtils.getCurrentUserId();
@@ -111,7 +107,6 @@ public class StandardUserController {
      * PUT /api/users/me
      */
     @PutMapping("/me")
-    @PreAuthorize("hasPermission(null, 'USER_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<User>> updateCurrentUser(
             @RequestBody @Valid UpdateUserVo updateVo) {
         try {
@@ -146,7 +141,6 @@ public class StandardUserController {
      * GET /api/users/{userId}
      */
     @GetMapping("/{userId}")
-    @PreAuthorize("hasPermission(#userId, 'USER_READ_ANY')")
     public ResponseEntity<ApiResponse<UserWithStats>> getUser(@PathVariable Long userId) {
         try {
             UserWithStats userProfile = userService.getUserProfile(userId);
@@ -155,7 +149,7 @@ public class StandardUserController {
             }
             return ApiResponseUtil.successUserWithStats(userProfile);
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionUserWithStats(e, "获取用户信息", userId);
+            return ApiResponseUtil.handleServiceExceptionUserWithStats( e, "获取用户信息", userId);
         }
     }
 
@@ -164,7 +158,6 @@ public class StandardUserController {
      * GET /api/users?page=1&pageSize=20&keyword=example
      */
     @GetMapping
-    @PreAuthorize("hasPermission(null, 'USER_READ_ANY')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUsers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
@@ -182,7 +175,6 @@ public class StandardUserController {
      * GET /api/users/search?q=keyword&limit=10
      */
     @GetMapping("/search")
-    @PreAuthorize("hasPermission(null, 'USER_READ_ANY')")
     public ResponseEntity<ApiResponse<List<User>>> searchUsers(
             @RequestParam("q") String keyword,
             @RequestParam(defaultValue = "10") int limit) {
@@ -202,7 +194,6 @@ public class StandardUserController {
      * GET /api/users/me/groups
      */
     @GetMapping("/me/groups")
-    @PreAuthorize("hasPermission(null, 'GROUP_READ_OWN')")
     public ResponseEntity<ApiResponse<String>> getCurrentUserGroups() {
         try {
             Long userId = SecurityUtils.getCurrentUserId();
@@ -223,7 +214,6 @@ public class StandardUserController {
      * POST /api/users/{userId}/ban
      */
     @PostMapping("/{userId}/ban")
-    @PreAuthorize("hasPermission(#userId, 'USER_BAN_ANY')")
     public ResponseEntity<ApiResponse<String>> banUser(@PathVariable Long userId) {
         try {
             boolean banned = userService.banUser(userId);
@@ -242,7 +232,6 @@ public class StandardUserController {
      * POST /api/users/{userId}/unban
      */
     @PostMapping("/{userId}/unban")
-    @PreAuthorize("hasPermission(#userId, 'USER_BAN_ANY')")
     public ResponseEntity<ApiResponse<String>> unbanUser(@PathVariable Long userId) {
         try {
             boolean unbanned = userService.unbanUser(userId);
@@ -261,7 +250,6 @@ public class StandardUserController {
      * POST /api/users/{userId}/reset-password
      */
     @PostMapping("/{userId}/reset-password")
-    @PreAuthorize("hasPermission(#userId, 'USER_RESET_PASSWORD_ANY')")
     public ResponseEntity<ApiResponse<String>> resetUserPassword(
             @PathVariable Long userId,
             @RequestBody @Valid AdminResetPasswordRequestVo resetRequest) {
@@ -296,7 +284,6 @@ public class StandardUserController {
      * POST /api/users/{userId}/follow
      */
     @PostMapping("/{userId}/follow")
-    @PreAuthorize("hasPermission(null, 'USER_FOLLOW_OWN')")
     public ResponseEntity<ApiResponse<String>> followUser(
             @PathVariable Long userId) {
         try {
@@ -321,7 +308,6 @@ public class StandardUserController {
      * DELETE /api/users/{userId}/follow
      */
     @DeleteMapping("/{userId}/follow")
-    @PreAuthorize("hasPermission(null, 'USER_FOLLOW_OWN')")
     public ResponseEntity<ApiResponse<String>> unfollowUser(
             @PathVariable Long userId) {
         try {
@@ -346,7 +332,6 @@ public class StandardUserController {
      * GET /api/users/{userId}/following?page=1&pageSize=20
      */
     @GetMapping("/{userId}/following")
-    @PreAuthorize("hasPermission(#userId, 'USER_READ_ANY')")
     public ResponseEntity<ApiResponse<String>> getUserFollowing(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "1") int page,
@@ -364,7 +349,6 @@ public class StandardUserController {
      * GET /api/users/{userId}/followers?page=1&pageSize=20
      */
     @GetMapping("/{userId}/followers")
-    @PreAuthorize("hasPermission(#userId, 'USER_READ_ANY')")
     public ResponseEntity<ApiResponse<String>> getUserFollowers(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "1") int page,
@@ -382,7 +366,6 @@ public class StandardUserController {
      * GET /api/users/{userId}/follow/status
      */
     @GetMapping("/{userId}/follow/status")
-    @PreAuthorize("hasPermission(null, 'USER_FOLLOW_OWN')")
     public ResponseEntity<ApiResponse<Boolean>> checkFollowStatus(
             @PathVariable Long userId) {
         try {
@@ -403,7 +386,6 @@ public class StandardUserController {
      * GET /api/users/{userId}/stats
      */
     @GetMapping("/{userId}/stats")
-    @PreAuthorize("hasPermission(#userId, 'USER_READ_ANY') or #userId == authentication.principal.id")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserStats(
             @PathVariable Long userId) {
         try {
@@ -419,7 +401,6 @@ public class StandardUserController {
      * GET /api/users/{userId}/activities
      */
     @GetMapping("/{userId}/activities")
-    @PreAuthorize("hasPermission(#userId, 'USER_READ_ANY') or #userId == authentication.principal.id")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUserRecentActivities(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "10") int limit) {
@@ -436,7 +417,6 @@ public class StandardUserController {
      * PUT /api/users/profile
      */
     @PutMapping("/profile")
-    @PreAuthorize("hasPermission(null, 'USER_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<User>> updateProfile(
             @RequestBody @Valid UpdateUserVo updateVo) {
         try {
@@ -469,7 +449,6 @@ public class StandardUserController {
      * POST /api/users/avatar
      */
     @PostMapping("/avatar")
-    @PreAuthorize("hasPermission(null, 'USER_UPDATE_OWN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> uploadAvatar(
             @RequestParam("avatar") org.springframework.web.multipart.MultipartFile file) {
         try {

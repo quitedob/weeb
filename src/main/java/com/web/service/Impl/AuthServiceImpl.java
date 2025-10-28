@@ -3,11 +3,13 @@ package com.web.service.Impl;
 import com.web.exception.WeebException;
 import com.web.mapper.AuthMapper;
 import com.web.mapper.UserMapper;
-import com.web.mapper.UserRoleMapper;
-import com.web.mapper.RoleMapper;
+// RBAC相关mapper已删除
+// import com.web.mapper.UserRoleMapper;
+// import com.web.mapper.RoleMapper;
 import com.web.model.User;
 import com.web.model.UserWithStats;
-import com.web.model.Role;
+// RBAC相关model已删除
+// import com.web.model.Role;
 import com.web.service.AuthService;
 import com.web.service.UserCreationService;
 import com.web.constant.UserOnlineStatus;
@@ -36,18 +38,20 @@ public class AuthServiceImpl implements AuthService {
 
     private final AuthMapper authMapper;
     private final UserMapper userMapper;
-    private final UserRoleMapper userRoleMapper;
-    private final RoleMapper roleMapper;
+    // RBAC相关mapper已删除
+    // private final UserRoleMapper userRoleMapper;
+    // private final RoleMapper roleMapper;
     private final UserCreationService userCreationService;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> redisTemplate;
     private final JwtUtil jwtUtil;
 
-    public AuthServiceImpl(AuthMapper authMapper, UserMapper userMapper, UserRoleMapper userRoleMapper, RoleMapper roleMapper, UserCreationService userCreationService, PasswordEncoder passwordEncoder, RedisTemplate<String, Object> redisTemplate, JwtUtil jwtUtil) {
+    public AuthServiceImpl(AuthMapper authMapper, UserMapper userMapper, UserCreationService userCreationService, PasswordEncoder passwordEncoder, RedisTemplate<String, Object> redisTemplate, JwtUtil jwtUtil) {
         this.authMapper = authMapper;
         this.userMapper = userMapper;
-        this.userRoleMapper = userRoleMapper;
-        this.roleMapper = roleMapper;
+        // RBAC相关mapper已删除
+        // this.userRoleMapper = userRoleMapper;
+        // this.roleMapper = roleMapper;
         this.userCreationService = userCreationService;
         this.passwordEncoder = passwordEncoder;
         this.redisTemplate = redisTemplate;

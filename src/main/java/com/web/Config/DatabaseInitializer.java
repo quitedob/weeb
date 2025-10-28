@@ -8,14 +8,11 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.dao.DataAccessException;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.List;
 
 @Slf4j
 @Component
@@ -234,14 +231,11 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"article_favorite", "id,user_id,article_id,created_at"},
             {"article_tag", "id,tag_name,created_at"},
             {"article_tag_relation", "id,article_id,tag_id,created_at"},
-            {"file_record", "id,user_id,file_name,stored_name,file_path,file_size,mime_type,file_hash,is_public,created_at,updated_at"},
             {"user_follow", "id,follower_id,followee_id,created_at"},
-            {"file_share", "id,file_id,sharer_id,shared_to_user_id,share_token,permission,expires_at,status,access_count,created_at,updated_at"},
             {"system_logs", "id,operator_id,action,details,ip_address,created_at"},
-            {"permission", "id,name,description,resource,action,condition,status,type,group,sort_order,created_at,updated_at"},
-            {"role", "id,name,description,status,type,level,is_default,created_at,updated_at"},
-            {"role_permission", "id,role_id,permission_id,created_at"},
-            {"user_role", "id,user_id,role_id,created_at"}
+            {"user_level_history", "id,user_id,old_level,new_level,change_reason,change_type,operator_id,operator_name,change_time,ip_address,user_agent,remark,status,created_at,updated_at"},
+            {"article_version", "id,article_id,version_number,title,content,summary,article_link,category_id,status,tags,cover_image,version_note,created_by,created_by_username,change_type,change_summary,character_change,is_major_version,is_auto_save,size,content_hash,created_at,updated_at"},
+            {"content_report", "id,reporter_id,content_type,content_id,reason,description,status,reviewer_id,action,review_note,reviewed_at,metadata,report_count,is_urgent,created_at,updated_at"}
         };
 
         boolean allTablesValid = true;
@@ -281,11 +275,10 @@ public class DatabaseInitializer implements CommandLineRunner {
             }
 
             // 获取表的列信息
-            String sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" +
-                        databaseName + "' AND TABLE_NAME = " +
-                        (tableName.startsWith("`") ? tableName : "'" + tableName + "'");
+            String metaTableName = tableName.replace("`", "");
+            String sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?";
 
-            java.util.List<String> actualColumns = jdbcTemplate.queryForList(sql, String.class);
+            java.util.List<String> actualColumns = jdbcTemplate.queryForList(sql, String.class, databaseName, metaTableName);
 
             // 检查每个预期的列是否存在
             for (String expectedColumn : expectedColumns) {
@@ -349,10 +342,6 @@ public class DatabaseInitializer implements CommandLineRunner {
         // 按依赖关系顺序创建表
         createUserTable();
         createUserStatsTable();
-        createPermissionTable(); // 权限表必须在角色表之前
-        createRoleTable();
-        createRolePermissionTable();
-        createUserRoleTable();
         createGroupTable();
         createGroupMemberTable();
         createContactTable();
@@ -367,18 +356,23 @@ public class DatabaseInitializer implements CommandLineRunner {
         createArticleFavoriteTable();
         createArticleTagTable();
         createArticleTagRelationTable();
-        createFileRecordTable();
+        // 文件上传功能已禁用
+        // createFileRecordTable();
+        // createFileShareTable();
         createUserFollowTable();
-        createFileShareTable();
         createSystemLogTable(); // 新增调用
         createUserLevelHistoryTable(); // 用户等级历史表
+        createArticleVersionTable(); // 文章版本表
+        createContentReportTable(); // 内容举报表
 
         log.info("✅ 所有表创建完成");
     }
 
     private boolean tableExists(String tableName) {
         try {
-            String sql = "SELECT 1 FROM " + tableName + " LIMIT 1";
+            String rawName = tableName.replace("`", "");
+            String identifier = "`" + rawName + "`";
+            String sql = "SELECT 1 FROM " + identifier + " LIMIT 1";
             jdbcTemplate.execute(sql);
             log.info("表 {} 已存在", tableName);
             return true;
@@ -465,131 +459,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         }
     }
 
-    private void createPermissionTable() {
-        log.info("创建权限表...");
-
-        String sql = """
-            CREATE TABLE IF NOT EXISTS `permission` (
-                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '权限ID',
-                `name` VARCHAR(100) NOT NULL COMMENT '权限名称（e.g., USER_CREATE）',
-                `description` VARCHAR(255) COMMENT '权限描述',
-                `resource` VARCHAR(100) NOT NULL COMMENT '资源 (e.g., user, article)',
-                `action` VARCHAR(100) NOT NULL COMMENT '操作 (e.g., create, read, update, delete)',
-                `condition` VARCHAR(255) COMMENT '条件 (e.g., own, any)',
-                `status` TINYINT DEFAULT 1 COMMENT '状态：0-禁用，1-启用',
-                `type` TINYINT DEFAULT 1 COMMENT '类型：0-系统权限，1-业务权限',
-                `group` VARCHAR(100) COMMENT '权限分组',
-                `sort_order` INT DEFAULT 0 COMMENT '排序号',
-                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-                PRIMARY KEY (`id`),
-                UNIQUE KEY `uk_name` (`name`),
-                KEY `idx_resource` (`resource`),
-                KEY `idx_action` (`action`),
-                KEY `idx_status` (`status`),
-                KEY `idx_type` (`type`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            COMMENT='系统权限表';
-            """;
-
-        try {
-            jdbcTemplate.execute(sql);
-            log.info("✅ 权限表创建成功");
-        } catch (Exception e) {
-            log.error("❌ 创建权限表失败", e);
-            throw new RuntimeException("创建权限表失败", e);
-        }
-    }
-
-    private void createRoleTable() {
-        log.info("创建角色表...");
-
-        String sql = """
-            CREATE TABLE IF NOT EXISTS `role` (
-                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '角色ID',
-                `name` VARCHAR(100) NOT NULL COMMENT '角色名称',
-                `description` VARCHAR(255) COMMENT '角色描述',
-                `status` TINYINT DEFAULT 1 COMMENT '状态：0-禁用，1-启用',
-                `type` TINYINT DEFAULT 0 COMMENT '类型：0-系统角色，1-自定义角色',
-                `level` INT DEFAULT 100 COMMENT '角色等级（数字越小权限越大）',
-                `is_default` BOOLEAN DEFAULT FALSE COMMENT '是否为新用户默认角色',
-                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-                PRIMARY KEY (`id`),
-                UNIQUE KEY `uk_name` (`name`),
-                KEY `idx_status` (`status`),
-                KEY `idx_type` (`type`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            COMMENT='用户角色表';
-            """;
-
-        try {
-            jdbcTemplate.execute(sql);
-            log.info("✅ 角色表创建成功");
-        } catch (Exception e) {
-            log.error("❌ 创建角色表失败", e);
-            throw new RuntimeException("创建角色表失败", e);
-        }
-    }
-
-    private void createRolePermissionTable() {
-        log.info("创建角色权限关联表...");
-
-        String sql = """
-            CREATE TABLE IF NOT EXISTS `role_permission` (
-                `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-                `role_id` BIGINT NOT NULL COMMENT '角色ID',
-                `permission_id` BIGINT NOT NULL COMMENT '权限ID',
-                `status` INT DEFAULT 1 COMMENT '状态 0:无效 1:有效',
-                `created_by` BIGINT COMMENT '创建人ID',
-                `updated_by` BIGINT COMMENT '更新人ID',
-                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-                `remark` VARCHAR(500) COMMENT '备注',
-                INDEX idx_role_id (role_id),
-                INDEX idx_permission_id (permission_id),
-                INDEX idx_status (status),
-                INDEX idx_created_at (created_at),
-                UNIQUE KEY uk_role_permission (role_id, permission_id),
-                CONSTRAINT `fk_role_permission_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`) ON DELETE CASCADE,
-                CONSTRAINT `fk_role_permission_permission` FOREIGN KEY (`permission_id`) REFERENCES `permission` (`id`) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色权限关联表'
-            """;
-
-        try {
-            jdbcTemplate.execute(sql);
-            log.info("✅ 角色权限关联表创建成功");
-        } catch (Exception e) {
-            log.error("❌ 创建角色权限关联表失败", e);
-            throw new RuntimeException("创建角色权限关联表失败", e);
-        }
-    }
-
-    private void createUserRoleTable() {
-        log.info("创建用户角色关联表...");
-
-        String sql = """
-            CREATE TABLE IF NOT EXISTS `user_role` (
-                `id` BIGINT NOT NULL AUTO_INCREMENT,
-                `user_id` BIGINT NOT NULL COMMENT '用户ID',
-                `role_id` BIGINT NOT NULL COMMENT '角色ID',
-                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                PRIMARY KEY (`id`),
-                UNIQUE KEY `uk_user_role` (`user_id`, `role_id`),
-                CONSTRAINT `fk_ur_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
-                CONSTRAINT `fk_ur_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            COMMENT='用户与角色关联表';
-            """;
-
-        try {
-            jdbcTemplate.execute(sql);
-            log.info("✅ 用户角色关联表创建成功");
-        } catch (Exception e) {
-            log.error("❌ 创建用户角色关联表失败", e);
-            throw new RuntimeException("创建用户角色关联表失败", e);
-        }
-    }
+    // RBAC table creation methods have been removed
 
     private void createMessageTable() {
         log.info("创建消息表...");
@@ -697,7 +567,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `id` VARCHAR(255) NOT NULL COMMENT '聊天列表ID',
                 `user_id` BIGINT NOT NULL COMMENT '用户ID',
                 `target_id` BIGINT COMMENT '目标ID（用户ID或群组ID）',
-                `group_id` BIGINT COMMENT '群组ID（群聊时使用）',
+                   `group_id` BIGINT COMMENT '群组ID（群聊时使用）',
                 `target_info` TEXT NOT NULL COMMENT '目标信息（用户名或群组名）',
                 `type` VARCHAR(255) NOT NULL COMMENT '聊天类型：PRIVATE、GROUP',
                 `unread_count` INT DEFAULT 0 COMMENT '未读消息数',
@@ -1055,9 +925,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                 log.info("✅ 默认文章标签创建成功");
             }
 
-            // 注意：角色和权限的初始化已经委托给SystemSecurityInitializer统一处理
-            // 这里不再重复初始化，避免冲突
-            log.info("角色和权限初始化委托给SystemSecurityInitializer处理");
+            // 权限系统已完全移除，不再初始化权限相关数据
+            log.info("✅ 权限系统已禁用，跳过权限初始化");
 
         } catch (Exception e) {
             log.error("插入初始数据失败", e);
@@ -1066,80 +935,9 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     // ========================================
-    // 🔒 DEPRECATED - 以下方法已废弃
-    // 角色和权限初始化功能已迁移至 SystemSecurityInitializer 统一处理
+    // 🔒 权限系统已完全移除
+    // 所有权限相关的初始化方法已被删除
     // ========================================
-
-    /**
-     * @deprecated 角色和权限初始化已迁移至 SystemSecurityInitializer
-     */
-    @Deprecated
-    private void initializeRolesAndPermissions() {
-        log.warn("⚠️  此方法已废弃，请使用 SystemSecurityInitializer 进行角色权限初始化");
-    }
-
-    /**
-     * @deprecated 权限分配已迁移至 SystemSecurityInitializer
-     */
-    @Deprecated
-    private void assignPermissionsToRoles() {
-        log.warn("⚠️  此方法已废弃，请使用 SystemSecurityInitializer 进行权限分配");
-    }
-
-    /**
-     * @deprecated 用户角色分配已迁移至 SystemSecurityInitializer
-     */
-    @Deprecated
-    private void assignDefaultRolesToExistingUsers() {
-        log.warn("⚠️  此方法已废弃，请使用 SystemSecurityInitializer 进行用户角色分配");
-    }
-
-    /**
-     * @deprecated 用户角色分配已迁移至 SystemSecurityInitializer
-     */
-    @Deprecated
-    private void assignRolesToInitialUsers() {
-        log.warn("⚠️  此方法已废弃，请使用 SystemSecurityInitializer 进行用户角色分配");
-    }
-
-    /**
-     * 根据用户名分配角色
-     */
-    private void assignRoleToUser(String username, Long roleId, String roleName) {
-        try {
-            Long userId = jdbcTemplate.queryForObject(
-                "SELECT id FROM user WHERE username = ?", Long.class, username);
-
-            if (userId != null && roleId != null) {
-                jdbcTemplate.update(
-                    "INSERT INTO user_role (user_id, role_id, created_at) VALUES (?, ?, NOW())",
-                    userId, roleId);
-                log.info("✅ 为用户 {} 分配角色: {}", username, roleName);
-            } else {
-                if (userId == null) {
-                    log.warn("用户 {} 不存在，跳过角色分配", username);
-                }
-                if (roleId == null) {
-                    log.warn("角色不存在，无法为用户 {} 分配", username);
-                }
-            }
-        } catch (Exception e) {
-            log.warn("为用户 {} 分配角色失败: {}", username, e.getMessage());
-        }
-    }
-
-    /**
-     * 根据角色名称获取角色ID
-     */
-    private Long getRoleIdByName(String roleName) {
-        try {
-            return jdbcTemplate.queryForObject(
-                "SELECT id FROM role WHERE name = ? AND status = 1", Long.class, roleName);
-        } catch (Exception e) {
-            log.warn("未找到角色: {}", roleName);
-            return null;
-        }
-    }
 
     private void createArticleCommentTable() {
         log.info("创建文章评论表...");
@@ -1443,6 +1241,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                 INDEX idx_change_time (change_time),
                 INDEX idx_status (status),
                 INDEX idx_created_at (created_at),
+                INDEX idx_user_time (user_id, change_time),
+                INDEX idx_level_change (old_level, new_level),
                 CONSTRAINT `fk_user_level_history_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户等级变更历史表'
             """;
@@ -1455,4 +1255,123 @@ public class DatabaseInitializer implements CommandLineRunner {
             throw new RuntimeException("创建用户等级历史表失败", e);
         }
     }
+
+    /**
+     * 创建文章版本表
+     */
+    private void createArticleVersionTable() {
+        log.info("创建文章版本表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `article_version` (
+                `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+                `article_id` BIGINT NOT NULL COMMENT '文章ID（关联到articles表）',
+                `version_number` INT NOT NULL COMMENT '版本号',
+                `title` VARCHAR(500) NOT NULL COMMENT '文章标题',
+                `content` LONGTEXT COMMENT '文章内容',
+                `summary` TEXT COMMENT '文章摘要',
+                `article_link` VARCHAR(1000) COMMENT '文章链接',
+                `category_id` BIGINT COMMENT '分类ID',
+                `status` VARCHAR(20) NOT NULL DEFAULT 'draft' COMMENT '文章状态（draft, published, archived等）',
+                `tags` JSON COMMENT '标签（JSON格式）',
+                `cover_image` VARCHAR(1000) COMMENT '封面图片URL',
+                `version_note` TEXT COMMENT '版本说明',
+                `created_by` BIGINT NOT NULL COMMENT '创建者ID',
+                `created_by_username` VARCHAR(100) COMMENT '创建者用户名',
+                `change_type` VARCHAR(50) NOT NULL DEFAULT 'create' COMMENT '变更类型（create, update, minor_edit, major_edit等）',
+                `change_summary` TEXT COMMENT '变更摘要（主要修改点）',
+                `character_change` INT COMMENT '字符数变化',
+                `is_major_version` BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否为主要版本',
+                `is_auto_save` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否自动保存版本',
+                `size` INT COMMENT '版本大小（字符数）',
+                `content_hash` VARCHAR(64) COMMENT '版本哈希值（用于内容去重）',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                INDEX `idx_article_id` (`article_id`),
+                INDEX `idx_version_number` (`version_number`),
+                INDEX `idx_created_by` (`created_by`),
+                INDEX `idx_status` (`status`),
+                INDEX `idx_change_type` (`change_type`),
+                INDEX `idx_created_at` (`created_at`),
+                INDEX `idx_is_major_version` (`is_major_version`),
+                INDEX `idx_is_auto_save` (`is_auto_save`),
+                INDEX `idx_content_hash` (`content_hash`),
+                UNIQUE KEY `uk_article_version` (`article_id`, `version_number`),
+                CONSTRAINT `fk_version_article` FOREIGN KEY (`article_id`) REFERENCES `articles` (`article_id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_version_creator` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文章版本表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+
+            // 添加检查约束
+            try {
+                jdbcTemplate.execute("ALTER TABLE `article_version` ADD CONSTRAINT `chk_status` CHECK (status IN ('draft', 'published', 'archived', 'deleted'))");
+            } catch (Exception e) {
+                log.warn("添加状态检查约束失败，可能已存在: {}", e.getMessage());
+            }
+
+            try {
+                jdbcTemplate.execute("ALTER TABLE `article_version` ADD CONSTRAINT `chk_change_type` CHECK (change_type IN ('create', 'update', 'minor_edit', 'major_edit', 'title_change', 'content_change', 'auto_save'))");
+            } catch (Exception e) {
+                log.warn("添加变更类型检查约束失败，可能已存在: {}", e.getMessage());
+            }
+
+            log.info("✅ 文章版本表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建文章版本表失败", e);
+            throw new RuntimeException("创建文章版本表失败", e);
+        }
+    }
+
+    /**
+     * 创建内容举报表
+     */
+    private void createContentReportTable() {
+        log.info("创建内容举报表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `content_report` (
+                `id` BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+                `reporter_id` BIGINT NOT NULL COMMENT '举报人ID',
+                `content_type` VARCHAR(50) NOT NULL COMMENT '被举报内容类型（article, comment, message, user等）',
+                `content_id` BIGINT NOT NULL COMMENT '被举报内容ID',
+                `reason` VARCHAR(50) NOT NULL COMMENT '举报原因（spam, harassment, inappropriate_content, violence, copyright等）',
+                `description` TEXT COMMENT '举报描述',
+                `status` VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT '举报状态（pending, reviewing, resolved, dismissed）',
+                `reviewer_id` BIGINT COMMENT '处理人ID（管理员）',
+                `action` VARCHAR(50) COMMENT '处理结果（remove_content, warn_user, ban_user, no_action）',
+                `review_note` TEXT COMMENT '处理说明',
+                `reviewed_at` TIMESTAMP NULL COMMENT '处理时间',
+                `metadata` JSON COMMENT '附加信息（截图、链接等证据）',
+                `report_count` INT NOT NULL DEFAULT 1 COMMENT '举报计数（同一内容被多少人举报）',
+                `is_urgent` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否为紧急举报',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                INDEX `idx_reporter_id` (`reporter_id`),
+                INDEX `idx_content` (`content_type`, `content_id`),
+                INDEX `idx_status` (`status`),
+                INDEX `idx_reason` (`reason`),
+                INDEX `idx_created_at` (`created_at`),
+                INDEX `idx_is_urgent` (`is_urgent`),
+                INDEX `idx_reviewer_id` (`reviewer_id`),
+                CONSTRAINT `fk_report_reporter` FOREIGN KEY (`reporter_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_report_reviewer` FOREIGN KEY (`reviewer_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='内容举报表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 内容举报表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建内容举报表失败", e);
+            throw new RuntimeException("创建内容举报表失败", e);
+        }
+    }
+
+    // ========================================
+    // 🔒 权限系统已完全移除
+    // 所有权限相关的初始化方法已被删除
+    // ========================================
 }

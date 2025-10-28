@@ -206,7 +206,7 @@ import { ElMessage } from 'element-plus'
 import {
   Trophy, Refresh, TrendCharts, Right
 } from '@element-plus/icons-vue'
-import { userLevelApi } from '@/api/modules/user'
+import * as userLevelApi from '@/api/modules/userLevel'
 import { useUserStore } from '@/stores/userStore'
 
 const userStore = useUserStore()
