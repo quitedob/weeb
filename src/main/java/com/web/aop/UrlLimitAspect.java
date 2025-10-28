@@ -10,81 +10,210 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
  * URL访问频率限制切面
- * 简化注释：URL限流切面
+ * 增强版：支持用户限流、IP限流、动态配置、告警机制
  */
-@Aspect // 声明该类为AOP切面
-@Component // 声明为Spring组件，支持依赖注入
-@Slf4j // 自动为该类生成日志对象log
+@Aspect
+@Component
+@Slf4j
 public class UrlLimitAspect {
 
     @Autowired
-    private StringRedisTemplate redisTemplate; // 使用Redis实现分布式限流
+    private StringRedisTemplate redisTemplate;
 
-    // 定义切入点，匹配所有被@UrlLimit注解标记的方法
+    @Autowired
+    private RedisTemplate<String, Object> objectRedisTemplate;
+
+    // Redis键前缀
+    private static final String RATE_LIMIT_KEY_PREFIX = "rate:limit:";
+    private static final String RATE_LIMIT_STATS_KEY = "rate:limit:stats";
+    private static final String RATE_LIMIT_ALERT_KEY = "rate:limit:alert:";
+    private static final String RATE_LIMIT_CONFIG_KEY = "rate:limit:config:";
+
+    // 告警阈值（达到限制次数的百分比）
+    private static final double ALERT_THRESHOLD = 0.8;
+
     @Pointcut("@annotation(com.web.annotation.UrlLimit)")
     public void rateLimitPointcut() {
-        // 切入点方法体可以为空
     }
 
-    // 环绕通知，拦截被@UrlLimit注解标记的方法，并执行限流逻辑
     @Around("rateLimitPointcut() && @annotation(urlLimit)")
     public Object around(ProceedingJoinPoint joinPoint, UrlLimit urlLimit) throws Throwable {
-        // 通过RequestContextHolder获取当前HTTP请求对象
         HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder
                 .getRequestAttributes()).getRequest();
 
-        // 定义用于限流的唯一key
-        String key = "";
+        String path = request.getRequestURI();
+        String ip = IpUtil.getIpAddr(request);
+        String userId = null;
 
-        // 根据注解中配置的keyType决定使用用户ID还是IP地址作为限流标识
+        // 获取用户ID
         if (urlLimit.keyType() == LimitKeyType.ID) {
-            // 当keyType为ID时，从请求属性中获取用户信息（存储在"userinfo"中）
             @SuppressWarnings("unchecked")
             Map<String, Object> userinfo = (Map<String, Object>) request.getAttribute("userinfo");
 
-            // 增加空值检查，防止userinfo为null
-            if (userinfo == null || userinfo.get("userId") == null) {
-                // 记录警告日志，但不抛出异常，允许请求继续执行
-                log.warn("用户信息为空，IP: {}, 允许请求继续执行", IpUtil.getIpAddr(request));
-                // 使用IP地址作为备选方案
-                key = IpUtil.getIpAddr(request);
-            } else {
-            // 使用用户ID作为限流key
-            key = userinfo.get("userId").toString();
+            if (userinfo != null && userinfo.get("userId") != null) {
+                userId = userinfo.get("userId").toString();
             }
-        } else {
-            // 当keyType不是ID时，使用请求者的IP地址作为限流标识
-            key = IpUtil.getIpAddr(request);
         }
 
-        // 获取当前请求的URI路径
-        String path = request.getRequestURI();
-        // 拼接用户标识和请求路径，形成唯一的Redis key（分钟粒度）
-        String minuteKey = key + ":" + path + ":" + (System.currentTimeMillis() / 60000);
+        // 检查动态配置
+        int maxRequests = getDynamicMaxRequests(path, urlLimit.maxRequests());
+        long timeWindow = urlLimit.timeWindow();
 
-        // 使用Redis自增实现滑动窗口近似（分钟窗口）
-        Long current = redisTemplate.opsForValue().increment(minuteKey);
-        if (current != null && current == 1L) {
-            // 设置过期时间为70秒，略大于1分钟
-            redisTemplate.expire(minuteKey, 70, TimeUnit.SECONDS);
+        // 基于用户的限流
+        if (userId != null) {
+            checkRateLimit(userId, path, maxRequests, timeWindow, "USER");
         }
 
-        if (current != null && current > urlLimit.maxRequests()) {
-            throw new WeebException("访问过快，请稍后再试~");
-        }
+        // 基于IP的限流（总是执行）
+        checkRateLimit(ip, path, maxRequests, timeWindow, "IP");
 
-        // 如果没有超过请求限制，继续执行被拦截的方法
+        // 记录统计信息
+        recordStatistics(path, userId, ip);
+
         return joinPoint.proceed();
+    }
+
+    /**
+     * 检查速率限制
+     */
+    private void checkRateLimit(String identifier, String path, int maxRequests, long timeWindow, String type) {
+        long currentWindow = System.currentTimeMillis() / (timeWindow * 1000);
+        String key = RATE_LIMIT_KEY_PREFIX + type + ":" + identifier + ":" + path + ":" + currentWindow;
+
+        // 使用Redis自增
+        Long current = redisTemplate.opsForValue().increment(key);
+        if (current != null && current == 1L) {
+            redisTemplate.expire(key, timeWindow + 10, TimeUnit.SECONDS);
+        }
+
+        if (current != null) {
+            // 检查是否超过限制
+            if (current > maxRequests) {
+                // 记录限流事件
+                recordRateLimitEvent(identifier, path, current, maxRequests, type);
+                throw new WeebException("访问过快，请稍后再试~");
+            }
+
+            // 检查是否需要告警
+            if (current >= maxRequests * ALERT_THRESHOLD) {
+                triggerAlert(identifier, path, current, maxRequests, type);
+            }
+        }
+    }
+
+    /**
+     * 获取动态最大请求数
+     */
+    private int getDynamicMaxRequests(String path, int defaultMax) {
+        try {
+            String configKey = RATE_LIMIT_CONFIG_KEY + path;
+            Object config = objectRedisTemplate.opsForValue().get(configKey);
+
+            if (config != null) {
+                return Integer.parseInt(config.toString());
+            }
+        } catch (Exception e) {
+            log.warn("获取动态限流配置失败: path={}", path, e);
+        }
+
+        return defaultMax;
+    }
+
+    /**
+     * 记录限流事件
+     */
+    private void recordRateLimitEvent(String identifier, String path, long current, int maxRequests, String type) {
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("identifier", identifier);
+            event.put("path", path);
+            event.put("current", current);
+            event.put("maxRequests", maxRequests);
+            event.put("type", type);
+            event.put("timestamp", LocalDateTime.now().toString());
+
+            String eventKey = "rate:limit:event:" + System.currentTimeMillis();
+            objectRedisTemplate.opsForValue().set(eventKey, event, 24, TimeUnit.HOURS);
+
+            // 更新统计
+            objectRedisTemplate.opsForHash().increment(RATE_LIMIT_STATS_KEY, "totalBlocked", 1);
+            objectRedisTemplate.opsForHash().increment(RATE_LIMIT_STATS_KEY, "blocked:" + type, 1);
+
+            log.warn("限流触发: type={}, identifier={}, path={}, current={}, max={}",
+                    type, identifier, path, current, maxRequests);
+
+        } catch (Exception e) {
+            log.error("记录限流事件失败", e);
+        }
+    }
+
+    /**
+     * 触发告警
+     */
+    private void triggerAlert(String identifier, String path, long current, int maxRequests, String type) {
+        try {
+            String alertKey = RATE_LIMIT_ALERT_KEY + type + ":" + identifier + ":" + path;
+
+            // 检查是否已经告警过（避免重复告警）
+            Boolean alerted = objectRedisTemplate.hasKey(alertKey);
+            if (Boolean.TRUE.equals(alerted)) {
+                return;
+            }
+
+            // 记录告警
+            Map<String, Object> alert = new HashMap<>();
+            alert.put("identifier", identifier);
+            alert.put("path", path);
+            alert.put("current", current);
+            alert.put("maxRequests", maxRequests);
+            alert.put("type", type);
+            alert.put("threshold", ALERT_THRESHOLD);
+            alert.put("timestamp", LocalDateTime.now().toString());
+
+            objectRedisTemplate.opsForValue().set(alertKey, alert, 5, TimeUnit.MINUTES);
+
+            // 更新统计
+            objectRedisTemplate.opsForHash().increment(RATE_LIMIT_STATS_KEY, "totalAlerts", 1);
+
+            log.warn("限流告警: type={}, identifier={}, path={}, current={}, max={}, threshold={}%",
+                    type, identifier, path, current, maxRequests, (int)(ALERT_THRESHOLD * 100));
+
+        } catch (Exception e) {
+            log.error("触发限流告警失败", e);
+        }
+    }
+
+    /**
+     * 记录统计信息
+     */
+    private void recordStatistics(String path, String userId, String ip) {
+        try {
+            objectRedisTemplate.opsForHash().increment(RATE_LIMIT_STATS_KEY, "totalRequests", 1);
+            objectRedisTemplate.opsForHash().increment(RATE_LIMIT_STATS_KEY, "requests:" + path, 1);
+
+            if (userId != null) {
+                objectRedisTemplate.opsForHash().increment(RATE_LIMIT_STATS_KEY, "userRequests", 1);
+            }
+
+            objectRedisTemplate.opsForHash().increment(RATE_LIMIT_STATS_KEY, "ipRequests", 1);
+            objectRedisTemplate.opsForHash().put(RATE_LIMIT_STATS_KEY, "lastUpdate", LocalDateTime.now().toString());
+
+        } catch (Exception e) {
+            log.error("记录限流统计失败", e);
+        }
     }
 }

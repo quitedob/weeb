@@ -56,4 +56,80 @@ public interface ContactService {
      * @return 好友ID列表
      */
     List<Long> getContactUserIds(Long userId, ContactStatus status); // Return List<Long>
+
+    // ==================== 联系人分组管理 ====================
+
+    /**
+     * 创建联系人分组
+     * @param userId 用户ID
+     * @param groupName 分组名称
+     * @param groupOrder 分组排序
+     * @return 分组ID
+     */
+    Long createContactGroup(Long userId, String groupName, Integer groupOrder);
+
+    /**
+     * 获取用户的所有分组
+     * @param userId 用户ID
+     * @return 分组列表
+     */
+    List<com.web.model.ContactGroup> getUserContactGroups(Long userId);
+
+    /**
+     * 更新分组名称
+     * @param groupId 分组ID
+     * @param userId 用户ID
+     * @param newName 新名称
+     * @return 是否成功
+     */
+    boolean updateContactGroupName(Long groupId, Long userId, String newName);
+
+    /**
+     * 更新分组排序
+     * @param groupId 分组ID
+     * @param userId 用户ID
+     * @param newOrder 新排序
+     * @return 是否成功
+     */
+    boolean updateContactGroupOrder(Long groupId, Long userId, Integer newOrder);
+
+    /**
+     * 删除分组
+     * @param groupId 分组ID
+     * @param userId 用户ID
+     * @return 是否成功
+     */
+    boolean deleteContactGroup(Long groupId, Long userId);
+
+    /**
+     * 将联系人添加到分组
+     * @param contactId 联系人ID
+     * @param groupId 分组ID
+     * @param userId 用户ID
+     * @return 是否成功
+     */
+    boolean addContactToGroup(Long contactId, Long groupId, Long userId);
+
+    /**
+     * 将联系人从分组移除
+     * @param contactId 联系人ID
+     * @param userId 用户ID
+     * @return 是否成功
+     */
+    boolean removeContactFromGroup(Long contactId, Long userId);
+
+    /**
+     * 按分组获取联系人列表
+     * @param groupId 分组ID
+     * @param userId 用户ID
+     * @return 联系人列表
+     */
+    List<UserDto> getContactsByGroup(Long groupId, Long userId);
+
+    /**
+     * 获取用户的默认分组
+     * @param userId 用户ID
+     * @return 默认分组
+     */
+    com.web.model.ContactGroup getDefaultContactGroup(Long userId);
 }

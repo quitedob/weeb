@@ -67,4 +67,36 @@ public interface UserFollowMapper extends BaseMapper<UserFollow> {
      */
     int deleteFollowRelation(@Param("followerId") Long followerId, 
                            @Param("followeeId") Long followeeId);
+
+    /**
+     * 检查是否正在关注
+     * @param followerId 关注者ID
+     * @param followeeId 被关注者ID
+     * @return 是否关注
+     */
+    boolean isFollowing(@Param("followerId") Long followerId, 
+                       @Param("followeeId") Long followeeId);
+
+    /**
+     * 获取关注的用户ID列表
+     * @param followerId 关注者ID
+     * @return 用户ID列表
+     */
+    List<Long> getFollowingIds(@Param("followerId") Long followerId);
+
+    /**
+     * 获取粉丝的用户ID列表
+     * @param followeeId 被关注者ID
+     * @return 用户ID列表
+     */
+    List<Long> getFollowerIds(@Param("followeeId") Long followeeId);
+
+    /**
+     * 取消关注
+     * @param followerId 关注者ID
+     * @param followeeId 被关注者ID
+     * @return 影响行数
+     */
+    int unfollowUser(@Param("followerId") Long followerId, 
+                    @Param("followeeId") Long followeeId);
 }

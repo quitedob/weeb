@@ -65,5 +65,13 @@ public interface ChatService {
      * @param reactionType 反应类型
      */
     void addReaction(Long userId, Long messageId, String reactionType);
+
+    /**
+     * 撤回消息
+     * @param userId 用户ID
+     * @param messageId 消息ID
+     * @return 撤回结果
+     */
+    boolean recallMessage(Long userId, Long messageId);
 }
 

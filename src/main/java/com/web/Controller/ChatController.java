@@ -161,4 +161,21 @@ public class ChatController {
         chatService.addReaction(userId, messageId, reactionType);
         return ResponseEntity.ok(ApiResponse.success("反应操作成功"));
     }
+
+    /**
+     * 撤回消息
+     * 接口说明：
+     *  - 撤回指定的消息（仅限发送者，且发送时间不超过2分钟）
+     *
+     * @param messageId 消息ID
+     * @param userId 当前用户ID，由注解 @Userid 提供
+     * @return 返回撤回结果
+     */
+    @UrlLimit
+    @DeleteMapping("/messages/{messageId}")
+    public ResponseEntity<ApiResponse<Boolean>> recallMessage(@PathVariable Long messageId,
+                                                             @Userid Long userId) {
+        boolean result = chatService.recallMessage(userId, messageId);
+        return ResponseEntity.ok(ApiResponse.success(result, "消息撤回成功"));
+    }
 }

@@ -8,7 +8,8 @@ public enum ContactStatus {
     PENDING(0, "待处理"),
     ACCEPTED(1, "已接受"),
     REJECTED(2, "已拒绝"),
-    BLOCKED(3, "已屏蔽");
+    BLOCKED(3, "已屏蔽"),
+    EXPIRED(4, "已过期");
 
     private final int code;
     private final String description;

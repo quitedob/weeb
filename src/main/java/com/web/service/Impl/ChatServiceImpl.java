@@ -112,5 +112,37 @@ public class ChatServiceImpl implements ChatService {
         // 这里暂时在消息内容中记录反应信息
         // 实际实现应该有MessageReaction表和MessageReactionMapper
     }
+
+    @Override
+    public boolean recallMessage(Long userId, Long messageId) {
+        // 检查消息是否存在
+        Message message = messageMapper.selectMessageById(messageId);
+        if (message == null) {
+            throw new WeebException("消息不存在");
+        }
+
+        // 验证消息是否属于当前用户
+        if (!message.getSenderId().equals(userId)) {
+            throw new WeebException("无权撤回他人消息");
+        }
+
+        // 检查消息是否已被撤回
+        if (message.getIsRecalled() != null && message.getIsRecalled() == 1) {
+            throw new WeebException("消息已被撤回");
+        }
+
+        // 检查消息发送时间，超过2分钟不允许撤回
+        long currentTime = System.currentTimeMillis();
+        long messageTime = message.getCreatedAt().getTime();
+        long timeDiff = currentTime - messageTime;
+        long twoMinutesInMillis = 2 * 60 * 1000;
+
+        if (timeDiff > twoMinutesInMillis) {
+            throw new WeebException("消息发送超过2分钟，无法撤回");
+        }
+
+        // 标记消息为已撤回
+        return messageMapper.markMessageAsRecalled(messageId) > 0;
+    }
 }
 

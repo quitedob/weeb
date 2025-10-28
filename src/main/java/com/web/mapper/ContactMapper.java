@@ -69,4 +69,25 @@ public interface ContactMapper extends BaseMapper<Contact> {
      * @return 发起好友申请的用户列表
      */
     List<com.web.dto.UserDto> selectPendingContactsReceivedByUser(@Param("userId") Long userId);
+
+    /**
+     * 查找过期的PENDING状态请求
+     * @param expireTime 过期时间点
+     * @return 过期的联系人请求列表
+     */
+    List<Contact> findExpiredPendingRequests(@Param("expireTime") java.time.LocalDateTime expireTime);
+
+    /**
+     * 删除旧的已拒绝请求
+     * @param cleanTime 清理时间点（删除此时间之前的记录）
+     * @return 删除的记录数
+     */
+    int deleteOldRejectedRequests(@Param("cleanTime") java.time.LocalDateTime cleanTime);
+
+    /**
+     * 统计指定状态的联系人数量
+     * @param status 联系人状态
+     * @return 数量
+     */
+    int countByStatus(@Param("status") com.web.constant.ContactStatus status);
 }

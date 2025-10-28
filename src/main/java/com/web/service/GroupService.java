@@ -171,4 +171,13 @@ public interface GroupService extends IService<Group> {
      * @return 用户创建的群组列表
      */
     List<Group> getUserCreatedGroups(Long userId);
+
+    /**
+     * 转让群组
+     * @param groupId 群组ID
+     * @param newOwnerId 新群主ID
+     * @param currentOwnerId 当前群主ID
+     * @return 是否成功
+     */
+    boolean transferGroup(Long groupId, Long newOwnerId, Long currentOwnerId);
 }
