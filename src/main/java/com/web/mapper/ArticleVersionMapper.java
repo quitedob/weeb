@@ -216,4 +216,53 @@ public interface ArticleVersionMapper extends BaseMapper<ArticleVersion> {
     List<Map<String, Object>> searchVersionsByKeyword(@Param("articleId") Long articleId,
                                                       @Param("keyword") String keyword,
                                                       @Param("limit") int limit);
+
+    /**
+     * 获取文章的所有版本（简化版）
+     * @param articleId 文章ID
+     * @return 版本列表
+     */
+    @Select("SELECT * FROM article_version WHERE article_id = #{articleId} ORDER BY version_number DESC")
+    List<ArticleVersion> selectByArticleId(@Param("articleId") Long articleId);
+
+    /**
+     * 获取文章的最新版本
+     * @param articleId 文章ID
+     * @return 最新版本
+     */
+    @Select("SELECT * FROM article_version WHERE article_id = #{articleId} ORDER BY version_number DESC LIMIT 1")
+    ArticleVersion selectLatestVersion(@Param("articleId") Long articleId);
+
+    /**
+     * 统计文章版本数量
+     * @param articleId 文章ID
+     * @return 版本数量
+     */
+    @Select("SELECT COUNT(*) FROM article_version WHERE article_id = #{articleId}")
+    int countByArticleId(@Param("articleId") Long articleId);
+
+    /**
+     * 删除旧版本（保留最新的N个版本）
+     * @param articleId 文章ID
+     * @param keepCount 保留数量
+     * @return 删除的版本数量
+     */
+    @Update("DELETE FROM article_version " +
+            "WHERE article_id = #{articleId} " +
+            "AND version_number < (" +
+            "  SELECT max_version FROM (" +
+            "    SELECT MAX(version_number) - #{keepCount} + 1 as max_version " +
+            "    FROM article_version " +
+            "    WHERE article_id = #{articleId}" +
+            "  ) as temp" +
+            ")")
+    int deleteOldVersions(@Param("articleId") Long articleId, @Param("keepCount") int keepCount);
+
+    /**
+     * 删除文章的所有版本
+     * @param articleId 文章ID
+     * @return 删除的版本数量
+     */
+    @Update("DELETE FROM article_version WHERE article_id = #{articleId}")
+    int deleteByArticleId(@Param("articleId") Long articleId);
 }

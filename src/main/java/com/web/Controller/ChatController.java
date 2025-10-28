@@ -176,6 +176,6 @@ public class ChatController {
     public ResponseEntity<ApiResponse<Boolean>> recallMessage(@PathVariable Long messageId,
                                                              @Userid Long userId) {
         boolean result = chatService.recallMessage(userId, messageId);
-        return ResponseEntity.ok(ApiResponse.success(result, "消息撤回成功"));
+        return ResponseEntity.ok(ApiResponse.success("消息撤回成功", result));
     }
 }

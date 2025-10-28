@@ -6,7 +6,7 @@ import com.web.model.Article;
 import com.web.model.ArticleCategory;
 import com.web.service.ArticleService;
 import com.web.service.UserTypeSecurityService;
-import com.web.service.AuthService;
+import com.web.service.UserService;
 import com.web.exception.WeebException;
 import com.web.util.ValidationUtils;
 import com.web.util.SqlInjectionUtils;
@@ -51,7 +51,7 @@ public class ArticleServiceImpl implements ArticleService {
     private UserTypeSecurityService userTypeSecurityService;
 
     @Autowired
-    private AuthService authService;
+    private com.web.service.UserService userService;
 
     /**
      * 验证排序参数
@@ -95,7 +95,7 @@ public class ArticleServiceImpl implements ArticleService {
             }
 
             // 获取当前用户信息
-            User currentUser = authService.findByUserID(authenticatedUserId);
+            com.web.model.User currentUser = userService.getUserBasicInfo(authenticatedUserId);
             if (currentUser == null || currentUser.getUsername() == null) {
                 log.error("无法获取用户信息: userId={}", authenticatedUserId);
                 return false;

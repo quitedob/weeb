@@ -8,7 +8,10 @@ import lombok.Data;
  */
 @Data
 public class SendMessageVo {
-    
+
+    @NotNull(message = "目标类型不能为空")
+    private String targetType;
+
     @NotNull(message = "目标用户ID不能为空")
     private Long targetId;
     

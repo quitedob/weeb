@@ -1,6 +1,5 @@
 package com.web.service.Impl;
 
-import com.web.service.RolePermissionService;
 import com.web.service.UserLevelHistoryService;
 import com.web.service.UserLevelIntegrationService;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +13,7 @@ import java.util.Map;
 
 /**
  * 用户等级集成服务实现
- * 整合等级变更、历史记录和角色同步的完整流程
+ * 整合等级变更和历史记录的完整流程
  */
 @Slf4j
 @Service
@@ -23,13 +22,11 @@ public class UserLevelIntegrationServiceImpl implements UserLevelIntegrationServ
     @Autowired
     private UserLevelHistoryService userLevelHistoryService;
 
-    @Autowired
-    private RolePermissionService rolePermissionService;
-
+  
     /**
      * 处理用户等级变更的完整流程
-     * 包括：记录历史、同步角色、返回结果
-     * 
+     * 包括：记录历史、返回结果
+     *
      * @param userId 用户ID
      * @param oldLevel 原等级
      * @param newLevel 新等级
@@ -62,11 +59,7 @@ public class UserLevelIntegrationServiceImpl implements UserLevelIntegrationServ
                 return result;
             }
 
-            // 2. 同步用户角色
-            Map<String, Object> roleSyncResult = rolePermissionService.syncUserRolesOnLevelChange(
-                    userId, oldLevel, newLevel);
-
-            // 3. 构建返回结果
+            // 2. 构建返回结果
             result.put("success", true);
             result.put("userId", userId);
             result.put("oldLevel", oldLevel);
@@ -74,7 +67,6 @@ public class UserLevelIntegrationServiceImpl implements UserLevelIntegrationServ
             result.put("changeReason", changeReason);
             result.put("changeType", changeType);
             result.put("historyRecorded", true);
-            result.put("roleSyncResult", roleSyncResult);
             result.put("message", "等级变更处理完成");
 
             log.info("用户等级变更处理完成: userId={}, oldLevel={}, newLevel={}",
@@ -162,22 +154,12 @@ public class UserLevelIntegrationServiceImpl implements UserLevelIntegrationServ
             java.util.List<com.web.model.UserLevelHistory> recentHistory = 
                     userLevelHistoryService.getRecentHistory(userId, 10);
 
-            // 获取用户角色
-            java.util.List<com.web.model.Role> userRoles = 
-                    rolePermissionService.getUserRoles(userId);
-
-            // 获取用户所有权限
-            java.util.Set<String> allPermissions = 
-                    rolePermissionService.getAllUserPermissions(userId);
-
             // 获取等级统计
             Map<String, Object> stats = userLevelHistoryService.getUserLevelStats(userId, 30);
 
             info.put("userId", userId);
             info.put("currentLevel", currentLevel);
             info.put("recentHistory", recentHistory);
-            info.put("userRoles", userRoles);
-            info.put("allPermissions", allPermissions);
             info.put("stats", stats);
 
             return info;

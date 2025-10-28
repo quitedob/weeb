@@ -1,7 +1,7 @@
 package com.web.service;
 
-import com.web.model.Permission;
-import com.web.model.Role;
+// import com.web.model.Permission; // 权限系统已禁用
+// import com.web.model.Role; // 权限系统已禁用
 
 import java.util.List;
 import java.util.Map;

@@ -86,8 +86,8 @@ public interface ContactMapper extends BaseMapper<Contact> {
 
     /**
      * 统计指定状态的联系人数量
-     * @param status 联系人状态
+     * @param status 联系人状态代码
      * @return 数量
      */
-    int countByStatus(@Param("status") com.web.constant.ContactStatus status);
+    int countByStatus(@Param("status") int status);
 }

@@ -56,7 +56,15 @@ public class MessageValidator {
         }
 
         // 验证消息内容
-        validateMessageContent(sendMessageVo.getContent());
+        Object content = sendMessageVo.getContent();
+        if (content instanceof String) {
+            validateMessageContent((String) content);
+        } else if (content != null) {
+            // 对于非String类型的content，转换为String进行验证
+            validateMessageContent(content.toString());
+        } else {
+            throw new WeebException("消息内容不能为空");
+        }
     }
 
     /**

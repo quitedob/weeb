@@ -3,11 +3,11 @@ package com.web.service.Impl;
 import com.web.exception.WeebException;
 import com.web.mapper.UserMapper;
 import com.web.mapper.UserStatsMapper;
-import com.web.model.Permission;
+// import com.web.model.Permission; // 权限系统已禁用
 import com.web.model.User;
 import com.web.model.UserStats;
 import com.web.model.UserWithStats;
-import com.web.service.PermissionService;
+// import com.web.service.PermissionService; // 权限系统已禁用
 import com.web.service.UserService;
 import com.web.service.RedisCacheService;
 import com.web.util.ValidationUtils;
@@ -49,8 +49,8 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private PermissionService permissionService;
+    // @Autowired
+    // private PermissionService permissionService; // 权限系统已禁用
 
     @Autowired
     private RedisCacheService redisCacheService;
@@ -677,16 +677,10 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<Permission> getUserPermissions(Long userId) {
-        try {
-            if (userId == null) {
-                return List.of();
-            }
-            return userMapper.selectUserPermissions(userId);
-        } catch (Exception e) {
-            log.error("获取用户权限失败: userId={}", userId, e);
-            return List.of();
-        }
+    public List<String> getUserPermissions(Long userId) {
+        // 权限系统已禁用，返回空列表
+        log.debug("权限系统已禁用，getUserPermissions 返回空列表: userId={}", userId);
+        return List.of();
     }
 
     @Override
@@ -733,25 +727,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<String> getUserRoles(Long userId) {
-        try {
-            if (userId == null) {
-                return List.of();
-            }
-
-            // 从权限中提取角色信息
-            List<Permission> permissions = getUserPermissions(userId);
-
-            // 获取以ROLE_开头的权限作为角色
-            return permissions.stream()
-                    .map(Permission::getName)
-                    .filter(permission -> permission.startsWith("ROLE_"))
-                    .distinct()
-                    .collect(java.util.stream.Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("获取用户角色失败: userId={}", userId, e);
-            return List.of();
-        }
+        // 权限系统已禁用，返回空列表
+        log.debug("权限系统已禁用，getUserRoles 返回空列表: userId={}", userId);
+        return List.of();
     }
 
     // ==================== 缓存相关辅助方法 ====================

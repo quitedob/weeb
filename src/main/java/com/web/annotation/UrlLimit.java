@@ -27,4 +27,10 @@ public @interface UrlLimit {
      * 默认值为60次。
      */
     int maxRequests() default 60;
+
+    /**
+     * 指定时间窗口长度（秒）。
+     * 用于计算请求频率的时间窗口，默认值为60秒（1分钟）。
+     */
+    long timeWindow() default 60;
 }
