@@ -212,6 +212,6 @@ public class UserTypeSecurityServiceImpl implements UserTypeSecurityService {
                username.equals("bot") ||
                username.equals("system_bot") ||
                username.contains("_bot") ||
-               username.endsWith("_bot"));
+               username.endsWith("_bot");
     }
 }
