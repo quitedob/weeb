@@ -1,9 +1,11 @@
-package com.web.Controller;
+package com.web.controller;
 
 import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
+import com.web.exception.WeebException;
 import com.web.model.Group;
 import com.web.model.GroupMember;
+import com.web.dto.GroupDto;
 import com.web.service.GroupService;
 import com.web.util.ApiResponseUtil;
 import com.web.vo.group.GroupCreateVo;
@@ -52,15 +54,17 @@ public class StandardGroupController {
      * GET /api/groups/{groupId}
      */
     @GetMapping("/{groupId}")
-    public ResponseEntity<ApiResponse<Group>> getGroup(@PathVariable Long groupId) {
+    public ResponseEntity<ApiResponse<GroupDto>> getGroup(@PathVariable Long groupId, @Userid Long userId) {
         try {
-            Group group = groupService.getGroupById(groupId);
+            GroupDto group = groupService.getGroupWithDetails(groupId, userId);
             if (group == null) {
-                return ApiResponseUtil.badRequestGroup("群组不存在");
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("群组不存在"));
             }
-            return ApiResponseUtil.successGroup(group);
+            return ResponseEntity.ok(ApiResponse.success(group));
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionGroup(e, "获取群组详情", groupId);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("获取群组详情失败: " + e.getMessage()));
         }
     }
 
@@ -196,6 +200,11 @@ public class StandardGroupController {
             @RequestBody Map<String, String> application,
             @Userid Long userId) {
         try {
+            if (application == null) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("申请信息不能为空"));
+            }
+            
             String message = application.getOrDefault("message", "");
             GroupApplyVo applyVo = new GroupApplyVo();
             applyVo.setGroupId(groupId);
@@ -207,10 +216,16 @@ public class StandardGroupController {
                 return ResponseEntity.status(201)
                         .body(ApiResponse.success("申请已提交"));
             } else {
-                return ApiResponseUtil.badRequestString("申请提交失败");
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("申请提交失败"));
             }
+        } catch (WeebException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionString(e, "申请加入群组", groupId, userId);
+            log.error("申请加入群组失败: groupId={}, userId={}", groupId, userId, e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("申请加入群组失败，请稍后重试"));
         }
     }
 
@@ -308,12 +323,13 @@ public class StandardGroupController {
      * GET /api/groups/my-groups
      */
     @GetMapping("/my-groups")
-    public ResponseEntity<ApiResponse<List<Group>>> getMyGroups(@Userid Long userId) {
+    public ResponseEntity<ApiResponse<List<GroupDto>>> getMyGroups(@Userid Long userId) {
         try {
-            List<Group> groups = groupService.getUserGroups(userId);
-            return ApiResponseUtil.successGroupList(groups);
+            List<GroupDto> groups = groupService.getUserGroupsWithDetails(userId);
+            return ResponseEntity.ok(ApiResponse.success(groups));
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionGroupList(e, "获取用户群组", userId);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("获取用户群组失败: " + e.getMessage()));
         }
     }
 
@@ -322,12 +338,13 @@ public class StandardGroupController {
      * GET /api/groups/my-created
      */
     @GetMapping("/my-created")
-    public ResponseEntity<ApiResponse<List<Group>>> getMyCreatedGroups(@Userid Long userId) {
+    public ResponseEntity<ApiResponse<List<GroupDto>>> getMyCreatedGroups(@Userid Long userId) {
         try {
-            List<Group> groups = groupService.getUserCreatedGroups(userId);
-            return ApiResponseUtil.successGroupList(groups);
+            List<GroupDto> groups = groupService.getUserCreatedGroupsWithDetails(userId);
+            return ResponseEntity.ok(ApiResponse.success(groups));
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionGroupList(e, "获取用户创建的群组", userId);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("获取用户创建的群组失败: " + e.getMessage()));
         }
     }
 }

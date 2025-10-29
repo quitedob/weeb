@@ -2,6 +2,7 @@ package com.web.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.web.model.Group; // Assuming Group model will be created
+import com.web.dto.GroupDto;
 import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
 import com.web.vo.group.GroupKickVo;
@@ -180,4 +181,26 @@ public interface GroupService extends IService<Group> {
      * @return 是否成功
      */
     boolean transferGroup(Long groupId, Long newOwnerId, Long currentOwnerId);
+
+    /**
+     * 获取用户群组详细信息列表
+     * @param userId 用户ID
+     * @return 用户群组详细信息列表
+     */
+    List<GroupDto> getUserGroupsWithDetails(Long userId);
+
+    /**
+     * 获取用户创建的群组详细信息列表
+     * @param userId 用户ID
+     * @return 用户创建的群组详细信息列表
+     */
+    List<GroupDto> getUserCreatedGroupsWithDetails(Long userId);
+
+    /**
+     * 获取群组详细信息
+     * @param groupId 群组ID
+     * @param userId 用户ID（用于获取用户在群组中的角色）
+     * @return 群组详细信息
+     */
+    GroupDto getGroupWithDetails(Long groupId, Long userId);
 }

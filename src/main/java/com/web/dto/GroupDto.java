@@ -2,7 +2,6 @@ package com.web.dto;
 
 import lombok.Data;
 import java.time.LocalDateTime;
-import java.util.Date;
 
 /**
  * 群组DTO
@@ -43,7 +42,7 @@ public class GroupDto {
     /**
      * 群组状态
      */
-    private Integer status;
+    private String status;
     
     /**
      * 最大成员数
@@ -64,12 +63,12 @@ public class GroupDto {
     /**
      * 创建时间
      */
-    private Date createdAt;
+    private LocalDateTime createdAt;
     
     /**
      * 最后转让时间
      */
-    private Date lastTransferAt;
+    private LocalDateTime lastTransferAt;
     
     /**
      * 转让次数

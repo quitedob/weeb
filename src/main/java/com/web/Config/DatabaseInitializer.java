@@ -1083,6 +1083,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             }
 
             // 获取测试用户ID
+            Long adminId = getUserIdByUsername("admin");
+            Long testUserId = getUserIdByUsername("testuser");
             Long aliceId = getUserIdByUsername("alice");
             Long bobId = getUserIdByUsername("bob");
             Long charlieId = getUserIdByUsername("charlie");
@@ -1094,37 +1096,74 @@ public class DatabaseInitializer implements CommandLineRunner {
                 return;
             }
 
-            // 创建好友关系（status: 1=已接受）
-            // alice 和 bob 是好友
+            // 创建双向好友关系（status: 1=已接受）
+            // alice 和 bob 是好友 (双向关系)
             jdbcTemplate.update(
-                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '测试好友', NOW(), NOW())",
+                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '我们是同事', NOW(), NOW())",
                 aliceId, bobId);
-
-            // alice 和 charlie 是好友
             jdbcTemplate.update(
-                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '测试好友', NOW(), NOW())",
+                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '技术交流伙伴', NOW(), NOW())",
+                bobId, aliceId);
+
+            // alice 和 charlie 是好友 (双向关系)
+            jdbcTemplate.update(
+                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '大学同学', NOW(), NOW())",
                 aliceId, charlieId);
-
-            // bob 和 charlie 是好友
             jdbcTemplate.update(
-                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '测试好友', NOW(), NOW())",
-                bobId, charlieId);
+                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '老朋友', NOW(), NOW())",
+                charlieId, aliceId);
 
-            if (dianaId != null) {
-                // diana 向 alice 发送待处理的好友申请（status: 0=待处理）
+            // bob 和 charlie 是好友 (双向关系)
+            jdbcTemplate.update(
+                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '项目合作伙伴', NOW(), NOW())",
+                bobId, charlieId);
+            jdbcTemplate.update(
+                "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '好朋友', NOW(), NOW())",
+                charlieId, bobId);
+
+            // admin 和其他用户的好友关系
+            if (adminId != null && testUserId != null) {
                 jdbcTemplate.update(
-                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 0, '你好，我想加你为好友', NOW(), NOW())",
+                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '系统管理员', NOW(), NOW())",
+                    adminId, testUserId);
+                jdbcTemplate.update(
+                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 1, '测试用户', NOW(), NOW())",
+                    testUserId, adminId);
+            }
+
+            // 创建待处理的好友申请（status: 0=待处理）
+            if (dianaId != null) {
+                // diana 向 alice 发送待处理的好友申请
+                jdbcTemplate.update(
+                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 0, '你好，我想加你为好友，我们有共同的兴趣爱好', NOW(), NOW())",
                     dianaId, aliceId);
+                
+                // diana 向 charlie 发送待处理的好友申请
+                jdbcTemplate.update(
+                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 0, '认识一下，可以一起讨论技术问题', NOW(), NOW())",
+                    dianaId, charlieId);
             }
 
             if (eveId != null) {
                 // eve 向 bob 发送待处理的好友申请
                 jdbcTemplate.update(
-                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 0, '认识一下', NOW(), NOW())",
+                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 0, '认识一下，希望能成为朋友', NOW(), NOW())",
                     eveId, bobId);
+                
+                // eve 向 alice 发送待处理的好友申请
+                jdbcTemplate.update(
+                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 0, '看到你的文章很棒，想和你交流', NOW(), NOW())",
+                    eveId, aliceId);
             }
 
-            log.info("✅ 测试好友关系初始化成功");
+            // 创建一些被拒绝的好友申请（status: 2=已拒绝）用于测试
+            if (dianaId != null && bobId != null) {
+                jdbcTemplate.update(
+                    "INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time) VALUES (?, ?, 2, '抱歉，我们不太熟悉', NOW(), NOW())",
+                    dianaId, bobId);
+            }
+
+            log.info("✅ 测试好友关系初始化成功 - 创建了多种状态的好友关系用于开发测试");
 
         } catch (Exception e) {
             log.error("❌ 初始化测试好友关系失败", e);
@@ -1149,10 +1188,13 @@ public class DatabaseInitializer implements CommandLineRunner {
             }
 
             // 获取测试用户ID
+            Long adminId = getUserIdByUsername("admin");
+            Long testUserId = getUserIdByUsername("testuser");
             Long aliceId = getUserIdByUsername("alice");
             Long bobId = getUserIdByUsername("bob");
             Long charlieId = getUserIdByUsername("charlie");
             Long dianaId = getUserIdByUsername("diana");
+            Long eveId = getUserIdByUsername("eve");
 
             if (aliceId == null || bobId == null) {
                 log.warn("测试用户不存在，跳过群组初始化");
@@ -1162,39 +1204,102 @@ public class DatabaseInitializer implements CommandLineRunner {
             // 创建测试群组1：技术交流群（alice 是群主）
             jdbcTemplate.update(
                 "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, create_time) " +
-                "VALUES ('技术交流群', ?, '讨论技术问题的群组', 1, 500, 3, NOW())",
+                "VALUES ('技术交流群', ?, '讨论前端、后端、数据库等技术问题的专业群组', 1, 500, 4, NOW())",
                 aliceId);
             Long group1Id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
-            // 添加群成员
+            // 添加群成员 - 技术交流群
             jdbcTemplate.update(
                 "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())", // 1=群主
                 group1Id, aliceId);
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
+                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 2, NOW())", // 2=管理员
                 group1Id, bobId);
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())",
+                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
                 group1Id, charlieId);
+            if (testUserId != null) {
+                jdbcTemplate.update(
+                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())",
+                    group1Id, testUserId);
+            }
 
             // 创建测试群组2：生活分享群（bob 是群主）
             jdbcTemplate.update(
                 "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, create_time) " +
-                "VALUES ('生活分享群', ?, '分享生活点滴', 1, 500, 2, NOW())",
+                "VALUES ('生活分享群', ?, '分享生活点滴、美食、旅游等日常生活内容', 1, 200, 3, NOW())",
                 bobId);
             Long group2Id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
-            // 添加群成员
+            // 添加群成员 - 生活分享群
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())",
+                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())", // 1=群主
                 group2Id, bobId);
             if (dianaId != null) {
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())",
+                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 2, NOW())", // 2=管理员
                     group2Id, dianaId);
             }
+            if (eveId != null) {
+                jdbcTemplate.update(
+                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
+                    group2Id, eveId);
+            }
 
-            log.info("✅ 测试群组初始化成功");
+            // 创建测试群组3：项目协作群（charlie 是群主）
+            if (charlieId != null) {
+                jdbcTemplate.update(
+                    "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, create_time) " +
+                    "VALUES ('项目协作群', ?, '团队项目协作、任务分配、进度跟踪专用群', 1, 50, 3, NOW())",
+                    charlieId);
+                Long group3Id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+                // 添加群成员 - 项目协作群
+                jdbcTemplate.update(
+                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())", // 1=群主
+                    group3Id, charlieId);
+                jdbcTemplate.update(
+                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 2, NOW())", // 2=管理员
+                    group3Id, aliceId);
+                jdbcTemplate.update(
+                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
+                    group3Id, bobId);
+            }
+
+            // 创建测试群组4：管理员群（admin 是群主）
+            if (adminId != null) {
+                jdbcTemplate.update(
+                    "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, create_time) " +
+                    "VALUES ('系统管理员群', ?, '系统管理员专用群，讨论系统维护、用户管理等事务', 1, 10, 2, NOW())",
+                    adminId);
+                Long group4Id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+                // 添加群成员 - 管理员群
+                jdbcTemplate.update(
+                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())", // 1=群主
+                    group4Id, adminId);
+                if (testUserId != null) {
+                    jdbcTemplate.update(
+                        "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
+                        group4Id, testUserId);
+                }
+            }
+
+            // 创建一个冻结状态的群组用于测试（status: 2=冻结）
+            if (dianaId != null) {
+                jdbcTemplate.update(
+                    "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, create_time) " +
+                    "VALUES ('已冻结测试群', ?, '这是一个用于测试冻结状态的群组', 2, 100, 1, NOW())",
+                    dianaId);
+                Long frozenGroupId = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+
+                // 添加群主
+                jdbcTemplate.update(
+                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())",
+                    frozenGroupId, dianaId);
+            }
+
+            log.info("✅ 测试群组初始化成功 - 创建了多个不同类型和状态的群组，包含不同角色的成员用于开发测试");
 
         } catch (Exception e) {
             log.error("❌ 初始化测试群组失败", e);
