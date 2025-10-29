@@ -146,6 +146,24 @@ weeb/
 3. **访问应用**
    打开浏览器访问 `http://localhost:5173`
 
+4. **初始用户账号**
+   系统会自动创建以下测试用户账号：
+
+   | 用户名 | 密码 | 角色 | 邮箱 | 昵称 |
+   |--------|------|------|------|------|
+   | admin | admin123 | 管理员 | admin@weeb.com | 系统管理员 |
+   | testuser | test123 | 普通用户 | test@weeb.com | 测试用户 |
+   | alice | password100 | 普通用户 | alice@weeb.com | 爱丽丝 |
+   | bob | password200 | 普通用户 | bob@weeb.com | 鲍勃 |
+   | charlie | password300 | 普通用户 | charlie@weeb.com | 查理 |
+   | diana | password400 | 普通用户 | diana@weeb.com | 戴安娜 |
+   | eve | password500 | 普通用户 | eve@weeb.com | 伊芙 |
+
+   **用户类型说明：**
+   - **ADMIN**: 系统管理员，拥有所有权限
+   - **USER**: 普通用户，基础功能权限
+   - **VIP**: VIP用户，扩展功能权限（预留）
+
 ### Docker部署（可选）
 ```bash
 # 构建后端镜像
@@ -166,7 +184,7 @@ docker-compose up -d
 - **注册登录**: 支持邮箱注册、JWT认证
 - **个人资料**: 头像上传、信息编辑、隐私设置
 - **等级系统**: 用户成长激励、积分奖励
-- **权限管理**: 基于RBAC的角色权限控制
+- **权限管理**: 基于用户类型的权限控制（ADMIN/USER/VIP）
 
 ### 2. 聊天系统
 - **实时通信**: WebSocket实现即时消息
@@ -222,6 +240,8 @@ docker-compose up -d
 - 在Controller层编写复杂业务逻辑
 - 不使用事务进行多表操作
 - 提交包含安全隐患的代码
+- 随意修改用户类型定义（ADMIN/USER/VIP）
+- 在非管理员初始化代码中创建管理员用户
 
 ---
 
