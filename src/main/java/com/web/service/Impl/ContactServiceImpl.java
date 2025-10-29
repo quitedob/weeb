@@ -1,4 +1,4 @@
-package com.web.service.impl;
+package com.web.service.Impl;
 
 import com.web.constant.ContactStatus;
 import com.web.dto.UserDto;
@@ -525,8 +525,22 @@ public class ContactServiceImpl implements ContactService {
                     if (user != null) {
                         UserDto dto = new UserDto();
                         dto.setId(user.getId());
-                        dto.setName(user.getUsername());
+                        dto.setUsername(user.getUsername());
+                        dto.setNickname(user.getNickname());
+                        dto.setName(user.getUsername()); // 向后兼容
+                        dto.setEmail(user.getUserEmail());
                         dto.setAvatar(user.getAvatar());
+                        dto.setBio(user.getBio());
+                        dto.setType(user.getType());
+                        dto.setBadge(user.getBadge());
+                        dto.setOnlineStatus(user.getOnlineStatus());
+                        dto.setIpOwnership(user.getIpOwnership());
+                        dto.setCreatedAt(user.getCreatedAt() != null ?
+                            java.time.LocalDateTime.ofInstant(user.getCreatedAt().toInstant(),
+                                java.time.ZoneId.systemDefault()) : null);
+                        dto.setUpdatedAt(user.getUpdatedAt() != null ?
+                            java.time.LocalDateTime.ofInstant(user.getUpdatedAt().toInstant(),
+                                java.time.ZoneId.systemDefault()) : null);
                         return dto;
                     }
                     return null;

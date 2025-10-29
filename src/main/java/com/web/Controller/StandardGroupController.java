@@ -1,4 +1,4 @@
-package com.web.controller;
+package com.web.Controller;
 
 import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
