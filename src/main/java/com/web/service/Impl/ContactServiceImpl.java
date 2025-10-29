@@ -1,7 +1,8 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
 import com.web.constant.ContactStatus;
 import com.web.dto.UserDto;
+import com.web.dto.ContactDto;
 import com.web.exception.WeebException;
 import com.web.mapper.ContactMapper;
 import com.web.service.ContactService;
@@ -33,6 +34,20 @@ public class ContactServiceImpl implements ContactService {
 
     @Override
     public void apply(ContactApplyVo applyVo, Long fromUserId) {
+        // 输入验证
+        if (applyVo == null) {
+            throw new WeebException("申请信息不能为空");
+        }
+        if (fromUserId == null || fromUserId <= 0) {
+            throw new WeebException("申请人ID必须为正数");
+        }
+        if (applyVo.getFriendId() == null || applyVo.getFriendId() <= 0) {
+            throw new WeebException("好友ID必须为正数");
+        }
+        if (fromUserId.equals(applyVo.getFriendId())) {
+            throw new WeebException("不能添加自己为好友");
+        }
+        
         // 检查是否已经存在联系人关系
         boolean exists = contactMapper.isContactExists(fromUserId, applyVo.getFriendId());
         if (exists) {
@@ -44,12 +59,38 @@ public class ContactServiceImpl implements ContactService {
         if (result <= 0) {
             throw new WeebException("申请添加好友失败");
         }
+        
+        // 发送好友申请通知
+        try {
+            notificationService.createAndPublishNotification(
+                applyVo.getFriendId(),   // 接收者：被申请的用户
+                fromUserId,              // 操作者：发起申请的用户
+                "FRIEND_REQUEST",        // 通知类型
+                "CONTACT",               // 实体类型
+                null                     // 实体ID（好友申请没有特定ID）
+            );
+            log.info("好友申请通知已发送 - 接收者ID: {}", applyVo.getFriendId());
+        } catch (Exception e) {
+            log.error("发送好友申请通知失败", e);
+            // 不抛出异常，通知失败不应影响好友申请的创建
+        }
     }
 
     @Override
     public void applyByUsername(String username, String message, Long fromUserId) {
+        // 输入验证
+        if (username == null || username.trim().isEmpty()) {
+            throw new WeebException("用户名不能为空");
+        }
+        if (fromUserId == null || fromUserId <= 0) {
+            throw new WeebException("申请人ID必须为正数");
+        }
+        if (message != null && message.length() > 200) {
+            throw new WeebException("申请消息不能超过200个字符");
+        }
+        
         // 根据用户名查找用户
-        com.web.model.User targetUser = userService.findByUsername(username);
+        com.web.model.User targetUser = userService.findByUsername(username.trim());
         if (targetUser == null) {
             throw new WeebException("用户不存在");
         }
@@ -138,6 +179,14 @@ public class ContactServiceImpl implements ContactService {
 
     @Override
     public void accept(Long contactId, Long toUserId) {
+        // 输入验证
+        if (contactId == null || contactId <= 0) {
+            throw new WeebException("联系人记录ID必须为正数");
+        }
+        if (toUserId == null || toUserId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        
         // 检查联系人记录是否属于当前用户
         boolean belongsToUser = contactMapper.isContactBelongsToUser(contactId, toUserId);
         if (!belongsToUser) {
@@ -175,6 +224,17 @@ public class ContactServiceImpl implements ContactService {
 
     @Override
     public void declineOrBlock(Long contactId, Long currentUserId, ContactStatus newStatus) {
+        // 输入验证
+        if (contactId == null || contactId <= 0) {
+            throw new WeebException("联系人记录ID必须为正数");
+        }
+        if (currentUserId == null || currentUserId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (newStatus == null) {
+            throw new WeebException("新状态不能为空");
+        }
+        
         // 检查联系人记录是否属于当前用户
         boolean belongsToUser = contactMapper.isContactBelongsToUser(contactId, currentUserId);
         if (!belongsToUser) {
@@ -196,10 +256,29 @@ public class ContactServiceImpl implements ContactService {
 
     @Override
     public List<UserDto> getContacts(Long userId, ContactStatus status) {
+        // 输入验证
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (status == null) {
+            throw new WeebException("联系人状态不能为空");
+        }
+        
         // 根据todo.txt的要求，对于待处理的好友申请，需要查询发送给当前用户的请求
         // 即 friend_id = currentUserId 且 status = PENDING
         if (status == ContactStatus.PENDING) {
-            return contactMapper.selectPendingContactsReceivedByUser(userId);
+            // 获取待处理的好友申请详情
+            List<com.web.dto.ContactRequestDto> pendingRequests = contactMapper.selectPendingContactsReceivedByUser(userId);
+            // 转换为UserDto格式
+            return pendingRequests.stream()
+                .map(request -> {
+                    UserDto userDto = new UserDto();
+                    userDto.setId(request.getId()); // 申请人ID
+                    userDto.setName(request.getNickname() != null ? request.getNickname() : request.getUsername()); // 优先使用昵称，否则使用用户名
+                    userDto.setAvatar(request.getAvatar());
+                    return userDto;
+                })
+                .collect(java.util.stream.Collectors.toList());
         } else {
             // 对于其他状态（如已接受的好友），查询用户自己的联系人列表
             return contactMapper.selectContactsByUserAndStatus(userId, status.getCode());
@@ -208,6 +287,14 @@ public class ContactServiceImpl implements ContactService {
 
     @Override
     public List<Long> getContactUserIds(Long userId, ContactStatus status) {
+        // 输入验证
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (status == null) {
+            throw new WeebException("联系人状态不能为空");
+        }
+        
         return contactMapper.selectContactUserIdsByUserAndStatus(userId, status.getCode());
     }
 
@@ -479,6 +566,35 @@ public class ContactServiceImpl implements ContactService {
         } catch (Exception e) {
             log.error("获取待处理好友申请失败", e);
             throw new WeebException("获取待处理好友申请失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ContactDto> getContactsWithDetails(Long userId, ContactStatus status) {
+        try {
+            if (userId == null || userId <= 0) {
+                throw new WeebException("用户ID必须为正数");
+            }
+            
+            if (status == null) {
+                throw new WeebException("联系人状态不能为空");
+            }
+            
+            log.debug("获取用户联系人详细信息: userId={}, status={}", userId, status);
+            
+            // 使用新的Mapper方法获取联系人详细信息
+            List<ContactDto> contacts = contactMapper.selectContactsWithDetails(userId, status);
+            
+            log.debug("获取到 {} 个联系人", contacts != null ? contacts.size() : 0);
+            
+            return contacts != null ? contacts : new java.util.ArrayList<>();
+            
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取联系人详细信息失败: userId={}, status={}", userId, status, e);
+            throw new WeebException("获取联系人详细信息失败: " + e.getMessage());
         }
     }
 }

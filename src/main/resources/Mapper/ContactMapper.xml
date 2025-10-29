@@ -96,4 +96,25 @@
         WHERE status = #{status}
     </select>
 
+    <!-- 查询联系人详细信息 - 支持双向关系 -->
+    <select id="selectContactsWithDetails" resultType="com.web.dto.ContactDto">
+        SELECT 
+            u.id,
+            u.username,
+            u.nickname,
+            u.avatar,
+            u.bio,
+            c.create_time as contactTime
+        FROM contact c
+        JOIN user u ON (
+            CASE 
+                WHEN c.user_id = #{userId} THEN c.friend_id = u.id
+                ELSE c.user_id = u.id
+            END
+        )
+        WHERE (c.user_id = #{userId} OR c.friend_id = #{userId})
+          AND c.status = #{status.code}
+        ORDER BY c.create_time DESC
+    </select>
+
 </mapper>

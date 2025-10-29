@@ -135,4 +135,71 @@
         </if>
     </select>
 
+    <!-- 查询用户所在的所有群组详细信息 -->
+    <select id="selectUserGroupsWithDetails" resultType="com.web.dto.GroupDto">
+        SELECT 
+            g.id,
+            g.group_name as groupName,
+            g.group_description as groupDescription,
+            g.owner_id as ownerId,
+            u.username as ownerUsername,
+            g.group_avatar_url as groupAvatarUrl,
+            g.status,
+            g.max_members as maxMembers,
+            g.member_count as memberCount,
+            gm.role,
+            g.create_time as createdAt,
+            g.last_transfer_at as lastTransferAt,
+            g.transfer_count as transferCount
+        FROM `group` g
+        LEFT JOIN user u ON g.owner_id = u.id
+        LEFT JOIN group_member gm ON g.id = gm.group_id AND gm.user_id = #{userId}
+        WHERE gm.user_id = #{userId}
+        ORDER BY g.create_time DESC
+    </select>
+
+    <!-- 查询用户创建的所有群组详细信息 -->
+    <select id="selectUserCreatedGroupsWithDetails" resultType="com.web.dto.GroupDto">
+        SELECT 
+            g.id,
+            g.group_name as groupName,
+            g.group_description as groupDescription,
+            g.owner_id as ownerId,
+            u.username as ownerUsername,
+            g.group_avatar_url as groupAvatarUrl,
+            g.status,
+            g.max_members as maxMembers,
+            g.member_count as memberCount,
+            1 as role,
+            g.create_time as createdAt,
+            g.last_transfer_at as lastTransferAt,
+            g.transfer_count as transferCount
+        FROM `group` g
+        LEFT JOIN user u ON g.owner_id = u.id
+        WHERE g.owner_id = #{userId}
+        ORDER BY g.create_time DESC
+    </select>
+
+    <!-- 查询单个群组详细信息（包含用户角色） -->
+    <select id="selectGroupWithDetails" resultType="com.web.dto.GroupDto">
+        SELECT 
+            g.id,
+            g.group_name as groupName,
+            g.group_description as groupDescription,
+            g.owner_id as ownerId,
+            u.username as ownerUsername,
+            g.group_avatar_url as groupAvatarUrl,
+            g.status,
+            g.max_members as maxMembers,
+            g.member_count as memberCount,
+            gm.role,
+            g.create_time as createdAt,
+            g.last_transfer_at as lastTransferAt,
+            g.transfer_count as transferCount
+        FROM `group` g
+        LEFT JOIN user u ON g.owner_id = u.id
+        LEFT JOIN group_member gm ON g.id = gm.group_id AND gm.user_id = #{userId}
+        WHERE g.id = #{groupId}
+    </select>
+
 </mapper>

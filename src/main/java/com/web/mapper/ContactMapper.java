@@ -90,4 +90,12 @@ public interface ContactMapper extends BaseMapper<Contact> {
      * @return 数量
      */
     int countByStatus(@Param("status") int status);
+
+    /**
+     * 查询联系人详细信息
+     * @param userId 用户ID
+     * @param status 联系人状态
+     * @return 联系人详细信息列表
+     */
+    List<com.web.dto.ContactDto> selectContactsWithDetails(@Param("userId") Long userId, @Param("status") com.web.constant.ContactStatus status);
 }

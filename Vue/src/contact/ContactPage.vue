@@ -221,7 +221,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showMessage } from '@/utils/message' // 导入消息工具
-import { instance as axiosInstance } from '@/api/axiosInstance'
+
+import contactApi from '@/api/modules/contact'
 import AppleButton from '@/components/common/AppleButton.vue'
 import AppleInput from '@/components/common/AppleInput.vue'
 import AppleCard from '@/components/common/AppleCard.vue'
@@ -253,17 +254,20 @@ const addForm = ref({
 const loadContacts = async () => {
   loadingContacts.value = true
   try {
-    const response = await axiosInstance.get('/api/contacts', {
-      params: { status: 'ACCEPTED' }
-    })
-    if (response.data && response.data.code === 0) {
-      contacts.value = response.data.data || []
+    const response = await contactApi.getContacts('ACCEPTED')
+    if (response && response.code === 0) {
+      // Handle new ContactDto field structure
+      contacts.value = (response.data || []).map(contact => ({
+        ...contact,
+        // Map contactTime to a more readable format if needed
+        contactTime: contact.contactTime || contact.createdAt
+      }))
     } else {
-      showMessage.error('获取联系人列表失败') // 使用 showMessage 显示错误
+      showMessage.error(response?.message || '获取联系人列表失败')
     }
   } catch (error) {
     console.error('加载联系人失败:', error)
-    showMessage.error('加载联系人失败') // 使用 showMessage 显示错误
+    showMessage.error('加载联系人失败')
   } finally {
     loadingContacts.value = false
   }
@@ -272,15 +276,15 @@ const loadContacts = async () => {
 const loadFriendRequests = async () => {
   loadingRequests.value = true
   try {
-    const response = await axiosInstance.get('/api/contacts/requests')
-    if (response.data && response.data.code === 0) {
-      friendRequests.value = response.data.data || []
+    const response = await contactApi.getFriendRequests()
+    if (response && response.code === 0) {
+      friendRequests.value = response.data || []
     } else {
-      showMessage.error('获取好友申请失败') // 使用 showMessage 显示错误
+      showMessage.error(response?.message || '获取好友申请失败')
     }
   } catch (error) {
     console.error('加载好友申请失败:', error)
-    showMessage.error('加载好友申请失败') // 使用 showMessage 显示错误
+    showMessage.error('加载好友申请失败')
   } finally {
     loadingRequests.value = false
   }
@@ -294,11 +298,9 @@ const searchUsers = async () => {
 
   searching.value = true
   try {
-    const response = await axiosInstance.get('/api/users/search', {
-      params: { q: searchQuery.value.trim() }
-    })
-    if (response.data && response.data.code === 0) {
-      searchResults.value = response.data.data || []
+    const response = await contactApi.searchUsers(searchQuery.value.trim())
+    if (response && response.code === 0) {
+      searchResults.value = response.data || []
     } else {
       showMessage.error('搜索失败') // 使用 showMessage 显示错误
     }
@@ -321,44 +323,41 @@ const openAddContactDialog = () => {
 
 const sendFriendRequest = async (user) => {
   try {
-    const response = await axiosInstance.post('/api/contacts/request', {
-      targetUserId: user.id,
-      message: '您好，我想添加您为好友'
-    })
-    if (response.data && response.data.code === 0) {
-      showMessage.success('好友申请已发送') // 使用 showMessage 显示成功信息
+    const response = await contactApi.sendRequest(user.id, '您好，我想添加您为好友')
+    if (response && response.code === 0) {
+      showMessage.success('好友申请已发送')
       // 从搜索结果中移除该用户
       searchResults.value = searchResults.value.filter(u => u.id !== user.id)
     } else {
-      showMessage.error(response.data?.message || '发送申请失败') // 使用 showMessage 显示错误
+      showMessage.error(response?.message || '发送申请失败')
     }
   } catch (error) {
     console.error('发送好友申请失败:', error)
-    showMessage.error('发送好友申请失败') // 使用 showMessage 显示错误
+    showMessage.error('发送好友申请失败')
   }
 }
 
 const sendFriendRequestByUsername = async () => {
   if (!addForm.value.username.trim()) {
-    showMessage.warning('请输入用户名或邮箱') // 使用 showMessage 显示警告
+    showMessage.warning('请输入用户名或邮箱')
     return
   }
 
   adding.value = true
   try {
-    const response = await axiosInstance.post('/api/contacts/request/by-username', {
-      username: addForm.value.username.trim(),
-      message: addForm.value.message || '您好，我想添加您为好友'
-    })
-    if (response.data && response.data.code === 0) {
-      showMessage.success('好友申请已发送') // 使用 showMessage 显示成功信息
+    const response = await contactApi.sendRequestByUsername(
+      addForm.value.username.trim(),
+      addForm.value.message || '您好，我想添加您为好友'
+    )
+    if (response && response.code === 0) {
+      showMessage.success('好友申请已发送')
       showAddDialog.value = false
     } else {
-      showMessage.error(response.data?.message || '发送申请失败') // 使用 showMessage 显示错误
+      showMessage.error(response?.message || '发送申请失败')
     }
   } catch (error) {
     console.error('发送好友申请失败:', error)
-    showMessage.error('发送好友申请失败') // 使用 showMessage 显示错误
+    showMessage.error('发送好友申请失败')
   } finally {
     adding.value = false
   }
@@ -366,35 +365,35 @@ const sendFriendRequestByUsername = async () => {
 
 const acceptRequest = async (request) => {
   try {
-    const response = await axiosInstance.post(`/api/contacts/request/${request.id}/accept`)
-    if (response.data && response.data.code === 0) {
-      showMessage.success('已接受好友申请') // 使用 showMessage 显示成功信息
+    const response = await contactApi.acceptRequest(request.id)
+    if (response && response.code === 0) {
+      showMessage.success('已接受好友申请')
       // 从申请列表中移除
       friendRequests.value = friendRequests.value.filter(r => r.id !== request.id)
       // 重新加载联系人列表
       await loadContacts()
     } else {
-      showMessage.error(response.data?.message || '接受申请失败') // 使用 showMessage 显示错误
+      showMessage.error(response?.message || '接受申请失败')
     }
   } catch (error) {
     console.error('接受好友申请失败:', error)
-    showMessage.error('接受好友申请失败') // 使用 showMessage 显示错误
+    showMessage.error('接受好友申请失败')
   }
 }
 
 const rejectRequest = async (request) => {
   try {
-    const response = await axiosInstance.post(`/api/contacts/request/${request.id}/reject`)
-    if (response.data && response.data.code === 0) {
-      showMessage.success('已拒绝好友申请') // 使用 showMessage 显示成功信息
+    const response = await contactApi.rejectRequest(request.id)
+    if (response && response.code === 0) {
+      showMessage.success('已拒绝好友申请')
       // 从申请列表中移除
       friendRequests.value = friendRequests.value.filter(r => r.id !== request.id)
     } else {
-      showMessage.error(response.data?.message || '拒绝申请失败') // 使用 showMessage 显示错误
+      showMessage.error(response?.message || '拒绝申请失败')
     }
   } catch (error) {
     console.error('拒绝好友申请失败:', error)
-    showMessage.error('拒绝好友申请失败') // 使用 showMessage 显示错误
+    showMessage.error('拒绝好友申请失败')
   }
 }
 
@@ -404,17 +403,17 @@ const deleteContact = async (contact) => {
   }
 
   try {
-    const response = await axiosInstance.delete(`/api/contacts/${contact.id}`)
-    if (response.data && response.data.code === 0) {
-      showMessage.success('已删除联系人') // 使用 showMessage 显示成功信息
+    const response = await contactApi.deleteContact(contact.id)
+    if (response && response.code === 0) {
+      showMessage.success('已删除联系人')
       // 从联系人列表中移除
       contacts.value = contacts.value.filter(c => c.id !== contact.id)
     } else {
-      showMessage.error(response.data?.message || '删除联系人失败') // 使用 showMessage 显示错误
+      showMessage.error(response?.message || '删除联系人失败')
     }
   } catch (error) {
     console.error('删除联系人失败:', error)
-    showMessage.error('删除联系人失败') // 使用 showMessage 显示错误
+    showMessage.error('删除联系人失败')
   }
 }
 

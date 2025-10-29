@@ -2,6 +2,7 @@ package com.web.service;
 
 import com.web.constant.ContactStatus; // For getContacts and getContactUserIds status param
 import com.web.dto.UserDto;
+import com.web.dto.ContactDto;
 import com.web.vo.contact.ContactApplyVo;
 import java.util.List;
 
@@ -139,4 +140,12 @@ public interface ContactService {
      * @return 好友申请列表
      */
     List<com.web.dto.ContactRequestDto> getPendingRequests(Long userId);
+
+    /**
+     * 获取联系人详细信息列表
+     * @param userId 用户ID
+     * @param status 联系人状态
+     * @return 联系人详细信息列表
+     */
+    List<ContactDto> getContactsWithDetails(Long userId, ContactStatus status);
 }

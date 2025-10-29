@@ -237,8 +237,14 @@ const fetchManagedGroups = async (page = 1, pageSize = 10) => {
   try {
     // 使用新的获取我作为群主的群组API
     const response = await groupApi.getUserOwnedGroups();
-    if (response.code === 200 && response.data) {
-      managedGroups.value = response.data;
+    if (response.code === 0 && response.data) {
+      // Handle new GroupDto field structure - map createTime to createdAt if needed
+      managedGroups.value = response.data.map(group => ({
+        ...group,
+        createdAt: group.createdAt || group.createTime,
+        // Ensure consistent field naming
+        ownerUsername: group.ownerUsername || group.owner?.username
+      }));
       managedPagination.total = response.data.length;
       managedPagination.page = page;
       managedPagination.pageSize = pageSize;
@@ -262,11 +268,18 @@ const fetchJoinedGroups = async (page = 1, pageSize = 10) => {
   loadingJoinedGroups.value = true;
   try {
     const response = await groupApi.getUserJoinedGroups();
-    if (response.code === 200 && response.data) {
-      // 筛选出我作为成员的群组（不是群主的）
-      const memberGroups = response.data.filter(group => {
-        return group.ownerId !== authStore.currentUser?.id;
-      });
+    if (response.code === 0 && response.data) {
+      // Handle new GroupDto field structure and filter out owned groups
+      const memberGroups = response.data
+        .filter(group => group.ownerId !== authStore.currentUser?.id)
+        .map(group => ({
+          ...group,
+          createdAt: group.createdAt || group.createTime,
+          // Ensure consistent field naming
+          ownerUsername: group.ownerUsername || group.owner?.username,
+          // Map role field properly (1 for owner, other values for member roles)
+          role: group.role === 1 ? 'OWNER' : (group.role === 2 ? 'ADMIN' : 'MEMBER')
+        }));
 
       joinedGroups.value = memberGroups;
       joinedPagination.total = memberGroups.length;
@@ -300,9 +313,16 @@ const searchPublicGroups = async (page = 1, pageSize = 10) => {
 
   try {
     const response = await searchApi.searchGroups(searchQuery.value, page - 1, pageSize);
-    if (response.code === 200 && response.data) {
-      discoveredGroups.value = response.data.list || [];
-      discoveredPagination.total = response.data.total || 0;
+    if (response.code === 0 && response.data) {
+      // Handle new GroupDto field structure
+      const groups = (response.data.list || response.data || []).map(group => ({
+        ...group,
+        createdAt: group.createdAt || group.createTime,
+        ownerUsername: group.ownerUsername || group.owner?.username
+      }));
+      
+      discoveredGroups.value = groups;
+      discoveredPagination.total = response.data.total || groups.length;
       discoveredPagination.page = page;
       discoveredPagination.pageSize = pageSize;
     } else {
@@ -348,7 +368,7 @@ const handleCreateGroup = async () => {
         };
 
         const response = await groupApi.createGroup(payload);
-        if (response.code === 200) {
+        if (response.code === 0) {
           ElMessage.success('群组创建成功');
           createGroupDialogVisible.value = false;
           resetCreateGroupForm();
@@ -381,7 +401,7 @@ const applyToJoinGroup = async (groupId) => {
         reason: '申请加入群组'
       });
       
-      if (response.code === 200) {
+      if (response.code === 0) {
         ElMessage.success('申请加入成功');
         // 刷新已加入的群组列表
         fetchJoinedGroups();
@@ -410,7 +430,7 @@ const confirmLeaveGroup = (groupId) => {
     const loading = ElLoading.service({ text: '正在退出...' });
     try {
       const response = await groupApi.leaveGroup(groupId);
-      if (response.code === 200) {
+      if (response.code === 0) {
         ElMessage.success('已成功退出群组');
         fetchJoinedGroups();
       } else {

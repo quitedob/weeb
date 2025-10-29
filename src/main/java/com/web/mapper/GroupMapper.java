@@ -2,6 +2,7 @@ package com.web.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.web.model.Group;
+import com.web.dto.GroupDto;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List; // Added
@@ -110,4 +111,26 @@ public interface GroupMapper extends BaseMapper<Group> {
                                   @Param("endDate") String endDate,
                                   @Param("groupTypes") List<Integer> groupTypes,
                                   @Param("isPublic") Boolean isPublic);
+
+    /**
+     * 查询用户所在的所有群组详细信息
+     * @param userId 用户ID
+     * @return 群组详细信息列表
+     */
+    List<GroupDto> selectUserGroupsWithDetails(@Param("userId") Long userId);
+
+    /**
+     * 查询用户创建的所有群组详细信息
+     * @param userId 用户ID
+     * @return 群组详细信息列表
+     */
+    List<GroupDto> selectUserCreatedGroupsWithDetails(@Param("userId") Long userId);
+
+    /**
+     * 查询单个群组详细信息（包含用户角色）
+     * @param groupId 群组ID
+     * @param userId 用户ID
+     * @return 群组详细信息
+     */
+    GroupDto selectGroupWithDetails(@Param("groupId") Long groupId, @Param("userId") Long userId);
 }

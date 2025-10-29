@@ -1,11 +1,14 @@
-package com.web.Controller;
+package com.web.controller;
 
 import com.web.annotation.Userid;
 import com.web.common.ApiResponse;
 import com.web.constant.ContactStatus; // Required for query param
 import com.web.dto.UserDto;
+import com.web.dto.ContactDto;
+import com.web.exception.WeebException;
 import com.web.service.ContactService;
 import com.web.vo.contact.ContactApplyVo;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +20,7 @@ import java.util.List; // For return type of getContacts
  * 联系人（好友）管理控制器
  * 简化注释：联系人控制器
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/contacts") // As per plan
 public class ContactController {
@@ -32,8 +36,17 @@ public class ContactController {
      */
     @PostMapping("/apply")
     public ResponseEntity<ApiResponse<String>> apply(@RequestBody @Valid ContactApplyVo applyVo, @Userid Long userId) {
-        contactService.apply(applyVo, userId);
-        return ResponseEntity.ok(ApiResponse.success("申请发送成功"));
+        try {
+            contactService.apply(applyVo, userId);
+            return ResponseEntity.ok(ApiResponse.success("申请发送成功"));
+        } catch (WeebException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("发送好友申请失败: userId={}, friendId={}", userId, applyVo != null ? applyVo.getFriendId() : null, e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("发送好友申请失败，请稍后重试"));
+        }
     }
 
     /**
@@ -67,11 +80,26 @@ public class ContactController {
     public ResponseEntity<ApiResponse<String>> sendRequestByUsername(
             @RequestBody java.util.Map<String, String> requestBody, 
             @Userid Long userId) {
-        String username = requestBody.get("username");
-        String message = requestBody.getOrDefault("message", "");
-        
-        contactService.applyByUsername(username, message, userId);
-        return ResponseEntity.ok(ApiResponse.success("好友申请已发送"));
+        try {
+            if (requestBody == null || !requestBody.containsKey("username")) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("用户名不能为空"));
+            }
+            
+            String username = requestBody.get("username");
+            String message = requestBody.getOrDefault("message", "");
+            
+            contactService.applyByUsername(username, message, userId);
+            return ResponseEntity.ok(ApiResponse.success("好友申请已发送"));
+        } catch (WeebException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("通过用户名发送好友申请失败: userId={}, username={}", userId, 
+                     requestBody != null ? requestBody.get("username") : null, e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("发送好友申请失败，请稍后重试"));
+        }
     }
 
     /**
@@ -82,8 +110,17 @@ public class ContactController {
      */
     @PostMapping("/accept/{contactId}")
     public ResponseEntity<ApiResponse<String>> accept(@PathVariable("contactId") Long contactId, @Userid Long userId) {
-        contactService.accept(contactId, userId);
-        return ResponseEntity.ok(ApiResponse.success("申请已同意"));
+        try {
+            contactService.accept(contactId, userId);
+            return ResponseEntity.ok(ApiResponse.success("申请已同意"));
+        } catch (WeebException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("接受好友申请失败: userId={}, contactId={}", userId, contactId, e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("接受好友申请失败，请稍后重试"));
+        }
     }
 
     /**
@@ -103,8 +140,17 @@ public class ContactController {
      */
     @PostMapping("/decline/{contactId}")
     public ResponseEntity<ApiResponse<String>> decline(@PathVariable("contactId") Long contactId, @Userid Long userId) {
-        contactService.declineOrBlock(contactId, userId, ContactStatus.REJECTED);
-        return ResponseEntity.ok(ApiResponse.success("申请已拒绝"));
+        try {
+            contactService.declineOrBlock(contactId, userId, ContactStatus.REJECTED);
+            return ResponseEntity.ok(ApiResponse.success("申请已拒绝"));
+        } catch (WeebException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("拒绝好友申请失败: userId={}, contactId={}", userId, contactId, e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("拒绝好友申请失败，请稍后重试"));
+        }
     }
 
     /**
@@ -132,12 +178,17 @@ public class ContactController {
      * 获取联系人列表 (例如：好友列表, 待处理申请列表)
      * @param userId 当前用户ID (from @Userid)
      * @param status 要查询的关系状态 (e.g., ACCEPTED, PENDING)
-     * @return 联系人列表 (List<UserDto>)
+     * @return 联系人详细信息列表 (List<ContactDto>)
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<UserDto>>> getContacts(@Userid Long userId, @RequestParam("status") ContactStatus status) {
-        List<UserDto> contacts = contactService.getContacts(userId, status);
-        return ResponseEntity.ok(ApiResponse.success(contacts));
+    public ResponseEntity<ApiResponse<List<ContactDto>>> getContacts(@Userid Long userId, @RequestParam("status") ContactStatus status) {
+        try {
+            List<ContactDto> contacts = contactService.getContactsWithDetails(userId, status);
+            return ResponseEntity.ok(ApiResponse.success(contacts));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("获取联系人列表失败: " + e.getMessage()));
+        }
     }
 
     /**

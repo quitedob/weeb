@@ -1,4 +1,4 @@
-package com.web.service.Impl;
+package com.web.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.web.exception.WeebException;
@@ -8,10 +8,11 @@ import com.web.mapper.UserMapper;
 import com.web.model.Group;
 import com.web.model.GroupMember;
 import com.web.model.User;
+import com.web.dto.GroupDto;
 import com.web.service.GroupService;
 import com.web.service.UserTypeSecurityService;
 import com.web.service.AuthService;
-import com.web.util.ValidationUtils;
+
 import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
 import com.web.vo.group.GroupKickVo;
@@ -21,7 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -52,6 +53,9 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private com.web.service.NotificationService notificationService;
 
     // 群组角色常量
     private static final int ROLE_OWNER = 1;    // 群主
@@ -116,9 +120,26 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Override
     public Group createGroup(GroupCreateVo createVo, Long userId) {
+        // 输入验证
+        if (createVo == null) {
+            throw new WeebException("群组创建信息不能为空");
+        }
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (createVo.getGroupName() == null || createVo.getGroupName().trim().isEmpty()) {
+            throw new WeebException("群组名称不能为空");
+        }
+        if (createVo.getGroupName().length() > 50) {
+            throw new WeebException("群组名称不能超过50个字符");
+        }
+        if (createVo.getGroupDescription() != null && createVo.getGroupDescription().length() > 200) {
+            throw new WeebException("群组描述不能超过200个字符");
+        }
+        
         // 创建群组对象
         Group group = new Group();
-        group.setGroupName(createVo.getGroupName());
+        group.setGroupName(createVo.getGroupName().trim());
         group.setOwnerId(userId);
         // Note: Group model uses createTime (Date) instead of createdAt (LocalDateTime)
         group.setCreateTime(new Date());
@@ -143,6 +164,20 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Override
     public boolean inviteMembers(GroupInviteVo inviteVo, Long userId) {
+        // 输入验证
+        if (inviteVo == null) {
+            throw new WeebException("邀请信息不能为空");
+        }
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (inviteVo.getGroupId() == null || inviteVo.getGroupId() <= 0) {
+            throw new WeebException("群组ID必须为正数");
+        }
+        if (inviteVo.getMemberIds() == null || inviteVo.getMemberIds().isEmpty()) {
+            throw new WeebException("邀请成员列表不能为空");
+        }
+        
         // 检查用户是否有权限邀请（群主或管理员）
         if (!isGroupAdmin(inviteVo.getGroupId(), userId)) {
             throw new WeebException("无权限邀请成员");
@@ -167,6 +202,23 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Override
     public void kickMember(GroupKickVo kickVo, Long userId) {
+        // 输入验证
+        if (kickVo == null) {
+            throw new WeebException("踢出信息不能为空");
+        }
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        if (kickVo.getGroupId() == null || kickVo.getGroupId() <= 0) {
+            throw new WeebException("群组ID必须为正数");
+        }
+        if (kickVo.getKickedUserId() == null || kickVo.getKickedUserId() <= 0) {
+            throw new WeebException("被踢用户ID必须为正数");
+        }
+        if (userId.equals(kickVo.getKickedUserId())) {
+            throw new WeebException("不能踢出自己");
+        }
+        
         // 检查操作者是否有权限踢人（群主或管理员）
         if (!isGroupAdmin(kickVo.getGroupId(), userId)) {
             throw new WeebException("无权限踢出成员");
@@ -198,15 +250,32 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     @Override
     public boolean leaveGroup(Long groupId, Long userId) {
         try {
+            // 输入验证
+            if (groupId == null || groupId <= 0) {
+                throw new WeebException("群组ID必须为正数");
+            }
+            if (userId == null || userId <= 0) {
+                throw new WeebException("用户ID必须为正数");
+            }
+            
             quitGroup(groupId, userId);
             return true;
         } catch (Exception e) {
+            log.error("退出群组失败: groupId={}, userId={}", groupId, userId, e);
             return false;
         }
     }
 
     @Override
     public void dissolveGroup(Long groupId, Long userId) {
+        // 输入验证
+        if (groupId == null || groupId <= 0) {
+            throw new WeebException("群组ID必须为正数");
+        }
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        
         // 检查群组是否存在
         Group group = getById(groupId);
         if (group == null) {
@@ -233,6 +302,14 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Override
     public void quitGroup(Long groupId, Long userId) {
+        // 输入验证
+        if (groupId == null || groupId <= 0) {
+            throw new WeebException("群组ID必须为正数");
+        }
+        if (userId == null || userId <= 0) {
+            throw new WeebException("用户ID必须为正数");
+        }
+        
         // 检查用户是否为群成员
         GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
         if (member == null) {
@@ -359,8 +436,26 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             newMember.setRole(0); // 0表示普通成员
 
             groupMemberMapper.insert(newMember);
+            
+            // 发送群组申请通知给群主
+            try {
+                notificationService.createAndPublishNotification(
+                    group.getOwnerId(),      // 接收者：群主
+                    userId,                  // 操作者：申请人
+                    "GROUP_APPLICATION",     // 通知类型
+                    "GROUP",                 // 实体类型
+                    applyVo.getGroupId()     // 实体ID：群组ID
+                );
+                log.info("群组申请通知已发送 - 群主ID: {}, 申请人ID: {}, 群组ID: {}", 
+                         group.getOwnerId(), userId, applyVo.getGroupId());
+            } catch (Exception e) {
+                log.error("发送群组申请通知失败", e);
+                // 不抛出异常，通知失败不应影响群组申请
+            }
+            
             return true;
         } catch (Exception e) {
+            log.error("申请加入群组失败: groupId={}, userId={}", applyVo.getGroupId(), userId, e);
             return false;
         }
     }
@@ -430,10 +525,40 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     public boolean approveApplication(Long groupId, Long applicationId, Long userId, String reason) {
         // 简化实现：直接批准申请（实际项目中需要更复杂的逻辑）
         try {
+            // 检查群组是否存在
+            Group group = getById(groupId);
+            if (group == null) {
+                return false;
+            }
+            
+            // 检查操作者是否有权限批准申请（群主或管理员）
+            if (!isGroupAdmin(groupId, userId)) {
+                return false;
+            }
+            
             // 这里应该实现批准申请的逻辑
-            // 暂时返回true表示成功
+            // 由于当前实现是简化的，我们假设applicationId就是申请人的用户ID
+            Long applicantId = applicationId; // 在实际实现中，这应该从申请记录中获取
+            
+            // 发送群组申请批准通知给申请人
+            try {
+                notificationService.createAndPublishNotification(
+                    applicantId,                     // 接收者：申请人
+                    userId,                          // 操作者：批准人（群主/管理员）
+                    "GROUP_APPLICATION_APPROVED",   // 通知类型
+                    "GROUP",                         // 实体类型
+                    groupId                          // 实体ID：群组ID
+                );
+                log.info("群组申请批准通知已发送 - 申请人ID: {}, 批准人ID: {}, 群组ID: {}", 
+                         applicantId, userId, groupId);
+            } catch (Exception e) {
+                log.error("发送群组申请批准通知失败", e);
+                // 不抛出异常，通知失败不应影响申请批准
+            }
+            
             return true;
         } catch (Exception e) {
+            log.error("批准群组申请失败: groupId={}, applicationId={}, userId={}", groupId, applicationId, userId, e);
             return false;
         }
     }
@@ -580,6 +705,90 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         } catch (Exception e) {
             log.error("群组转让失败: groupId={}, from={}, to={}", groupId, currentOwnerId, newOwnerId, e);
             throw new WeebException("群组转让失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<GroupDto> getUserGroupsWithDetails(Long userId) {
+        try {
+            if (userId == null || userId <= 0) {
+                throw new WeebException("用户ID必须为正数");
+            }
+            
+            log.debug("获取用户群组详细信息: userId={}", userId);
+            
+            // 使用新的Mapper方法获取用户群组详细信息
+            List<GroupDto> groups = groupMapper.selectUserGroupsWithDetails(userId);
+            
+            log.debug("获取到 {} 个群组", groups != null ? groups.size() : 0);
+            
+            return groups != null ? groups : new ArrayList<>();
+            
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取用户群组详细信息失败: userId={}", userId, e);
+            throw new WeebException("获取用户群组详细信息失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<GroupDto> getUserCreatedGroupsWithDetails(Long userId) {
+        try {
+            if (userId == null || userId <= 0) {
+                throw new WeebException("用户ID必须为正数");
+            }
+            
+            log.debug("获取用户创建的群组详细信息: userId={}", userId);
+            
+            // 使用新的Mapper方法获取用户创建的群组详细信息
+            List<GroupDto> groups = groupMapper.selectUserCreatedGroupsWithDetails(userId);
+            
+            log.debug("获取到 {} 个创建的群组", groups != null ? groups.size() : 0);
+            
+            return groups != null ? groups : new ArrayList<>();
+            
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取用户创建的群组详细信息失败: userId={}", userId, e);
+            throw new WeebException("获取用户创建的群组详细信息失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public GroupDto getGroupWithDetails(Long groupId, Long userId) {
+        try {
+            if (groupId == null || groupId <= 0) {
+                throw new WeebException("群组ID必须为正数");
+            }
+            
+            if (userId == null || userId <= 0) {
+                throw new WeebException("用户ID必须为正数");
+            }
+            
+            log.debug("获取群组详细信息: groupId={}, userId={}", groupId, userId);
+            
+            // 使用新的Mapper方法获取群组详细信息
+            GroupDto group = groupMapper.selectGroupWithDetails(groupId, userId);
+            
+            if (group == null) {
+                log.warn("群组不存在或用户无权限访问: groupId={}, userId={}", groupId, userId);
+                throw new WeebException("群组不存在或无权限访问");
+            }
+            
+            log.debug("获取群组详细信息成功: groupId={}, groupName={}", groupId, group.getGroupName());
+            
+            return group;
+            
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取群组详细信息失败: groupId={}, userId={}", groupId, userId, e);
+            throw new WeebException("获取群组详细信息失败: " + e.getMessage());
         }
     }
 }
