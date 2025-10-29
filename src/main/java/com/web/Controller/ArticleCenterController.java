@@ -83,9 +83,11 @@ public class ArticleCenterController {
      * 请求示例：POST /articles/123/like
      */
     @PostMapping("/{id}/like")
-    public ResponseEntity<ApiResponse<String>> likeArticle(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> likeArticle(
+            @PathVariable Long id, 
+            @Userid Long userId) {
         try {
-            boolean success = articleService.likeArticle(id);
+            boolean success = articleService.likeArticle(id, userId);
             if (!success) {
                 return ResponseEntity.badRequest()
                     .body(ApiResponse.likeOperationFailed(ApiResponse.Messages.LIKE_FAILED));
@@ -93,6 +95,46 @@ public class ArticleCenterController {
             return ResponseEntity.ok(ApiResponse.success(ApiResponse.Messages.LIKE_SUCCESS));
         } catch (Exception e) {
             logger.error("Error liking article with id {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 取消点赞文章
+     * DELETE /articles/{id}/like
+     */
+    @DeleteMapping("/{id}/like")
+    public ResponseEntity<ApiResponse<String>> unlikeArticle(
+            @PathVariable Long id, 
+            @Userid Long userId) {
+        try {
+            boolean success = articleService.unlikeArticle(id, userId);
+            if (!success) {
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("取消点赞失败"));
+            }
+            return ResponseEntity.ok(ApiResponse.success("取消点赞成功"));
+        } catch (Exception e) {
+            logger.error("Error unliking article with id {}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
+        }
+    }
+
+    /**
+     * 检查点赞状态
+     * GET /articles/{id}/like/status
+     */
+    @GetMapping("/{id}/like/status")
+    public ResponseEntity<ApiResponse<Boolean>> checkLikeStatus(
+            @PathVariable Long id, 
+            @Userid Long userId) {
+        try {
+            boolean liked = articleService.isArticleLikedByUser(id, userId);
+            return ResponseEntity.ok(ApiResponse.success(liked));
+        } catch (Exception e) {
+            logger.error("Error checking like status for article {}", id, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
         }

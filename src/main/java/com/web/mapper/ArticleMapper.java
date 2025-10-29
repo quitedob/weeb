@@ -319,4 +319,44 @@ public interface ArticleMapper {
      * @param status 新状态
      */
     void updateArticleStatus(@Param("articleId") Long articleId, @Param("status") int status);
+
+    // ==================== 点赞相关方法 ====================
+
+    /**
+     * 插入点赞记录
+     * @param userId 用户ID
+     * @param articleId 文章ID
+     * @return 影响的行数
+     */
+    int insertArticleLike(@Param("userId") Long userId, @Param("articleId") Long articleId);
+
+    /**
+     * 删除点赞记录
+     * @param userId 用户ID
+     * @param articleId 文章ID
+     * @return 影响的行数
+     */
+    int deleteArticleLike(@Param("userId") Long userId, @Param("articleId") Long articleId);
+
+    /**
+     * 检查用户是否已点赞文章
+     * @param userId 用户ID
+     * @param articleId 文章ID
+     * @return 是否已点赞
+     */
+    boolean isArticleLikedByUser(@Param("userId") Long userId, @Param("articleId") Long articleId);
+
+    /**
+     * 统计文章点赞数
+     * @param articleId 文章ID
+     * @return 点赞数
+     */
+    int countArticleLikes(@Param("articleId") Long articleId);
+
+    /**
+     * 减少文章点赞数
+     * @param articleId 文章ID
+     * @return 影响的行数
+     */
+    int decreaseLikeCount(@Param("articleId") Long articleId);
 }

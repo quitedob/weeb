@@ -115,6 +115,10 @@
     box-shadow: var(--apple-shadow-medium) !important;
 }
 
+.el-dropdown-menu__item {
+    color: var(--apple-text-primary) !important;
+}
+
 .el-dropdown-menu__item:hover {
     background-color: var(--apple-bg-secondary) !important;
     color: var(--apple-text-primary) !important;
@@ -221,4 +225,280 @@
 .el-menu-item.is-active {
     background-color: var(--apple-bg-secondary) !important;
     color: var(--apple-blue) !important;
+}
+
+/* 暗色主题额外样式 */
+.el-dropdown-menu__item.is-disabled {
+    color: var(--apple-text-tertiary) !important;
+}
+
+/* 暗色主题文字颜色强制保护 - 禁止黑底黑字 */
+[data-theme="dark"] * {
+    /* 确保所有文字在暗色背景上可见 */
+    color: inherit;
+}
+
+[data-theme="dark"] body,
+[data-theme="dark"] .el-text,
+[data-theme="dark"] p,
+[data-theme="dark"] span,
+[data-theme="dark"] div,
+[data-theme="dark"] label,
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+    color: var(--apple-text-primary) !important;
+}
+
+/* 次要文字颜色 */
+[data-theme="dark"] .text-secondary,
+[data-theme="dark"] .el-text--secondary {
+    color: var(--apple-text-secondary) !important;
+}
+
+/* 三级文字颜色 */
+[data-theme="dark"] .text-tertiary,
+[data-theme="dark"] .el-text--tertiary {
+    color: var(--apple-text-tertiary) !important;
+}
+
+/* 输入框文字 */
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .el-input__inner {
+    color: var(--apple-text-primary) !important;
+}
+
+/* 占位符文字 */
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder,
+[data-theme="dark"] .el-input__inner::placeholder {
+    color: var(--apple-text-tertiary) !important;
+}
+
+/* 链接颜色 */
+[data-theme="dark"] a {
+    color: var(--apple-blue) !important;
+}
+
+/* 禁用状态文字 */
+[data-theme="dark"] .is-disabled,
+[data-theme="dark"] [disabled] {
+    color: var(--apple-text-quaternary) !important;
+}
+
+/* 表格文字 */
+[data-theme="dark"] .el-table {
+    color: var(--apple-text-primary) !important;
+}
+
+[data-theme="dark"] .el-table td,
+[data-theme="dark"] .el-table th {
+    color: var(--apple-text-primary) !important;
+}
+
+/* 下拉菜单文字 */
+[data-theme="dark"] .el-dropdown-menu__item {
+    color: var(--apple-text-primary) !important;
+}
+
+/* 选择器选项文字 */
+[data-theme="dark"] .el-select-dropdown__item {
+    color: var(--apple-text-primary) !important;
+}
+
+/* 对话框文字 */
+[data-theme="dark"] .el-dialog__body {
+    color: var(--apple-text-primary) !important;
+}
+
+/* 消息提示文字 */
+[data-theme="dark"] .el-message {
+    color: var(--apple-text-primary) !important;
+}
+
+/* 通知文字 */
+[data-theme="dark"] .el-notification {
+    color: var(--apple-text-primary) !important;
+}
+
+/* 按钮组 */
+.el-button-group .el-button {
+    border-color: var(--apple-border-primary) !important;
+    background-color: var(--apple-bg-primary) !important;
+    color: var(--apple-text-primary) !important;
+}
+
+.el-button-group .el-button:not(.is-disabled):hover {
+    background-color: var(--apple-bg-tertiary) !important;
+}
+
+.el-button-group .el-button--primary {
+    background-color: var(--apple-blue) !important;
+    border-color: var(--apple-blue) !important;
+    color: white !important;
+}
+
+/* 头像 */
+.el-avatar {
+    background-color: var(--apple-bg-secondary) !important;
+    color: var(--apple-text-primary) !important;
+}
+
+/* 图标 */
+.el-icon {
+    color: var(--apple-text-primary) !important;
+}
+
+/* 主题切换动画 */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+}
+
+/* ========================================
+   Z-Index 层级管理 - 确保UI组件正确分层
+   ======================================== */
+
+/* Element Plus 组件层级 */
+.el-dropdown-menu {
+    z-index: var(--z-dropdown) !important;
+}
+
+.el-select-dropdown {
+    z-index: var(--z-dropdown) !important;
+}
+
+.el-picker-panel {
+    z-index: var(--z-dropdown) !important;
+}
+
+.el-popper {
+    z-index: var(--z-popover) !important;
+}
+
+.el-dialog__wrapper {
+    z-index: var(--z-modal) !important;
+}
+
+.el-message-box__wrapper {
+    z-index: var(--z-modal) !important;
+}
+
+.el-message {
+    z-index: var(--z-notification) !important;
+}
+
+.el-notification {
+    z-index: var(--z-notification) !important;
+}
+
+.el-loading-mask {
+    z-index: var(--z-modal-backdrop) !important;
+}
+
+.el-drawer__wrapper {
+    z-index: var(--z-modal) !important;
+}
+
+.el-tooltip__popper {
+    z-index: var(--z-tooltip) !important;
+}
+
+.el-popover {
+    z-index: var(--z-popover) !important;
+}
+
+.el-popconfirm {
+    z-index: var(--z-popover) !important;
+}
+
+/* 自定义组件层级 */
+.notification-popover {
+    z-index: var(--z-popover) !important;
+}
+
+.notification-popover.apple-card {
+    z-index: var(--z-popover) !important;
+}
+
+.popover-overlay {
+    z-index: calc(var(--z-popover) - 1) !important;
+}
+
+/* 确保下拉菜单在卡片之上 */
+.el-dropdown-menu,
+.el-select-dropdown,
+.el-picker-panel {
+    z-index: var(--z-dropdown) !important;
+}
+
+/* 模态框背景遮罩 */
+.el-overlay {
+    z-index: var(--z-modal-backdrop) !important;
+}
+
+/* 固定定位的导航栏 */
+.layout-header {
+    z-index: var(--z-sticky) !important;
+}
+
+.layout-sidebar {
+    z-index: var(--z-sticky) !important;
+}
+
+/* 确保通知铃铛的弹出层在最上面 */
+.notification-bell .notification-popover {
+    z-index: var(--z-popover) !important;
+}
+
+/* 搜索建议下拉框 */
+.search-suggestions {
+    z-index: var(--z-dropdown) !important;
+}
+
+/* 用户菜单下拉框 */
+.user-menu-dropdown {
+    z-index: var(--z-dropdown) !important;
+}
+
+/* 右键菜单 */
+.context-menu {
+    z-index: var(--z-popover) !important;
+}
+
+/* 图片预览 */
+.image-viewer {
+    z-index: var(--z-modal) !important;
+}
+
+/* 视频播放器全屏控制 */
+.video-player-fullscreen {
+    z-index: var(--z-top) !important;
+}
+
+/* 暗色主题下的特殊处理 */
+[data-theme="dark"] .el-popper {
+    background-color: var(--apple-bg-secondary) !important;
+    border-color: var(--apple-border-primary) !important;
+}
+
+[data-theme="dark"] .el-popper .el-popper__arrow::before {
+    background-color: var(--apple-bg-secondary) !important;
+    border-color: var(--apple-border-primary) !important;
+}
+
+/* 滚动条暗色主题 */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: var(--apple-bg-tertiary) !important;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: var(--apple-border-primary) !important;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: var(--apple-text-tertiary) !important;
 }

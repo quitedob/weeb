@@ -77,11 +77,12 @@
         INSERT INTO chat_list
         (id, user_id, target_id, target_info, type, unread_count, last_message, update_time, create_time)
         VALUES
-        (#{id}, #{userId}, #{targetId}, #{targetInfo}, #{type}, #{unreadCount}, #{lastMessage}, #{updateTime}, #{createTime})
+        (#{id}, #{userId}, #{targetId}, #{targetInfo}, #{type}, #{unreadCount}, #{lastMessage}, 
+         COALESCE(#{updateTime}, CURRENT_TIMESTAMP(3)), COALESCE(#{createTime}, CURRENT_TIMESTAMP(3)))
         <!-- 此处使用实体中对应的属性：
              targetInfo 对应数据库字段 target_info，
-             updateTime 对应 update_time，
-             createTime 对应 create_time -->
+             updateTime 对应 update_time，如果为null则使用当前时间
+             createTime 对应 create_time，如果为null则使用当前时间 -->
     </insert>
 
     <update id="updateChatListById" parameterType="com.web.model.ChatList">

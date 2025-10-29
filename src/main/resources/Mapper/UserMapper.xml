@@ -326,33 +326,7 @@
         <if test="endDate != null and endDate != ''">
             AND DATE(u.registration_date) &lt;= #{endDate}
         </if>
-        ORDER BY
-        <choose>
-            <when test="sortBy == 'relevance'">
-                CASE
-                    WHEN u.username = #{keyword} THEN 1
-                    WHEN u.nickname = #{keyword} THEN 2
-                    WHEN u.username LIKE CONCAT(#{keyword}, '%') THEN 3
-                    WHEN u.nickname LIKE CONCAT(#{keyword}, '%') THEN 4
-                    ELSE 5
-                END, u.id DESC
-            </when>
-            <when test="sortBy == 'time_desc'">
-                u.registration_date DESC, u.id DESC
-            </when>
-            <when test="sortBy == 'time_asc'">
-                u.registration_date ASC, u.id ASC
-            </when>
-            <when test="sortBy == 'name_asc'">
-                u.username ASC, u.id ASC
-            </when>
-            <when test="sortBy == 'name_desc'">
-                u.username DESC, u.id DESC
-            </when>
-            <otherwise>
-                u.registration_date DESC, u.id DESC
-            </otherwise>
-        </choose>
+        ORDER BY ${sortClause}
         LIMIT #{offset}, #{limit}
     </select>
 

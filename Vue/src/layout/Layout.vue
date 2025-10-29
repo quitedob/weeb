@@ -97,7 +97,7 @@ onMounted(() => {
   transition: width 0.3s ease;
   background-color: var(--apple-bg-secondary);
   border-right: 1px solid var(--apple-bg-quaternary);
-  z-index: 1000;
+  z-index: var(--z-sticky);
 }
 
 .sidebar.collapsed {
@@ -121,6 +121,8 @@ onMounted(() => {
   padding: 0 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(20px);
+  position: relative;
+  z-index: var(--z-sticky);
 }
 
 .header-left {
@@ -188,7 +190,7 @@ onMounted(() => {
     left: 0;
     top: 0;
     height: 100vh;
-    z-index: 1001;
+    z-index: var(--z-fixed);
     transform: translateX(-100%);
     transition: transform 0.3s ease;
   }
@@ -222,24 +224,28 @@ onMounted(() => {
   }
 }
 
-/* 暗色主题支持 */
-@media (prefers-color-scheme: dark) {
-  .top-header {
-    background-color: var(--apple-bg-primary);
-    border-bottom-color: var(--apple-bg-quaternary);
-  }
+/* 主题适配 */
+.layout-container {
+  background-color: var(--apple-bg-primary);
+  color: var(--apple-text-primary);
+}
 
-  .page-title {
-    color: var(--apple-text-primary);
-  }
+.sidebar {
+  background-color: var(--apple-bg-secondary);
+  border-right: 1px solid var(--apple-border-secondary);
+}
 
-  .username {
-    color: var(--apple-text-secondary);
-  }
+.top-header {
+  background-color: var(--apple-bg-primary);
+  border-bottom: 1px solid var(--apple-border-secondary);
+}
 
-  .user-avatar:hover {
-    background-color: var(--apple-bg-tertiary);
-  }
+.page-title {
+  color: var(--apple-text-primary);
+}
+
+.page-content {
+  background-color: var(--apple-bg-secondary);
 }
 
 /* 确保滚动条样式一致 */

@@ -203,12 +203,12 @@ export default {
 
   /**
    * 搜索用户
-   * GET /api/users/search
+   * GET /api/search/users
    * @param {String} query - 搜索关键词
    */
   searchUsers(query) {
-    return axiosInstance.get('/api/users/search', {
-      params: { q: query.trim() }
+    return axiosInstance.get('/api/search/users', {
+      params: { keyword: query.trim() }
     });
   }
 };

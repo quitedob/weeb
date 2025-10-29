@@ -62,6 +62,16 @@ export const likeArticle = (id) => {
     return axiosInstance.post(`/api/articles/${id}/like`);
 };
 
+// 取消点赞文章
+export const unlikeArticle = (id) => {
+    return axiosInstance.delete(`/api/articles/${id}/like`);
+};
+
+// 检查点赞状态
+export const checkLikeStatus = (articleId) => {
+    return axiosInstance.get(`/api/articles/${articleId}/like/status`);
+};
+
 // 增加文章阅读量
 export const increaseReadCount = (id) => {
     // Backend ArticleCenterController has:
@@ -97,7 +107,7 @@ export const getCategories = () => {
 
 // 获取推荐文章列表 - 使用标准的文章列表接口
 export const getRecommendedArticles = (page, pageSize) => {
-    return axiosInstance.get('/api/article/list', { params: { page, pageSize } });
+    return axiosInstance.get('/api/articles/getall', { params: { page, pageSize } });
 };
 
 // 搜索文章
@@ -161,6 +171,8 @@ export default {
     deleteArticle,
     getArticlesByUserId,
     likeArticle,
+    unlikeArticle,  // 添加取消点赞API
+    checkLikeStatus,  // 添加检查点赞状态API
     increaseReadCount,
     addCoinToArticle,
     getUserInformation,

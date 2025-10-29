@@ -611,4 +611,46 @@ public class ContactServiceImpl implements ContactService {
             throw new WeebException("获取联系人详细信息失败: " + e.getMessage());
         }
     }
+
+    @Override
+    @Transactional
+    public boolean deleteContact(Long contactId, Long userId) {
+        try {
+            // 输入验证
+            if (contactId == null || contactId <= 0) {
+                throw new WeebException("联系人记录ID必须为正数");
+            }
+            if (userId == null || userId <= 0) {
+                throw new WeebException("用户ID必须为正数");
+            }
+            
+            // 检查联系人记录是否存在且属于当前用户
+            com.web.model.Contact contact = contactMapper.selectById(contactId);
+            if (contact == null) {
+                throw new WeebException("联系人记录不存在");
+            }
+            
+            // 检查权限：只能删除自己的联系人记录或者是双向关系中的任一方
+            boolean hasPermission = contact.getUserId().equals(userId) || contact.getFriendId().equals(userId);
+            if (!hasPermission) {
+                throw new WeebException("无权限删除此联系人");
+            }
+            
+            // 删除联系人记录
+            int result = contactMapper.deleteById(contactId);
+            if (result > 0) {
+                log.info("联系人删除成功: contactId={}, userId={}", contactId, userId);
+                return true;
+            } else {
+                log.warn("联系人删除失败: contactId={}, userId={}", contactId, userId);
+                return false;
+            }
+            
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("删除联系人失败: contactId={}, userId={}", contactId, userId, e);
+            throw new WeebException("删除联系人失败: " + e.getMessage());
+        }
+    }
 }
