@@ -40,7 +40,9 @@
               <div class="chat-time">{{ formatChatTime(chat.lastMessageTime) }}</div>
             </div>
             <div class="chat-preview-row">
-              <div class="chat-last-msg">{{ chat.lastMessage || '暂无消息' }}</div>
+              <div class="chat-last-msg">
+                {{ formatLastMessage(chat.lastMessage) }}
+              </div>
               <div v-if="chat.unreadCount > 0" class="unread-badge">{{ chat.unreadCount }}</div>
             </div>
           </div>
@@ -119,7 +121,9 @@
                         </div>
                         <button @click="downloadFile(msg.fileData)" class="download-btn">下载</button>
                       </div>
-                      <div v-else class="text-message">{{ msg.msgContent }}</div>
+                      <div v-else class="text-message">
+                        {{ typeof msg.content === 'object' ? msg.content.content : msg.content }}
+                      </div>
 
                       <!-- 消息状态 -->
                       <div v-if="msg.isFromMe && !msg.isRecalled" class="message-status">
@@ -306,8 +310,14 @@
     <!-- WebSocket连接状态 -->
     <div v-if="connectionStatus !== 'connected'" class="connection-status">
       <span v-if="connectionStatus === 'connecting'">🔄 连接中...</span>
-      <span v-else-if="connectionStatus === 'disconnected'">⚠️ 已断开连接</span>
-      <span v-else-if="connectionStatus === 'error'">❌ 连接失败</span>
+      <span v-else-if="connectionStatus === 'disconnected'">
+        ⚠️ 已断开连接
+        <button @click="reconnectWebSocket" class="reconnect-btn">重新连接</button>
+      </span>
+      <span v-else-if="connectionStatus === 'error'">
+        ❌ 连接失败
+        <button @click="reconnectWebSocket" class="reconnect-btn">重试</button>
+      </span>
     </div>
   </div>
 </template>
@@ -359,7 +369,13 @@ const currentChat = computed(() => {
 });
 
 const messages = computed(() => {
-  return chatStore.messagesForCurrentChat || [];
+  const msgs = chatStore.messagesForCurrentChat || [];
+  if (msgs.length > 0) {
+    console.log('💬 消息列表:', msgs);
+    console.log('💬 第一条消息结构:', msgs[0]);
+    console.log('💬 第一条消息字段:', Object.keys(msgs[0]));
+  }
+  return msgs;
 });
 
 const canLoadMore = computed(() => {
@@ -461,6 +477,7 @@ const sendMessage = async () => {
 
   try {
     if (chatStore.isConnected) {
+      console.log('📤 通过WebSocket发送消息...');
       // 通过WebSocket发送
       await chatStore.sendMessage(
         content || '[文件]',
@@ -469,19 +486,31 @@ const sendMessage = async () => {
         file ? 2 : 1
       );
     } else {
+      console.log('📤 WebSocket未连接，使用HTTP发送消息...');
       // 降级到HTTP
       const messageData = {
         content: content || '[文件]',
         messageType: file ? 2 : 1
       };
-      await api.chat.sendMessage(activeChatId.value, messageData);
+      const response = await api.chat.sendMessage(activeChatId.value, messageData);
+      console.log('📨 HTTP发送响应:', response);
+      
+      if (response.code === 0) {
+        console.log('✅ 消息发送成功（HTTP）');
+        console.log('📥 重新加载消息列表...');
+        // 重新加载消息列表以显示新消息
+        await chatStore.fetchMessagesForChat(activeChatId.value);
+        console.log('📋 当前消息数量:', messages.value.length);
+      } else {
+        throw new Error(response.message || '发送失败');
+      }
     }
     
     await nextTick();
     scrollToBottom();
   } catch (error) {
-    console.error('发送消息失败:', error);
-    alert('发送消息失败');
+    console.error('❌ 发送消息失败:', error);
+    alert('发送消息失败: ' + (error.message || '未知错误'));
     messageInput.value = content;
     selectedFile.value = file;
   }
@@ -690,8 +719,53 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+const formatLastMessage = (lastMessage) => {
+  if (!lastMessage) return '暂无消息';
+  
+  // 如果是字符串
+  if (typeof lastMessage === 'string') {
+    // 检查是否是Java对象的toString格式: TextMessageContent(content=xxx, ...)
+    const match = lastMessage.match(/content=([^,)]+)/);
+    if (match && match[1]) {
+      const content = match[1].trim();
+      return content.length > 10 ? content.substring(0, 10) + '...' : content;
+    }
+    
+    // 普通字符串
+    return lastMessage.length > 10 ? lastMessage.substring(0, 10) + '...' : lastMessage;
+  }
+  
+  // 如果是对象，尝试提取content
+  if (typeof lastMessage === 'object') {
+    let content = lastMessage.content || lastMessage.msgContent || lastMessage.message || lastMessage.text;
+    
+    // 如果content还是对象，继续提取
+    if (typeof content === 'object' && content) {
+      content = content.content || content.text;
+    }
+    
+    // 如果有内容，截取并返回
+    if (content && typeof content === 'string') {
+      return content.length > 10 ? content.substring(0, 10) + '...' : content;
+    }
+  }
+  
+  return '暂无消息';
+};
+
+// 重新连接WebSocket
+const reconnectWebSocket = () => {
+  console.log('🔄 手动重新连接WebSocket...');
+  chatStore.disconnectWebSocket();
+  setTimeout(() => {
+    chatStore.connectWebSocket();
+  }, 1000);
+};
+
 // 生命周期
 onMounted(async () => {
+  console.log('📱 ChatPage mounted');
+  console.log('🔌 开始连接WebSocket...');
   chatStore.connectWebSocket();
   await loadChatList();
   await loadContacts();
@@ -1018,19 +1092,24 @@ watch(() => chatStore.isTypingInCurrentChat, (newVal) => {
 .message-item {
   display: flex;
   gap: 12px;
+  width: 100%;
+  /* 对方消息：左对齐 */
 }
 
 .message-item.is-me {
-  flex-direction: row-reverse;
+  /* 我的消息：右对齐 */
+  justify-content: flex-end;
 }
 
 .message-wrapper {
   display: flex;
   gap: 12px;
   max-width: 70%;
+  /* 对方消息：从左到右（头像-内容） */
 }
 
 .message-item.is-me .message-wrapper {
+  /* 我的消息：从右到左（内容-头像） */
   flex-direction: row-reverse;
 }
 
@@ -1618,6 +1697,24 @@ watch(() => chatStore.isTypingInCurrentChat, (newVal) => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   font-size: 13px;
   z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reconnect-btn {
+  padding: 4px 12px;
+  background: var(--apple-blue, #007aff);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.reconnect-btn:hover {
+  background: var(--apple-blue-hover, #0051d5);
 }
 
 /* 响应式 */

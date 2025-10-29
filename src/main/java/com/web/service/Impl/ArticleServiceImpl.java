@@ -156,17 +156,73 @@ public class ArticleServiceImpl implements ArticleService {
     }
 
     @Override
-    public boolean likeArticle(Long id) {
-        int result = articleMapper.increaseLikeCount(id);
+    @Transactional
+    public boolean likeArticle(Long articleId, Long userId) {
+        // 检查文章是否存在
+        Article article = articleMapper.selectArticleById(articleId);
+        if (article == null) {
+            log.warn("文章不存在: articleId={}", articleId);
+            return false;
+        }
+        
+        // 检查是否已点赞
+        if (isArticleLikedByUser(articleId, userId)) {
+            log.info("用户已点赞该文章: articleId={}, userId={}", articleId, userId);
+            return true; // 已点赞，直接返回成功
+        }
+        
+        // 插入点赞记录
+        int result = articleMapper.insertArticleLike(userId, articleId);
         if (result > 0) {
-            // 获取文章作者ID并更新其统计数据
-            Article article = articleMapper.selectArticleById(id);
-            if (article != null) {
+            // 更新文章点赞数
+            articleMapper.increaseLikeCount(articleId);
+            
+            // 更新作者统计
+            if (article.getUserId() != null) {
                 articleMapper.updateUserStatsTotals(article.getUserId());
             }
+            
+            log.info("点赞成功: articleId={}, userId={}", articleId, userId);
             return true;
         }
+        
+        log.error("点赞失败: articleId={}, userId={}", articleId, userId);
         return false;
+    }
+
+    @Override
+    @Transactional
+    public boolean unlikeArticle(Long articleId, Long userId) {
+        // 检查是否已点赞
+        if (!isArticleLikedByUser(articleId, userId)) {
+            log.info("用户未点赞该文章: articleId={}, userId={}", articleId, userId);
+            return true; // 未点赞，直接返回成功
+        }
+        
+        // 删除点赞记录
+        int result = articleMapper.deleteArticleLike(userId, articleId);
+        if (result > 0) {
+            // 减少文章点赞数
+            articleMapper.decreaseLikeCount(articleId);
+            
+            // 更新作者统计
+            Article article = articleMapper.selectArticleById(articleId);
+            if (article != null && article.getUserId() != null) {
+                articleMapper.updateUserStatsTotals(article.getUserId());
+            }
+            
+            log.info("取消点赞成功: articleId={}, userId={}", articleId, userId);
+            return true;
+        }
+        
+        log.error("取消点赞失败: articleId={}, userId={}", articleId, userId);
+        return false;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isArticleLikedByUser(Long articleId, Long userId) {
+        return articleMapper.isArticleLikedByUser(userId, articleId);
     }
 
     @Override

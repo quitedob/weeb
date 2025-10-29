@@ -5,7 +5,7 @@
 
 /* CSS变量定义 */
 :root {
-  /* 苹果系统颜色 */
+  /* 苹果系统颜色 - 在暗色和亮色主题下都清晰可见 */
   --apple-blue: #007AFF;
   --apple-blue-dark: #0056CC;
   --apple-green: #34C759;
@@ -13,7 +13,7 @@
   --apple-red: #FF3B30;
   --apple-purple: #AF52DE;
   --apple-pink: #FF2D92;
-  --apple-yellow: #FFCC02;
+  --apple-yellow: #FFCC00;  /* 调整为更亮的黄色，在黑色背景上更清晰 */
   
   /* 背景色 */
   --apple-bg-primary: #FFFFFF;
@@ -60,24 +60,82 @@
   --apple-font-xxl: 22px;
   --apple-font-title: 28px;
   --apple-font-large-title: 34px;
+  
+  /* Z-Index 层级管理 - 确保UI组件正确分层 */
+  --z-base: 1;                    /* 基础层 */
+  --z-dropdown: 1000;             /* 下拉菜单 */
+  --z-sticky: 1020;               /* 固定定位元素 */
+  --z-fixed: 1030;                /* 固定元素 */
+  --z-modal-backdrop: 1040;       /* 模态框背景 */
+  --z-modal: 1050;                /* 模态框 */
+  --z-popover: 1060;              /* 弹出层（通知、提示等） */
+  --z-tooltip: 1070;              /* 工具提示 */
+  --z-notification: 1080;         /* 通知消息 */
+  --z-top: 9999;                  /* 最顶层（紧急提示等） */
 }
 
-/* 暗色主题 */
+/* 暗色主题变量 */
+[data-theme="dark"] {
+  --apple-bg-primary: #000000;
+  --apple-bg-secondary: #1C1C1E;
+  --apple-bg-tertiary: #2C2C2E;
+  --apple-bg-quaternary: #3A3A3C;
+  
+  /* 确保文字在黑色背景上清晰可见 - 禁止黑底黑字 */
+  --apple-text-primary: #FFFFFF;        /* 纯白色 - 主要文字 */
+  --apple-text-secondary: #E5E5E5;      /* 浅灰色 - 次要文字 */
+  --apple-text-tertiary: #B0B0B0;       /* 中灰色 - 三级文字 */
+  --apple-text-quaternary: #808080;     /* 深灰色 - 四级文字（但仍然清晰可见） */
+  
+  --apple-border-primary: #38383A;
+  --apple-border-secondary: #2C2C2E;
+  --apple-border-tertiary: #1C1C1E;
+  
+  /* 暗色主题下的阴影调整 */
+  --apple-shadow-light: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --apple-shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --apple-shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.5);
+  
+  /* 暗色主题下的强调色调整 - 确保在黑色背景上清晰可见 */
+  --apple-blue: #0A84FF;        /* 更亮的蓝色 */
+  --apple-green: #30D158;       /* 更亮的绿色 */
+  --apple-orange: #FF9F0A;      /* 更亮的橙色 */
+  --apple-red: #FF453A;         /* 更亮的红色 */
+  --apple-purple: #BF5AF2;      /* 更亮的紫色 */
+  --apple-pink: #FF375F;        /* 更亮的粉色 */
+  --apple-yellow: #FFD60A;      /* 更亮的黄色 */
+}
+
+/* 系统偏好暗色主题 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  [data-theme="system"] {
     --apple-bg-primary: #000000;
     --apple-bg-secondary: #1C1C1E;
     --apple-bg-tertiary: #2C2C2E;
     --apple-bg-quaternary: #3A3A3C;
     
-    --apple-text-primary: #FFFFFF;
-    --apple-text-secondary: #EBEBF5;
-    --apple-text-tertiary: #EBEBF599;
-    --apple-text-quaternary: #EBEBF54D;
+    /* 确保文字在黑色背景上清晰可见 - 禁止黑底黑字 */
+    --apple-text-primary: #FFFFFF;        /* 纯白色 - 主要文字 */
+    --apple-text-secondary: #E5E5E5;      /* 浅灰色 - 次要文字 */
+    --apple-text-tertiary: #B0B0B0;       /* 中灰色 - 三级文字 */
+    --apple-text-quaternary: #808080;     /* 深灰色 - 四级文字（但仍然清晰可见） */
     
     --apple-border-primary: #38383A;
     --apple-border-secondary: #2C2C2E;
     --apple-border-tertiary: #1C1C1E;
+    
+    --apple-shadow-light: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --apple-shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --apple-shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.5);
+    
+    /* 暗色主题下的强调色调整 - 确保在黑色背景上清晰可见 */
+    --apple-blue: #0A84FF;        /* 更亮的蓝色 */
+    --apple-green: #30D158;       /* 更亮的绿色 */
+    --apple-orange: #FF9F0A;      /* 更亮的橙色 */
+    --apple-red: #FF453A;         /* 更亮的红色 */
+    --apple-purple: #BF5AF2;      /* 更亮的紫色 */
+    --apple-pink: #FF375F;        /* 更亮的粉色 */
+    --apple-yellow: #FFD60A;      /* 更亮的黄色 */
   }
 }
 

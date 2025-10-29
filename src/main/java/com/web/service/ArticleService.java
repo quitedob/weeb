@@ -46,10 +46,29 @@ public interface ArticleService {
     /**
      * 为指定文章增加点赞数。
      *
-     * @param id 文章的唯一标识符
+     * @param articleId 文章的唯一标识符
+     * @param userId 用户ID
      * @return 如果点赞操作成功返回 true，否则返回 false
      */
-    boolean likeArticle(Long id);
+    boolean likeArticle(Long articleId, Long userId);
+
+    /**
+     * 取消点赞文章
+     *
+     * @param articleId 文章ID
+     * @param userId 用户ID
+     * @return 如果取消点赞成功返回 true，否则返回 false
+     */
+    boolean unlikeArticle(Long articleId, Long userId);
+
+    /**
+     * 检查用户是否已点赞文章
+     *
+     * @param articleId 文章ID
+     * @param userId 用户ID
+     * @return 如果已点赞返回 true，否则返回 false
+     */
+    boolean isArticleLikedByUser(Long articleId, Long userId);
 
     /**
      * 实现用户订阅操作，将一个用户订阅到另一个用户。

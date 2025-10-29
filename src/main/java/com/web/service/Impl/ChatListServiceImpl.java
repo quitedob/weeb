@@ -39,8 +39,10 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
         if (groupChat == null) {
             // 如果不存在群聊记录，创建默认群聊记录
             groupChat = new ChatList();
+            groupChat.setId(java.util.UUID.randomUUID().toString()); // 设置ID
             groupChat.setUserId(userId);
             groupChat.setTargetId(0L); // 群聊的targetId设为0
+            groupChat.setTargetInfo("群聊"); // 设置目标信息
             groupChat.setType("1"); // "1"表示群聊
             groupChat.setUnreadCount(0);
             groupChat.setLastMessage("");
@@ -66,8 +68,10 @@ public class ChatListServiceImpl extends ServiceImpl<ChatListMapper, ChatList> i
         
         // 创建新的聊天记录
         ChatList chatList = new ChatList();
+        chatList.setId(java.util.UUID.randomUUID().toString()); // 设置ID
         chatList.setUserId(userId);
         chatList.setTargetId(targetId);
+        chatList.setTargetInfo("私聊"); // 设置目标信息
         chatList.setType("0"); // "0"表示私聊
         chatList.setUnreadCount(0);
         chatList.setLastMessage("");

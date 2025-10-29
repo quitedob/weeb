@@ -148,4 +148,12 @@ public interface ContactService {
      * @return 联系人详细信息列表
      */
     List<ContactDto> getContactsWithDetails(Long userId, ContactStatus status);
+
+    /**
+     * 删除联系人（好友）
+     * @param contactId 联系人记录ID
+     * @param userId 当前用户ID
+     * @return 是否删除成功
+     */
+    boolean deleteContact(Long contactId, Long userId);
 }

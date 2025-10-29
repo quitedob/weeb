@@ -299,4 +299,33 @@ public class ContactController {
         List<UserDto> contacts = contactService.getContactsByGroup(groupId, userId);
         return ResponseEntity.ok(ApiResponse.success(contacts));
     }
+
+    /**
+     * 删除联系人（好友）
+     * DELETE /api/contacts/{contactId}
+     * @param contactId 联系人记录ID
+     * @param userId 当前用户ID
+     * @return 操作结果
+     */
+    @DeleteMapping("/{contactId}")
+    public ResponseEntity<ApiResponse<String>> deleteContact(
+            @PathVariable("contactId") Long contactId, 
+            @Userid Long userId) {
+        try {
+            boolean deleted = contactService.deleteContact(contactId, userId);
+            if (deleted) {
+                return ResponseEntity.ok(ApiResponse.success("联系人已删除"));
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("删除联系人失败"));
+            }
+        } catch (WeebException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("删除联系人失败: userId={}, contactId={}", userId, contactId, e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("删除联系人失败，请稍后重试"));
+        }
+    }
 }

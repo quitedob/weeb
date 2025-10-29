@@ -138,19 +138,19 @@ public class SearchController {
         // 添加消息类型过滤
         if (messageTypes != null && !messageTypes.isEmpty()) {
             String[] types = messageTypes.split(",");
-            criteria = criteria.and(new Criteria("messageType").in(types));
+            criteria = criteria.and(new Criteria("messageType").in((Object[]) types));
         }
 
         // 添加用户ID过滤
         if (userIds != null && !userIds.isEmpty()) {
             String[] users = userIds.split(",");
-            criteria = criteria.and(new Criteria("fromUserId").in(users));
+            criteria = criteria.and(new Criteria("fromUserId").in((Object[]) users));
         }
 
         // 添加群组ID过滤
         if (groupIds != null && !groupIds.isEmpty()) {
             String[] groups = groupIds.split(",");
-            criteria = criteria.and(new Criteria("targetId").in(groups));
+            criteria = criteria.and(new Criteria("targetId").in((Object[]) groups));
         }
 
         // 构建分页查询
@@ -423,6 +423,68 @@ public class SearchController {
             data.put("total", 0L);
             return ResponseEntity.status(500)
                 .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "搜索文章失败", data));
+        }
+    }
+
+    /**
+     * 统一搜索接口 - 根据type参数搜索不同类型
+     * @param q 搜索关键词
+     * @param type 搜索类型 (group, user, article, message, all)
+     * @param page 页码（从0开始）
+     * @param size 每页数量
+     * @return 搜索结果
+     */
+    @GetMapping
+    public ResponseEntity<ApiResponse<Map<String, Object>>> unifiedSearch(
+            @RequestParam("q") String q,
+            @RequestParam(required = false, defaultValue = "all") String type,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        try {
+            switch (type.toLowerCase()) {
+                case "group":
+                    Map<String, Object> groupData = searchService.searchGroupsWithFilters(q, page, size, null, null, "relevance");
+                    return ResponseEntity.ok(ApiResponse.success(groupData));
+                    
+                case "user":
+                    Map<String, Object> userData = searchService.searchUsersWithFilters(q, page, size, null, null, "relevance");
+                    return ResponseEntity.ok(ApiResponse.success(userData));
+                    
+                case "article":
+                    Map<String, Object> articleData = articleService.searchArticlesWithFilters(q, page + 1, size, null, null, "created_at", "desc");
+                    return ResponseEntity.ok(ApiResponse.success(articleData));
+                    
+                case "message":
+                    if (elasticsearchOperations != null) {
+                        Criteria criteria = new Criteria("content").matches(q);
+                        CriteriaQuery query = new CriteriaQuery(criteria, PageRequest.of(page, size));
+                        SearchHits<MessageDocument> hits = elasticsearchOperations.search(query, MessageDocument.class);
+                        
+                        Map<String, Object> messageData = new HashMap<>();
+                        messageData.put("list", hits.getSearchHits().stream()
+                                .map(SearchHit::getContent)
+                                .collect(Collectors.toList()));
+                        messageData.put("total", hits.getTotalHits());
+                        return ResponseEntity.ok(ApiResponse.success(messageData));
+                    } else {
+                        Map<String, Object> emptyData = new HashMap<>();
+                        emptyData.put("list", java.util.Collections.emptyList());
+                        emptyData.put("total", 0L);
+                        return ResponseEntity.ok(ApiResponse.success(emptyData));
+                    }
+                    
+                case "all":
+                default:
+                    return searchAll(q, page, size);
+            }
+        } catch (Exception e) {
+            log.error("统一搜索失败：type={}, q={}", type, q, e);
+            Map<String, Object> errorData = new HashMap<>();
+            errorData.put("list", java.util.Collections.emptyList());
+            errorData.put("total", 0L);
+            return ResponseEntity.status(500)
+                .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "搜索失败", errorData));
         }
     }
 

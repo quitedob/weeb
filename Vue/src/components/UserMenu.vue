@@ -26,6 +26,37 @@
           <el-icon><Lock /></el-icon>
           <span>安全中心</span>
         </el-dropdown-item>
+        <el-dropdown-item divided class="theme-item">
+          <div class="theme-selector">
+            <el-icon><Moon v-if="currentTheme !== 'dark'" /><Sunny v-else /></el-icon>
+            <span>主题模式</span>
+            <div class="theme-options">
+              <el-button-group size="small">
+                <el-button 
+                  :type="currentTheme === 'light' ? 'primary' : ''"
+                  @click="setTheme('light')"
+                  title="浅色模式"
+                >
+                  <el-icon><Sunny /></el-icon>
+                </el-button>
+                <el-button 
+                  :type="userPreference === 'system' ? 'primary' : ''"
+                  @click="setTheme('system')"
+                  title="跟随系统"
+                >
+                  <el-icon><Monitor /></el-icon>
+                </el-button>
+                <el-button 
+                  :type="currentTheme === 'dark' ? 'primary' : ''"
+                  @click="setTheme('dark')"
+                  title="深色模式"
+                >
+                  <el-icon><Moon /></el-icon>
+                </el-button>
+              </el-button-group>
+            </div>
+          </div>
+        </el-dropdown-item>
         <el-dropdown-item divided command="logout" class="logout-item">
           <el-icon><SwitchButton /></el-icon>
           <span>登出</span>
@@ -36,14 +67,50 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { User, Setting, Lock, SwitchButton, ArrowDown } from '@element-plus/icons-vue';
+import { User, Setting, Lock, SwitchButton, ArrowDown, Moon, Sunny, Monitor } from '@element-plus/icons-vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
+
+// 主题管理
+const currentTheme = ref('light')
+const userPreference = ref('system')
+
+const initTheme = () => {
+  const saved = localStorage.getItem('theme-preference') || 'system'
+  userPreference.value = saved
+  
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  const updateTheme = () => {
+    let theme = userPreference.value
+    if (userPreference.value === 'system') {
+      theme = mediaQuery.matches ? 'dark' : 'light'
+    }
+    currentTheme.value = theme
+    document.documentElement.setAttribute('data-theme', theme)
+    document.body.classList.toggle('dark-theme', theme === 'dark')
+    document.body.classList.toggle('light-theme', theme === 'light')
+  }
+  
+  mediaQuery.addEventListener('change', updateTheme)
+  updateTheme()
+}
+
+const setTheme = (theme) => {
+  if (!['light', 'dark', 'system'].includes(theme)) return
+  
+  userPreference.value = theme
+  localStorage.setItem('theme-preference', theme)
+  initTheme()
+}
+
+onMounted(() => {
+  initTheme()
+})
 
 const userName = computed(() => 
   authStore.currentUser?.nickname || 
@@ -168,5 +235,41 @@ const handleLogout = async () => {
 .logout-item:hover {
   background-color: #fef0f0;
   color: #f56c6c;
+}
+
+.theme-item {
+  cursor: default !important;
+  padding: 8px 16px !important;
+}
+
+.theme-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.theme-selector > span {
+  flex: 1;
+}
+
+.theme-options {
+  display: flex;
+  align-items: center;
+}
+
+.theme-options .el-button-group {
+  --el-button-size: 24px;
+}
+
+.theme-options .el-button {
+  padding: 4px 6px;
+  min-height: 24px;
+  border-radius: 4px;
+}
+
+.theme-options .el-button .el-icon {
+  font-size: 12px;
 }
 </style>

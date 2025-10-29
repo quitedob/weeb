@@ -149,7 +149,7 @@ const fetchMyGroups = async () => {
   loadingMyGroups.value = true;
   try {
     const response = await api.group.getUserJoinedGroups();
-    if (response && response.code === 200 && response.data) {
+    if (response && response.code === 0 && response.data) {
         myGroups.value = response.data.map(group => ({
             ...group,
             // Assuming backend sends 'id' for group, and 'memberCount' directly.
@@ -179,8 +179,10 @@ const searchPublicGroups = async () => {
   initialDiscoverLoad.value = false;
   try {
     const response = await api.search.searchGroups(searchQuery.value);
-     if (response && response.code === 200 && response.data) {
-        discoveredGroups.value = response.data.map(group => ({
+     if (response && response.code === 0 && response.data) {
+        // Handle both list format and direct array format
+        const groupList = response.data.list || response.data;
+        discoveredGroups.value = groupList.map(group => ({
             ...group,
             // Assuming backend sends 'id', 'groupName', 'ownerUsername', 'memberCount'
         }));
@@ -225,7 +227,7 @@ const handleCreateGroup = async () => {
         };
         const response = await api.group.createGroup(payload);
 
-        if (response && response.code === 200) {
+        if (response && response.code === 0) {
             ElMessage.success('群组创建成功');
             createGroupDialogVisible.value = false;
             fetchMyGroups();
@@ -256,7 +258,7 @@ const applyToJoinGroup = async (groupId) => {
     const loading = ElLoading.service({ text: '正在处理...' });
     try {
       const response = await api.group.applyToJoinGroup({ groupId });
-      if (response.code === 200) {
+      if (response.code === 0) {
          ElMessage.success('操作成功！请等待群主或管理员审核或查看群组列表。');
          fetchMyGroups();
       } else {

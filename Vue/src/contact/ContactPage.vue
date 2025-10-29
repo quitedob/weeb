@@ -300,7 +300,9 @@ const searchUsers = async () => {
   try {
     const response = await contactApi.searchUsers(searchQuery.value.trim())
     if (response && response.code === 0) {
-      searchResults.value = response.data || []
+      // Handle both list format and direct array format
+      const userList = response.data.list || response.data;
+      searchResults.value = userList || []
     } else {
       showMessage.error('搜索失败') // 使用 showMessage 显示错误
     }
@@ -692,35 +694,47 @@ onMounted(() => {
   animation: fadeIn 0.3s ease;
 }
 
-/* 深色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .contact-page-container {
-    background: #000000;
-  }
+/* 主题适配 */
+.contact-page-container {
+  background: var(--apple-bg-secondary);
+  color: var(--apple-text-primary);
+}
 
-  .page-header h1,
-  .search-header h3,
-  .search-results h3,
-  .form-item label {
-    color: #f5f5f7;
-  }
+.page-header h1,
+.search-header h3,
+.search-results h3,
+.form-item label {
+  color: var(--apple-text-primary);
+}
 
-  .contact-card,
-  .request-card,
-  .user-card,
-  .search-card {
-    background: rgba(28, 28, 30, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
+.contact-card,
+.request-card,
+.user-card,
+.search-card {
+  background: var(--apple-bg-primary);
+  border: 1px solid var(--apple-border-secondary);
+  color: var(--apple-text-primary);
+}
 
-  .username {
-    color: #f5f5f7;
-  }
+.username {
+  color: var(--apple-text-primary);
+}
 
-  .nickname,
-  .user-nickname,
-  .request-time {
-    color: #98989f;
-  }
+.nickname,
+.user-nickname,
+.request-time {
+  color: var(--apple-text-tertiary);
+}
+
+.loading-text,
+.empty-text {
+  color: var(--apple-text-tertiary);
+}
+
+.contact-bio,
+.user-bio,
+.request-message {
+  color: var(--apple-text-secondary);
+  border-top: 1px solid var(--apple-border-secondary);
 }
 </style>

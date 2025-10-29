@@ -70,29 +70,47 @@ export const useChatStore = defineStore('chat', {
     // STOMP WebSocket Connection Methods
     connectWebSocket() {
       const authStore = useAuthStore();
-      if (!authStore.token) {
+      
+      // authStore使用accessToken，不是token
+      const token = authStore.accessToken;
+      
+      console.log('🔌 尝试连接WebSocket...');
+      console.log('Token存在:', !!token);
+      console.log('Token长度:', token ? token.length : 0);
+      
+      if (!token) {
+        console.error('❌ 无法连接WebSocket: 缺少认证token');
+        console.error('请先登录！');
         log.warn('No auth token available for STOMP connection');
+        this.connectionStatus = 'error';
         return;
       }
 
       if (this.stompClient && this.stompClient.connected) {
+        console.log('✅ WebSocket已连接');
         log.debug('STOMP already connected');
         return;
       }
 
       this.connectionStatus = 'connecting';
+      console.log('⏳ WebSocket连接状态: connecting');
 
       try {
         // 获取WebSocket URL（根据环境配置）
         const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
+        console.log('🌐 WebSocket URL:', wsUrl);
         
         // Create STOMP client with SockJS fallback
         this.stompClient = new Client({
-          webSocketFactory: () => new SockJS(wsUrl),
+          webSocketFactory: () => {
+            console.log('🏭 创建SockJS连接...');
+            return new SockJS(wsUrl);
+          },
           connectHeaders: {
-            'Authorization': `Bearer ${authStore.token}`
+            'Authorization': `Bearer ${token}`
           },
           debug: (str) => {
+            console.log('📡 STOMP:', str);
             log.debug('STOMP Debug:', str);
           },
           reconnectDelay: 5000,
@@ -102,6 +120,8 @@ export const useChatStore = defineStore('chat', {
 
         // Connection successful
         this.stompClient.onConnect = (frame) => {
+          console.log('✅ WebSocket连接成功!');
+          console.log('Frame:', frame);
           log.info('STOMP connected:', frame);
           this.connectionStatus = 'connected';
           this.reconnectAttempts = 0;
@@ -115,7 +135,9 @@ export const useChatStore = defineStore('chat', {
 
         // Connection error
         this.stompClient.onStompError = (frame) => {
-          console.error('STOMP error:', frame);
+          console.error('❌ WebSocket STOMP错误:', frame);
+          console.error('错误详情:', frame.headers);
+          console.error('错误消息:', frame.body);
           this.connectionStatus = 'error';
 
           // Attempt to reconnect
@@ -130,16 +152,24 @@ export const useChatStore = defineStore('chat', {
 
         // Connection lost
         this.stompClient.onDisconnect = () => {
-          console.log('STOMP disconnected');
+          console.log('⚠️ WebSocket断开连接');
           this.connectionStatus = 'disconnected';
           this.stopHeartbeat();
         };
 
+        // Web Socket error
+        this.stompClient.onWebSocketError = (error) => {
+          console.error('❌ WebSocket底层错误:', error);
+          this.connectionStatus = 'error';
+        };
+
         // Connect to STOMP server
+        console.log('🚀 激活STOMP客户端...');
         this.stompClient.activate();
 
       } catch (error) {
-        console.error('Failed to create STOMP connection:', error);
+        console.error('❌ 创建STOMP连接失败:', error);
+        console.error('错误堆栈:', error.stack);
         this.connectionStatus = 'error';
       }
     },
@@ -186,13 +216,23 @@ export const useChatStore = defineStore('chat', {
       if (this.stompClient && this.stompClient.connected) {
         // Map message types to STOMP destinations
         let destination;
+        let payload = { ...message.data };
 
         switch (message.type) {
           case 'chat':
             if (message.data.chatType === 'PRIVATE') {
               destination = '/app/chat/private';
+              // 后端期望targetUser（用户名），而不是targetId
+              // 如果有targetId，需要转换为targetUser
+              if (payload.targetId && !payload.targetUser) {
+                // 这里暂时使用targetId作为targetUser
+                // 实际应该从用户信息中获取username
+                payload.targetUser = String(payload.targetId);
+              }
             } else {
-              destination = `/app/chat/sendMessage/${message.data.targetId}`;
+              // 群聊消息
+              destination = '/app/chat.sendMessage';
+              payload.roomId = `group_${message.data.targetId}`;
             }
             break;
           case 'typing':
@@ -208,7 +248,7 @@ export const useChatStore = defineStore('chat', {
 
         this.stompClient.publish({
           destination: destination,
-          body: JSON.stringify(message.data)
+          body: JSON.stringify(payload)
         });
       } else {
         console.warn('STOMP not connected, message not sent:', message);
@@ -349,6 +389,9 @@ export const useChatStore = defineStore('chat', {
     async fetchMessagesForChat(chatId, page = 1, limit = null) {
       try {
         const batchSize = limit || this.messageBatchSize;
+        const authStore = useAuthStore();
+        const currentUserId = authStore.currentUser?.id;
+        
         // 使用新的chat API
         const response = await api.chat.getChatMessages(chatId, {
           page,
@@ -358,6 +401,13 @@ export const useChatStore = defineStore('chat', {
         if (response.code === 0 && response.data) {
           const hasMore = response.data.length === batchSize;
 
+          // 为每条消息添加isFromMe字段
+          const messagesWithFlag = response.data.map(msg => ({
+            ...msg,
+            isFromMe: msg.senderId === currentUserId,
+            msgContent: typeof msg.content === 'object' ? msg.content.content : msg.content
+          }));
+
           // Update pagination info
           this.chatPagination[chatId] = {
             hasMore,
@@ -366,11 +416,11 @@ export const useChatStore = defineStore('chat', {
           };
 
           if (page === 1) {
-            this.setMessages(chatId, response.data);
+            this.setMessages(chatId, messagesWithFlag);
           } else {
             // Append messages for pagination
             const existingMessages = this.chatMessages[chatId] || [];
-            this.setMessages(chatId, [...response.data, ...existingMessages]);
+            this.setMessages(chatId, [...messagesWithFlag, ...existingMessages]);
           }
         }
       } catch (error) {

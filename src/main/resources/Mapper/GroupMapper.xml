@@ -34,31 +34,7 @@
         <if test="endDate != null and endDate != ''">
             AND DATE(g.create_time) &lt;= #{endDate}
         </if>
-        ORDER BY
-        <choose>
-            <when test="sortBy == 'relevance'">
-                CASE
-                    WHEN g.group_name = #{keyword} THEN 1
-                    WHEN g.group_name LIKE CONCAT(#{keyword}, '%') THEN 2
-                    ELSE 3
-                END, g.create_time DESC
-            </when>
-            <when test="sortBy == 'time_desc'">
-                g.create_time DESC, g.id DESC
-            </when>
-            <when test="sortBy == 'time_asc'">
-                g.create_time ASC, g.id ASC
-            </when>
-            <when test="sortBy == 'name_asc'">
-                g.group_name ASC, g.id ASC
-            </when>
-            <when test="sortBy == 'name_desc'">
-                g.group_name DESC, g.id DESC
-            </when>
-            <otherwise>
-                g.create_time DESC, g.id DESC
-            </otherwise>
-        </choose>
+        ORDER BY ${sortClause}
         LIMIT #{offset}, #{limit}
     </select>
 

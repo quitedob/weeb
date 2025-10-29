@@ -149,6 +149,7 @@ public class UserStats implements Serializable {
     }
 
     // getId method for compatibility
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public Long getId() {
         return userId;
     }

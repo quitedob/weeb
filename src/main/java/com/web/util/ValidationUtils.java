@@ -224,10 +224,10 @@ public class ValidationUtils {
     }
 
     /**
-     * 验证分页参数
+     * 验证分页参数 (支持0基础分页)
      */
     public static boolean validatePageParams(Integer page, Integer pageSize, String paramName) {
-        if (page == null || page < 1) {
+        if (page == null || page < 0) {
             log.warn("{}分页参数验证失败：页码无效 - {}", paramName, page);
             return false;
         }
@@ -775,11 +775,11 @@ public class ValidationUtils {
 
     
     /**
-     * 验证分页参数
+     * 验证分页参数 (支持0基础分页)
      */
     public static boolean validatePaginationParams(Integer page, Integer pageSize, int maxPageSize) {
-        if (page == null || page < 1) {
-            log.warn("分页参数验证失败：页码必须大于0");
+        if (page == null || page < 0) {
+            log.warn("分页参数验证失败：页码必须大于等于0");
             return false;
         }
 

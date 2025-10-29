@@ -621,4 +621,34 @@
         WHERE article_id = #{articleId}
     </update>
 
+    <!-- ==================== 点赞相关SQL ==================== -->
+
+    <!-- 插入点赞记录 -->
+    <insert id="insertArticleLike">
+        INSERT INTO article_like (user_id, article_id, created_at)
+        VALUES (#{userId}, #{articleId}, NOW())
+    </insert>
+
+    <!-- 删除点赞记录 -->
+    <delete id="deleteArticleLike">
+        DELETE FROM article_like 
+        WHERE user_id = #{userId} AND article_id = #{articleId}
+    </delete>
+
+    <!-- 检查用户是否已点赞文章 -->
+    <select id="isArticleLikedByUser" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM article_like
+        WHERE user_id = #{userId} AND article_id = #{articleId}
+    </select>
+
+    <!-- 统计文章点赞数 -->
+    <select id="countArticleLikes" resultType="int">
+        SELECT COUNT(*) FROM article_like WHERE article_id = #{articleId}
+    </select>
+
+    <!-- 减少文章点赞数 -->
+    <update id="decreaseLikeCount" parameterType="long">
+        UPDATE articles SET likes_count = GREATEST(likes_count - 1, 0) WHERE article_id = #{articleId}
+    </update>
+
 </mapper>

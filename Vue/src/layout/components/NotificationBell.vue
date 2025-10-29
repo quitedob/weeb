@@ -239,7 +239,7 @@ onUnmounted(() => {
   width: 360px;
   max-height: 480px;
   margin-top: var(--apple-spacing-sm);
-  z-index: 1000;
+  z-index: var(--z-popover);
   box-shadow: var(--apple-shadow-heavy);
   border: 1px solid var(--apple-border-secondary);
 }
@@ -402,7 +402,8 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 999;
+  z-index: calc(var(--z-popover) - 1);
+  background-color: transparent;
 }
 
 /* 响应式设计 */
@@ -422,19 +423,55 @@ onUnmounted(() => {
   }
 }
 
-/* 暗色主题适配 */
-@media (prefers-color-scheme: dark) {
-  .notification-popover {
-    background-color: var(--apple-bg-primary);
-    border-color: var(--apple-border-primary);
-  }
-  
-  .popover-header {
-    border-bottom-color: var(--apple-border-primary);
-  }
-  
-  .popover-footer {
-    border-top-color: var(--apple-border-primary);
-  }
+/* 主题适配 */
+.notification-popover {
+  background-color: var(--apple-bg-primary);
+  border-color: var(--apple-border-secondary);
+}
+
+.popover-header {
+  border-bottom-color: var(--apple-border-secondary);
+}
+
+.popover-footer {
+  border-top-color: var(--apple-border-secondary);
+}
+
+.bell-button:hover {
+  background-color: var(--apple-bg-tertiary);
+}
+
+.bell-icon {
+  color: var(--apple-text-secondary);
+}
+
+.popover-title {
+  color: var(--apple-text-primary);
+}
+
+.close-button {
+  color: var(--apple-text-tertiary);
+}
+
+.close-button:hover {
+  background-color: var(--apple-bg-tertiary);
+  color: var(--apple-text-secondary);
+}
+
+.notification-item:hover {
+  background-color: var(--apple-bg-tertiary);
+}
+
+.notification-text {
+  color: var(--apple-text-primary);
+}
+
+.notification-time {
+  color: var(--apple-text-tertiary);
+}
+
+.loading-text,
+.empty-text {
+  color: var(--apple-text-tertiary);
 }
 </style> 

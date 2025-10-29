@@ -32,9 +32,9 @@
         WHERE id = #{contactId}
     </update>
 
-    <!-- 根据用户和状态查询联系人列表 -->
+    <!-- 根据用户和状态查询联系人列表，防止重复 -->
     <select id="selectContactsByUserAndStatus" resultType="com.web.dto.UserDto">
-        SELECT u.id, u.username, u.avatar, c.create_time as contactTime
+        SELECT DISTINCT u.id, u.username, u.avatar, c.create_time as contactTime
         FROM contact c
         LEFT JOIN user u ON (c.user_id = u.id OR c.friend_id = u.id)
         WHERE (c.user_id = #{userId} OR c.friend_id = #{userId})
@@ -96,9 +96,9 @@
         WHERE status = #{status}
     </select>
 
-    <!-- 查询联系人详细信息 - 支持双向关系 -->
+    <!-- 查询联系人详细信息 - 支持双向关系，防止重复 -->
     <select id="selectContactsWithDetails" resultType="com.web.dto.ContactDto">
-        SELECT
+        SELECT DISTINCT
             u.id,
             u.username,
             u.nickname,

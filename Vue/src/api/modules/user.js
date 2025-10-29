@@ -72,12 +72,12 @@ export function checkFollowStatus(userId) {
 
 // 获取关注统计
 export function getFollowStats() {
-  return axiosInstance.get('/api/follow/stats');
+  return axiosInstance.get('/api/user-follows/count/me');
 }
 
 // 获取指定用户的关注统计
 export function getUserFollowStats(userId) {
-  return axiosInstance.get(`/api/follow/stats/${userId}`);
+  return axiosInstance.get(`/api/user-follows/count/${userId}`);
 }
 
 // 获取用户统计信息

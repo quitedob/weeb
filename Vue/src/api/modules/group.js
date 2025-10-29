@@ -58,9 +58,9 @@ export default {
     return axiosInstance.post(`/api/groups/${data.groupId}/applications`, data);
   },
 
-  // 搜索群组 - 对应 GET /api/groups/search?keyword=xxx
+  // 搜索群组 - 对应 GET /api/groups/search?q=xxx
   searchGroups(keyword) {
-    return axiosInstance.get('/api/groups/search', { params: { keyword } });
+    return axiosInstance.get('/api/groups/search', { params: { q: keyword } });
   },
 
   // 获取群组统计信息 - 对应 GET /api/groups/{groupId}/stats

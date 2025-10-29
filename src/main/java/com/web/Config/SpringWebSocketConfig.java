@@ -1,13 +1,25 @@
 package com.web.Config;
 
+import com.web.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
+
+import java.security.Principal;
 
 /**
  * Spring WebSocket 配置类
@@ -17,6 +29,9 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 @Configuration
 @EnableWebSocketMessageBroker
 public class SpringWebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -56,6 +71,49 @@ public class SpringWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .corePoolSize(4)
                 .maxPoolSize(8)
                 .keepAliveSeconds(60);
+        
+        // 添加认证拦截器
+        registration.interceptors(new ChannelInterceptor() {
+            @Override
+            public Message<?> preSend(Message<?> message, MessageChannel channel) {
+                StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+                
+                if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
+                    log.info("收到WebSocket CONNECT请求");
+                    
+                    // 从连接头中获取Authorization token
+                    String authHeader = accessor.getFirstNativeHeader("Authorization");
+                    log.info("Authorization头: {}", authHeader != null ? "存在" : "不存在");
+                    
+                    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                        String token = authHeader.substring(7);
+                        log.info("提取到token，长度: {}", token.length());
+                        
+                        try {
+                            // 验证JWT token
+                            if (jwtUtil.validateToken(token)) {
+                                Long userId = jwtUtil.getUserIdFromToken(token);
+                                String userIdStr = String.valueOf(userId);
+                                
+                                // 创建认证对象
+                                Principal principal = () -> userIdStr;
+                                accessor.setUser(principal);
+                                
+                                log.info("✅ WebSocket连接认证成功: userId={}", userId);
+                            } else {
+                                log.warn("❌ WebSocket连接认证失败: token无效");
+                            }
+                        } catch (Exception e) {
+                            log.error("❌ WebSocket认证异常", e);
+                        }
+                    } else {
+                        log.warn("❌ WebSocket连接缺少Authorization头或格式错误");
+                    }
+                }
+                
+                return message;
+            }
+        });
     }
 
     @Override
