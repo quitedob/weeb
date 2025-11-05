@@ -8,7 +8,9 @@ import com.web.model.Notification;
 import com.web.model.User;
 import com.web.model.Article;
 import com.web.service.NotificationService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,7 @@ import java.util.Map;
  * 通知服务实现类
  * 处理用户通知的创建、查询、标记已读等业务逻辑
  */
+@Slf4j
 @Service
 @Transactional
 public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Notification> implements NotificationService {
@@ -33,6 +36,9 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     @Autowired
     private ArticleMapper articleMapper;
+    
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @Override
     public void createAndPublishNotification(Long recipientId, Long actorId, String type, String entityType, Long entityId) {
@@ -59,6 +65,40 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
         // The notification details are determined by type, entityType, and entityId
         
         save(notification);
+        
+        // 通过 WebSocket 推送通知
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("id", notification.getId());
+            payload.put("type", type);
+            payload.put("entityType", entityType);
+            payload.put("entityId", entityId);
+            payload.put("actorId", actorId);
+            payload.put("actorName", actor.getUsername());
+            payload.put("createdAt", notification.getCreatedAt());
+            
+            // 发送到用户专属主题
+            messagingTemplate.convertAndSendToUser(
+                recipientId.toString(),
+                "/queue/notifications",
+                payload
+            );
+            
+            // 如果是联系人相关通知，额外发送到联系人主题
+            if ("CONTACT".equals(entityType)) {
+                messagingTemplate.convertAndSendToUser(
+                    recipientId.toString(),
+                    "/queue/contacts",
+                    payload
+                );
+                log.info("联系人通知已推送 - 接收者: {}, 类型: {}", recipientId, type);
+            }
+            
+            log.debug("WebSocket 通知已推送 - 接收者: {}, 类型: {}", recipientId, type);
+        } catch (Exception e) {
+            log.error("推送 WebSocket 通知失败 - 接收者: {}, 类型: {}", recipientId, type, e);
+            // 不抛出异常，通知推送失败不应影响业务流程
+        }
     }
 
     @Override

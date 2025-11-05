@@ -114,7 +114,29 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
     @Override
     public Message sendPrivateMessage(Long targetUserId, String content, Long senderId) {
+        return sendPrivateMessage(targetUserId, content, senderId, null);
+    }
+    
+    /**
+     * 发送私聊消息（支持客户端消息ID）
+     */
+    public Message sendPrivateMessage(Long targetUserId, String content, Long senderId, String clientMessageId) {
         try {
+            // 幂等性检查：如果提供了客户端消息ID，检查是否已存在
+            if (clientMessageId != null && !clientMessageId.trim().isEmpty()) {
+                Message existingMessage = messageMapper.selectOne(
+                    new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Message>()
+                        .eq("client_message_id", clientMessageId)
+                        .eq("sender_id", senderId)
+                );
+                
+                if (existingMessage != null) {
+                    log.info("消息已存在（幂等性）- clientMessageId: {}, messageId: {}", 
+                             clientMessageId, existingMessage.getId());
+                    return existingMessage;
+                }
+            }
+            
             // 验证目标用户是否存在（使用UserService替代ChatService）
             com.web.model.User targetUser = userService.getUserBasicInfo(targetUserId);
             if (targetUser == null) {
@@ -130,6 +152,7 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
             // 创建消息对象
             Message message = new Message();
+            message.setClientMessageId(clientMessageId); // 设置客户端消息ID
             message.setChatId(Long.parseLong(chatList.getId()));
             message.setSenderId(senderId);
             message.setReceiverId(targetUserId);
@@ -146,8 +169,8 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             // 更新聊天列表
             chatListMapper.updateLastMessageAndUnreadCount(chatList.getId(), content);
 
-            log.info("私聊消息发送成功: senderId={}, receiverId={}, messageId={}",
-                senderId, targetUserId, message.getId());
+            log.info("私聊消息发送成功: senderId={}, receiverId={}, messageId={}, clientMessageId={}",
+                senderId, targetUserId, message.getId(), clientMessageId);
 
             return message;
 
@@ -159,7 +182,29 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
     @Override
     public Message sendGroupMessage(Long groupId, String content, Long senderId) {
+        return sendGroupMessage(groupId, content, senderId, null);
+    }
+    
+    /**
+     * 发送群聊消息（支持客户端消息ID）
+     */
+    public Message sendGroupMessage(Long groupId, String content, Long senderId, String clientMessageId) {
         try {
+            // 幂等性检查：如果提供了客户端消息ID，检查是否已存在
+            if (clientMessageId != null && !clientMessageId.trim().isEmpty()) {
+                Message existingMessage = messageMapper.selectOne(
+                    new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Message>()
+                        .eq("client_message_id", clientMessageId)
+                        .eq("sender_id", senderId)
+                );
+                
+                if (existingMessage != null) {
+                    log.info("消息已存在（幂等性）- clientMessageId: {}, messageId: {}", 
+                             clientMessageId, existingMessage.getId());
+                    return existingMessage;
+                }
+            }
+            
             // 验证群组是否存在
             Group group = groupMapper.selectById(groupId);
             if (group == null) {
@@ -178,6 +223,7 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
 
             // 创建消息对象
             Message message = new Message();
+            message.setClientMessageId(clientMessageId); // 设置客户端消息ID
             message.setChatId(groupId); // 群聊使用groupId作为chatId
             message.setSenderId(senderId);
             message.setGroupId(groupId); // 设置群组ID
@@ -194,8 +240,8 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             // 更新群组成员的未读消息数（这里简化处理）
             updateGroupUnreadCounts(groupId, senderId);
 
-            log.info("群聊消息发送成功: groupId={}, senderId={}, messageId={}",
-                groupId, senderId, message.getId());
+            log.info("群聊消息发送成功: groupId={}, senderId={}, messageId={}, clientMessageId={}",
+                groupId, senderId, message.getId(), clientMessageId);
 
             return message;
 

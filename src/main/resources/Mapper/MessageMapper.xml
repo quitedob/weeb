@@ -7,6 +7,7 @@
 
     <resultMap id="MessageResultMap" type="com.web.model.Message">
         <id column="id" property="id" />
+        <result column="client_message_id" property="clientMessageId" />
         <result column="sender_id" property="senderId" />
         <result column="chat_id" property="chatId" />
         <result column="content" property="content" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
@@ -25,6 +26,7 @@
     <select id="getPreviousShowTimeMsg" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
+            client_message_id,
             sender_id,
             chat_id,
             content,
@@ -47,6 +49,7 @@
     <select id="record" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
+            client_message_id,
             sender_id,
             chat_id,
             content,
@@ -71,6 +74,7 @@
     <select id="selectMessagesByUsers" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
+            client_message_id,
             sender_id,
             chat_id,
             content,
@@ -93,10 +97,10 @@
     <!-- 插入消息记录 -->
     <insert id="insertMessage" parameterType="com.web.model.Message" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO message (
-            sender_id, chat_id, content, message_type, read_status, is_recalled,
+            client_message_id, sender_id, chat_id, content, message_type, read_status, is_recalled,
             user_ip, source, is_show_time, created_at, updated_at
         ) VALUES (
-            #{senderId}, #{chatId}, #{content, typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler},
+            #{clientMessageId}, #{senderId}, #{chatId}, #{content, typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler},
             #{messageType}, #{readStatus}, #{isRecalled},
             #{userIp}, #{source}, #{isShowTime}, #{createdAt}, #{updatedAt}
         )
@@ -105,10 +109,10 @@
     <!-- 插入群消息记录 -->
     <insert id="insertGroupMessage" parameterType="com.web.model.Message" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO message (
-            sender_id, chat_id, content, message_type, read_status, is_recalled,
+            client_message_id, sender_id, chat_id, content, message_type, read_status, is_recalled,
             user_ip, source, is_show_time, created_at, updated_at
         ) VALUES (
-            #{senderId}, #{chatId}, #{content, typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler},
+            #{clientMessageId}, #{senderId}, #{chatId}, #{content, typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler},
             #{messageType}, #{readStatus}, #{isRecalled},
             #{userIp}, #{source}, #{isShowTime}, #{createdAt}, #{updatedAt}
         )
@@ -118,6 +122,7 @@
     <select id="selectMessageById" parameterType="java.lang.Long" resultMap="MessageResultMap">
         SELECT 
             id,
+            client_message_id,
             sender_id,
             chat_id,
             content,
@@ -165,6 +170,7 @@
     <select id="selectLastMessageByChatId" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
+            client_message_id,
             sender_id,
             chat_id,
             content,
@@ -187,6 +193,7 @@
     <select id="selectMessagesByChatId" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
+            client_message_id,
             sender_id,
             chat_id,
             content,
@@ -211,6 +218,7 @@
     <select id="selectThreadMessages" parameterType="map" resultMap="MessageResultMap">
         SELECT
             id,
+            client_message_id,
             sender_id,
             chat_id,
             content,

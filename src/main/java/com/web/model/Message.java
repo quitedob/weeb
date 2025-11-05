@@ -23,6 +23,8 @@ public class Message implements Serializable {
 
     @TableId // MyBatis Plus主键注解
     private Long id; // 消息ID
+    
+    private String clientMessageId; // 客户端消息ID（用于幂等性）
 
     private Long senderId; // 发送者ID
     private Long receiverId; // 接收者ID（私聊时使用）

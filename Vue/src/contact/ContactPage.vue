@@ -324,6 +324,15 @@ const openAddContactDialog = () => {
 }
 
 const sendFriendRequest = async (user) => {
+  // 获取当前用户ID
+  const currentUserId = localStorage.getItem('userId') || sessionStorage.getItem('userId')
+  
+  // 防止添加自己
+  if (currentUserId && user.id === parseInt(currentUserId)) {
+    showMessage.warning('不能添加自己为好友')
+    return
+  }
+  
   try {
     const response = await contactApi.sendRequest(user.id, '您好，我想添加您为好友')
     if (response && response.code === 0) {
@@ -342,6 +351,15 @@ const sendFriendRequest = async (user) => {
 const sendFriendRequestByUsername = async () => {
   if (!addForm.value.username.trim()) {
     showMessage.warning('请输入用户名或邮箱')
+    return
+  }
+  
+  // 获取当前用户名
+  const currentUsername = localStorage.getItem('username') || sessionStorage.getItem('username')
+  
+  // 防止添加自己
+  if (currentUsername && addForm.value.username.trim().toLowerCase() === currentUsername.toLowerCase()) {
+    showMessage.warning('不能添加自己为好友')
     return
   }
 
@@ -441,10 +459,98 @@ const formatTime = (timeString) => {
   }
 }
 
+// WebSocket 订阅
+let stompClient = null
+
+const connectWebSocket = () => {
+  // 检查是否已有 WebSocket 连接（从全局状态或其他地方）
+  // 这里简化处理，实际应该从 Pinia store 或全局单例获取
+  const token = localStorage.getItem('token')
+  if (!token) {
+    console.warn('未登录，跳过 WebSocket 连接')
+    return
+  }
+
+  try {
+    const SockJS = window.SockJS
+    const Stomp = window.Stomp
+    
+    if (!SockJS || !Stomp) {
+      console.warn('SockJS 或 Stomp 未加载')
+      return
+    }
+
+    const socket = new SockJS('/ws')
+    stompClient = Stomp.over(socket)
+
+    stompClient.connect(
+      { Authorization: `Bearer ${token}` },
+      () => {
+        console.log('WebSocket 已连接')
+
+        // 订阅联系人通知
+        stompClient.subscribe('/user/queue/contacts', (message) => {
+          try {
+            const notification = JSON.parse(message.body)
+            console.log('收到联系人通知:', notification)
+
+            // 根据通知类型刷新列表
+            if (notification.type === 'FRIEND_REQUEST') {
+              // 收到新的好友申请
+              loadFriendRequests()
+              showMessage.info('收到新的好友申请')
+            } else if (notification.type === 'FRIEND_ACCEPTED') {
+              // 好友申请被接受
+              loadContacts()
+              loadFriendRequests()
+              showMessage.success('好友申请已被接受')
+            } else if (notification.type === 'CONTACT_UPDATED') {
+              // 联系人列表更新
+              loadContacts()
+            }
+          } catch (error) {
+            console.error('处理联系人通知失败:', error)
+          }
+        })
+
+        // 订阅通用通知
+        stompClient.subscribe('/user/queue/notifications', (message) => {
+          try {
+            const notification = JSON.parse(message.body)
+            console.log('收到通知:', notification)
+          } catch (error) {
+            console.error('处理通知失败:', error)
+          }
+        })
+      },
+      (error) => {
+        console.error('WebSocket 连接失败:', error)
+      }
+    )
+  } catch (error) {
+    console.error('WebSocket 初始化失败:', error)
+  }
+}
+
+const disconnectWebSocket = () => {
+  if (stompClient && stompClient.connected) {
+    stompClient.disconnect(() => {
+      console.log('WebSocket 已断开')
+    })
+  }
+}
+
 // 生命周期
 onMounted(() => {
   loadContacts()
   loadFriendRequests()
+  connectWebSocket()
+})
+
+// 组件卸载时断开 WebSocket
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  disconnectWebSocket()
 })
 </script>
 
