@@ -133,14 +133,38 @@ public class ContactServiceImpl implements ContactService {
             .collect(java.util.stream.Collectors.toList());
         
         if (!pendingContacts.isEmpty()) {
-            // 检查是否是当前用户发起的PENDING请求
-            boolean hasSelfPending = pendingContacts.stream()
-                .anyMatch(c -> c.getUserId().equals(fromUserId));
+            // 检查是否过期（7天）
+            java.util.Date now = new java.util.Date();
+            java.util.List<com.web.model.Contact> expiredPending = pendingContacts.stream()
+                .filter(c -> {
+                    if (c.getExpireAt() != null) {
+                        return c.getExpireAt().before(now);
+                    }
+                    // 如果没有设置过期时间，检查创建时间是否超过7天
+                    long daysSinceCreation = (now.getTime() - c.getCreateTime().getTime()) / (1000 * 60 * 60 * 24);
+                    return daysSinceCreation > 7;
+                })
+                .collect(java.util.stream.Collectors.toList());
             
-            if (hasSelfPending) {
-                throw new WeebException("你已经发送过好友申请，请等待对方处理");
-            } else {
-                throw new WeebException("对方已向你发送好友申请，请在好友申请列表中处理");
+            // 删除过期的PENDING记录
+            for (com.web.model.Contact expired : expiredPending) {
+                contactMapper.deleteById(expired.getId());
+                log.info("删除过期的PENDING记录 - ID: {}, 创建时间: {}", expired.getId(), expired.getCreateTime());
+            }
+            
+            // 移除过期记录后重新检查
+            pendingContacts.removeAll(expiredPending);
+            
+            if (!pendingContacts.isEmpty()) {
+                // 检查是否是当前用户发起的PENDING请求
+                boolean hasSelfPending = pendingContacts.stream()
+                    .anyMatch(c -> c.getUserId().equals(fromUserId));
+                
+                if (hasSelfPending) {
+                    throw new WeebException("你已经发送过好友申请，请等待对方处理");
+                } else {
+                    throw new WeebException("对方已向你发送好友申请，请在好友申请列表中处理");
+                }
             }
         }
         
@@ -153,13 +177,30 @@ public class ContactServiceImpl implements ContactService {
                 log.info("删除旧的联系人记录 - ID: {}, 状态: {}", c.getId(), c.getStatus());
             });
         
-        // 创建联系人申请记录
-        int result = contactMapper.createContactApply(fromUserId, targetUser.getId(), message);
+        // 再次验证：防止自己加自己
+        if (fromUserId.equals(targetUser.getId())) {
+            throw new WeebException("不能添加自己为好友");
+        }
+        
+        // 创建联系人申请记录，设置7天过期时间
+        com.web.model.Contact newContact = new com.web.model.Contact();
+        newContact.setUserId(fromUserId);
+        newContact.setFriendId(targetUser.getId());
+        newContact.setStatus(ContactStatus.PENDING.getCode());
+        newContact.setRemarks(message);
+        
+        // 设置过期时间为7天后
+        java.util.Calendar calendar = java.util.Calendar.getInstance();
+        calendar.add(java.util.Calendar.DAY_OF_MONTH, 7);
+        newContact.setExpireAt(calendar.getTime());
+        
+        int result = contactMapper.insert(newContact);
         if (result <= 0) {
             throw new WeebException("申请添加好友失败");
         }
         
-        log.info("好友申请创建成功 - 申请人ID: {}, 目标用户ID: {}", fromUserId, targetUser.getId());
+        log.info("好友申请创建成功 - 申请人ID: {}, 目标用户ID: {}, 过期时间: {}", 
+                 fromUserId, targetUser.getId(), newContact.getExpireAt());
         
         // 发送好友申请通知
         try {
@@ -178,6 +219,7 @@ public class ContactServiceImpl implements ContactService {
     }
 
     @Override
+    @Transactional
     public void accept(Long contactId, Long toUserId) {
         // 输入验证
         if (contactId == null || contactId <= 0) {
@@ -187,36 +229,90 @@ public class ContactServiceImpl implements ContactService {
             throw new WeebException("用户ID必须为正数");
         }
         
-        // 检查联系人记录是否属于当前用户
-        boolean belongsToUser = contactMapper.isContactBelongsToUser(contactId, toUserId);
-        if (!belongsToUser) {
-            throw new WeebException("无权限操作此联系人记录");
-        }
-        
-        // 获取联系人记录以便发送通知
+        // 获取联系人记录
         com.web.model.Contact contact = contactMapper.selectById(contactId);
         if (contact == null) {
             throw new WeebException("联系人记录不存在");
         }
         
-        // 更新联系人状态为已接受
-        int result = contactMapper.updateContactStatus(contactId, ContactStatus.ACCEPTED.getCode());
+        // 检查联系人记录是否属于当前用户（必须是被申请人）
+        if (!contact.getFriendId().equals(toUserId)) {
+            throw new WeebException("无权限操作此联系人记录");
+        }
+        
+        Long applicantId = contact.getUserId(); // 申请人ID
+        Long acceptorId = toUserId; // 接受人ID（被申请人）
+        
+        // 防止自己加自己
+        if (applicantId.equals(acceptorId)) {
+            throw new WeebException("不能添加自己为好友");
+        }
+        
+        log.info("接受好友申请 - 申请人ID: {}, 接受人ID: {}, 记录ID: {}", applicantId, acceptorId, contactId);
+        
+        // 更新原申请记录状态为已接受
+        contact.setStatus(ContactStatus.ACCEPTED.getCode());
+        int result = contactMapper.updateById(contact);
         if (result <= 0) {
             throw new WeebException("接受好友申请失败");
         }
+        log.info("原申请记录已更新为ACCEPTED - 记录ID: {}", contactId);
         
-        // 发送好友申请被接受的通知
+        // 创建反向关系（双向好友关系）
+        // 检查反向关系是否已存在
+        java.util.List<com.web.model.Contact> reverseContacts = contactMapper.selectList(
+            new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<com.web.model.Contact>()
+                .eq("user_id", acceptorId)
+                .eq("friend_id", applicantId)
+        );
+        
+        if (reverseContacts.isEmpty()) {
+            // 再次验证：防止自己加自己
+            if (acceptorId.equals(applicantId)) {
+                log.error("尝试创建自己加自己的关系 - 用户ID: {}", acceptorId);
+                throw new WeebException("系统错误：不能添加自己为好友");
+            }
+            
+            // 创建反向关系
+            com.web.model.Contact reverseContact = new com.web.model.Contact();
+            reverseContact.setUserId(acceptorId);
+            reverseContact.setFriendId(applicantId);
+            reverseContact.setStatus(ContactStatus.ACCEPTED.getCode());
+            reverseContact.setRemarks("好友");
+            contactMapper.insert(reverseContact);
+            log.info("创建双向好友关系 - 用户ID: {}, 好友ID: {}", acceptorId, applicantId);
+        } else {
+            // 如果反向关系已存在，更新为ACCEPTED状态
+            for (com.web.model.Contact rc : reverseContacts) {
+                if (rc.getStatus() != ContactStatus.ACCEPTED.getCode()) {
+                    rc.setStatus(ContactStatus.ACCEPTED.getCode());
+                    contactMapper.updateById(rc);
+                    log.info("更新反向关系为ACCEPTED - 记录ID: {}", rc.getId());
+                }
+            }
+        }
+        
+        // 发送好友申请被接受的通知（双向通知）
         try {
             // 通知申请人：他的好友申请被接受了
-            Long applicantId = contact.getUserId(); // 申请人ID
             notificationService.createAndPublishNotification(
                 applicantId,              // 接收者：申请人
-                toUserId,                 // 操作者：接受申请的人
+                acceptorId,               // 操作者：接受申请的人
                 "FRIEND_ACCEPTED",        // 通知类型
                 "CONTACT",                // 实体类型
                 contactId                 // 实体ID
             );
             log.info("好友申请接受通知已发送 - 接收者ID: {}", applicantId);
+            
+            // 通知接受人：好友关系已建立（用于前端刷新列表）
+            notificationService.createAndPublishNotification(
+                acceptorId,               // 接收者：接受人
+                applicantId,              // 操作者：申请人
+                "CONTACT_UPDATED",        // 通知类型
+                "CONTACT",                // 实体类型
+                contactId                 // 实体ID
+            );
+            log.info("联系人更新通知已发送 - 接收者ID: {}", acceptorId);
         } catch (Exception e) {
             log.error("发送好友申请接受通知失败", e);
         }
