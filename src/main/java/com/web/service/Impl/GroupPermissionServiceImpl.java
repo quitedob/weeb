@@ -156,17 +156,17 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             }
 
             // 不能踢出群主
-            if (targetRole == ROLE_OWNER) {
+            if (GroupRoleConstants.isOwner(targetRole)) {
                 return false;
             }
 
             // 群主可以踢出任何人（除了自己）
-            if (operatorRole == ROLE_OWNER) {
+            if (GroupRoleConstants.isOwner(operatorRole)) {
                 return true;
             }
 
             // 管理员只能踢出普通成员
-            if (operatorRole == ROLE_ADMIN && targetRole == ROLE_MEMBER) {
+            if (GroupRoleConstants.isAdminOrOwner(operatorRole) && targetRole == GroupRoleConstants.ROLE_MEMBER) {
                 return true;
             }
 
@@ -214,12 +214,12 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             }
 
             // 不能修改群主的角色
-            if (targetRole == ROLE_OWNER) {
+            if (GroupRoleConstants.isOwner(targetRole)) {
                 return false;
             }
 
             // 只有群主可以设置管理员
-            if (operatorRole == ROLE_OWNER) {
+            if (GroupRoleConstants.isOwner(operatorRole)) {
                 return true;
             }
 
