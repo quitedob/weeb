@@ -7,6 +7,7 @@ import com.web.service.AuthService;
 import com.web.service.GroupPermissionService;
 import com.web.service.RedisCacheService;
 import com.web.service.UserTypeSecurityService;
+import com.web.constants.GroupRoleConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit;
  * 群组权限服务实现类
  * 统一管理群组相关的权限检查逻辑
  * 使用Redis缓存提高性能
+ * 已修复：统一使用GroupRoleConstants定义角色
  */
 @Slf4j
 @Service
@@ -33,12 +35,6 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
 
     @Autowired
     private RedisCacheService redisCacheService;
-
-    // 群组角色常量
-    private static final int ROLE_OWNER = 2;    // 群主
-    private static final int ROLE_ADMIN = 1;    // 管理员
-    private static final int ROLE_MEMBER = 0;   // 普通成员
-    private static final int ROLE_NON_MEMBER = -1; // 非成员
 
     // 缓存键前缀
     private static final String CACHE_PREFIX = "group:permission:";
@@ -66,7 +62,8 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
 
             // 缓存未命中，从数据库查询
             GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
-            int role = (member != null) ? member.getRole() : ROLE_NON_MEMBER;
+            int role = (member != null && "ACCEPTED".equals(member.getJoinStatus())) 
+                ? member.getRole() : GroupRoleConstants.ROLE_NON_MEMBER;
 
             // 存入缓存
             redisCacheService.set(cacheKey, role, CACHE_EXPIRE_SECONDS);
@@ -76,7 +73,8 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             log.error("获取用户群组角色失败: groupId={}, userId={}", groupId, userId, e);
             // 缓存失败时直接查询数据库
             GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
-            return (member != null) ? member.getRole() : ROLE_NON_MEMBER;
+            return (member != null && "ACCEPTED".equals(member.getJoinStatus())) 
+                ? member.getRole() : GroupRoleConstants.ROLE_NON_MEMBER;
         }
     }
 
@@ -91,7 +89,7 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             }
 
             int role = getUserRoleFromCacheOrDb(groupId, userId);
-            return role == ROLE_OWNER;
+            return GroupRoleConstants.isOwner(role);
         } catch (Exception e) {
             log.error("检查群主权限失败: groupId={}, userId={}", groupId, userId, e);
             return false;
@@ -109,7 +107,7 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             }
 
             int role = getUserRoleFromCacheOrDb(groupId, userId);
-            return role >= ROLE_ADMIN; // 管理员或群主
+            return GroupRoleConstants.isAdminOrOwner(role);
         } catch (Exception e) {
             log.error("检查管理员权限失败: groupId={}, userId={}", groupId, userId, e);
             return false;
@@ -120,7 +118,7 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
     public boolean isGroupMember(Long groupId, Long userId) {
         try {
             int role = getUserRoleFromCacheOrDb(groupId, userId);
-            return role >= ROLE_MEMBER; // 任何成员（包括普通成员、管理员、群主）
+            return GroupRoleConstants.isMember(role);
         } catch (Exception e) {
             log.error("检查成员权限失败: groupId={}, userId={}", groupId, userId, e);
             return false;
@@ -158,17 +156,17 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             }
 
             // 不能踢出群主
-            if (targetRole == ROLE_OWNER) {
+            if (GroupRoleConstants.isOwner(targetRole)) {
                 return false;
             }
 
             // 群主可以踢出任何人（除了自己）
-            if (operatorRole == ROLE_OWNER) {
+            if (GroupRoleConstants.isOwner(operatorRole)) {
                 return true;
             }
 
             // 管理员只能踢出普通成员
-            if (operatorRole == ROLE_ADMIN && targetRole == ROLE_MEMBER) {
+            if (GroupRoleConstants.isAdminOrOwner(operatorRole) && targetRole == GroupRoleConstants.ROLE_MEMBER) {
                 return true;
             }
 
@@ -216,12 +214,12 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             }
 
             // 不能修改群主的角色
-            if (targetRole == ROLE_OWNER) {
+            if (GroupRoleConstants.isOwner(targetRole)) {
                 return false;
             }
 
             // 只有群主可以设置管理员
-            if (operatorRole == ROLE_OWNER) {
+            if (GroupRoleConstants.isOwner(operatorRole)) {
                 return true;
             }
 

@@ -68,9 +68,27 @@ public class Contact implements Serializable {
     // Constructor for new application
     public Contact(Long userId, Long friendId, String remarks) {
         this(); // Call default constructor to set times
+        if (userId != null && userId.equals(friendId)) {
+            throw new IllegalArgumentException("不能添加自己为好友");
+        }
         this.userId = userId;
         this.friendId = friendId;
         this.remarks = remarks;
         this.status = com.web.constant.ContactStatus.PENDING.getCode(); // Default to PENDING
+    }
+    
+    // Setter with validation
+    public void setUserId(Long userId) {
+        if (userId != null && this.friendId != null && userId.equals(this.friendId)) {
+            throw new IllegalArgumentException("不能添加自己为好友");
+        }
+        this.userId = userId;
+    }
+    
+    public void setFriendId(Long friendId) {
+        if (friendId != null && this.userId != null && friendId.equals(this.userId)) {
+            throw new IllegalArgumentException("不能添加自己为好友");
+        }
+        this.friendId = friendId;
     }
 }
