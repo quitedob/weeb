@@ -11,4 +11,6 @@ public class GroupKickVo {
 
     @NotNull
     private Long kickedUserId; // 被踢出的用户ID (Changed to Long)
+
+    private String reason; // 踢出原因（可选）
 }

@@ -1,0 +1,37 @@
+=== 已完成的修复 ===
+
+[2025-11-05] 好友系统权限问题修复
+文件：
+- Vue/src/contact/ContactPage.vue
+- src/main/java/com/web/dto/ContactDto.java
+- src/main/resources/Mapper/ContactMapper.xml
+
+问题描述：
+1. 接受/拒绝好友申请时提示"无权限操作此联系人记录"
+2. 删除联系人功能无法正常工作
+
+根本原因：
+- ContactRequestDto 和 ContactDto 中存在两个 ID 字段：
+  * id: 用户ID（申请人或好友的用户ID）
+  * contactId: 联系人记录ID（contact 表的主键）
+- 前端错误地使用了 id（用户ID）来调用需要 contactId（记录ID）的 API
+
+修复内容：
+1. ContactRequestDto 已正确包含 contactId 字段
+2. 修改 ContactDto 添加 contactId 字段
+3. 修改 ContactMapper.xml 的 selectContactsWithDetails 查询，返回 c.id as contactId
+4. 修改前端 ContactPage.vue：
+   - acceptRequest: 使用 request.contactId 替代 request.id
+   - rejectRequest: 使用 request.contactId 替代 request.id
+   - deleteContact: 使用 contact.contactId 替代 contact.id
+   - 列表 :key 绑定：使用 contactId 确保正确渲染
+
+测试建议：
+1. 测试接受好友申请功能
+2. 测试拒绝好友申请功能
+3. 测试删除好友功能
+4. 验证列表刷新是否正常
+
+=== 待处理事项 ===
+
+（暂无）
