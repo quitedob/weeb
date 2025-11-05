@@ -217,8 +217,8 @@ public class DatabaseInitializer implements CommandLineRunner {
         String[][] tables = {
             {"user", "id,username,password,sex,phone_number,user_email,unique_article_link,unique_video_link,registration_date,ip_ownership,type,avatar,nickname,badge,login_time,bio,online_status,status"},
             {"user_stats", "user_id,fans_count,total_likes,total_favorites,total_sponsorship,total_article_exposure,website_coins,created_at,updated_at"},
-            {"`group`", "id,group_name,owner_id,group_avatar_url,group_description,status,max_members,member_count,last_transfer_at,transfer_count,create_time"},
-            {"group_member", "id,group_id,user_id,role,join_time,update_time"},
+            {"`group`", "id,group_name,owner_id,group_avatar_url,group_description,status,max_members,member_count,is_visible,category_id,tags,last_transfer_at,transfer_count,create_time,update_time"},
+            {"group_member", "id,group_id,user_id,role,join_status,invited_by,invite_reason,join_time,update_time,kicked_at,kick_reason"},
             {"group_transfer_history", "id,group_id,from_user_id,to_user_id,transfer_reason,transfer_at"},
             {"contact", "id,user_id,friend_id,status,remarks,expire_at,group_id,create_time,update_time"},
             {"contact_group", "id,user_id,group_name,group_order,is_default,created_at,updated_at"},
@@ -532,17 +532,24 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `status` TINYINT(1) DEFAULT 1 COMMENT '群组状态: 0=已解散, 1=正常, 2=冻结',
                 `max_members` INT DEFAULT 500 COMMENT '最大成员数',
                 `member_count` INT DEFAULT 0 COMMENT '当前成员数',
+                `is_visible` TINYINT(1) DEFAULT 1 COMMENT '是否可见: 0=私密, 1=公开',
+                `category_id` BIGINT COMMENT '群组分类ID',
+                `tags` VARCHAR(500) COMMENT '群组标签（逗号分隔）',
                 `last_transfer_at` TIMESTAMP NULL COMMENT '最后转让时间',
                 `transfer_count` INT DEFAULT 0 COMMENT '转让次数',
                 `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                 PRIMARY KEY (`id`),
                 KEY `idx_owner_id` (`owner_id`),
                 KEY `idx_create_time` (`create_time`),
+                KEY `idx_update_time` (`update_time`),
                 KEY `idx_group_status` (`status`),
                 KEY `idx_group_owner` (`owner_id`, `status`),
+                KEY `idx_is_visible` (`is_visible`),
+                KEY `idx_category_id` (`category_id`),
                 CONSTRAINT `fk_group_owner` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
-            COMMENT='群组信息表'
+            COMMENT='群组信息表（增强版：支持分类和标签）'
             """;
 
         try {
@@ -593,18 +600,26 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '成员关系ID',
                 `group_id` BIGINT NOT NULL COMMENT '群组ID',
                 `user_id` BIGINT NOT NULL COMMENT '用户ID',
-                `role` INT NOT NULL DEFAULT 3 COMMENT '成员角色：1群主，2管理员，3普通成员',
+                `role` INT NOT NULL DEFAULT 3 COMMENT '成员角色：1=群主，2=管理员，3=普通成员',
+                `join_status` VARCHAR(20) DEFAULT 'ACCEPTED' COMMENT '加入状态：PENDING=待审批，ACCEPTED=已接受，REJECTED=已拒绝，BLOCKED=已屏蔽',
+                `invited_by` BIGINT COMMENT '邀请人ID',
+                `invite_reason` VARCHAR(500) COMMENT '邀请/申请原因',
                 `join_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
                 `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                `kicked_at` DATETIME COMMENT '被移除时间',
+                `kick_reason` VARCHAR(500) COMMENT '被移除原因',
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `uk_group_user` (`group_id`, `user_id`),
                 KEY `idx_user_id` (`user_id`),
                 KEY `idx_role` (`role`),
+                KEY `idx_join_status` (`join_status`),
+                KEY `idx_invited_by` (`invited_by`),
                 KEY `idx_join_time` (`join_time`),
                 CONSTRAINT `fk_group_member_group` FOREIGN KEY (`group_id`) REFERENCES `group` (`id`) ON DELETE CASCADE,
-                CONSTRAINT `fk_group_member_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+                CONSTRAINT `fk_group_member_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_group_member_inviter` FOREIGN KEY (`invited_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
-            COMMENT='群组成员关系表'
+            COMMENT='群组成员关系表（增强版：支持申请审批流程）'
             """;
 
         try {
@@ -1212,20 +1227,20 @@ public class DatabaseInitializer implements CommandLineRunner {
                 aliceId);
             Long group1Id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
-            // 添加群成员 - 技术交流群
+            // 添加群成员 - 技术交流群（使用统一的角色定义：1=群主，2=管理员，3=普通成员）
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())", // 1=群主
+                "INSERT INTO group_member (group_id, user_id, role, join_status, join_time) VALUES (?, ?, 1, 'ACCEPTED', NOW())", // 1=群主
                 group1Id, aliceId);
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 2, NOW())", // 2=管理员
-                group1Id, bobId);
+                "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 2, 'ACCEPTED', ?, NOW())", // 2=管理员
+                group1Id, bobId, aliceId);
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
-                group1Id, charlieId);
+                "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW())", // 3=普通成员
+                group1Id, charlieId, aliceId);
             if (testUserId != null) {
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())",
-                    group1Id, testUserId);
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW())",
+                    group1Id, testUserId, aliceId);
             }
 
             // 创建测试群组2：生活分享群（bob 是群主）
@@ -1237,17 +1252,17 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             // 添加群成员 - 生活分享群
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())", // 1=群主
+                "INSERT INTO group_member (group_id, user_id, role, join_status, join_time) VALUES (?, ?, 1, 'ACCEPTED', NOW())", // 1=群主
                 group2Id, bobId);
             if (dianaId != null) {
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 2, NOW())", // 2=管理员
-                    group2Id, dianaId);
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 2, 'ACCEPTED', ?, NOW())", // 2=管理员
+                    group2Id, dianaId, bobId);
             }
             if (eveId != null) {
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
-                    group2Id, eveId);
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW())", // 3=普通成员
+                    group2Id, eveId, bobId);
             }
 
             // 创建测试群组3：项目协作群（charlie 是群主）
@@ -1260,14 +1275,14 @@ public class DatabaseInitializer implements CommandLineRunner {
 
                 // 添加群成员 - 项目协作群
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())", // 1=群主
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, join_time) VALUES (?, ?, 1, 'ACCEPTED', NOW())", // 1=群主
                     group3Id, charlieId);
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 2, NOW())", // 2=管理员
-                    group3Id, aliceId);
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 2, 'ACCEPTED', ?, NOW())", // 2=管理员
+                    group3Id, aliceId, charlieId);
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
-                    group3Id, bobId);
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW())", // 3=普通成员
+                    group3Id, bobId, charlieId);
             }
 
             // 创建测试群组4：管理员群（admin 是群主）
@@ -1280,12 +1295,12 @@ public class DatabaseInitializer implements CommandLineRunner {
 
                 // 添加群成员 - 管理员群
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())", // 1=群主
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, join_time) VALUES (?, ?, 1, 'ACCEPTED', NOW())", // 1=群主
                     group4Id, adminId);
                 if (testUserId != null) {
                     jdbcTemplate.update(
-                        "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 3, NOW())", // 3=普通成员
-                        group4Id, testUserId);
+                        "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW())", // 3=普通成员
+                        group4Id, testUserId, adminId);
                 }
             }
 
@@ -1299,7 +1314,7 @@ public class DatabaseInitializer implements CommandLineRunner {
 
                 // 添加群主
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_time) VALUES (?, ?, 1, NOW())",
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, join_time) VALUES (?, ?, 1, 'ACCEPTED', NOW())",
                     frozenGroupId, dianaId);
             }
 

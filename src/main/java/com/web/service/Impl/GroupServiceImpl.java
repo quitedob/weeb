@@ -17,6 +17,7 @@ import com.web.vo.group.GroupCreateVo;
 import com.web.vo.group.GroupInviteVo;
 import com.web.vo.group.GroupKickVo;
 import com.web.vo.group.GroupApplyVo;
+import com.web.constants.GroupRoleConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,7 +33,7 @@ import java.util.Map;
 /**
  * 群组服务实现类
  * 处理群组创建、成员管理、群组信息维护等业务逻辑
- * 修复了权限检查逻辑，统一使用UserTypeSecurityService进行权限验证
+ * 已修复：统一使用GroupRoleConstants定义角色，避免角色定义不一致问题
  */
 @Slf4j
 @Service
@@ -57,11 +58,6 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     @Autowired
     private com.web.service.NotificationService notificationService;
 
-    // 群组角色常量
-    private static final int ROLE_OWNER = 1;    // 群主
-    private static final int ROLE_ADMIN = 2;    // 管理员
-    private static final int ROLE_MEMBER = 0;   // 普通成员
-
     /**
      * 检查用户在群组中的权限
      * @param groupId 群组ID
@@ -71,10 +67,10 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
      */
     private boolean hasGroupPermission(Long groupId, Long userId, int requiredRole) {
         try {
-            // 管理员拥有所有权限
+            // 系统管理员拥有所有权限
             User currentUser = authService.findByUserID(userId);
             if (currentUser != null && userTypeSecurityService.isAdmin(currentUser.getUsername())) {
-                log.debug("管理员用户拥有所有群组权限: userId={}, groupId={}", userId, groupId);
+                log.debug("系统管理员拥有所有群组权限: userId={}, groupId={}", userId, groupId);
                 return true;
             }
 
@@ -84,10 +80,19 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
                 log.debug("用户不是群组成员: userId={}, groupId={}", userId, groupId);
                 return false;
             }
+            
+            // 检查成员状态是否为已接受
+            if (!"ACCEPTED".equals(member.getJoinStatus())) {
+                log.debug("用户未被接受为群组成员: userId={}, groupId={}, status={}", 
+                    userId, groupId, member.getJoinStatus());
+                return false;
+            }
 
-            boolean hasPermission = member.getRole() >= requiredRole;
-            log.debug("用户群组权限检查: userId={}, groupId={}, userRole={}, requiredRole={}, hasPermission={}",
-                userId, groupId, member.getRole(), requiredRole, hasPermission);
+            // 使用统一的权限检查逻辑（角色值越小，权限越高）
+            boolean hasPermission = GroupRoleConstants.hasPermission(member.getRole(), requiredRole);
+            log.debug("用户群组权限检查: userId={}, groupId={}, userRole={} ({}), requiredRole={} ({}), hasPermission={}",
+                userId, groupId, member.getRole(), GroupRoleConstants.getRoleName(member.getRole()),
+                requiredRole, GroupRoleConstants.getRoleName(requiredRole), hasPermission);
 
             return hasPermission;
 
@@ -101,21 +106,21 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
      * 检查用户是否为群主
      */
     private boolean isGroupOwner(Long groupId, Long userId) {
-        return hasGroupPermission(groupId, userId, ROLE_OWNER);
+        return hasGroupPermission(groupId, userId, GroupRoleConstants.ROLE_OWNER);
     }
 
     /**
      * 检查用户是否为群主或管理员
      */
     private boolean isGroupAdmin(Long groupId, Long userId) {
-        return hasGroupPermission(groupId, userId, ROLE_ADMIN);
+        return hasGroupPermission(groupId, userId, GroupRoleConstants.ROLE_ADMIN);
     }
 
     /**
      * 检查用户是否为群组成员
      */
     private boolean isGroupMember(Long groupId, Long userId) {
-        return hasGroupPermission(groupId, userId, ROLE_MEMBER);
+        return hasGroupPermission(groupId, userId, GroupRoleConstants.ROLE_MEMBER);
     }
 
     @Override
@@ -154,10 +159,17 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         GroupMember ownerMember = new GroupMember();
         ownerMember.setGroupId(group.getId());
         ownerMember.setUserId(userId);
-        ownerMember.setRole(1); // 1表示群主
-        // 注意：根据GroupMember实际字段设置时间
+        ownerMember.setRole(GroupRoleConstants.ROLE_OWNER); // 使用常量定义
+        ownerMember.setJoinStatus("ACCEPTED"); // 群主直接接受
         
         groupMemberMapper.insert(ownerMember);
+        
+        // 更新群组成员数
+        group.setMemberCount(1);
+        updateById(group);
+        
+        log.info("群组创建成功: groupId={}, groupName={}, ownerId={}", 
+            group.getId(), group.getGroupName(), userId);
         
         return group;
     }
@@ -183,21 +195,48 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             throw new WeebException("无权限邀请成员");
         }
         
+        // 获取群组信息以更新成员数
+        Group group = getById(inviteVo.getGroupId());
+        if (group == null) {
+            throw new WeebException("群组不存在");
+        }
+        
+        int invitedCount = 0;
+        
         // 邀请用户加入群组
         for (Long inviteeId : inviteVo.getMemberIds()) {
             // 检查用户是否已经是群成员
             if (!groupMemberMapper.isMember(inviteVo.getGroupId(), inviteeId)) {
+                // 检查群组是否已满
+                if (group.getMemberCount() != null && group.getMaxMembers() != null 
+                    && group.getMemberCount() >= group.getMaxMembers()) {
+                    log.warn("群组已满，无法邀请更多成员: groupId={}, maxMembers={}", 
+                        inviteVo.getGroupId(), group.getMaxMembers());
+                    break;
+                }
+                
                 GroupMember newMember = new GroupMember();
                 newMember.setGroupId(inviteVo.getGroupId());
                 newMember.setUserId(inviteeId);
-                newMember.setRole(0); // 0表示普通成员
-                // 注意：根据GroupMember实际字段设置时间
+                newMember.setRole(GroupRoleConstants.ROLE_MEMBER); // 使用常量定义
+                newMember.setJoinStatus("ACCEPTED"); // 邀请直接接受
+                newMember.setInvitedBy(userId); // 记录邀请人
                 
                 groupMemberMapper.insert(newMember);
+                invitedCount++;
+                
+                log.info("成员邀请成功: groupId={}, inviteeId={}, inviterId={}", 
+                    inviteVo.getGroupId(), inviteeId, userId);
             }
         }
+        
+        // 更新群组成员数
+        if (invitedCount > 0) {
+            group.setMemberCount((group.getMemberCount() != null ? group.getMemberCount() : 0) + invitedCount);
+            updateById(group);
+        }
 
-        return true; // 邀请成功
+        return true;
     }
 
     @Override
@@ -230,21 +269,37 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             throw new WeebException("用户不是群成员");
         }
 
-        // 不能踢出群主（只有群主可以踢出管理员，管理员不能踢出群主）
-        if (targetMember.getRole() == ROLE_OWNER) {
+        // 不能踢出群主
+        if (GroupRoleConstants.isOwner(targetMember.getRole())) {
             throw new WeebException("不能踢出群主");
         }
 
-        // 检查操作者权限：普通管理员不能踢出其他管理员
-        if (targetMember.getRole() == ROLE_ADMIN) {
+        // 检查操作者权限：只有群主可以踢出管理员
+        if (GroupRoleConstants.isAdminOrOwner(targetMember.getRole())) {
             GroupMember operator = groupMemberMapper.findByGroupAndUser(kickVo.getGroupId(), userId);
-            if (operator == null || operator.getRole() != ROLE_OWNER) {
+            if (operator == null || !GroupRoleConstants.isOwner(operator.getRole())) {
                 throw new WeebException("只有群主可以踢出管理员");
             }
         }
 
+        // 记录移除信息（用于审计）
+        targetMember.setKickedAt(new Date());
+        targetMember.setKickReason(kickVo.getReason() != null ? kickVo.getReason() : "被管理员移除");
+        targetMember.setJoinStatus("BLOCKED"); // 标记为已屏蔽
+        groupMemberMapper.updateById(targetMember);
+        
         // 移除群成员
         groupMemberMapper.deleteById(targetMember.getId());
+        
+        // 更新群组成员数
+        Group group = getById(kickVo.getGroupId());
+        if (group != null && group.getMemberCount() != null && group.getMemberCount() > 0) {
+            group.setMemberCount(group.getMemberCount() - 1);
+            updateById(group);
+        }
+        
+        log.info("成员被踢出: groupId={}, kickedUserId={}, operatorId={}, reason={}", 
+            kickVo.getGroupId(), kickVo.getKickedUserId(), userId, kickVo.getReason());
     }
 
     @Override
@@ -317,12 +372,21 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         }
         
         // 群主不能直接退出，需要先转让群主或解散群组
-        if (member.getRole() >= 2) {
+        if (GroupRoleConstants.isOwner(member.getRole())) {
             throw new WeebException("群主不能退出群组，请先转让群主或解散群组");
         }
         
         // 移除群成员
         groupMemberMapper.deleteById(member.getId());
+        
+        // 更新群组成员数
+        Group group = getById(groupId);
+        if (group != null && group.getMemberCount() != null && group.getMemberCount() > 0) {
+            group.setMemberCount(group.getMemberCount() - 1);
+            updateById(group);
+        }
+        
+        log.info("成员退出群组: groupId={}, userId={}", groupId, userId);
     }
 
     @Override
@@ -429,11 +493,13 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
                 return false;
             }
 
-            // 直接加入群组（简化实现，实际项目中可能需要审核流程）
+            // 创建待审批的申请记录
             GroupMember newMember = new GroupMember();
             newMember.setGroupId(applyVo.getGroupId());
             newMember.setUserId(userId);
-            newMember.setRole(0); // 0表示普通成员
+            newMember.setRole(GroupRoleConstants.ROLE_MEMBER); // 使用常量定义
+            newMember.setJoinStatus("PENDING"); // 待审批状态
+            newMember.setInviteReason(applyVo.getReason()); // 申请原因
 
             groupMemberMapper.insert(newMember);
             
@@ -681,14 +747,14 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             }
             updateById(group);
 
-            // 6. 更新新群主的角色为群主（role=2）
-            newOwnerMember.setRole(2);
+            // 6. 更新新群主的角色为群主
+            newOwnerMember.setRole(GroupRoleConstants.ROLE_OWNER);
             groupMemberMapper.updateById(newOwnerMember);
 
-            // 7. 更新原群主的角色为普通成员（role=0）
+            // 7. 更新原群主的角色为普通成员
             GroupMember oldOwnerMember = groupMemberMapper.findByGroupAndUser(groupId, currentOwnerId);
             if (oldOwnerMember != null) {
-                oldOwnerMember.setRole(0);
+                oldOwnerMember.setRole(GroupRoleConstants.ROLE_MEMBER);
                 groupMemberMapper.updateById(oldOwnerMember);
             }
 

@@ -64,7 +64,7 @@ tmp/
 
 # Windows特殊文件
 nul
-
+.nuxt
 # Elasticsearch SSL证书（安全敏感）
 src/main/resources/es/http_ca.crt
 src/main/resources/es/*.crt

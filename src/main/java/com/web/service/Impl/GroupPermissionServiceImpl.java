@@ -7,6 +7,7 @@ import com.web.service.AuthService;
 import com.web.service.GroupPermissionService;
 import com.web.service.RedisCacheService;
 import com.web.service.UserTypeSecurityService;
+import com.web.constants.GroupRoleConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit;
  * 群组权限服务实现类
  * 统一管理群组相关的权限检查逻辑
  * 使用Redis缓存提高性能
+ * 已修复：统一使用GroupRoleConstants定义角色
  */
 @Slf4j
 @Service
@@ -33,12 +35,6 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
 
     @Autowired
     private RedisCacheService redisCacheService;
-
-    // 群组角色常量
-    private static final int ROLE_OWNER = 2;    // 群主
-    private static final int ROLE_ADMIN = 1;    // 管理员
-    private static final int ROLE_MEMBER = 0;   // 普通成员
-    private static final int ROLE_NON_MEMBER = -1; // 非成员
 
     // 缓存键前缀
     private static final String CACHE_PREFIX = "group:permission:";
