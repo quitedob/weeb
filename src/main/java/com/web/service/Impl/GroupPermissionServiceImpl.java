@@ -62,7 +62,8 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
 
             // 缓存未命中，从数据库查询
             GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
-            int role = (member != null) ? member.getRole() : ROLE_NON_MEMBER;
+            int role = (member != null && "ACCEPTED".equals(member.getJoinStatus())) 
+                ? member.getRole() : GroupRoleConstants.ROLE_NON_MEMBER;
 
             // 存入缓存
             redisCacheService.set(cacheKey, role, CACHE_EXPIRE_SECONDS);
@@ -72,7 +73,8 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             log.error("获取用户群组角色失败: groupId={}, userId={}", groupId, userId, e);
             // 缓存失败时直接查询数据库
             GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
-            return (member != null) ? member.getRole() : ROLE_NON_MEMBER;
+            return (member != null && "ACCEPTED".equals(member.getJoinStatus())) 
+                ? member.getRole() : GroupRoleConstants.ROLE_NON_MEMBER;
         }
     }
 
@@ -87,7 +89,7 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             }
 
             int role = getUserRoleFromCacheOrDb(groupId, userId);
-            return role == ROLE_OWNER;
+            return GroupRoleConstants.isOwner(role);
         } catch (Exception e) {
             log.error("检查群主权限失败: groupId={}, userId={}", groupId, userId, e);
             return false;
@@ -105,7 +107,7 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
             }
 
             int role = getUserRoleFromCacheOrDb(groupId, userId);
-            return role >= ROLE_ADMIN; // 管理员或群主
+            return GroupRoleConstants.isAdminOrOwner(role);
         } catch (Exception e) {
             log.error("检查管理员权限失败: groupId={}, userId={}", groupId, userId, e);
             return false;
@@ -116,7 +118,7 @@ public class GroupPermissionServiceImpl implements GroupPermissionService {
     public boolean isGroupMember(Long groupId, Long userId) {
         try {
             int role = getUserRoleFromCacheOrDb(groupId, userId);
-            return role >= ROLE_MEMBER; // 任何成员（包括普通成员、管理员、群主）
+            return GroupRoleConstants.isMember(role);
         } catch (Exception e) {
             log.error("检查成员权限失败: groupId={}, userId={}", groupId, userId, e);
             return false;
