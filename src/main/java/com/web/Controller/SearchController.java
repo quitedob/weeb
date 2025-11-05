@@ -138,19 +138,19 @@ public class SearchController {
         // 添加消息类型过滤
         if (messageTypes != null && !messageTypes.isEmpty()) {
             String[] types = messageTypes.split(",");
-            criteria = criteria.and(new Criteria("messageType").in(types));
+            criteria = criteria.and(new Criteria("messageType").in((Object[]) types));
         }
 
         // 添加用户ID过滤
         if (userIds != null && !userIds.isEmpty()) {
             String[] users = userIds.split(",");
-            criteria = criteria.and(new Criteria("fromUserId").in(users));
+            criteria = criteria.and(new Criteria("fromUserId").in((Object[]) users));
         }
 
         // 添加群组ID过滤
         if (groupIds != null && !groupIds.isEmpty()) {
             String[] groups = groupIds.split(",");
-            criteria = criteria.and(new Criteria("targetId").in(groups));
+            criteria = criteria.and(new Criteria("targetId").in((Object[]) groups));
         }
 
         // 构建分页查询
