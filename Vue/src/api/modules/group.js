@@ -74,16 +74,24 @@ export default {
   },
 
   // 群组申请管理
-  getGroupApplications(groupId, params) {
-    return axiosInstance.get(`/api/groups/${groupId}/applications`, { params });
+  getGroupApplications(groupId, status = 'pending') {
+    return axiosInstance.get(`/api/groups/${groupId}/applications`, { 
+      params: { status } 
+    });
   },
 
-  approveApplication(groupId, applicationId) {
-    return axiosInstance.post(`/api/groups/${groupId}/applications/${applicationId}/approve`);
+  approveApplication(groupId, applicationId, reason = '') {
+    return axiosInstance.put(`/api/groups/${groupId}/applications/${applicationId}`, {
+      action: 'approve',
+      reason: reason
+    });
   },
 
-  rejectApplication(groupId, applicationId) {
-    return axiosInstance.post(`/api/groups/${groupId}/applications/${applicationId}/reject`);
+  rejectApplication(groupId, applicationId, reason = '') {
+    return axiosInstance.put(`/api/groups/${groupId}/applications/${applicationId}`, {
+      action: 'reject',
+      reason: reason
+    });
   },
 
   // 成员角色管理

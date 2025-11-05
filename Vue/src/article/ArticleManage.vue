@@ -13,7 +13,7 @@
       <el-table :data="articles" style="width: 100%" v-else-if="articles.length > 0" empty-text="您还没有发布任何文章。">
         <el-table-column prop="articleTitle" label="标题" min-width="200">
             <template #default="scope">
-                <a @click.prevent="readArticle(scope.row.id)" href="#" class="article-title-link">{{ scope.row.articleTitle }}</a>
+                <a @click.prevent="readArticle(scope.row.articleId || scope.row.id)" href="#" class="article-title-link">{{ scope.row.articleTitle }}</a>
             </template>
         </el-table-column>
         <el-table-column prop="updatedAt" label="最后更新" width="180">
@@ -23,10 +23,10 @@
         </el-table-column>
         <el-table-column prop="likesCount" label="点赞数" width="100" sortable />
         <el-table-column prop="exposureCount" label="阅读数" width="100" sortable />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="scope">
-            <el-button size="small" @click="editArticle(scope.row.id)"><el-icon><EditIcon /></el-icon>编辑</el-button>
-            <el-button size="small" type="danger" @click="confirmDelete(scope.row.id)"><el-icon><DeleteIcon /></el-icon>删除</el-button>
+            <el-button size="small" @click="editArticle(scope.row.articleId || scope.row.id)"><el-icon><EditIcon /></el-icon>编辑</el-button>
+            <el-button size="small" type="danger" @click="confirmDelete(scope.row.articleId || scope.row.id)"><el-icon><DeleteIcon /></el-icon>删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,21 +69,19 @@ const fetchUserArticles = async () => {
   loading.value = true;
   try {
     const response = await getArticlesByUserId(userId);
-    if (response.code === 200 && response.data) {
+    // 后端ApiResponse成功时code为0，不是200
+    if (response.code === 0 && response.data) {
         articles.value = response.data;
-    } else if (response.code === 404) {
-        articles.value = [];
     } else {
-        ElMessage.error(response.message || '加载文章列表失败。');
+        // 如果返回的data为空数组或null，显示空状态
         articles.value = [];
+        if (response.message && response.message !== '成功') {
+            ElMessage.warning(response.message || '暂无文章数据。');
+        }
     }
   } catch (error) {
     console.error('获取个人文章列表失败:', error);
-    if (error.response && error.response.status === 404) {
-        articles.value = [];
-    } else {
-        ElMessage.error('加载文章列表失败。');
-    }
+    ElMessage.error('加载文章列表失败。');
     articles.value = [];
   } finally {
     loading.value = false;
@@ -129,7 +127,8 @@ const confirmDelete = (id) => {
 const handleDelete = async (id) => {
   try {
     const response = await deleteArticle(id);
-    if (response.code === 200) {
+    // 后端ApiResponse成功时code为0，不是200
+    if (response.code === 0) {
         ElMessage.success('文章已删除！');
         fetchUserArticles();
     } else {

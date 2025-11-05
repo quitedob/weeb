@@ -203,4 +203,20 @@ public interface GroupService extends IService<Group> {
      * @return 群组详细信息
      */
     GroupDto getGroupWithDetails(Long groupId, Long userId);
+
+    /**
+     * 获取群组的待审批申请列表
+     * @param groupId 群组ID
+     * @param userId 操作者ID（需要是群主或管理员）
+     * @return 待审批申请列表
+     */
+    List<com.web.model.GroupApplication> getPendingApplications(Long groupId, Long userId);
+
+    /**
+     * 获取群组的所有申请列表（包括已处理的）
+     * @param groupId 群组ID
+     * @param userId 操作者ID（需要是群主或管理员）
+     * @return 所有申请列表
+     */
+    List<com.web.model.GroupApplication> getAllApplications(Long groupId, Long userId);
 }

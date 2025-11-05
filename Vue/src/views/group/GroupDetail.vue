@@ -28,6 +28,67 @@
         </div>
       </el-tab-pane>
 
+      <el-tab-pane label="申请管理" name="applications" v-if="isOwner || isAdmin">
+        <div class="actions-bar">
+          <el-button type="primary" @click="fetchApplications('pending')">
+            <el-icon><Refresh /></el-icon>刷新待审批
+          </el-button>
+          <el-button @click="fetchApplications('all')">查看全部申请</el-button>
+        </div>
+        
+        <div v-if="loadingApplications" class="loading-state">
+          <el-skeleton :rows="3" animated />
+        </div>
+        <div v-else-if="applications.length === 0" class="empty-state">
+          <el-empty description="暂无申请记录" />
+        </div>
+        <el-table v-else :data="applications" style="width: 100%" class="applications-table">
+          <el-table-column label="申请人" width="150">
+            <template #default="scope">
+              <div class="user-info">
+                <el-avatar :size="30" :src="scope.row.userAvatar">
+                  {{ scope.row.username?.substring(0,1) }}
+                </el-avatar>
+                <span style="margin-left: 8px;">{{ scope.row.username || `用户${scope.row.userId}` }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="message" label="申请留言" show-overflow-tooltip />
+          <el-table-column label="状态" width="100">
+            <template #default="scope">
+              <el-tag :type="getApplicationStatusType(scope.row.status)">
+                {{ getApplicationStatusText(scope.row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="createdAt" label="申请时间" width="180">
+            <template #default="scope">
+              {{ formatDate(scope.row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="200" v-if="applicationStatus === 'pending'">
+            <template #default="scope">
+              <el-button
+                v-if="scope.row.status === 'PENDING'"
+                size="small"
+                type="success"
+                @click="handleApproveApplication(scope.row)"
+              >
+                通过
+              </el-button>
+              <el-button
+                v-if="scope.row.status === 'PENDING'"
+                size="small"
+                type="danger"
+                @click="handleRejectApplication(scope.row)"
+              >
+                拒绝
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
       <el-tab-pane :label="`成员 (${members.length})`" name="members">
         <div class="actions-bar">
           <el-button v-if="isOwner || isAdmin" type="success" @click="openInviteDialog"><el-icon><Plus /></el-icon>邀请成员</el-button>
@@ -126,9 +187,14 @@ import api from '@/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
-import { Edit, User as UserIcon, Delete, Plus, ArrowLeft, Search, Remove} from '@element-plus/icons-vue';
+import { Edit, User as UserIcon, Delete, Plus, ArrowLeft, Search, Remove, Refresh} from '@element-plus/icons-vue';
 // 使用在线默认头像，避免文件缺失问题
 const defaultAvatar = 'https://via.placeholder.com/40x40/cccccc/666666?text=用户';
+
+// 申请管理相关状态
+const applications = ref([]);
+const loadingApplications = ref(false);
+const applicationStatus = ref('pending'); // 'pending' or 'all'
 
 const route = useRoute();
 const router = useRouter();
@@ -169,7 +235,7 @@ const fetchGroupDetails = async () => {
   loading.value = true;
   try {
     const detailsRes = await api.group.getGroupDetails(groupId.value);
-    if (detailsRes.code === 200 && detailsRes.data) {
+    if (detailsRes.code === 0 && detailsRes.data) {
       group.value = detailsRes.data; // Assuming data is the group object
       // Backend sends 'id' for group, but component uses 'groupId' internally sometimes.
       // Let's ensure group.value.groupId is consistent if used, or stick to group.value.id.
@@ -183,7 +249,7 @@ const fetchGroupDetails = async () => {
       if (group.value.ownerId) {
           try {
             const ownerRes = await api.user.getUserInfoById(group.value.ownerId);
-            if(ownerRes.code === 200 && ownerRes.data) ownerInfo.value = ownerRes.data;
+            if(ownerRes.code === 0 && ownerRes.data) ownerInfo.value = ownerRes.data;
           } catch (e) { console.warn("获取群主信息失败", e)}
       }
       await fetchGroupMembers();
@@ -205,7 +271,7 @@ const fetchGroupMembers = async () => {
     // Assuming api.group.getGroupMembers returns { code, message, data: [members] }
     // And each member has { userId, username, avatar, role_in_group (or derive from ownerId) }
     const membersRes = await api.group.getGroupMembers(groupId.value);
-     if (membersRes.code === 200 && membersRes.data) {
+     if (membersRes.code === 0 && membersRes.data) {
       members.value = membersRes.data.map(member => ({
           ...member,
           // Ensuring template properties like userId, username, avatar are present
@@ -259,7 +325,7 @@ const handleUpdateGroup = async () => {
         // ownerId should not be updatable here typically
     };
     const response = await api.group.updateGroup(payload); // api.group.updateGroup expects one object
-    if (response.code === 200) {
+    if (response.code === 0) {
         ElMessage.success('群信息更新成功');
         fetchGroupDetails(); // Refresh group details
         editGroupDialogVisible.value = false;
@@ -287,7 +353,7 @@ const searchUsersToInvite = async (query) => {
       // api.search.searchUsers returns { code, message, data: [users] }
       // Each user { userId, username, avatar }
       const response = await api.search.searchUsers(query);
-      if (response.code === 200 && response.data) {
+      if (response.code === 0 && response.data) {
           searchableUsers.value = response.data;
       } else {
           searchableUsers.value = [];
@@ -314,9 +380,9 @@ const handleInviteMembers = async () => {
   }
   isInviting.value = true;
   try {
-    const payload = { groupId: group.value.id, userIds: usersToInvite.value }; // Use group.id
+    const payload = { groupId: group.value.id, memberIds: usersToInvite.value }; // Use group.id and correct field name
     const response = await api.group.inviteMembers(payload);
-    if (response.code === 200) {
+    if (response.code === 0) {
         ElMessage.success('邀请成功');
         fetchGroupMembers(); // Refresh member list
         inviteDialogVisible.value = false;
@@ -350,9 +416,9 @@ const confirmKickMember = (memberToKick) => {
   }).then(async () => {
     const loadingInstance = ElLoading.service({ text: '正在操作...' });
     try {
-      const payload = { groupId: group.value.id, kickedUserId: memberToKick.userId }; // Use group.id, and consistent param name
-      const response = await api.group.kickMember(payload); // kickMember expects {groupId, kickedUserId}
-       if (response.code === 200) {
+      const payload = { groupId: group.value.id, userIdToKick: memberToKick.userId }; // Use group.id, and consistent param name
+      const response = await api.group.kickMember(payload); // kickMember expects {groupId, userIdToKick}
+       if (response.code === 0) {
             ElMessage.success('成员已踢出');
             fetchGroupMembers(); // Refresh member list
         } else {
@@ -380,7 +446,7 @@ const confirmLeaveGroup = () => {
     const loadingInstance = ElLoading.service({ text: '正在退出...' });
     try {
       const response = await api.group.leaveGroup(group.value.id); // Use group.id
-      if (response.code === 200) {
+      if (response.code === 0) {
             ElMessage.success('已成功退出群组');
             router.push('/groups');
         } else {
@@ -408,7 +474,7 @@ const confirmDisbandGroup = () => {
     const loadingInstance = ElLoading.service({ text: '正在解散...' });
     try {
       const response = await api.group.disbandGroup(group.value.id); // Use group.id
-        if (response.code === 200) {
+        if (response.code === 0) {
             ElMessage.success('群组已成功解散');
             router.push('/groups');
         } else {
@@ -448,6 +514,137 @@ const navigateToGroupChat = (gId, gName) => {
     };
     chatStore.setActiveChat(groupChatSession);
     router.push('/chat'); // Navigate to the main chat view, which should pick up activeChatSession
+};
+
+// 申请管理相关方法
+const fetchApplications = async (status = 'pending') => {
+  if (!group.value) return;
+  
+  loadingApplications.value = true;
+  applicationStatus.value = status;
+  
+  try {
+    const response = await api.group.getGroupApplications(group.value.id, status);
+    if (response.code === 0 && response.data) {
+      // 获取申请人信息
+      const applicationsWithUserInfo = await Promise.all(
+        response.data.map(async (app) => {
+          try {
+            const userRes = await api.user.getUserInfoById(app.userId);
+            return {
+              ...app,
+              username: userRes.data?.username || `用户${app.userId}`,
+              userAvatar: userRes.data?.avatar || defaultAvatar
+            };
+          } catch (error) {
+            console.warn(`获取用户${app.userId}信息失败:`, error);
+            return {
+              ...app,
+              username: `用户${app.userId}`,
+              userAvatar: defaultAvatar
+            };
+          }
+        })
+      );
+      applications.value = applicationsWithUserInfo;
+    } else {
+      applications.value = [];
+      ElMessage.error(response.message || '获取申请列表失败');
+    }
+  } catch (error) {
+    console.error('获取申请列表失败:', error);
+    ElMessage.error(error.response?.data?.message || error.message || '获取申请列表失败');
+    applications.value = [];
+  } finally {
+    loadingApplications.value = false;
+  }
+};
+
+const handleApproveApplication = async (application) => {
+  ElMessageBox.confirm(
+    `确定要通过 "${application.username}" 的加入申请吗？`,
+    '确认通过',
+    {
+      confirmButtonText: '通过',
+      cancelButtonText: '取消',
+      type: 'success',
+    }
+  ).then(async () => {
+    const loading = ElLoading.service({ text: '正在处理...' });
+    try {
+      const response = await api.group.approveApplication(
+        group.value.id,
+        application.id,
+        '申请通过'
+      );
+      
+      if (response.code === 0) {
+        ElMessage.success('已通过申请');
+        fetchApplications(applicationStatus.value);
+        fetchGroupMembers(); // 刷新成员列表
+      } else {
+        ElMessage.error(response.message || '操作失败');
+      }
+    } catch (error) {
+      console.error('通过申请失败:', error);
+      ElMessage.error(error.response?.data?.message || error.message || '操作失败');
+    } finally {
+      loading.close();
+    }
+  }).catch(() => {});
+};
+
+const handleRejectApplication = async (application) => {
+  ElMessageBox.prompt(
+    `确定要拒绝 "${application.username}" 的加入申请吗？`,
+    '拒绝申请',
+    {
+      confirmButtonText: '拒绝',
+      cancelButtonText: '取消',
+      inputPlaceholder: '请输入拒绝原因（选填）',
+      inputType: 'textarea',
+      type: 'warning',
+    }
+  ).then(async ({ value }) => {
+    const loading = ElLoading.service({ text: '正在处理...' });
+    try {
+      const response = await api.group.rejectApplication(
+        group.value.id,
+        application.id,
+        value || '申请被拒绝'
+      );
+      
+      if (response.code === 0) {
+        ElMessage.success('已拒绝申请');
+        fetchApplications(applicationStatus.value);
+      } else {
+        ElMessage.error(response.message || '操作失败');
+      }
+    } catch (error) {
+      console.error('拒绝申请失败:', error);
+      ElMessage.error(error.response?.data?.message || error.message || '操作失败');
+    } finally {
+      loading.close();
+    }
+  }).catch(() => {});
+};
+
+const getApplicationStatusType = (status) => {
+  const statusMap = {
+    'PENDING': 'warning',
+    'APPROVED': 'success',
+    'REJECTED': 'danger'
+  };
+  return statusMap[status] || 'info';
+};
+
+const getApplicationStatusText = (status) => {
+  const statusMap = {
+    'PENDING': '待审批',
+    'APPROVED': '已通过',
+    'REJECTED': '已拒绝'
+  };
+  return statusMap[status] || status;
 };
 
 </script>
@@ -500,5 +697,16 @@ const navigateToGroupChat = (gId, gName) => {
 .page-header-extra {
     display: flex;
     align-items: center;
+}
+.applications-table .user-info {
+  display: flex;
+  align-items: center;
+}
+.loading-state, .empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: #909399;
 }
 </style>

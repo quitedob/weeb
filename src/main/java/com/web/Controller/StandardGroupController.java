@@ -234,12 +234,27 @@ public class StandardGroupController {
      * GET /api/groups/{groupId}/applications
      */
     @GetMapping("/{groupId}/applications")
-    public ResponseEntity<ApiResponse<Object>> getGroupApplications(@PathVariable Long groupId) {
+    public ResponseEntity<ApiResponse<List<com.web.model.GroupApplication>>> getGroupApplications(
+            @PathVariable Long groupId,
+            @RequestParam(defaultValue = "pending") String status,
+            @Userid Long userId) {
         try {
-            // 这里需要实现获取群组申请的逻辑
-            return ApiResponseUtil.success("获取申请列表成功");
+            List<com.web.model.GroupApplication> applications;
+            
+            if ("all".equals(status)) {
+                applications = groupService.getAllApplications(groupId, userId);
+            } else {
+                applications = groupService.getPendingApplications(groupId, userId);
+            }
+            
+            return ResponseEntity.ok(ApiResponse.success(applications));
+        } catch (WeebException e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
-            return ApiResponseUtil.handleServiceException(e, "获取群组申请", groupId);
+            log.error("获取群组申请列表失败: groupId={}, userId={}", groupId, userId, e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("获取申请列表失败，请稍后重试"));
         }
     }
 

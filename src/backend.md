@@ -236,67 +236,70 @@
 | POST | `/thread/{messageId}/reply` | 回复消息线程 | `messageId` (path), `MessageSendVo` (body), `userId` (@Userid) |
 
 ### 12. MessageThreadController (消息线程管理)
-**基路径**: `/api/message-threads`
+**基路径**: `/api/threads`
 
 | 方法 | 路径 | 描述 | 参数 |
 |------|------|------|------|
-| POST | `/` | 创建消息线程 | `MessageThreadCreateVo` (body), `userId` (@Userid) |
+| POST | `/` | 创建消息线程 | `CreateThreadRequest` (body), `userId` (@Userid) |
 | GET | `/{threadId}` | 获取消息线程详情 | `threadId` (path) |
-| GET | `/{threadId}/messages` | 获取线程消息列表 | `threadId` (path), `page`, `size` (query) |
-| POST | `/{threadId}/messages` | 在线程中发送消息 | `threadId` (path), `MessageSendVo` (body), `userId` (@Userid) |
-| PUT | `/{threadId}` | 更新线程信息 | `threadId` (path), `MessageThreadUpdateVo` (body), `userId` (@Userid) |
-| DELETE | `/{threadId}` | 删除消息线程 | `threadId` (path), `userId` (@Userid) |
-| POST | `/{threadId}/participants` | 添加线程参与者 | `threadId` (path), `participants` (body), `userId` (@Userid) |
-| DELETE | `/{threadId}/participants/{userId}` | 移除线程参与者 | `threadId` (path), `userId` (path), `currentUserId` (@Userid) |
-| GET | `/{threadId}/participants` | 获取线程参与者列表 | `threadId` (path) |
-| PUT | `/{threadId}/read` | 标记线程为已读 | `threadId` (path), `userId` (@Userid) |
-| GET | `/user/threads` | 获取用户参与的线程列表 | `userId` (@Userid), `page`, `size` (query) |
+| GET | `/{threadId}/messages` | 获取线程消息列表 | `threadId` (path), `page`, `pageSize` (query) |
+| POST | `/{threadId}/replies` | 回复消息到线程 | `threadId` (path), `ReplyRequest` (body), `userId` (@Userid) |
+| POST | `/{threadId}/join` | 加入线程 | `threadId` (path), `userId` (@Userid) |
+| DELETE | `/{threadId}/leave` | 离开线程 | `threadId` (path), `userId` (@Userid) |
+| POST | `/{threadId}/archive` | 归档线程 | `threadId` (path), `userId` (@Userid) |
+| POST | `/{threadId}/close` | 关闭线程 | `threadId` (path), `userId` (@Userid) |
+| POST | `/{threadId}/pin` | 置顶/取消置顶线程 | `threadId` (path), `isPinned` (query), `userId` (@Userid) |
+| POST | `/{threadId}/lock` | 锁定/解锁线程 | `threadId` (path), `isLocked` (query), `userId` (@Userid) |
+| GET | `/my-threads` | 获取用户参与的线程列表 | `page`, `pageSize` (query), `userId` (@Userid) |
+| GET | `/active` | 获取活跃线程列表 | `page`, `pageSize` (query) |
+| GET | `/created` | 获取用户创建的线程列表 | `page`, `pageSize` (query), `userId` (@Userid) |
+| GET | `/search` | 搜索线程 | `keyword` (query), `page`, `pageSize` (query) |
+| GET | `/{threadId}/statistics` | 获取线程统计信息 | `threadId` (path) |
+| GET | `/context/{messageId}` | 获取消息的线程上下文 | `messageId` (path), `userId` (@Userid) |
 
 ### 13. ContentReportController (内容举报管理)
-**基路径**: `/api/reports`
+**基路径**: `/api/content-reports`
 
 | 方法 | 路径 | 描述 | 参数 |
 |------|------|------|------|
-| POST | `/` | 提交内容举报 | `ContentReportCreateVo` (body), `userId` (@Userid) |
+| POST | `/` | 创建内容举报 | `ContentReport` (body), `userId` (@Userid) |
+| GET | `/pending` | 获取待处理举报列表 | `page`, `size` (query) |
+| PUT | `/{reportId}/process` | 处理举报 | `reportId` (path), `ContentReportUpdateVo` (body), `userId` (@Userid) |
+| PUT | `/batch-process` | 批量处理举报 | `BatchProcessRequest` (body), `userId` (@Userid) |
+| GET | `/my-reports` | 获取我的举报列表 | `page`, `size` (query), `userId` (@Userid) |
+| GET | `/content/{contentType}/{contentId}` | 获取内容的举报列表 | `contentType` (path), `contentId` (path), `page`, `size` (query) |
+| GET | `/statistics` | 获取举报统计信息 | 无 |
+| GET | `/top-reported` | 获取被举报最多的内容 | `limit` (query) |
+| GET | `/reviewer-stats` | 获取审核员统计信息 | `reviewerId` (query) |
+| PUT | `/{reportId}/withdraw` | 撤回举报 | `reportId` (path), `userId` (@Userid) |
+| PUT | `/{reportId}/mark-urgent` | 标记举报为紧急 | `reportId` (path), `userId` (@Userid) |
 | GET | `/{reportId}` | 获取举报详情 | `reportId` (path) |
-| GET | `/` | 获取举报列表 | `status`, `type`, `page`, `size` (query) |
-| PUT | `/{reportId}/status` | 更新举报状态 | `reportId` (path), `ContentReportUpdateVo` (body), `userId` (@Userid) |
-| DELETE | `/{reportId}` | 删除举报 | `reportId` (path), `userId` (@Userid) |
-| GET | `/statistics` | 获取举报统计信息 | `startDate`, `endDate` (query) |
-| POST | `/{reportId}/evidence` | 上传举报证据 | `reportId` (path), `files` (multipart), `userId` (@Userid) |
-| GET | `/{reportId}/evidence` | 获取举报证据列表 | `reportId` (path) |
-| POST | `/batch/process` | 批量处理举报 | `BatchProcessRequest` (body), `userId` (@Userid) |
-| GET | `/types` | 获取举报类型列表 | 无 |
+| GET | `/can-report` | 检查用户是否可以举报内容 | `userId`, `contentType`, `contentId` (query) |
 
 ### 14. UserLevelIntegrationController (用户等级积分管理)
-**基路径**: `/api/user-levels`
+**基路径**: `/api/user-level-integration`
 
 | 方法 | 路径 | 描述 | 参数 |
 |------|------|------|------|
-| GET | `/user/{userId}` | 获取用户等级信息 | `userId` (path) |
-| GET | `/levels` | 获取所有等级定义 | 无 |
-| POST | `/user/{userId}/points/add` | 增加用户积分 | `userId` (path), `PointsOperationVo` (body), `operatorId` (@Userid) |
-| POST | `/user/{userId}/points/deduct` | 扣除用户积分 | `userId` (path), `PointsOperationVo` (body), `operatorId` (@Userid) |
-| GET | `/user/{userId}/points/history` | 获取用户积分历史 | `userId` (path), `page`, `size` (query) |
-| POST | `/level/up` | 用户升级 | `userId` (path), `operatorId` (@Userid) |
-| GET | `/statistics` | 获取等级统计信息 | 无 |
-| GET | `/leaderboard` | 获取积分排行榜 | `period`, `limit` (query) |
-| POST | `/task/complete` | 完成任务获得积分 | `TaskCompletionVo` (body), `userId` (@Userid) |
-| GET | `/tasks` | 获取可用任务列表 | `userId` (@Userid) |
+| POST | `/handle-level-change` | 处理等级变更 | `LevelChangeRequest` (body) |
+| POST | `/batch-handle-level-changes` | 批量处理等级变更 | `BatchLevelChangeRequest` (body) |
+| GET | `/user/{userId}/complete-info` | 获取用户完整等级信息 | `userId` (path) |
+| GET | `/validate-level-change` | 验证等级变更 | `userId`, `newLevel`, `reason` (query) |
 
 ### 15. UserLevelHistoryController (用户等级历史管理)
 **基路径**: `/api/user-level-history`
 
 | 方法 | 路径 | 描述 | 参数 |
 |------|------|------|------|
-| GET | `/user/{userId}` | 获取用户等级历史 | `userId` (path), `page`, `size` (query) |
-| GET | `/user/{userId}/current` | 获取用户当前等级状态 | `userId` (path) |
-| GET | `/user/{userId}/upcoming` | 获取用户即将达到的等级 | `userId` (path) |
-| GET | `/statistics` | 获取等级历史统计 | `startDate`, `endDate` (query) |
-| GET | `/level/{levelId}/users` | 获取指定等级的用户列表 | `levelId` (path), `page`, `size` (query) |
-| POST | `/migrate` | 迁移等级历史数据 | `MigrationRequest` (body), `operatorId` (@Userid) |
-| GET | `/export` | 导出等级历史数据 | `startDate`, `endDate`, `format` (query) |
-| POST | `/bulk/update` | 批量更新等级历史 | `BulkUpdateRequest` (body), `operatorId` (@Userid) |
+| GET | `/{id}` | 根据ID获取等级历史记录 | `id` (path) |
+| GET | `/user/{userId}` | 获取用户等级历史列表 | `userId` (path), `page`, `size` (query) |
+| POST | `/query` | 查询等级历史记录 | `UserLevelHistoryQuery` (body) |
+| GET | `/user/{userId}/recent` | 获取用户最近等级变更 | `userId` (path), `limit` (query) |
+| GET | `/user/{userId}/current-level` | 获取用户当前等级 | `userId` (path) |
+| GET | `/user/{userId}/stats` | 获取用户等级统计信息 | `userId` (path) |
+| GET | `/level-up` | 获取升级记录 | `page`, `size` (query) |
+| GET | `/level-down` | 获取降级记录 | `page`, `size` (query) |
+| GET | `/user/{userId}/count` | 获取用户等级变更次数 | `userId` (path) |
 
 ### 16. NotificationController (通知管理)
 **基路径**: `/api/notifications`
@@ -430,6 +433,8 @@
 - `GroupCreateVo`: 群组创建信息
 - `GroupInviteVo`: 群组邀请信息
 - `GroupApplyVo`: 群组申请信息
+- `GroupApplication`: 群组申请实体类
+- `GroupMember`: 群组成员信息
 
 ### 3. 联系人相关
 - `ContactDto`: 联系人详细信息

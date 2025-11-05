@@ -162,6 +162,32 @@ export const getArticleCommentCount = (articleId) => {
     return axiosInstance.get(`/api/articles/${articleId}/comments/count`);
 };
 
+// ==================== 文章审核相关API ====================
+
+// 获取待审核文章列表
+export const getPendingArticles = (page, pageSize, status, keyword) => {
+    return axiosInstance.get('/api/articles/moderation/pending', {
+        params: { page, pageSize, status, keyword }
+    });
+};
+
+// 审核通过文章
+export const approveArticle = (articleId) => {
+    return axiosInstance.post(`/api/articles/${articleId}/approve`);
+};
+
+// 审核拒绝文章
+export const rejectArticle = (articleId, reason) => {
+    return axiosInstance.post(`/api/articles/${articleId}/reject`, null, {
+        params: { reason }
+    });
+};
+
+// 获取审核统计数据
+export const getModerationStatistics = () => {
+    return axiosInstance.get('/api/articles/moderation/statistics');
+};
+
 // 默认导出所有API方法
 export default {
     getAllArticles,
@@ -188,5 +214,10 @@ export default {
     getArticleComments,  // 添加获取评论API
     addArticleComment,  // 添加评论API
     deleteArticleComment,  // 删除评论API
-    getArticleCommentCount  // 获取评论总数API
+    getArticleCommentCount,  // 获取评论总数API
+    // 文章审核相关
+    getPendingArticles,  // 获取待审核文章列表
+    approveArticle,  // 审核通过文章
+    rejectArticle,  // 审核拒绝文章
+    getModerationStatistics  // 获取审核统计数据
 };

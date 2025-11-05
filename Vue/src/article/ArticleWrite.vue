@@ -169,7 +169,7 @@ const saveDraft = async () => {
     };
     
     const response = await createArticle(articleData);
-    if (response) {
+    if (response.code === 0) {
       ElMessage.success('草稿保存成功');
       router.push({ name: 'ArticleManage' });
     } else {
@@ -216,7 +216,7 @@ const publishArticle = async () => {
       };
       
       const response = await createArticle(articleData);
-      if (response) {
+      if (response.code === 0) {
         ElMessage.success('文章发布成功！');
         router.push({ name: 'ArticleMain' });
       } else {

@@ -58,6 +58,9 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     @Autowired
     private com.web.service.NotificationService notificationService;
 
+    @Autowired
+    private com.web.mapper.GroupApplicationMapper groupApplicationMapper;
+
     /**
      * 检查用户在群组中的权限
      * @param groupId 群组ID
@@ -482,26 +485,40 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     @Override
     public boolean applyToJoinGroup(GroupApplyVo applyVo, Long userId) {
         try {
+            // 输入验证
+            if (applyVo == null || applyVo.getGroupId() == null) {
+                throw new WeebException("申请信息不完整");
+            }
+
             // 检查群组是否存在
             Group group = getById(applyVo.getGroupId());
             if (group == null) {
-                return false;
+                throw new WeebException("群组不存在");
+            }
+
+            // 检查群组状态
+            if (group.getStatus() != 1) {
+                throw new WeebException("群组已解散或冻结，无法申请加入");
             }
 
             // 检查用户是否已经是群成员
             if (groupMemberMapper.isMember(applyVo.getGroupId(), userId)) {
-                return false;
+                throw new WeebException("您已经是群组成员");
             }
 
-            // 创建待审批的申请记录
-            GroupMember newMember = new GroupMember();
-            newMember.setGroupId(applyVo.getGroupId());
-            newMember.setUserId(userId);
-            newMember.setRole(GroupRoleConstants.ROLE_MEMBER); // 使用常量定义
-            newMember.setJoinStatus("PENDING"); // 待审批状态
-            newMember.setInviteReason(applyVo.getReason()); // 申请原因
+            // 检查是否已有待审批的申请
+            if (groupApplicationMapper.hasPendingApplication(applyVo.getGroupId(), userId)) {
+                throw new WeebException("您已提交过申请，请等待审核");
+            }
 
-            groupMemberMapper.insert(newMember);
+            // 创建申请记录
+            com.web.model.GroupApplication application = new com.web.model.GroupApplication();
+            application.setGroupId(applyVo.getGroupId());
+            application.setUserId(userId);
+            application.setMessage(applyVo.getMessage() != null ? applyVo.getMessage() : applyVo.getReason());
+            application.setStatus("PENDING");
+
+            groupApplicationMapper.insert(application);
             
             // 发送群组申请通知给群主
             try {
@@ -519,10 +536,14 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
                 // 不抛出异常，通知失败不应影响群组申请
             }
             
+            log.info("用户申请加入群组成功: groupId={}, userId={}", applyVo.getGroupId(), userId);
             return true;
+        } catch (WeebException e) {
+            log.warn("申请加入群组失败: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("申请加入群组失败: groupId={}, userId={}", applyVo.getGroupId(), userId, e);
-            return false;
+            throw new WeebException("申请加入群组失败: " + e.getMessage());
         }
     }
 
@@ -588,56 +609,164 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     }
 
     @Override
+    @Transactional
     public boolean approveApplication(Long groupId, Long applicationId, Long userId, String reason) {
-        // 简化实现：直接批准申请（实际项目中需要更复杂的逻辑）
         try {
-            // 检查群组是否存在
+            log.info("开始批准群组申请: groupId={}, applicationId={}, reviewerId={}", groupId, applicationId, userId);
+
+            // 1. 检查群组是否存在
             Group group = getById(groupId);
             if (group == null) {
-                return false;
+                log.warn("群组不存在: groupId={}", groupId);
+                throw new WeebException("群组不存在");
             }
-            
-            // 检查操作者是否有权限批准申请（群主或管理员）
+
+            // 2. 检查操作者是否有权限批准申请（群主或管理员）
             if (!isGroupAdmin(groupId, userId)) {
-                return false;
+                log.warn("用户无权限批准申请: groupId={}, userId={}", groupId, userId);
+                throw new WeebException("只有群主或管理员可以批准申请");
             }
-            
-            // 这里应该实现批准申请的逻辑
-            // 由于当前实现是简化的，我们假设applicationId就是申请人的用户ID
-            Long applicantId = applicationId; // 在实际实现中，这应该从申请记录中获取
-            
-            // 发送群组申请批准通知给申请人
+
+            // 3. 获取申请记录
+            com.web.model.GroupApplication application = groupApplicationMapper.selectById(applicationId);
+            if (application == null) {
+                log.warn("申请记录不存在: applicationId={}", applicationId);
+                throw new WeebException("申请记录不存在");
+            }
+
+            // 4. 检查申请状态
+            if (!"PENDING".equals(application.getStatus())) {
+                log.warn("申请已被处理: applicationId={}, status={}", applicationId, application.getStatus());
+                throw new WeebException("申请已被处理");
+            }
+
+            // 5. 检查申请人是否已经是群成员
+            if (groupMemberMapper.isMember(groupId, application.getUserId())) {
+                log.warn("申请人已是群成员: groupId={}, userId={}", groupId, application.getUserId());
+                throw new WeebException("申请人已是群组成员");
+            }
+
+            // 6. 检查群组是否已满
+            if (group.getMemberCount() != null && group.getMaxMembers() != null 
+                && group.getMemberCount() >= group.getMaxMembers()) {
+                log.warn("群组已满: groupId={}, memberCount={}, maxMembers={}", 
+                    groupId, group.getMemberCount(), group.getMaxMembers());
+                throw new WeebException("群组已满，无法加入");
+            }
+
+            // 7. 更新申请状态
+            application.setStatus("APPROVED");
+            application.setReviewerId(userId);
+            application.setReviewNote(reason);
+            application.setReviewedAt(new java.util.Date());
+            groupApplicationMapper.updateById(application);
+
+            // 8. 添加用户为群成员
+            GroupMember newMember = new GroupMember();
+            newMember.setGroupId(groupId);
+            newMember.setUserId(application.getUserId());
+            newMember.setRole(GroupRoleConstants.ROLE_MEMBER);
+            newMember.setJoinStatus("ACCEPTED");
+            newMember.setInvitedBy(userId); // 记录审批人
+            newMember.setInviteReason("申请通过");
+            groupMemberMapper.insert(newMember);
+
+            // 9. 更新群组成员数
+            group.setMemberCount((group.getMemberCount() != null ? group.getMemberCount() : 0) + 1);
+            updateById(group);
+
+            // 10. 发送批准通知给申请人
             try {
                 notificationService.createAndPublishNotification(
-                    applicantId,                     // 接收者：申请人
-                    userId,                          // 操作者：批准人（群主/管理员）
+                    application.getUserId(),         // 接收者：申请人
+                    userId,                          // 操作者：批准人
                     "GROUP_APPLICATION_APPROVED",   // 通知类型
                     "GROUP",                         // 实体类型
                     groupId                          // 实体ID：群组ID
                 );
                 log.info("群组申请批准通知已发送 - 申请人ID: {}, 批准人ID: {}, 群组ID: {}", 
-                         applicantId, userId, groupId);
+                         application.getUserId(), userId, groupId);
             } catch (Exception e) {
                 log.error("发送群组申请批准通知失败", e);
-                // 不抛出异常，通知失败不应影响申请批准
             }
-            
+
+            log.info("批准群组申请成功: groupId={}, applicationId={}, applicantId={}", 
+                groupId, applicationId, application.getUserId());
             return true;
+
+        } catch (WeebException e) {
+            log.error("批准群组申请失败: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("批准群组申请失败: groupId={}, applicationId={}, userId={}", groupId, applicationId, userId, e);
-            return false;
+            throw new WeebException("批准申请失败: " + e.getMessage());
         }
     }
 
     @Override
+    @Transactional
     public boolean rejectApplication(Long groupId, Long applicationId, Long userId, String reason) {
-        // 简化实现：拒绝申请
         try {
-            // 这里应该实现拒绝申请的逻辑
-            // 暂时返回true表示成功
+            log.info("开始拒绝群组申请: groupId={}, applicationId={}, reviewerId={}", groupId, applicationId, userId);
+
+            // 1. 检查群组是否存在
+            Group group = getById(groupId);
+            if (group == null) {
+                log.warn("群组不存在: groupId={}", groupId);
+                throw new WeebException("群组不存在");
+            }
+
+            // 2. 检查操作者是否有权限拒绝申请（群主或管理员）
+            if (!isGroupAdmin(groupId, userId)) {
+                log.warn("用户无权限拒绝申请: groupId={}, userId={}", groupId, userId);
+                throw new WeebException("只有群主或管理员可以拒绝申请");
+            }
+
+            // 3. 获取申请记录
+            com.web.model.GroupApplication application = groupApplicationMapper.selectById(applicationId);
+            if (application == null) {
+                log.warn("申请记录不存在: applicationId={}", applicationId);
+                throw new WeebException("申请记录不存在");
+            }
+
+            // 4. 检查申请状态
+            if (!"PENDING".equals(application.getStatus())) {
+                log.warn("申请已被处理: applicationId={}, status={}", applicationId, application.getStatus());
+                throw new WeebException("申请已被处理");
+            }
+
+            // 5. 更新申请状态
+            application.setStatus("REJECTED");
+            application.setReviewerId(userId);
+            application.setReviewNote(reason != null ? reason : "申请被拒绝");
+            application.setReviewedAt(new java.util.Date());
+            groupApplicationMapper.updateById(application);
+
+            // 6. 发送拒绝通知给申请人
+            try {
+                notificationService.createAndPublishNotification(
+                    application.getUserId(),         // 接收者：申请人
+                    userId,                          // 操作者：拒绝人
+                    "GROUP_APPLICATION_REJECTED",   // 通知类型
+                    "GROUP",                         // 实体类型
+                    groupId                          // 实体ID：群组ID
+                );
+                log.info("群组申请拒绝通知已发送 - 申请人ID: {}, 拒绝人ID: {}, 群组ID: {}", 
+                         application.getUserId(), userId, groupId);
+            } catch (Exception e) {
+                log.error("发送群组申请拒绝通知失败", e);
+            }
+
+            log.info("拒绝群组申请成功: groupId={}, applicationId={}, applicantId={}", 
+                groupId, applicationId, application.getUserId());
             return true;
+
+        } catch (WeebException e) {
+            log.error("拒绝群组申请失败: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
-            return false;
+            log.error("拒绝群组申请失败: groupId={}, applicationId={}, userId={}", groupId, applicationId, userId, e);
+            throw new WeebException("拒绝申请失败: " + e.getMessage());
         }
     }
 
@@ -855,6 +984,42 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         } catch (Exception e) {
             log.error("获取群组详细信息失败: groupId={}, userId={}", groupId, userId, e);
             throw new WeebException("获取群组详细信息失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.web.model.GroupApplication> getPendingApplications(Long groupId, Long userId) {
+        try {
+            // 检查操作者是否有权限查看申请（群主或管理员）
+            if (!isGroupAdmin(groupId, userId)) {
+                throw new WeebException("只有群主或管理员可以查看申请列表");
+            }
+
+            return groupApplicationMapper.findPendingApplicationsByGroupId(groupId);
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取待审批申请列表失败: groupId={}, userId={}", groupId, userId, e);
+            throw new WeebException("获取待审批申请列表失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.web.model.GroupApplication> getAllApplications(Long groupId, Long userId) {
+        try {
+            // 检查操作者是否有权限查看申请（群主或管理员）
+            if (!isGroupAdmin(groupId, userId)) {
+                throw new WeebException("只有群主或管理员可以查看申请列表");
+            }
+
+            return groupApplicationMapper.findAllApplicationsByGroupId(groupId);
+        } catch (WeebException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取所有申请列表失败: groupId={}, userId={}", groupId, userId, e);
+            throw new WeebException("获取所有申请列表失败: " + e.getMessage());
         }
     }
 }
