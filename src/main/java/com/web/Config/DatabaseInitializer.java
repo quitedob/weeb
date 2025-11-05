@@ -224,7 +224,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"contact", "id,user_id,friend_id,status,remarks,expire_at,group_id,create_time,update_time"},
             {"contact_group", "id,user_id,group_name,group_order,is_default,created_at,updated_at"},
             {"chat_list", "id,user_id,target_id,group_id,target_info,type,unread_count,last_message,create_time,update_time"},
-            {"message", "id,client_message_id,sender_id,receiver_id,group_id,chat_id,content,message_type,read_status,is_read,is_recalled,status,user_ip,source,is_show_time,reply_to_message_id,created_at,updated_at"},
+            {"message", "id,client_message_id,sender_id,receiver_id,group_id,chat_id,content,message_type,status,read_status,is_read,is_recalled,user_ip,source,is_show_time,reply_to_message_id,created_at,updated_at"},
+            {"message_retry", "id,message_id,client_message_id,sender_id,receiver_id,group_id,content,message_type,retry_count,max_retries,last_error,next_retry_at,status,created_at,updated_at"},
             {"message_reaction", "id,message_id,user_id,reaction_type,create_time"},
             {"notifications", "id,recipient_id,actor_id,type,entity_type,entity_id,is_read,created_at"},
             {"file_transfer", "id,initiator_id,target_id,offer_sdp,answer_sdp,candidate,status,created_at,updated_at"},
@@ -352,6 +353,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         createContactTable();
         createChatListTable();
         createMessageTable();
+        createMessageRetryTable();
         createMessageReactionTable();
         createNotificationTable();
         createFileTransferTable();
@@ -484,10 +486,10 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `chat_id` BIGINT COMMENT '聊天列表ID',
                 `content` JSON NOT NULL COMMENT '消息内容（JSON格式）',
                 `message_type` INT DEFAULT 1 COMMENT '消息类型：1文本，2图片，3文件等',
-                `read_status` INT DEFAULT 0 COMMENT '读取状态：0未读，1已读',
-                `is_read` TINYINT(1) DEFAULT 0 COMMENT '是否已读：0未读，1已读',
+                `status` INT DEFAULT 1 COMMENT '统一消息状态：0=发送中，1=已发送，2=已送达，3=已读，4=失败',
+                `read_status` INT DEFAULT 0 COMMENT '【已废弃】读取状态：0未读，1已读（保留用于向后兼容）',
+                `is_read` TINYINT(1) DEFAULT 0 COMMENT '【已废弃】是否已读：0未读，1已读（保留用于向后兼容）',
                 `is_recalled` INT DEFAULT 0 COMMENT '是否撤回：0否，1是',
-                `status` INT DEFAULT 0 COMMENT '消息状态：0正常，1已删除，2已撤回',
                 `user_ip` VARCHAR(45) COMMENT '发送者IP地址',
                 `source` VARCHAR(50) COMMENT '消息来源：WEB、MOBILE、API等',
                 `is_show_time` INT DEFAULT 0 COMMENT '是否显示时间：0否，1是',
@@ -497,21 +499,24 @@ public class DatabaseInitializer implements CommandLineRunner {
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `uk_client_message_id` (`client_message_id`),
                 KEY `idx_sender_id` (`sender_id`),
+                KEY `idx_receiver_id` (`receiver_id`),
+                KEY `idx_group_id` (`group_id`),
                 KEY `idx_chat_id` (`chat_id`),
                 KEY `idx_created_at` (`created_at`),
                 KEY `idx_message_type` (`message_type`),
-                KEY `idx_read_status` (`read_status`),
+                KEY `idx_status` (`status`),
+                KEY `idx_is_recalled` (`is_recalled`),
                 KEY `idx_reply_to_message_id` (`reply_to_message_id`),
                 KEY `idx_sender_client_msg` (`sender_id`, `client_message_id`),
                 KEY `idx_message_private_chat` (`sender_id`, `receiver_id`, `created_at` DESC),
                 KEY `idx_message_group_chat` (`group_id`, `created_at` DESC),
-                KEY `idx_message_receiver_read` (`receiver_id`, `is_read`, `created_at` DESC),
+                KEY `idx_message_receiver_status` (`receiver_id`, `status`, `created_at` DESC),
                 KEY `idx_message_type_time` (`message_type`, `created_at` DESC),
-                KEY `idx_message_status` (`status`, `created_at` DESC),
+                KEY `idx_message_status_time` (`status`, `created_at` DESC),
                 CONSTRAINT `fk_message_sender` FOREIGN KEY (`sender_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `fk_message_reply` FOREIGN KEY (`reply_to_message_id`) REFERENCES `message` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
-            COMMENT='消息内容表'
+            COMMENT='消息内容表（status字段统一管理消息状态）'
             """;
 
         try {
@@ -784,6 +789,48 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建文章审核历史表失败", e);
             throw new RuntimeException("创建文章审核历史表失败", e);
+        }
+    }
+
+    private void createMessageRetryTable() {
+        log.info("创建消息重试表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `message_retry` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '重试记录ID',
+                `message_id` BIGINT COMMENT '关联的消息ID（如果消息已创建）',
+                `client_message_id` VARCHAR(100) NOT NULL COMMENT '客户端消息ID',
+                `sender_id` BIGINT NOT NULL COMMENT '发送者ID',
+                `receiver_id` BIGINT COMMENT '接收者ID（私聊）',
+                `group_id` BIGINT COMMENT '群组ID（群聊）',
+                `content` JSON NOT NULL COMMENT '消息内容',
+                `message_type` INT DEFAULT 1 COMMENT '消息类型',
+                `retry_count` INT DEFAULT 0 COMMENT '已重试次数',
+                `max_retries` INT DEFAULT 5 COMMENT '最大重试次数',
+                `last_error` TEXT COMMENT '最后一次失败的错误信息',
+                `next_retry_at` TIMESTAMP NULL COMMENT '下次重试时间',
+                `status` VARCHAR(20) DEFAULT 'PENDING' COMMENT '重试状态：PENDING=待重试，RETRYING=重试中，SUCCESS=成功，FAILED=永久失败',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_client_message_id` (`client_message_id`),
+                KEY `idx_message_id` (`message_id`),
+                KEY `idx_sender_id` (`sender_id`),
+                KEY `idx_status` (`status`),
+                KEY `idx_next_retry_at` (`next_retry_at`),
+                KEY `idx_created_at` (`created_at`),
+                CONSTRAINT `fk_retry_message` FOREIGN KEY (`message_id`) REFERENCES `message` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_retry_sender` FOREIGN KEY (`sender_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='消息重试队列表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 消息重试表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建消息重试表失败", e);
+            throw new RuntimeException("创建消息重试表失败", e);
         }
     }
 

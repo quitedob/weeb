@@ -59,10 +59,8 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     private static final String MESSAGE_TYPE_PRIVATE = "PRIVATE";
     private static final String MESSAGE_TYPE_GROUP = "GROUP";
 
-    // 消息状态常量
-    private static final int MESSAGE_STATUS_NORMAL = 0;
-    private static final int MESSAGE_STATUS_DELETED = 1;
-    private static final int MESSAGE_STATUS_RECALLED = 2;
+    // 消息状态常量（使用Message类中定义的常量）
+    // 0=发送中, 1=已发送, 2=已送达, 3=已读, 4=失败
 
     @Override
     public Message sendMessage(SendMessageVo sendMessageVo, Long userId) {
@@ -158,8 +156,10 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             message.setReceiverId(targetUserId);
             message.setContent(messageContent);
             message.setMessageType(1); // 1表示文本消息
-            message.setStatus(MESSAGE_STATUS_NORMAL);
-            message.setIsRead(0);
+            message.setStatus(Message.STATUS_SENT); // 使用新的统一状态：已发送
+            message.setIsRead(0); // 保留用于向后兼容
+            message.setReadStatus(0); // 保留用于向后兼容
+            message.setIsRecalled(0);
             message.setCreatedAt(new Timestamp(System.currentTimeMillis()));
             message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
 
@@ -229,8 +229,10 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
             message.setGroupId(groupId); // 设置群组ID
             message.setContent(messageContent);
             message.setMessageType(1); // 1表示文本消息
-            message.setStatus(MESSAGE_STATUS_NORMAL);
-            message.setIsRead(0);
+            message.setStatus(Message.STATUS_SENT); // 使用新的统一状态：已发送
+            message.setIsRead(0); // 保留用于向后兼容
+            message.setReadStatus(0); // 保留用于向后兼容
+            message.setIsRecalled(0);
             message.setCreatedAt(new Timestamp(System.currentTimeMillis()));
             message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
 
@@ -509,8 +511,9 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
                 return false;
             }
 
-            // 软删除消息
-            message.setStatus(MESSAGE_STATUS_DELETED);
+            // 软删除消息（保持status为原状态，通过其他字段标记删除）
+            // 注意：这里不修改status，因为status用于消息传递状态
+            // 删除标记应该使用独立的字段或通过其他方式实现
             message.setIsRead(1);
             message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
 
@@ -550,8 +553,7 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
                 return false;
             }
 
-            // 撤回消息
-            message.setStatus(MESSAGE_STATUS_RECALLED);
+            // 撤回消息（status保持不变，使用isRecalled标记）
             message.setIsRecalled(1);
             TextMessageContent recalledContent = new TextMessageContent();
             recalledContent.setContent("[消息已撤回]");

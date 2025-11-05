@@ -5,6 +5,13 @@ import api from '@/api';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { log } from '@/utils/logger';
+import { 
+  MESSAGE_STATUS, 
+  normalizeMessage, 
+  normalizeMessages,
+  updateMessageStatus,
+  isMessageFailed
+} from '@/utils/messageStatus';
 
 export const useChatStore = defineStore('chat', {
   persist: {
@@ -292,7 +299,7 @@ export const useChatStore = defineStore('chat', {
         fromName: message.fromName || message.data?.fromName,
         msgContent: displayContent,
         content: content,
-        isRecalled: 0,
+        isRecalled: message.isRecalled || 0,
         messageType: message.type || message.data?.messageType || 1,
         chatType: message.type === 'private' ? 'PRIVATE' : (message.data?.chatType || 'GROUP'),
         targetId: chatId,
@@ -300,11 +307,16 @@ export const useChatStore = defineStore('chat', {
         timestamp: message.timestamp || message.data?.timestamp || new Date(),
         isFromMe: isFromMe,
         msgType: message.type || message.data?.messageType || 1,
-        fileData: fileData // Store parsed file data
+        fileData: fileData, // Store parsed file data
+        // 使用新的统一状态系统
+        status: message.status !== undefined ? message.status : MESSAGE_STATUS.SENT
       };
 
+      // 标准化消息对象，确保状态字段正确
+      const normalizedMessage = normalizeMessage(standardizedMessage);
+
       // Add message to chat
-      this.addMessage(chatId, standardizedMessage);
+      this.addMessage(chatId, normalizedMessage);
 
       // Update unread counts if not from current user
       if (!isFromMe && chatId !== this.currentChatId) {
@@ -360,7 +372,9 @@ export const useChatStore = defineStore('chat', {
       if (!this.chatMessages[chatId]) {
         this.chatMessages[chatId] = [];
       }
-      this.chatMessages[chatId].push(message);
+      // 确保消息包含status字段
+      const normalizedMsg = normalizeMessage(message);
+      this.chatMessages[chatId].push(normalizedMsg);
     },
 
     setMessages(chatId, messages) {
@@ -372,6 +386,32 @@ export const useChatStore = defineStore('chat', {
         throw new Error('Content and targetId are required');
       }
 
+      // 生成临时消息ID用于跟踪
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // 创建临时消息对象（立即显示在UI中）
+      const authStore = useAuthStore();
+      const tempMessage = {
+        id: tempId,
+        tempId: tempId,
+        fromId: authStore.currentUser?.id,
+        fromName: authStore.currentUser?.username,
+        msgContent: content,
+        content: content,
+        messageType: messageType,
+        chatType: chatType,
+        targetId: targetId,
+        chatId: targetId,
+        timestamp: new Date(),
+        isFromMe: true,
+        status: MESSAGE_STATUS.SENDING, // 设置为发送中状态
+        isRecalled: 0
+      };
+
+      // 立即添加到消息列表（乐观更新）
+      this.addMessage(targetId, tempMessage);
+
+      // 发送消息
       const message = {
         type: 'chat',
         data: {
@@ -379,11 +419,19 @@ export const useChatStore = defineStore('chat', {
           targetId,
           chatType,
           messageType,
-          chatId: targetId
+          chatId: targetId,
+          clientMessageId: tempId // 传递临时ID用于后端关联
         }
       };
 
-      this.sendWebSocketMessage(message);
+      try {
+        this.sendWebSocketMessage(message);
+        // 消息发送后，状态会通过WebSocket回调更新
+      } catch (error) {
+        // 发送失败，更新消息状态为失败
+        this.updateMessageStatus(null, MESSAGE_STATUS.FAILED, tempId);
+        throw error;
+      }
     },
 
     async fetchMessagesForChat(chatId, page = 1, limit = null) {
@@ -401,12 +449,15 @@ export const useChatStore = defineStore('chat', {
         if (response.code === 0 && response.data) {
           const hasMore = response.data.length === batchSize;
 
-          // 为每条消息添加isFromMe字段
+          // 为每条消息添加isFromMe字段并标准化状态
           const messagesWithFlag = response.data.map(msg => ({
             ...msg,
             isFromMe: msg.senderId === currentUserId,
             msgContent: typeof msg.content === 'object' ? msg.content.content : msg.content
           }));
+
+          // 标准化消息列表，确保所有消息都有正确的status字段
+          const normalizedMsgs = normalizeMessages(messagesWithFlag);
 
           // Update pagination info
           this.chatPagination[chatId] = {
@@ -416,11 +467,11 @@ export const useChatStore = defineStore('chat', {
           };
 
           if (page === 1) {
-            this.setMessages(chatId, messagesWithFlag);
+            this.setMessages(chatId, normalizedMsgs);
           } else {
             // Append messages for pagination
             const existingMessages = this.chatMessages[chatId] || [];
-            this.setMessages(chatId, [...messagesWithFlag, ...existingMessages]);
+            this.setMessages(chatId, [...normalizedMsgs, ...existingMessages]);
           }
         }
       } catch (error) {

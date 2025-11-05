@@ -35,10 +35,29 @@ public class Message implements Serializable {
     private TextMessageContent content; // 消息内容，结构化对象
 
     private Integer messageType; // 消息类型
+    
+    /**
+     * 统一消息状态字段
+     * 0=sending(发送中), 1=sent(已发送), 2=delivered(已送达), 3=read(已读), 4=failed(失败)
+     */
+    private Integer status;
+    
+    /**
+     * @deprecated 使用status字段代替，保留用于向后兼容
+     */
+    @Deprecated
     private Integer readStatus; // 已读状态
+    
+    /**
+     * @deprecated 使用status字段代替，保留用于向后兼容
+     */
+    @Deprecated
     private Integer isRead; // 是否已读：0未读，1已读
-    private Integer isRecalled; // 是否撤回
-    private Integer status; // 消息状态：0正常，1已删除，2已撤回
+    
+    /**
+     * @deprecated 使用独立的isRecalled字段
+     */
+    private Integer isRecalled; // 是否撤回：0未撤回，1已撤回
     private String userIp; // 用户IP
     private String source; // 消息来源
     private Integer isShowTime; // 是否显示时间
@@ -52,6 +71,13 @@ public class Message implements Serializable {
     // 消息类型常量
     public static final String TYPE_PRIVATE = "PRIVATE";
     public static final String TYPE_GROUP = "GROUP";
+    
+    // 消息状态常量
+    public static final int STATUS_SENDING = 0;    // 发送中
+    public static final int STATUS_SENT = 1;       // 已发送
+    public static final int STATUS_DELIVERED = 2;  // 已送达
+    public static final int STATUS_READ = 3;       // 已读
+    public static final int STATUS_FAILED = 4;     // 失败
 
     /**
      * 获取用户ID (别名方法，兼容性考虑)
