@@ -503,7 +503,7 @@ const loadArticle = async () => {
 
   try {
     const response = await getArticleById(articleId);
-    if (response.code === 200 && response.data) {
+    if (response.code === 0 && response.data) {
       const article = response.data;
       form.articleTitle = article.articleTitle || '';
       form.articleLink = article.articleLink || '';
@@ -525,7 +525,7 @@ const loadArticle = async () => {
 const loadCategories = async () => {
   try {
     const response = await getCategories();
-    if (response.code === 200 && response.data) {
+    if (response.code === 0 && response.data) {
       categories.value = response.data;
     } else {
       ElMessage.error(response.message || '加载分类失败');
@@ -549,7 +549,7 @@ const saveArticle = async () => {
     isSaving.value = true;
     try {
       const response = await updateArticle(articleId, form);
-      if (response.code === 200) {
+      if (response.code === 0) {
         ElMessage.success('文章保存成功');
         router.push({ name: 'ArticleManage' });
       } else {

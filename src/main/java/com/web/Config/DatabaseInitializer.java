@@ -220,6 +220,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"`group`", "id,group_name,owner_id,group_avatar_url,group_description,status,max_members,member_count,is_visible,category_id,tags,last_transfer_at,transfer_count,create_time,update_time"},
             {"group_member", "id,group_id,user_id,role,join_status,invited_by,invite_reason,join_time,update_time,kicked_at,kick_reason"},
             {"group_transfer_history", "id,group_id,from_user_id,to_user_id,transfer_reason,transfer_at"},
+            {"group_application", "id,group_id,user_id,message,status,reviewer_id,review_note,created_at,reviewed_at"},
             {"contact", "id,user_id,friend_id,status,remarks,expire_at,group_id,create_time,update_time"},
             {"contact_group", "id,user_id,group_name,group_order,is_default,created_at,updated_at"},
             {"chat_list", "id,user_id,target_id,group_id,target_info,type,unread_count,last_message,create_time,update_time"},
@@ -371,6 +372,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         createContentReportTable(); // 内容举报表
         createContactGroupTable(); // 联系人分组表
         createGroupTransferHistoryTable(); // 群组转让历史表
+        createGroupApplicationTable(); // 群组申请表
         createArticleModerationHistoryTable(); // 文章审核历史表
 
         log.info("✅ 所有表创建完成");
@@ -531,13 +533,13 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `owner_id` BIGINT NOT NULL COMMENT '群主ID',
                 `group_avatar_url` VARCHAR(500) COMMENT '群组头像URL',
                 `group_description` TEXT NULL COMMENT '群组描述',
-                `status` TINYINT(1) DEFAULT 1 COMMENT '群组状态: 0=已解散, 1=正常, 2=冻结',
+                `status` INT DEFAULT 1 COMMENT '群组状态: 0=已解散, 1=正常, 2=冻结',
                 `max_members` INT DEFAULT 500 COMMENT '最大成员数',
                 `member_count` INT DEFAULT 0 COMMENT '当前成员数',
-                `is_visible` TINYINT(1) DEFAULT 1 COMMENT '是否可见: 0=私密, 1=公开',
+                `is_visible` INT DEFAULT 1 COMMENT '是否可见: 0=私密, 1=公开',
                 `category_id` BIGINT COMMENT '群组分类ID',
                 `tags` VARCHAR(500) COMMENT '群组标签（逗号分隔）',
-                `last_transfer_at` TIMESTAMP NULL COMMENT '最后转让时间',
+                `last_transfer_at` DATETIME NULL COMMENT '最后转让时间',
                 `transfer_count` INT DEFAULT 0 COMMENT '转让次数',
                 `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
                 `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -594,6 +596,41 @@ public class DatabaseInitializer implements CommandLineRunner {
         }
     }
 
+    private void createGroupApplicationTable() {
+        log.info("创建群组申请表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `group_application` (
+                `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '申请ID',
+                `group_id` BIGINT NOT NULL COMMENT '群组ID',
+                `user_id` BIGINT NOT NULL COMMENT '申请人ID',
+                `message` VARCHAR(500) COMMENT '申请留言',
+                `status` VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '申请状态：PENDING=待审批，APPROVED=已通过，REJECTED=已拒绝',
+                `reviewer_id` BIGINT COMMENT '审核人ID',
+                `review_note` VARCHAR(500) COMMENT '审核备注',
+                `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
+                `reviewed_at` DATETIME COMMENT '审核时间',
+                INDEX `idx_group_id` (`group_id`),
+                INDEX `idx_user_id` (`user_id`),
+                INDEX `idx_status` (`status`),
+                INDEX `idx_created_at` (`created_at` DESC),
+                INDEX `idx_group_status` (`group_id`, `status`),
+                CONSTRAINT `fk_application_group` FOREIGN KEY (`group_id`) REFERENCES `group` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_application_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_application_reviewer` FOREIGN KEY (`reviewer_id`) REFERENCES `user` (`id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='群组申请表'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 群组申请表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建群组申请表失败", e);
+            throw new RuntimeException("创建群组申请表失败", e);
+        }
+    }
+
     private void createGroupMemberTable() {
         log.info("创建群组成员表...");
 
@@ -602,7 +639,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '成员关系ID',
                 `group_id` BIGINT NOT NULL COMMENT '群组ID',
                 `user_id` BIGINT NOT NULL COMMENT '用户ID',
-                `role` INT NOT NULL DEFAULT 3 COMMENT '成员角色：1=群主，2=管理员，3=普通成员',
+                `role` INT NOT NULL DEFAULT 3 COMMENT '成员角色：1=群主，2=管理员，3=普通成员（角色值越小权限越高）',
                 `join_status` VARCHAR(20) DEFAULT 'ACCEPTED' COMMENT '加入状态：PENDING=待审批，ACCEPTED=已接受，REJECTED=已拒绝，BLOCKED=已屏蔽',
                 `invited_by` BIGINT COMMENT '邀请人ID',
                 `invite_reason` VARCHAR(500) COMMENT '邀请/申请原因',
@@ -617,6 +654,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_join_status` (`join_status`),
                 KEY `idx_invited_by` (`invited_by`),
                 KEY `idx_join_time` (`join_time`),
+                KEY `idx_group_role_status` (`group_id`, `role`, `join_status`),
                 CONSTRAINT `fk_group_member_group` FOREIGN KEY (`group_id`) REFERENCES `group` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `fk_group_member_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `fk_group_member_inviter` FOREIGN KEY (`invited_by`) REFERENCES `user` (`id`) ON DELETE SET NULL
@@ -1224,46 +1262,46 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             // 创建测试群组1：技术交流群（alice 是群主）
             jdbcTemplate.update(
-                "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, create_time) " +
-                "VALUES ('技术交流群', ?, '讨论前端、后端、数据库等技术问题的专业群组', 1, 500, 4, NOW())",
+                "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, is_visible, create_time, update_time) " +
+                "VALUES ('技术交流群', ?, '讨论前端、后端、数据库等技术问题的专业群组', 1, 500, 4, 1, NOW(), NOW())",
                 aliceId);
             Long group1Id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
             // 添加群成员 - 技术交流群（使用统一的角色定义：1=群主，2=管理员，3=普通成员）
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_status, join_time) VALUES (?, ?, 1, 'ACCEPTED', NOW())", // 1=群主
+                "INSERT INTO group_member (group_id, user_id, role, join_status, join_time, update_time) VALUES (?, ?, 1, 'ACCEPTED', NOW(), NOW())", // 1=群主
                 group1Id, aliceId);
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 2, 'ACCEPTED', ?, NOW())", // 2=管理员
+                "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time, update_time) VALUES (?, ?, 2, 'ACCEPTED', ?, NOW(), NOW())", // 2=管理员
                 group1Id, bobId, aliceId);
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW())", // 3=普通成员
+                "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time, update_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW(), NOW())", // 3=普通成员
                 group1Id, charlieId, aliceId);
             if (testUserId != null) {
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW())",
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time, update_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW(), NOW())",
                     group1Id, testUserId, aliceId);
             }
 
             // 创建测试群组2：生活分享群（bob 是群主）
             jdbcTemplate.update(
-                "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, create_time) " +
-                "VALUES ('生活分享群', ?, '分享生活点滴、美食、旅游等日常生活内容', 1, 200, 3, NOW())",
+                "INSERT INTO `group` (group_name, owner_id, group_description, status, max_members, member_count, is_visible, create_time, update_time) " +
+                "VALUES ('生活分享群', ?, '分享生活点滴、美食、旅游等日常生活内容', 1, 200, 3, 1, NOW(), NOW())",
                 bobId);
             Long group2Id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
 
             // 添加群成员 - 生活分享群
             jdbcTemplate.update(
-                "INSERT INTO group_member (group_id, user_id, role, join_status, join_time) VALUES (?, ?, 1, 'ACCEPTED', NOW())", // 1=群主
+                "INSERT INTO group_member (group_id, user_id, role, join_status, join_time, update_time) VALUES (?, ?, 1, 'ACCEPTED', NOW(), NOW())", // 1=群主
                 group2Id, bobId);
             if (dianaId != null) {
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 2, 'ACCEPTED', ?, NOW())", // 2=管理员
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time, update_time) VALUES (?, ?, 2, 'ACCEPTED', ?, NOW(), NOW())", // 2=管理员
                     group2Id, dianaId, bobId);
             }
             if (eveId != null) {
                 jdbcTemplate.update(
-                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW())", // 3=普通成员
+                    "INSERT INTO group_member (group_id, user_id, role, join_status, invited_by, join_time, update_time) VALUES (?, ?, 3, 'ACCEPTED', ?, NOW(), NOW())", // 3=普通成员
                     group2Id, eveId, bobId);
             }
 

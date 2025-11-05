@@ -29,15 +29,25 @@ Vue/src/
 │   ├── axiosInstance.js          # Axios实例配置
 │   ├── index.js                  # API模块统一导出
 │   └── modules/                  # API模块
-│       ├── auth.js               # 认证相关API
-│       ├── user.js               # 用户管理API
-│       ├── chat.js               # 聊天功能API
-│       ├── contact.js            # 联系人管理API
-│       ├── group.js              # 群组管理API
-│       ├── article.js            # 文章管理API
+│       ├── admin.js              # 管理员功能API
 │       ├── ai.js                 # AI功能API
+│       ├── article.js            # 文章管理API
+│       ├── auth.js               # 认证相关API
+│       ├── chat.js               # 聊天功能API
+│       ├── comment.js            # 评论管理API
+│       ├── contact.js            # 联系人管理API
+│       ├── follow.js             # 关注管理API
+│       ├── group.js              # 群组管理API
+│       ├── message.js            # 消息管理API
+│       ├── messageThread.js      # 消息线程API
+│       ├── notification.js       # 通知管理API
+│       ├── rolePermission.js     # 角色权限API
 │       ├── search.js             # 搜索功能API
-│       └── ...
+│       ├── searchEnhanced.js     # 增强搜索API
+│       ├── user.js               # 用户管理API
+│       ├── userLevel.js          # 用户等级API
+│       ├── userLevelHistory.js   # 等级历史API
+│       └── userLevelIntegration.js # 等级积分API
 ├── components/                   # 公共组件
 │   ├── common/                   # Apple系列组件
 │   │   ├── AppleButton.vue       # 统一按钮组件
@@ -53,10 +63,21 @@ Vue/src/
 │   └── group/                    # 群组相关组件
 ├── views/                        # 页面组件
 │   ├── chat/                     # 聊天相关页面
+│   │   ├── ChatPage.vue          # 聊天页面
+│   │   ├── ChatWindow.vue        # 聊天窗口
+│   │   └── NewChatWindow.vue     # 新聊天窗口
 │   ├── Login.vue                 # 登录页面
 │   ├── Register.vue              # 注册页面
+│   ├── Forget.vue                # 忘记密码页面
 │   ├── UserProfile.vue           # 用户资料
 │   ├── Settings.vue              # 设置页面
+│   ├── UserDetail.vue            # 用户详情
+│   ├── Groups.vue                # 群组列表
+│   ├── NotificationListPage.vue  # 通知列表
+│   ├── UserLevelHistory.vue      # 等级历史
+│   ├── SearchPage.vue            # 搜索页面
+│   ├── group/                    # 群组相关页面
+│   │   └── GroupDetail.vue       # 群组详情
 │   └── ...
 ├── stores/                       # Pinia状态管理
 │   ├── authStore.js              # 用户认证状态
@@ -77,6 +98,18 @@ Vue/src/
 │   ├── apple-style.css           # Apple风格样式
 │   └── main.css                  # 主样式文件
 ├── constant/                     # 常量定义
+│   └── emoji/                    # 表情相关常量
+│       └── emoji.js              # 表情数据
+├── auth/                         # 认证相关页面
+│   ├── Register.vue              # 注册页面（备用）
+│   ├── HelpCenter.vue            # 帮助中心
+│   ├── UserInform.vue            # 用户信息
+│   └── usermain.vue              # 用户主页面
+├── value/                        # 值相关组件
+│   ├── usevalue.vue              # 值使用组件
+│   └── value.vue                 # 值组件
+├── video/                        # 视频相关功能
+│   └── Video.vue                 # 视频组件
 └── main.js                       # 应用入口
 ```
 
@@ -774,6 +807,18 @@ Vue/src/
   - `unfollowUser(userId)` - 取消关注
   - `getFollowers(userId, page, size)` - 获取粉丝列表
 
+- **admin.js**: 管理员功能API
+  - `getUsers(params)` - 获取用户列表
+  - `banUser(userId)` - 封禁用户
+  - `unbanUser(userId)` - 解封用户
+  - `resetUserPassword(userId, password)` - 重置密码
+
+- **rolePermission.js**: 角色权限API
+  - `getRoles()` - 获取角色列表
+  - `createRole(data)` - 创建角色
+  - `updateRole(id, data)` - 更新角色
+  - `deleteRole(id)` - 删除角色
+
 - **chat.js**: 聊天功能API
   - `getChatList()` - 获取聊天列表
   - `createChat(targetId)` - 创建聊天会话
@@ -850,19 +895,26 @@ Vue/src/
   - `markAllAsRead()` - 全部标记已读
   - `deleteNotification(notificationId)` - 删除通知
 
+- **message.js**: 消息管理API
+  - `sendMessage(data)` - 发送消息
+  - `getMessages(chatId, page, size)` - 获取消息列表
+  - `deleteMessage(messageId)` - 删除消息
+  - `markAsRead(messageId)` - 标记已读
+
 - **messageThread.js**: 消息线程API
   - `createThread(data)` - 创建消息线程
   - `getThreadMessages(threadId, page, size)` - 获取线程消息
   - `replyToThread(threadId, content)` - 回复线程
   - `addThreadParticipant(threadId, userId)` - 添加参与者
 
-#### 管理功能API模块
-- **admin.js**: 管理员功能API
-  - `getUsers(params)` - 获取用户列表
-  - `banUser(userId)` - 封禁用户
-  - `unbanUser(userId)` - 解封用户
-  - `resetUserPassword(userId, password)` - 重置密码
+- **comment.js**: 评论管理API
+  - `getComments(articleId, page, size)` - 获取文章评论
+  - `addComment(articleId, content)` - 添加评论
+  - `updateComment(commentId, content)` - 更新评论
+  - `deleteComment(commentId)` - 删除评论
+  - `likeComment(commentId)` - 点赞评论
 
+#### 等级管理API模块
 - **userLevel.js**: 用户等级API
   - `getUserLevel(userId)` - 获取用户等级
   - `getLevelDefinitions()` - 获取等级定义
@@ -885,6 +937,8 @@ Vue/src/
 - **logger.js**: 日志记录
 - **uuid.js**: UUID生成
 - **message.js**: 消息格式化
+- **elementMigrationHelper.js**: Element迁移助手
+- **websocketDebug.js**: WebSocket调试工具
 
 ### 3. 状态管理 (`stores/`)
 基于Pinia的状态管理，按功能模块组织：
@@ -915,6 +969,11 @@ Vue/src/
   - 未读通知计数
   - 通知类型筛选
   - 实时通知推送
+
+- **themeStore.js**: 主题状态管理
+  - 亮色/暗色主题切换
+  - 主题配置持久化
+  - 自定义主题变量
 
 ---
 
@@ -963,6 +1022,7 @@ Vue/src/
 ┌─────────────────────────────────────────────────────────────┐
 │                        认证模块                                │
 │  Login.vue → Register.vue → Forget.vue                      │
+│  └─ auth/ (备用页面: HelpCenter.vue, UserInform.vue)        │
 └─────────────────────┬───────────────────────────────────────┘
                       │
                       ▼
@@ -971,13 +1031,21 @@ Vue/src/
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │  AsideMenu.vue (侧边导航)                                 │ │
 │  │  ├─ Chat (/chat) - 聊天页面                             │ │
+│  │  │  └─ ChatPage.vue, ChatWindow.vue, NewChatWindow.vue  │ │
 │  │  ├─ Contact (/contact) - 联系人页面                     │ │
+│  │  │  └─ ContactPage.vue                                  │ │
 │  │  ├─ Article (/article) - 文章中心                       │ │
+│  │  │  └─ ArticleMain.vue, ArticleRead.vue, ArticleWrite.vue │ │
 │  │  ├─ Groups (/groups) - 群组列表                         │ │
+│  │  │  └─ Groups.vue, GroupDetail.vue                      │ │
 │  │  ├─ Profile (/profile) - 个人资料                       │ │
+│  │  │  └─ UserProfile.vue                                  │ │
 │  │  ├─ Settings (/setting) - 设置页面                      │ │
+│  │  │  └─ Settings.vue                                     │ │
 │  │  ├─ Search (/search) - 全局搜索                         │ │
+│  │  │  └─ SearchPage.vue                                   │ │
 │  │  └─ Notifications (/notifications) - 通知中心           │ │
+│      └─ NotificationListPage.vue                            │ │
 │  └─────────────────────────────────────────────────────────┘ │
 │                                                               │
 │  子页面路由:                                                   │
