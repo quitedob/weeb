@@ -223,7 +223,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"contact", "id,user_id,friend_id,status,remarks,expire_at,group_id,create_time,update_time"},
             {"contact_group", "id,user_id,group_name,group_order,is_default,created_at,updated_at"},
             {"chat_list", "id,user_id,target_id,group_id,target_info,type,unread_count,last_message,create_time,update_time"},
-            {"message", "id,sender_id,receiver_id,group_id,chat_id,content,message_type,read_status,is_read,is_recalled,status,user_ip,source,is_show_time,reply_to_message_id,created_at,updated_at"},
+            {"message", "id,client_message_id,sender_id,receiver_id,group_id,chat_id,content,message_type,read_status,is_read,is_recalled,status,user_ip,source,is_show_time,reply_to_message_id,created_at,updated_at"},
             {"message_reaction", "id,message_id,user_id,reaction_type,create_time"},
             {"notifications", "id,recipient_id,actor_id,type,entity_type,entity_id,is_read,created_at"},
             {"file_transfer", "id,initiator_id,target_id,offer_sdp,answer_sdp,candidate,status,created_at,updated_at"},
@@ -473,6 +473,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         String sql = """
             CREATE TABLE IF NOT EXISTS `message` (
                 `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '消息ID',
+                `client_message_id` VARCHAR(100) NULL COMMENT '客户端消息ID（用于幂等性）',
                 `sender_id` BIGINT NOT NULL COMMENT '发送者ID',
                 `receiver_id` BIGINT COMMENT '接收者ID（私聊时使用）',
                 `group_id` BIGINT COMMENT '群组ID（群聊时使用）',
@@ -490,12 +491,14 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
                 `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                 PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_client_message_id` (`client_message_id`),
                 KEY `idx_sender_id` (`sender_id`),
                 KEY `idx_chat_id` (`chat_id`),
                 KEY `idx_created_at` (`created_at`),
                 KEY `idx_message_type` (`message_type`),
                 KEY `idx_read_status` (`read_status`),
                 KEY `idx_reply_to_message_id` (`reply_to_message_id`),
+                KEY `idx_sender_client_msg` (`sender_id`, `client_message_id`),
                 KEY `idx_message_private_chat` (`sender_id`, `receiver_id`, `created_at` DESC),
                 KEY `idx_message_group_chat` (`group_id`, `created_at` DESC),
                 KEY `idx_message_receiver_read` (`receiver_id`, `is_read`, `created_at` DESC),
@@ -816,7 +819,8 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_contact_status_expire` (`status`, `expire_at`),
                 KEY `idx_contact_group_id` (`group_id`),
                 CONSTRAINT `fk_contact_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
-                CONSTRAINT `fk_contact_friend` FOREIGN KEY (`friend_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+                CONSTRAINT `fk_contact_friend` FOREIGN KEY (`friend_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `chk_not_self_contact` CHECK (`user_id` != `friend_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
             COMMENT='用户联系人关系表'
             """;
