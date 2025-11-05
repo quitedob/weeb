@@ -99,6 +99,7 @@
     <!-- 查询联系人详细信息 - 支持双向关系，防止重复 -->
     <select id="selectContactsWithDetails" resultType="com.web.dto.ContactDto">
         SELECT DISTINCT
+            c.id as contactId,
             u.id,
             u.username,
             u.nickname,

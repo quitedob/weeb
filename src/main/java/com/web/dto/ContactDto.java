@@ -10,6 +10,11 @@ import java.time.LocalDateTime;
 @Data
 public class ContactDto {
     /**
+     * 联系人记录ID（用于删除等操作）
+     */
+    private Long contactId;
+    
+    /**
      * 用户ID
      */
     private Long id;

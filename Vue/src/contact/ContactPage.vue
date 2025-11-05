@@ -30,7 +30,7 @@
         <div v-else class="contact-list">
           <AppleCard
             v-for="contact in contacts"
-            :key="contact.id"
+            :key="contact.contactId"
             class="contact-card"
             hover
           >
@@ -75,7 +75,7 @@
         <div v-else class="request-list">
           <AppleCard
             v-for="request in friendRequests"
-            :key="request.id"
+            :key="request.contactId"
             class="request-card"
             hover
           >
@@ -385,11 +385,12 @@ const sendFriendRequestByUsername = async () => {
 
 const acceptRequest = async (request) => {
   try {
-    const response = await contactApi.acceptRequest(request.id)
+    // 使用 contactId 而不是 id（id 是申请人用户ID，contactId 是联系人记录ID）
+    const response = await contactApi.acceptRequest(request.contactId)
     if (response && response.code === 0) {
       showMessage.success('已接受好友申请')
       // 从申请列表中移除
-      friendRequests.value = friendRequests.value.filter(r => r.id !== request.id)
+      friendRequests.value = friendRequests.value.filter(r => r.contactId !== request.contactId)
       // 重新加载联系人列表
       await loadContacts()
     } else {
@@ -403,11 +404,12 @@ const acceptRequest = async (request) => {
 
 const rejectRequest = async (request) => {
   try {
-    const response = await contactApi.rejectRequest(request.id)
+    // 使用 contactId 而不是 id（id 是申请人用户ID，contactId 是联系人记录ID）
+    const response = await contactApi.rejectRequest(request.contactId)
     if (response && response.code === 0) {
       showMessage.success('已拒绝好友申请')
       // 从申请列表中移除
-      friendRequests.value = friendRequests.value.filter(r => r.id !== request.id)
+      friendRequests.value = friendRequests.value.filter(r => r.contactId !== request.contactId)
     } else {
       showMessage.error(response?.message || '拒绝申请失败')
     }
@@ -423,11 +425,12 @@ const deleteContact = async (contact) => {
   }
 
   try {
-    const response = await contactApi.deleteContact(contact.id)
+    // 使用 contactId 而不是 id（id 是用户ID，contactId 是联系人记录ID）
+    const response = await contactApi.deleteContact(contact.contactId)
     if (response && response.code === 0) {
       showMessage.success('已删除联系人')
       // 从联系人列表中移除
-      contacts.value = contacts.value.filter(c => c.id !== contact.id)
+      contacts.value = contacts.value.filter(c => c.contactId !== contact.contactId)
     } else {
       showMessage.error(response?.message || '删除联系人失败')
     }
