@@ -27,6 +27,12 @@ public class ChatServiceImpl implements ChatService {
     @Autowired
     private MessageMapper messageMapper;
 
+    @Autowired
+    private com.web.service.MessageBroadcastService messageBroadcastService;
+
+    @Autowired
+    private com.web.service.ChatUnreadCountService chatUnreadCountService;
+
     @Override
     public List<ChatList> getChatList(Long userId) {
         // 获取用户的所有聊天会话
@@ -80,11 +86,47 @@ public class ChatServiceImpl implements ChatService {
         chatListMapper.updateLastMessageAndUnreadCount(String.valueOf(message.getChatId()),
                 message.getContent() != null ? message.getContent().getContent() : "");
 
+        // ✅ 增加接收者的未读计数
+        Long receiverId = message.getReceiverId();
+        if (receiverId != null && !receiverId.equals(userId)) {
+            chatUnreadCountService.incrementUnreadCount(receiverId, message.getChatId(), 1);
+        }
+
+        // ✅ 关键修复：异步转发消息给接收者或群组
+        // 获取聊天会话信息，确定接收者
+        ChatList chatList = chatListMapper.selectChatListById(message.getChatId());
+        if (chatList != null) {
+            if ("GROUP".equals(chatList.getType())) {
+                // 群聊：转发给所有群成员
+                Long groupId = chatList.getGroupId();
+                if (groupId != null) {
+                    messageBroadcastService.broadcastMessageToGroup(message, groupId);
+                }
+            } else {
+                // 私聊：转发给接收者
+                Long targetReceiverId = chatList.getUserId().equals(userId) 
+                    ? chatList.getTargetId() 
+                    : chatList.getUserId();
+                
+                if (targetReceiverId != null && !targetReceiverId.equals(userId)) {
+                    messageBroadcastService.broadcastMessageToReceiver(message, targetReceiverId);
+                }
+            }
+        }
+
         return message;
     }
 
     @Override
     public boolean markAsRead(Long userId, Long chatId) {
+        // 获取最后一条消息ID
+        Message lastMessage = messageMapper.selectLastMessageByChatId(chatId);
+        Long lastMessageId = lastMessage != null ? lastMessage.getId() : null;
+        
+        // ✅ 使用新的未读计数服务
+        chatUnreadCountService.markAsRead(userId, chatId, lastMessageId);
+        
+        // 同时更新旧的chat_list表（向后兼容）
         return chatListMapper.resetUnreadCountByChatId(String.valueOf(chatId)) > 0;
     }
 

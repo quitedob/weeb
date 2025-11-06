@@ -61,6 +61,9 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     @Autowired
     private com.web.mapper.GroupApplicationMapper groupApplicationMapper;
 
+    @Autowired
+    private com.web.service.MessageBroadcastService messageBroadcastService;
+
     /**
      * 检查用户在群组中的权限
      * @param groupId 群组ID
@@ -230,6 +233,20 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
                 
                 log.info("成员邀请成功: groupId={}, inviteeId={}, inviterId={}", 
                     inviteVo.getGroupId(), inviteeId, userId);
+                
+                // ✅ 广播群组成员变更事件
+                try {
+                    messageBroadcastService.broadcastGroupMemberChange(
+                        inviteVo.getGroupId(),
+                        "MEMBER_ADDED",
+                        inviteeId,
+                        userId,
+                        null
+                    );
+                } catch (Exception e) {
+                    log.error("广播群组成员变更失败: groupId={}, inviteeId={}", 
+                        inviteVo.getGroupId(), inviteeId, e);
+                }
             }
         }
         
@@ -303,6 +320,24 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         
         log.info("成员被踢出: groupId={}, kickedUserId={}, operatorId={}, reason={}", 
             kickVo.getGroupId(), kickVo.getKickedUserId(), userId, kickVo.getReason());
+        
+        // ✅ 广播群组成员变更事件
+        try {
+            java.util.Map<String, Object> additionalData = new java.util.HashMap<>();
+            if (kickVo.getReason() != null) {
+                additionalData.put("reason", kickVo.getReason());
+            }
+            messageBroadcastService.broadcastGroupMemberChange(
+                kickVo.getGroupId(),
+                "MEMBER_REMOVED",
+                kickVo.getKickedUserId(),
+                userId,
+                additionalData
+            );
+        } catch (Exception e) {
+            log.error("广播群组成员变更失败: groupId={}, kickedUserId={}", 
+                kickVo.getGroupId(), kickVo.getKickedUserId(), e);
+        }
     }
 
     @Override
@@ -343,6 +378,18 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         // 检查用户是否为群主或管理员（管理员有特殊权限）
         if (!isGroupOwner(groupId, userId)) {
             throw new WeebException("只有群主可以解散群组");
+        }
+        
+        // ✅ 先广播群组解散事件（在删除前，这样成员还能收到通知）
+        try {
+            messageBroadcastService.broadcastGroupInfoChange(
+                groupId,
+                "GROUP_DISSOLVED",
+                userId,
+                null
+            );
+        } catch (Exception e) {
+            log.error("广播群组解散事件失败: groupId={}", groupId, e);
         }
         
         // 删除所有群成员
@@ -390,6 +437,19 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         }
         
         log.info("成员退出群组: groupId={}, userId={}", groupId, userId);
+        
+        // ✅ 广播群组成员变更事件
+        try {
+            messageBroadcastService.broadcastGroupMemberChange(
+                groupId,
+                "MEMBER_LEFT",
+                userId,
+                userId,
+                null
+            );
+        } catch (Exception e) {
+            log.error("广播群组成员变更失败: groupId={}, userId={}", groupId, userId, e);
+        }
     }
 
     @Override
@@ -469,17 +529,40 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         }
         
         // 更新群组信息
-        if (groupData.getGroupName() != null) {
+        boolean hasChanges = false;
+        java.util.Map<String, Object> changes = new java.util.HashMap<>();
+        
+        if (groupData.getGroupName() != null && !groupData.getGroupName().equals(existingGroup.getGroupName())) {
+            changes.put("oldGroupName", existingGroup.getGroupName());
+            changes.put("newGroupName", groupData.getGroupName());
             existingGroup.setGroupName(groupData.getGroupName());
+            hasChanges = true;
         }
-        if (groupData.getGroupAvatarUrl() != null) {
+        if (groupData.getGroupAvatarUrl() != null && !groupData.getGroupAvatarUrl().equals(existingGroup.getGroupAvatarUrl())) {
+            changes.put("oldGroupAvatarUrl", existingGroup.getGroupAvatarUrl());
+            changes.put("newGroupAvatarUrl", groupData.getGroupAvatarUrl());
             existingGroup.setGroupAvatarUrl(groupData.getGroupAvatarUrl());
+            hasChanges = true;
         }
         // Note: Group model doesn't have updatedAt field, using createTime for last update
         // existingGroup.setCreateTime(new Date()); // Uncomment if you want to update timestamp
         
         // 保存更新
         updateById(existingGroup);
+        
+        // ✅ 广播群组信息变更事件
+        if (hasChanges) {
+            try {
+                messageBroadcastService.broadcastGroupInfoChange(
+                    groupId,
+                    "INFO_UPDATED",
+                    userId,
+                    changes
+                );
+            } catch (Exception e) {
+                log.error("广播群组信息变更失败: groupId={}", groupId, e);
+            }
+        }
     }
 
     @Override
@@ -675,6 +758,20 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             group.setMemberCount((group.getMemberCount() != null ? group.getMemberCount() : 0) + 1);
             updateById(group);
 
+            // 9.5. ✅ 广播群组成员变更事件
+            try {
+                messageBroadcastService.broadcastGroupMemberChange(
+                    groupId,
+                    "MEMBER_ADDED",
+                    application.getUserId(),
+                    userId,
+                    null
+                );
+            } catch (Exception e) {
+                log.error("广播群组成员变更失败: groupId={}, newMemberId={}", 
+                    groupId, application.getUserId(), e);
+            }
+
             // 10. 发送批准通知给申请人
             try {
                 notificationService.createAndPublishNotification(
@@ -787,10 +884,29 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
             // 设置角色（这里需要根据字符串角色转换为数字）
             int roleValue = "admin".equalsIgnoreCase(role) ? 1 : 0; // 简化实现
+            int oldRole = targetMember.getRole();
             targetMember.setRole(roleValue);
 
             // 更新数据库
             groupMemberMapper.updateById(targetMember);
+            
+            // ✅ 广播群组成员角色变更事件
+            try {
+                java.util.Map<String, Object> additionalData = new java.util.HashMap<>();
+                additionalData.put("oldRole", oldRole);
+                additionalData.put("newRole", roleValue);
+                additionalData.put("roleName", role);
+                messageBroadcastService.broadcastGroupMemberChange(
+                    groupId,
+                    "ROLE_CHANGED",
+                    userId,
+                    operatorId,
+                    additionalData
+                );
+            } catch (Exception e) {
+                log.error("广播群组成员角色变更失败: groupId={}, userId={}", groupId, userId, e);
+            }
+            
             return true;
         } catch (Exception e) {
             return false;
@@ -825,6 +941,19 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             if (group != null && group.getMemberCount() != null && group.getMemberCount() > 0) {
                 group.setMemberCount(group.getMemberCount() - 1);
                 updateById(group);
+            }
+            
+            // ✅ 广播群组成员变更事件
+            try {
+                messageBroadcastService.broadcastGroupMemberChange(
+                    groupId,
+                    "MEMBER_REMOVED",
+                    userId,
+                    operatorId,
+                    null
+                );
+            } catch (Exception e) {
+                log.error("广播群组成员变更失败: groupId={}, userId={}", groupId, userId, e);
             }
             
             return true;
@@ -890,6 +1019,22 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             // 8. 记录转让历史
             // TODO: 实现群组转让历史记录功能
             log.info("群组转让历史记录功能待实现: groupId={}, from={}, to={}", groupId, currentOwnerId, newOwnerId);
+
+            // 8.5. ✅ 广播群组信息变更事件（群主转让）
+            try {
+                java.util.Map<String, Object> additionalData = new java.util.HashMap<>();
+                additionalData.put("oldOwnerId", currentOwnerId);
+                additionalData.put("newOwnerId", newOwnerId);
+                messageBroadcastService.broadcastGroupInfoChange(
+                    groupId,
+                    "OWNER_TRANSFERRED",
+                    currentOwnerId,
+                    additionalData
+                );
+            } catch (Exception e) {
+                log.error("广播群组转让事件失败: groupId={}, from={}, to={}", 
+                    groupId, currentOwnerId, newOwnerId, e);
+            }
 
             log.info("群组转让成功: groupId={}, from={}, to={}", groupId, currentOwnerId, newOwnerId);
             return true;

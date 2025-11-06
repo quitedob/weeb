@@ -29,6 +29,9 @@ public class ChatController {
     @Autowired
     private ChatService chatService;
 
+    @Autowired
+    private com.web.service.ChatUnreadCountService chatUnreadCountService;
+
     /**
      * 获取用户的聊天列表
      * 接口说明：
@@ -177,5 +180,114 @@ public class ChatController {
                                                              @Userid Long userId) {
         boolean result = chatService.recallMessage(userId, messageId);
         return ResponseEntity.ok(ApiResponse.success("消息撤回成功", result));
+    }
+
+    @Autowired
+    private com.web.service.UserOnlineStatusService onlineStatusService;
+
+    /**
+     * 获取在线用户列表
+     * 接口说明：
+     *  - 获取当前所有在线用户的ID列表
+     *
+     * @return 返回在线用户ID集合
+     */
+    @UrlLimit
+    @GetMapping("/online-users")
+    public ResponseEntity<ApiResponse<java.util.Set<Object>>> getOnlineUsers() {
+        java.util.Set<Object> onlineUsers = onlineStatusService.getOnlineUsers();
+        return ResponseEntity.ok(ApiResponse.success(onlineUsers));
+    }
+
+    /**
+     * 检查用户是否在线
+     * 接口说明：
+     *  - 检查指定用户是否在线
+     *
+     * @param targetUserId 目标用户ID
+     * @return 返回在线状态
+     */
+    @UrlLimit
+    @GetMapping("/users/{targetUserId}/online")
+    public ResponseEntity<ApiResponse<Boolean>> checkUserOnline(@PathVariable Long targetUserId) {
+        boolean isOnline = onlineStatusService.isUserOnline(targetUserId);
+        return ResponseEntity.ok(ApiResponse.success(isOnline));
+    }
+
+    // ==================== 未读计数相关API ====================
+
+    /**
+     * 获取未读消息统计
+     * 接口说明：
+     *  - 获取用户的未读消息总数和详细列表
+     *
+     * @param userId 当前用户ID，由注解 @Userid 提供
+     * @return 返回未读统计信息
+     */
+    @UrlLimit
+    @GetMapping("/unread/stats")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getUnreadStats(@Userid Long userId) {
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        
+        // 获取总未读数
+        int totalUnread = chatUnreadCountService.getTotalUnreadCount(userId);
+        stats.put("totalUnread", totalUnread);
+        
+        // 获取未读列表
+        java.util.List<java.util.Map<String, Object>> unreadList = chatUnreadCountService.getUnreadCountList(userId);
+        stats.put("unreadList", unreadList);
+        
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    /**
+     * 获取单个聊天的未读数
+     * 接口说明：
+     *  - 获取指定聊天的未读消息数
+     *
+     * @param chatId 聊天ID
+     * @param userId 当前用户ID，由注解 @Userid 提供
+     * @return 返回未读数
+     */
+    @UrlLimit
+    @GetMapping("/{chatId}/unread")
+    public ResponseEntity<ApiResponse<Integer>> getUnreadCount(@PathVariable Long chatId,
+                                                               @Userid Long userId) {
+        int unreadCount = chatUnreadCountService.getUnreadCount(userId, chatId);
+        return ResponseEntity.ok(ApiResponse.success(unreadCount));
+    }
+
+    /**
+     * 批量标记已读
+     * 接口说明：
+     *  - 批量将多个聊天标记为已读
+     *
+     * @param chatIds 聊天ID列表
+     * @param userId 当前用户ID，由注解 @Userid 提供
+     * @return 返回操作结果
+     */
+    @UrlLimit
+    @PostMapping("/read/batch")
+    public ResponseEntity<ApiResponse<String>> batchMarkAsRead(@RequestBody java.util.List<Long> chatIds,
+                                                               @Userid Long userId) {
+        chatUnreadCountService.batchMarkAsRead(userId, chatIds);
+        return ResponseEntity.ok(ApiResponse.success("批量标记已读成功"));
+    }
+
+    /**
+     * 获取群组未读数（优化版）
+     * 接口说明：
+     *  - 获取群组聊天的未读消息数（仅追踪最后已读消息ID）
+     *
+     * @param groupId 群组ID
+     * @param userId 当前用户ID，由注解 @Userid 提供
+     * @return 返回未读数
+     */
+    @UrlLimit
+    @GetMapping("/groups/{groupId}/unread")
+    public ResponseEntity<ApiResponse<Integer>> getGroupUnreadCount(@PathVariable Long groupId,
+                                                                    @Userid Long userId) {
+        int unreadCount = chatUnreadCountService.getGroupUnreadCount(userId, groupId);
+        return ResponseEntity.ok(ApiResponse.success(unreadCount));
     }
 }

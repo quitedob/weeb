@@ -18,9 +18,25 @@ import java.util.Map;
 
 /**
  * 统一消息控制器
- * 整合群组消息和私聊消息的处理逻辑
- * 提供统一的消息发送、接收、查询等API
+ * 
+ * ⚠️ 已废弃 (DEPRECATED) - 2025-11-06
+ * 
+ * 此Controller的功能已合并到 ChatController (/api/chats)
+ * 
+ * 迁移指南：
+ * - /api/messages/send → /api/chats/{chatId}/messages (POST)
+ * - /api/messages/private → /api/chats (POST) + /api/chats/{chatId}/messages (POST)
+ * - /api/messages/group → /api/chats/{chatId}/messages (POST)
+ * - /api/messages → /api/chats (GET)
+ * - /api/messages/chats → /api/chats (GET)
+ * - /api/messages/unread/stats → /api/chats/unread/stats (GET)
+ * - /api/messages/{messageId}/read → /api/chats/{chatId}/read (POST)
+ * - /api/messages/{messageId}/recall → /api/chats/messages/{messageId} (DELETE)
+ * 
+ * 请更新前端代码使用新的API端点
+ * 此Controller将在下一个版本中移除
  */
+@Deprecated
 @Slf4j
 @RestController
 @RequestMapping("/api/messages")

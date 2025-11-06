@@ -42,7 +42,7 @@
 | POST | `/reset-password` | 重置密码 | `PasswordResetVo` (body) |
 | GET | `/verify-reset-token` | 验证重置令牌 | `token` (query), `email` (query) |
 
-### 2. StandardUserController (用户管理)
+### 2. StandardUserController (用户管理) ✅ 规范化用户API
 **基路径**: `/api/users`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -52,6 +52,7 @@
 | GET | `/me/info` | 获取当前用户基本信息 | 无 (SecurityUtils获取userId) |
 | PUT | `/me` | 更新当前用户信息 | `UpdateUserVo` (body) |
 | GET | `/{userId}` | 获取指定用户信息 | `userId` (path) |
+| GET | `/by-username/{username}` | 通过用户名获取用户信息 ✨新增 | `username` (path) |
 | GET | `/` | 获取用户列表（分页） | `page`, `pageSize`, `keyword` (query) |
 | GET | `/search` | 搜索用户 | `q`, `limit` (query) |
 | GET | `/me/groups` | 获取当前用户的群组列表 | 无 (SecurityUtils获取userId) |
@@ -113,7 +114,7 @@
 | DELETE | `/groups/contacts/{contactId}` | 从分组中移除联系人 | `contactId` (path), `userId` (@Userid) |
 | GET | `/groups/{groupId}/contacts` | 获取指定分组的联系人列表 | `groupId` (path), `userId` (@Userid) |
 
-### 5. ChatController (聊天管理)
+### 5. ChatController (聊天管理) ✅ 统一聊天API
 **基路径**: `/api/chats`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -123,9 +124,15 @@
 | GET | `/{chatId}/messages` | 获取聊天消息历史记录 | `chatId` (path), `ChatMessagesVo` (@ModelAttribute) |
 | POST | `/{chatId}/messages` | 发送聊天消息 | `chatId` (path), `userId` (@Userid), `ChatMessageVo` (body) |
 | POST | `/{chatId}/read` | 标记消息为已读 | `chatId` (path), `userId` (@Userid) |
+| POST | `/read/batch` | 批量标记已读 | `chatIds` (body), `userId` (@Userid) |
 | DELETE | `/{chatId}` | 删除聊天会话 | `chatId` (path), `userId` (@Userid) |
 | POST | `/messages/{messageId}/react` | 对消息添加反应 | `messageId` (path), `userId` (@Userid), `reactionType` (query) |
 | DELETE | `/messages/{messageId}` | 撤回消息 | `messageId` (path), `userId` (@Userid) |
+| GET | `/unread/stats` | 获取未读消息统计 | `userId` (@Userid) |
+| GET | `/{chatId}/unread` | 获取单个聊天未读数 | `chatId` (path), `userId` (@Userid) |
+| GET | `/groups/{groupId}/unread` | 获取群组未读数 | `groupId` (path), `userId` (@Userid) |
+| GET | `/online-users` | 获取在线用户列表 | 无 |
+| GET | `/users/{targetUserId}/online` | 检查用户是否在线 | `targetUserId` (path) |
 
 ### 6. SearchController (全局搜索)
 **基路径**: `/api/search`
@@ -144,7 +151,7 @@
 | 方法 | 路径 | 描述 | 参数 |
 |------|------|------|------|
 | GET | `/{id}` | 根据ID获取文章信息 | `id` (path) |
-| GET | `/userinform` | 获取用户各类统计信息 | `userId` (query) |
+| ~~GET~~ | ~~/userinform~~ | ❌ 已删除 - 请使用 `/api/users/{userId}` | ~~userId (query)~~ |
 | POST | `/{id}/like` | 文章点赞 | `id` (path) |
 | GET | `/` | 获取文章列表 | `page`, `size` (query) |
 | POST | `/` | 创建文章 | `ArticleCreateVo` (body), `userId` (@Userid) |
@@ -204,6 +211,63 @@
 | MESSAGE | `/chat/recall/{messageId}` | 撤回消息 | `messageId`, `roomId`, `principal` |
 | MESSAGE | `/chat/heartbeat` | 处理心跳消息 | `principal`, `headerAccessor` |
 
+#### WebSocket订阅队列
+
+前端需要订阅以下队列以接收实时消息：
+
+| 队列路径 | 描述 | 消息格式 |
+|---------|------|---------|
+| `/user/{username}/queue/private` | 私聊消息 | `MessageResponse` |
+| `/user/{username}/queue/chat-list-update` | 聊天列表更新 | `ChatList` |
+| `/user/{username}/queue/message-status` | 消息状态更新 | `{ messageId, status, timestamp }` |
+| `/user/{username}/queue/read-receipt` | 已读回执 | `{ chatId, messageId, timestamp, status }` |
+| `/user/{username}/queue/group-member-change` | 群组成员变更 ✨新增 | `GroupMemberChangeEvent` |
+| `/user/{username}/queue/group-info-change` | 群组信息变更 ✨新增 | `GroupInfoChangeEvent` |
+| `/user/{username}/queue/errors` | 错误消息 | `{ type, message, clientMessageId, timestamp }` |
+
+#### 群组成员变更事件 (GroupMemberChangeEvent)
+
+```json
+{
+  "type": "GROUP_MEMBER_CHANGE",
+  "groupId": 123,
+  "changeType": "MEMBER_ADDED | MEMBER_REMOVED | MEMBER_LEFT | ROLE_CHANGED",
+  "affectedUserId": 456,
+  "affectedUsername": "user123",
+  "affectedNickname": "张三",
+  "affectedAvatar": "https://...",
+  "operatorId": 789,
+  "operatorUsername": "admin",
+  "operatorNickname": "管理员",
+  "timestamp": "2025-11-06T10:30:00Z",
+  "additionalData": {
+    "oldRole": 0,
+    "newRole": 1,
+    "reason": "..."
+  }
+}
+```
+
+#### 群组信息变更事件 (GroupInfoChangeEvent)
+
+```json
+{
+  "type": "GROUP_INFO_CHANGE",
+  "groupId": 123,
+  "changeType": "INFO_UPDATED | OWNER_TRANSFERRED | GROUP_DISSOLVED",
+  "operatorId": 789,
+  "operatorUsername": "admin",
+  "operatorNickname": "管理员",
+  "timestamp": "2025-11-06T10:30:00Z",
+  "oldGroupName": "旧群名",
+  "newGroupName": "新群名",
+  "oldGroupAvatarUrl": "https://...",
+  "newGroupAvatarUrl": "https://...",
+  "oldOwnerId": 456,
+  "newOwnerId": 789
+}
+```
+
 ### 10. WebSocketMonitorController (WebSocket监控)
 **基路径**: `/api/websocket/monitor`
 
@@ -217,23 +281,23 @@
 | POST | `/clean-expired` | 手动清理过期连接 | 无 |
 | GET | `/user/{userId}/sessions` | 获取用户活跃会话列表 | `userId` (path) |
 
-### 11. UnifiedMessageController (统一消息管理)
+### 11. UnifiedMessageController (统一消息管理) ⚠️ 已废弃
 **基路径**: `/api/messages`
+**状态**: 已标记为 @Deprecated，请使用 ChatController (`/api/chats`)
 
-| 方法 | 路径 | 描述 | 参数 |
-|------|------|------|------|
-| POST | `/send` | 发送消息 | `MessageSendVo` (body), `userId` (@Userid) |
-| GET | `/history` | 获取消息历史 | `chatId`, `page`, `size` (query) |
-| GET | `/unread` | 获取未读消息 | `userId` (@Userid) |
-| PUT | `/{messageId}/read` | 标记消息为已读 | `messageId` (path), `userId` (@Userid) |
-| DELETE | `/{messageId}` | 删除消息 | `messageId` (path), `userId` (@Userid) |
-| POST | `/{messageId}/reaction` | 添加消息反应 | `messageId` (path), `reaction` (query), `userId` (@Userid) |
-| DELETE | `/{messageId}/reaction` | 移除消息反应 | `messageId` (path), `reaction` (query), `userId` (@Userid) |
-| PUT | `/{messageId}` | 编辑消息 | `messageId` (path), `MessageEditVo` (body), `userId` (@Userid) |
-| GET | `/search` | 搜索消息 | `keyword`, `chatId`, `userId` (@Userid) |
-| POST | `/forward` | 转发消息 | `MessageForwardVo` (body), `userId` (@Userid) |
-| GET | `/thread/{messageId}` | 获取消息线程 | `messageId` (path) |
-| POST | `/thread/{messageId}/reply` | 回复消息线程 | `messageId` (path), `MessageSendVo` (body), `userId` (@Userid) |
+> ⚠️ **重要提示**: 此Controller已废弃，所有功能已迁移到ChatController。
+> 请参考 [API迁移指南](../API_MIGRATION_GUIDE.md) 了解如何迁移到新API。
+
+| 方法 | 路径 | 描述 | 迁移到 |
+|------|------|------|--------|
+| POST | `/send` | 发送消息 | `POST /api/chats/{chatId}/messages` |
+| GET | `/history` | 获取消息历史 | `GET /api/chats/{chatId}/messages` |
+| GET | `/unread` | 获取未读消息 | `GET /api/chats/unread/stats` |
+| PUT | `/{messageId}/read` | 标记消息为已读 | `POST /api/chats/{chatId}/read` |
+| DELETE | `/{messageId}` | 删除消息 | `DELETE /api/chats/messages/{messageId}` |
+| POST | `/{messageId}/reaction` | 添加消息反应 | `POST /api/chats/messages/{messageId}/react` |
+| POST | `/{messageId}/recall` | 撤回消息 | `DELETE /api/chats/messages/{messageId}` |
+| GET | `/search` | 搜索消息 | 使用 SearchController |
 
 ### 12. MessageThreadController (消息线程管理)
 **基路径**: `/api/threads`
@@ -486,3 +550,72 @@
 - 添加缓存机制
 - 优化数据库查询
 - 实现接口限流保护
+
+--
+-
+
+## API迁移说明 (2025-11-06更新)
+
+### 重要变更
+
+#### 1. 聊天API统一 ✅
+**UnifiedMessageController** (`/api/messages/*`) 已标记为废弃，所有功能已迁移到 **ChatController** (`/api/chats/*`)
+
+**迁移对照表**:
+| 旧端点 | 新端点 | 说明 |
+|--------|--------|------|
+| POST /api/messages/send | POST /api/chats/{chatId}/messages | 发送消息 |
+| GET /api/messages/chats | GET /api/chats | 获取聊天列表 |
+| GET /api/messages/unread/stats | GET /api/chats/unread/stats | 未读统计 |
+| POST /api/messages/{id}/read | POST /api/chats/{chatId}/read | 标记已读 |
+| POST /api/messages/{id}/recall | DELETE /api/chats/messages/{id} | 撤回消息 |
+
+**新增功能**:
+- `POST /api/chats/read/batch` - 批量标记已读
+- `GET /api/chats/{chatId}/unread` - 获取单个聊天未读数
+- `GET /api/chats/groups/{groupId}/unread` - 获取群组未读数
+- `GET /api/chats/online-users` - 获取在线用户列表
+
+#### 2. 用户信息API规范化 ✅
+**ArticleCenterController** 中的用户信息端点已删除，统一使用 **StandardUserController**
+
+**迁移对照表**:
+| 旧端点 | 新端点 | 说明 |
+|--------|--------|------|
+| GET /api/articles/userinform | GET /api/users/{userId} | 获取用户信息 |
+| GET /api/articles/userinform-by-username | GET /api/users/by-username/{username} | 通过用户名获取 |
+| - | GET /api/users/{userId}/stats | 获取用户统计 |
+
+**新增功能**:
+- `GET /api/users/by-username/{username}` - 通过用户名获取完整用户信息（含统计数据）
+
+### 迁移时间表
+
+- **2025-11-06**: API重构完成，旧端点标记为废弃
+- **2025-11-20**: 前端完成迁移（预计）
+- **2025-12-01**: 移除废弃端点（计划）
+
+### 详细迁移指南
+
+请参考以下文档了解详细的迁移步骤：
+- [API迁移指南](../API_MIGRATION_GUIDE.md) - 完整的API迁移说明
+- [前端迁移任务](../FRONTEND_MIGRATION_TASKS.md) - 前端组件迁移清单
+- [API重构总结](../API_REFACTORING_SUMMARY.md) - 重构详细说明
+
+### 兼容性说明
+
+- 废弃的端点仍然可用，但会在响应头中包含 `X-Deprecated-API: true`
+- 建议尽快迁移到新端点，旧端点将在下一个主版本中移除
+- 新端点提供更好的性能和更完整的功能
+
+### 技术支持
+
+如有迁移问题，请：
+1. 查看迁移文档
+2. 检查API响应日志
+3. 联系开发团队
+
+---
+
+**最后更新**: 2025-11-06  
+**文档版本**: 2.0

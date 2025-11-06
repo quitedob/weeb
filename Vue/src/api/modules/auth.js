@@ -33,6 +33,15 @@ export default {
     return axiosInstance.post('/api/auth/logout');
   },
 
+  // 刷新Token
+  refreshToken(token) {
+    return axiosInstance.post('/api/auth/refresh', null, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+  },
+
   // 获取当前用户信息 - 使用正确的API路径
   getUserInfo() {
     return axiosInstance.get('/api/users/me');

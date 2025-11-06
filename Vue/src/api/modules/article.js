@@ -1,6 +1,7 @@
 // File path: /Vue/src/api/modules/article.js
 
 import axiosInstance from '../axiosInstance';
+import { getUserById, getUserByUsername } from './user';  // 导入用户相关API
 
 /**
  * 文章服务 API
@@ -87,18 +88,16 @@ export const addCoinToArticle = (id, amount) => {
 };
 
 // 获取用户的统计信息（总点赞、收藏等）
-// User's article.js had getUserInformation. Backend ArticleCenterController has:
-// @GetMapping("/userinform") public ApiResponse<UserInformationVo> getUserInformation(@RequestParam String userId)
-export const getUserInformation = (userId) => {
-    return axiosInstance.get(`/api/articles/userinform?userId=${userId}`);
-};
+// ❌ 已废弃 - 违规端点已删除
+// 用户信息应通过 /api/users/* 端点获取
+// 请使用 Vue/src/api/modules/user.js 中的方法：
+// - getUserById(userId) 替代 getUserInformation(userId)
+// - 暂无通过用户名获取的端点，请先通过搜索API获取userId
 
-// 根据用户名获取用户信息
-// User's article.js had getUserInfoByUsername. Backend ArticleCenterController has:
-// @GetMapping("/userinform-by-username") public ApiResponse<UserInformationVo> getUserInformationByUsername(@RequestParam String username)
-export const getUserInfoByUsername = (username) => {
-    return axiosInstance.get(`/api/articles/userinform-by-username?username=${username}`);
-};
+// 迁移示例：
+// import { getUserById, getUserStats } from '@/api/modules/user';
+// const response = await getUserById(userId);
+// const { user, stats } = response.data;
 
 // 获取文章分类列表
 export const getCategories = () => {
@@ -201,8 +200,8 @@ export default {
     checkLikeStatus,  // 添加检查点赞状态API
     increaseReadCount,
     addCoinToArticle,
-    getUserInformation,
-    getUserInfoByUsername,
+    getUserById,  // 使用正确的函数名
+    getUserByUsername,  // 使用正确的函数名
     getCategories,  // 添加获取分类API
     getRecommendedArticles,  // 添加获取推荐文章API
     searchArticles,  // 添加搜索文章API

@@ -96,6 +96,19 @@ public class RedisCacheServiceImpl implements RedisCacheService {
     }
 
     @Override
+    public void evictAllUserStatsCache() {
+        try {
+            Set<String> keys = redisTemplate.keys(USER_WITH_STATS_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+                log.info("清除所有用户统计信息缓存: count={}", keys.size());
+            }
+        } catch (Exception e) {
+            log.error("清除所有用户统计信息缓存失败", e);
+        }
+    }
+
+    @Override
     public List<User> getCachedUsers(List<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return List.of();

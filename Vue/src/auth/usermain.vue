@@ -75,7 +75,7 @@
 </template>
 
 <script>
-import { instance } from '../api/axiosInstance';
+import { getUserByUsername, getCurrentUser } from '@/api/modules/user';
 
 export default {
   name: "usermain",
@@ -90,7 +90,7 @@ export default {
   },
   methods: {
     // 检查用户登录状态
-    checkLoginStatus() {
+    async checkLoginStatus() {
       const token = localStorage.getItem('token');
       if (!token) {
         alert('尚未登录, 将跳转到登录页面');
@@ -98,69 +98,68 @@ export default {
         return;
       }
 
-      // 验证令牌是否有效
-      instance
-          .get('/user')
-          .then((response) => {
-            this.isLoggedIn = true;
-            this.username = response.data.username || '已登录用户';
-            // 获取用户的其他信息
-            this.fetchUserInformation(token);
-          })
-          .catch((error) => {
-            console.error('用户身份验证失败', error);
-            alert('身份验证失败，将跳转到登录页面');
-            localStorage.removeItem('token'); // 移除失效令牌
-            this.$router.push('/login');
-          });
+      try {
+        // ✅ 使用新的API获取当前用户信息
+        const response = await getCurrentUser();
+        this.isLoggedIn = true;
+        this.username = response.data.user?.username || '已登录用户';
+        
+        // 获取用户的其他信息
+        await this.fetchUserInformation();
+      } catch (error) {
+        console.error('用户身份验证失败', error);
+        alert('身份验证失败，将跳转到登录页面');
+        localStorage.removeItem('token'); // 移除失效令牌
+        this.$router.push('/login');
+      }
     },
+    
     write(){
       this.$router.push('/articlewrite');
     },
-    // 获取用户其他信息
-    fetchUserInformation(token) {
-      instance
-          .get('/articles/userinform-by-username', {
-            // 使用 params 参数添加查询字符串
-            params: {
-              username: this.username // 或者具体的用户名字符串
-            }
-          })
-          .then((response) => {
-            console.log('用户信息获取成功:', response.data);
+    
+    // ✅ 获取用户其他信息 - 使用新的API
+    async fetchUserInformation() {
+      try {
+        // 使用新的getUserByUsername API
+        const response = await getUserByUsername(this.username);
+        console.log('用户信息获取成功:', response.data);
 
-            // 将获取到的用户信息保存到 Vue 状态中
-            this.userInformation = response.data;
+        // 解构响应数据
+        const { user, stats } = response.data;
 
-            // 如果返回数据中包含 registrationDate
-            if (response.data.registrationDate) {
-              // 注册日期字符串
-              const registrationDateStr = response.data.registrationDate;
+        // 将获取到的用户信息保存到 Vue 状态中
+        this.userInformation = {
+          fans_count: stats?.followersCount || 0,
+          total_article_exposure: stats?.totalViews || 0,
+          website_coins: stats?.totalCoins || 0,
+          total_likes: stats?.likesCount || 0,
+          total_favorites: stats?.totalFavorites || 0,
+          registrationDate: user?.createdAt || user?.registrationDate
+        };
 
-              // 将 ISO 8601 格式的日期字符串解析为 JavaScript Date 对象
-              const registrationDate = new Date(registrationDateStr);
+        // 如果返回数据中包含 registrationDate
+        if (this.userInformation.registrationDate) {
+          // 注册日期字符串
+          const registrationDateStr = this.userInformation.registrationDate;
 
-              // 获取当前时间并计算本地时间差
-              const now = new Date();
-              const timeDifference = now.getTime() - registrationDate.getTime();
-              const calculatedDays = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+          // 将 ISO 8601 格式的日期字符串解析为 JavaScript Date 对象
+          const registrationDate = new Date(registrationDateStr);
 
-              // 保存本地格式化后的日期和重新计算的天数到状态中
-              this.registrationDate = registrationDate.toLocaleString(); // 格式化为本地时间字符串
-              this.registrationDays = calculatedDays; // 本地重新计算的天数
-            }
+          // 获取当前时间并计算本地时间差
+          const now = new Date();
+          const timeDifference = now.getTime() - registrationDate.getTime();
+          const calculatedDays = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
 
-            // 如果后端已经返回 registrationDays，保留原值（可选）
-            if (response.data.registrationDays !== undefined) {
-              console.log(`后端返回的注册天数: ${response.data.registrationDays}`);
-            }
-          })
-          .catch((error) => {
-            console.error('获取用户信息失败:', error.response?.data || error.message);
-            alert(`获取用户信息失败: ${error.response?.status} ${error.response?.statusText}`);
-          });
+          // 保存本地格式化后的日期和重新计算的天数到状态中
+          this.registrationDate = registrationDate.toLocaleString(); // 格式化为本地时间字符串
+          this.registrationDays = calculatedDays; // 本地重新计算的天数
+        }
+      } catch (error) {
+        console.error('获取用户信息失败:', error.response?.data || error.message);
+        alert(`获取用户信息失败: ${error.response?.status || 'Unknown'} ${error.response?.statusText || error.message}`);
+      }
     }
-
   },
   created() {
     this.checkLoginStatus(); // 组件创建时检查登录状态

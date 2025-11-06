@@ -1,7 +1,14 @@
 import { defineStore } from 'pinia';
+import { watch } from 'vue';
 import notificationApi from '@/api/modules/notification';
 
 export const useNotificationStore = defineStore('notification', {
+  persist: {
+    key: 'notification-store',
+    paths: ['unreadCount', 'lastFetchTime'],
+    storage: sessionStorage,
+  },
+  
   state: () => ({
     notifications: [],
     unreadCount: 0,
@@ -9,7 +16,9 @@ export const useNotificationStore = defineStore('notification', {
     totalPages: 1,
     pageSize: 10,
     isLoading: false,
-    lastFetchTime: null
+    lastFetchTime: null,
+    autoRefreshInterval: null,
+    maxNotifications: 100, // 最多缓存100条通知
   }),
 
   getters: {
@@ -137,8 +146,8 @@ export const useNotificationStore = defineStore('notification', {
       this.totalPages = 1;
     },
 
-    // 重置状态
     resetState() {
+      this.stopAutoRefresh();
       this.notifications = [];
       this.unreadCount = 0;
       this.currentPage = 1;
@@ -146,6 +155,64 @@ export const useNotificationStore = defineStore('notification', {
       this.pageSize = 10;
       this.isLoading = false;
       this.lastFetchTime = null;
+    },
+
+    startAutoRefresh(interval = 30000) {
+      this.stopAutoRefresh();
+      
+      this.autoRefreshInterval = setInterval(() => {
+        if (!this.isLoading) {
+          this.fetchUnreadCount();
+        }
+      }, interval);
+    },
+
+    stopAutoRefresh() {
+      if (this.autoRefreshInterval) {
+        clearInterval(this.autoRefreshInterval);
+        this.autoRefreshInterval = null;
+      }
+    },
+
+    pruneNotifications() {
+      if (this.notifications.length > this.maxNotifications) {
+        const readNotifications = this.notifications.filter(n => n.isRead);
+        const unreadNotifications = this.notifications.filter(n => !n.isRead);
+        
+        if (readNotifications.length > this.maxNotifications / 2) {
+          const keepCount = Math.floor(this.maxNotifications / 2);
+          const pruned = readNotifications.slice(-keepCount);
+          this.notifications = [...unreadNotifications, ...pruned];
+        }
+      }
+    },
+
+    setupWatchers() {
+      // 监听未读数量变化
+      watch(
+        () => this.unreadCount,
+        (newCount, oldCount) => {
+          if (newCount > oldCount) {
+            console.log(`新增 ${newCount - oldCount} 条未读通知`);
+            
+            // 可以触发浏览器通知
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('新通知', {
+                body: `您有 ${newCount} 条未读通知`,
+                icon: '/favicon.ico'
+              });
+            }
+          }
+        }
+      );
+
+      // 监听通知列表变化，自动清理
+      watch(
+        () => this.notifications.length,
+        () => {
+          this.pruneNotifications();
+        }
+      );
     }
   }
 });

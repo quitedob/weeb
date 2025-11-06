@@ -108,32 +108,21 @@ const handleLogin = async () => {
   error.value = ''
 
   try {
-    const response = await api.auth.login({
+    // authStore.login 已经处理了token保存和用户信息获取
+    await authStore.login({
       username: loginForm.username,
-      password: loginForm.password
+      password: loginForm.password,
+      rememberMe: loginForm.rememberMe
     })
 
-    // 后端返回 ApiResponse 格式: { code: 0, message: "success", data: { token: "..." } }
-    // 响应拦截器已经处理了业务逻辑，这里直接检查 response.data.token
-    if (response && response.data && response.data.token) {
-      // 保存token
-      const token = response.data.token
-      authStore.setToken(token)
-      
-      // 获取用户信息
-      await authStore.fetchUserInfo()
+    appleMessage.success('登录成功')
 
-      appleMessage.success('登录成功')
-
-      // 跳转到目标页面或首页
-      const redirectPath = route.query.redirect || '/'
-      router.push(redirectPath)
-    } else {
-      error.value = response?.message || '登录失败'
-    }
+    // 跳转到目标页面或首页
+    const redirectPath = route.query.redirect || '/'
+    router.push(redirectPath)
   } catch (err) {
     console.error('登录错误:', err)
-    error.value = err.response?.data?.message || '登录失败，请稍后重试'
+    error.value = err.message || '登录失败，请稍后重试'
   } finally {
     loading.value = false
   }

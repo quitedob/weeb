@@ -38,6 +38,12 @@ public class WebSocketMessageController {
     @Autowired
     private SimpMessageSendingOperations messagingTemplate;
 
+    @Autowired
+    private com.web.service.MessageBroadcastService messageBroadcastService;
+
+    @Autowired
+    private com.web.service.MessageDeduplicationService deduplicationService;
+
     /**
      * 将WebSocket消息数据转换为Message对象
      * @param messageData WebSocket消息数据
@@ -84,7 +90,7 @@ public class WebSocketMessageController {
         }
 
         // 设置其他默认值
-        message.setReadStatus(0); // 未读
+        message.setStatus(Message.STATUS_SENT); // 已发送
         message.setIsRecalled(0); // 未撤回
         message.setIsShowTime(1); // 显示时间
         message.setUserIp("WebSocket"); // 标记来源为WebSocket
@@ -266,6 +272,7 @@ public class WebSocketMessageController {
 
     /**
      * 发送私聊消息
+     * ✅ 修复：使用MessageBroadcastService统一处理消息转发
      */
     @MessageMapping("/chat/private")
     public void sendPrivateMessage(
@@ -275,58 +282,89 @@ public class WebSocketMessageController {
         try {
             String targetUser = (String) message.get("targetUser");
             String content = (String) message.get("content");
+            String clientMessageId = (String) message.get("clientMessageId");
+            Object targetIdObj = message.get("targetId");
+            Object chatIdObj = message.get("chatId");
 
-            log.info("私聊消息: from={}, to={}, content={}",
-                    principal.getName(), targetUser, content);
+            log.info("📨 收到私聊消息: from={}, to={}, content={}, clientMessageId={}",
+                    principal.getName(), targetUser, content, clientMessageId);
 
-            // 构建消息数据用于保存
-            Map<String, Object> chatMessage = new HashMap<>();
-            chatMessage.put("content", content);
-            chatMessage.put("roomId", "private_" + targetUser); // 私聊房间ID格式
-            chatMessage.put("type", message.getOrDefault("type", "text"));
-
-            // 添加额外字段
-            if (message.containsKey("replyToMessageId")) {
-                chatMessage.put("replyToMessageId", message.get("replyToMessageId"));
+            // ✅ 消息去重检查
+            if (clientMessageId != null && deduplicationService.isDuplicate(clientMessageId)) {
+                log.warn("⚠️ 重复消息，已忽略: clientMessageId={}", clientMessageId);
+                
+                // 返回已存在的消息ID
+                Long existingMessageId = deduplicationService.getMessageId(clientMessageId);
+                if (existingMessageId != null) {
+                    messageBroadcastService.confirmMessageToSender(
+                        new Message() {{ setId(existingMessageId); }},
+                        SecurityUtils.getCurrentUserId(),
+                        clientMessageId
+                    );
+                }
+                return;
             }
-            if (message.containsKey("threadId")) {
-                chatMessage.put("threadId", message.get("threadId"));
-            }
-            if (message.containsKey("url")) {
-                chatMessage.put("url", message.get("url"));
+
+            // 构建消息对象
+            Message messageObj = new Message();
+            messageObj.setSenderId(SecurityUtils.getCurrentUserId());
+            messageObj.setCreatedAt(new java.sql.Timestamp(System.currentTimeMillis()));
+            messageObj.setUpdatedAt(new java.sql.Timestamp(System.currentTimeMillis()));
+
+            // 设置消息内容
+            com.web.vo.message.TextMessageContent textContent = new com.web.vo.message.TextMessageContent();
+            textContent.setContent(content);
+            textContent.setContentType(com.web.constant.TextContentType.TEXT.getCode());
+            messageObj.setContent(textContent);
+
+            // 设置chatId
+            if (chatIdObj != null) {
+                messageObj.setChatId(Long.valueOf(chatIdObj.toString()));
+            } else if (targetIdObj != null) {
+                messageObj.setChatId(Long.valueOf(targetIdObj.toString()));
             }
 
-            // 保存消息到数据库 - 使用ChatService统一消息存储逻辑
-            Message messageObj = convertWebSocketMessageToMessage(chatMessage, SecurityUtils.getCurrentUserId());
+            // 设置消息类型
+            Integer messageType = message.get("messageType") != null 
+                ? Integer.valueOf(message.get("messageType").toString()) 
+                : 1;
+            messageObj.setMessageType(messageType);
+            messageObj.setStatus(Message.STATUS_SENT);
+            messageObj.setIsRecalled(0);
+
+            // ✅ 保存消息到数据库（ChatService会自动转发给接收者）
             Message savedMessage = chatService.sendMessage(SecurityUtils.getCurrentUserId(), messageObj);
 
-            // 构建私聊消息对象
-            Map<String, Object> privateMessage = new HashMap<>();
-            privateMessage.put("type", "private");
-            privateMessage.put("id", savedMessage.getId());
-            privateMessage.put("fromId", savedMessage.getSenderId());
-            privateMessage.put("fromName", principal.getName());
-            privateMessage.put("toUser", targetUser);
-            privateMessage.put("content", content);
-            privateMessage.put("timestamp", savedMessage.getCreatedAt().toLocalDateTime());
-            privateMessage.put("roomId", "private_" + targetUser);
+            // ✅ 标记消息已处理（防止重复）
+            if (clientMessageId != null) {
+                deduplicationService.markAsProcessed(clientMessageId, savedMessage.getId());
+            }
 
-            // 发送给目标用户
-            messagingTemplate.convertAndSendToUser(
-                    targetUser,
-                    "/queue/private",
-                    privateMessage
-            );
+            log.info("✅ 消息已保存: messageId={}, chatId={}", 
+                savedMessage.getId(), savedMessage.getChatId());
 
-            // 发送给发送者（用于显示在自己的聊天界面）
-            messagingTemplate.convertAndSendToUser(
-                    principal.getName(),
-                    "/queue/private",
-                    privateMessage
+            // ✅ 向发送者确认消息已发送
+            messageBroadcastService.confirmMessageToSender(
+                savedMessage, 
+                SecurityUtils.getCurrentUserId(), 
+                clientMessageId
             );
 
         } catch (Exception e) {
-            log.error("发送私聊消息失败", e);
+            log.error("❌ 发送私聊消息失败", e);
+            
+            // 发送错误消息给发送者
+            Map<String, Object> errorMessage = new HashMap<>();
+            errorMessage.put("type", "error");
+            errorMessage.put("message", "消息发送失败: " + e.getMessage());
+            errorMessage.put("clientMessageId", message.get("clientMessageId"));
+            errorMessage.put("timestamp", LocalDateTime.now());
+
+            messagingTemplate.convertAndSendToUser(
+                    principal.getName(),
+                    "/queue/errors",
+                    errorMessage
+            );
         }
     }
 
@@ -386,6 +424,81 @@ public class WebSocketMessageController {
             
         } catch (Exception e) {
             log.error("处理心跳消息失败: user={}", principal.getName(), e);
+        }
+    }
+
+    /**
+     * ✅ 处理已读回执
+     */
+    @MessageMapping("/chat/read-receipt")
+    public void handleReadReceipt(
+            @Payload Map<String, Object> receipt,
+            Principal principal) {
+        try {
+            Long chatId = receipt.get("chatId") != null 
+                ? Long.valueOf(receipt.get("chatId").toString()) 
+                : null;
+            Long messageId = receipt.get("messageId") != null 
+                ? Long.valueOf(receipt.get("messageId").toString()) 
+                : null;
+            String timestamp = (String) receipt.get("timestamp");
+
+            log.info("👁️ 收到已读回执: from={}, chatId={}, messageId={}", 
+                principal.getName(), chatId, messageId);
+
+            if (chatId == null) {
+                log.warn("已读回执缺少chatId");
+                return;
+            }
+
+            // 获取聊天会话信息，确定发送者
+            com.web.model.ChatList chatList = chatService.getChatList(SecurityUtils.getCurrentUserId())
+                .stream()
+                .filter(c -> c.getId().equals(chatId.toString()))
+                .findFirst()
+                .orElse(null);
+
+            if (chatList != null) {
+                // 确定对方用户ID
+                Long currentUserId = SecurityUtils.getCurrentUserId();
+                Long otherUserId = chatList.getUserId().equals(currentUserId) 
+                    ? chatList.getTargetId() 
+                    : chatList.getUserId();
+
+                // 获取对方用户信息
+                com.web.model.User otherUser = chatService.getChatList(otherUserId)
+                    .stream()
+                    .findFirst()
+                    .map(c -> {
+                        try {
+                            return new com.web.model.User();
+                        } catch (Exception e) {
+                            return null;
+                        }
+                    })
+                    .orElse(null);
+
+                if (otherUser != null) {
+                    // 构建已读回执响应
+                    Map<String, Object> readReceiptResponse = new HashMap<>();
+                    readReceiptResponse.put("chatId", chatId);
+                    readReceiptResponse.put("messageId", messageId);
+                    readReceiptResponse.put("timestamp", timestamp);
+                    readReceiptResponse.put("status", 3); // READ状态
+
+                    // 发送给对方用户（消息发送者）
+                    messagingTemplate.convertAndSendToUser(
+                        otherUser.getUsername(),
+                        "/queue/read-receipt",
+                        readReceiptResponse
+                    );
+
+                    log.info("✅ 已读回执已发送给: userId={}", otherUserId);
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("❌ 处理已读回执失败", e);
         }
     }
 

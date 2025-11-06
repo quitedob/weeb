@@ -5,29 +5,58 @@ import api from '@/api';
 export const useAuthStore = defineStore('auth', {
   persist: {
     key: 'auth-store',
-    paths: ['accessToken', 'currentUser'],
+    paths: ['accessToken', 'refreshToken', 'currentUser', 'tokenExpiry'],
     storage: localStorage,
   },
   state: () => ({
-    accessToken: localStorage.getItem('jwt_token') || null, // Consistent with user's interceptor example
+    accessToken: localStorage.getItem('jwt_token') || null,
+    refreshToken: localStorage.getItem('refresh_token') || null,
+    tokenExpiry: localStorage.getItem('token_expiry') || null,
     currentUser: JSON.parse(localStorage.getItem('currentUser')) || null,
+    isRefreshing: false,
+    refreshPromise: null,
   }),
   getters: {
     isLoggedIn: (state) => !!state.accessToken,
-    isAuthenticated: (state) => !!state.accessToken, // Alias for consistency
-    user: (state) => state.currentUser, // Alias for currentUser for convenience
+    isAuthenticated: (state) => !!state.accessToken,
+    user: (state) => state.currentUser,
+    isTokenExpired: (state) => {
+      if (!state.tokenExpiry) return true;
+      return Date.now() >= parseInt(state.tokenExpiry);
+    },
+    needsRefresh: (state) => {
+      if (!state.tokenExpiry) return false;
+      const expiryTime = parseInt(state.tokenExpiry);
+      const now = Date.now();
+      const fiveMinutes = 5 * 60 * 1000;
+      return (expiryTime - now) < fiveMinutes && (expiryTime - now) > 0;
+    },
   },
   actions: {
     async login(credentials) {
       try {
         const response = await api.auth.login(credentials);
-        // 后端统一ApiResponse格式: { code: 0, data: { token: '...' } }
-        if (response.code === 0 && response.data && response.data.token) {
-          this.accessToken = response.data.token;
+        if (response.code === 0 && response.data) {
+          const { token, user, expiresIn } = response.data;
+          
+          this.accessToken = token;
+          this.refreshToken = token; // 使用同一个token作为refreshToken
+          
+          // 计算token过期时间（当前时间 + expiresIn秒）
+          if (expiresIn) {
+            this.tokenExpiry = (Date.now() + expiresIn * 1000).toString();
+            localStorage.setItem('token_expiry', this.tokenExpiry);
+          }
+          
           localStorage.setItem('jwt_token', this.accessToken);
+          localStorage.setItem('refresh_token', this.accessToken);
+          
+          // 直接使用登录返回的用户信息
+          if (user) {
+            this.currentUser = user;
+            localStorage.setItem('currentUser', JSON.stringify(user));
+          }
 
-          // 获取用户信息
-          await this.fetchUserInfo();
           return true;
         } else {
           throw new Error(response.message || '登录失败');
@@ -63,37 +92,125 @@ export const useAuthStore = defineStore('auth', {
         this._fetchingUserInfo = null;
       }
     },
-    // Centralized method to clear local state and storage, called internally or by interceptor.
+    async refreshAccessToken() {
+      if (this.isRefreshing) {
+        return this.refreshPromise;
+      }
+
+      if (!this.accessToken) {
+        throw new Error('No access token available');
+      }
+
+      this.isRefreshing = true;
+      this.refreshPromise = (async () => {
+        try {
+          const response = await api.auth.refreshToken(this.accessToken);
+          
+          if (response.code === 0 && response.data) {
+            const { token, expiresIn } = response.data;
+            
+            this.accessToken = token;
+            this.refreshToken = token;
+            
+            if (expiresIn) {
+              this.tokenExpiry = (Date.now() + expiresIn * 1000).toString();
+              localStorage.setItem('token_expiry', this.tokenExpiry);
+            }
+            
+            localStorage.setItem('jwt_token', this.accessToken);
+            localStorage.setItem('refresh_token', this.accessToken);
+            
+            return token;
+          } else {
+            throw new Error(response.message || 'Token refresh failed');
+          }
+        } catch (error) {
+          console.error('Token refresh failed:', error);
+          this.logoutCleanup();
+          throw error;
+        } finally {
+          this.isRefreshing = false;
+          this.refreshPromise = null;
+        }
+      })();
+
+      return this.refreshPromise;
+    },
+
     logoutCleanup() {
       this.accessToken = null;
+      this.refreshToken = null;
+      this.tokenExpiry = null;
       this.currentUser = null;
+      this.isRefreshing = false;
+      this.refreshPromise = null;
+      
       localStorage.removeItem('jwt_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('token_expiry');
       localStorage.removeItem('currentUser');
+      
       console.log('AuthStore: State and localStorage cleared for logout.');
     },
-    // **核心修改点**：这是供外部调用的登出动作
     async logout() {
-      // 1. 尽力通知后端，但不等待结果或处理它的失败
-      api.auth.logout().catch(error => {
-        // 后端登出失败是预料之中的（因为token已失效），静默处理即可
-        console.warn("API logout call failed (this is expected if token was invalid):", error.message);
-      });
-
-      // 2. 无论后端调用是否成功，立即无条件清理前端状态
-      this.logoutCleanup();
+      try {
+        await api.auth.logout();
+      } catch (error) {
+        console.warn("API logout call failed:", error.message);
+      } finally {
+        this.logoutCleanup();
+        
+        // 清理其他Store
+        const { useChatStore } = await import('./chatStore');
+        const { useNotificationStore } = await import('./notificationStore');
+        
+        const chatStore = useChatStore();
+        const notificationStore = useNotificationStore();
+        
+        chatStore.$reset();
+        notificationStore.resetState();
+      }
     },
     syncAuthStatus() {
       const token = localStorage.getItem('jwt_token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      const tokenExpiry = localStorage.getItem('token_expiry');
+      
       if (token) {
         this.accessToken = token;
-        if (!this.currentUser) {
+        this.refreshToken = refreshToken;
+        this.tokenExpiry = tokenExpiry;
+        
+        // 检查token是否过期
+        if (this.isTokenExpired) {
+          console.log('Token已过期，尝试刷新');
+          if (this.refreshToken) {
+            this.refreshAccessToken().catch(() => {
+              this.logoutCleanup();
+            });
+          } else {
+            this.logoutCleanup();
+          }
+        } else if (!this.currentUser) {
           this.fetchUserInfo().catch(() => {
-            // 如果token无效，fetchUserInfo会失败，axios拦截器或路由守卫会处理登出
+            this.logoutCleanup();
           });
         }
       } else {
         this.logoutCleanup();
       }
+    },
+    
+    startTokenRefreshTimer() {
+      // 每分钟检查一次token是否需要刷新
+      setInterval(() => {
+        if (this.needsRefresh && !this.isRefreshing) {
+          console.log('Token即将过期，自动刷新');
+          this.refreshAccessToken().catch(error => {
+            console.error('自动刷新token失败:', error);
+          });
+        }
+      }, 60000); // 60秒
     },
     // Utility to update current user info if changed elsewhere (e.g. settings page)
     setCurrentUser(userData) {

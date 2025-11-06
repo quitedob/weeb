@@ -677,6 +677,29 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public UserWithStats getUserProfileByUsername(String username) {
+        try {
+            if (username == null || username.trim().isEmpty()) {
+                log.warn("用户名为空，无法获取用户信息");
+                return null;
+            }
+            
+            // 先通过用户名查找用户
+            User user = userMapper.selectByUsername(username.trim());
+            if (user == null) {
+                log.warn("用户不存在: username={}", username);
+                return null;
+            }
+            
+            // 再获取完整的用户信息（包含统计数据）
+            return getUserProfile(user.getId());
+        } catch (Exception e) {
+            log.error("通过用户名获取用户完整信息失败: username={}", username, e);
+            return null;
+        }
+    }
+
+    @Override
     public List<String> getUserPermissions(Long userId) {
         // 权限系统已禁用，返回空列表
         log.debug("权限系统已禁用，getUserPermissions 返回空列表: userId={}", userId);

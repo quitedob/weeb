@@ -49,6 +49,12 @@ public interface RedisCacheService {
     void evictUserCache(Long userId);
 
     /**
+     * 清除所有用户统计信息缓存
+     * 用于缓存结构变更时清理旧数据
+     */
+    void evictAllUserStatsCache();
+
+    /**
      * 批量获取缓存的用户信息
      * @param userIds 用户ID列表
      * @return 用户列表

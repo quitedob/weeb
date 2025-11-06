@@ -1,5 +1,6 @@
 package com.web.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
@@ -45,61 +46,73 @@ public class UserWithStats implements Serializable {
     }
 
     // 便利方法：获取用户ID
+    @JsonIgnore
     public Long getId() {
         return user != null ? user.getId() : null;
     }
 
     // 便利方法：获取用户名
+    @JsonIgnore
     public String getUsername() {
         return user != null ? user.getUsername() : null;
     }
 
     // 便利方法：获取昵称
+    @JsonIgnore
     public String getNickname() {
         return user != null ? user.getNickname() : null;
     }
 
     // 便利方法：获取头像
+    @JsonIgnore
     public String getAvatar() {
         return user != null ? user.getAvatar() : null;
     }
 
     // 便利方法：获取粉丝数
+    @JsonIgnore
     public Long getFansCount() {
         return userStats != null ? userStats.getFansCount() : 0L;
     }
 
     // 便利方法：获取总点赞数
+    @JsonIgnore
     public Long getTotalLikes() {
         return userStats != null ? userStats.getTotalLikes() : 0L;
     }
 
     // 便利方法：获取总收藏数
+    @JsonIgnore
     public Long getTotalFavorites() {
         return userStats != null ? userStats.getTotalFavorites() : 0L;
     }
 
     // 便利方法：获取网站金币
+    @JsonIgnore
     public Long getWebsiteCoins() {
         return userStats != null ? userStats.getWebsiteCoins() : 0L;
     }
 
     // 便利方法：获取文章总曝光数
+    @JsonIgnore
     public Long getTotalArticleExposure() {
         return userStats != null ? userStats.getTotalArticleExposure() : 0L;
     }
 
     // 便利方法：获取总赞助数
+    @JsonIgnore
     public Long getTotalSponsorship() {
         return userStats != null ? userStats.getTotalSponsorship() : 0L;
     }
 
     // 便利方法：检查是否有统计数据
+    @JsonIgnore
     public boolean hasStats() {
         return userStats != null;
     }
 
     // 便利方法：确保统计数据存在
+    @JsonIgnore
     public void ensureStats() {
         if (userStats == null && user != null) {
             userStats = new UserStats(user.getId());

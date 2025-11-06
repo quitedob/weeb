@@ -797,15 +797,19 @@ Vue/src/
   - `forgotPassword(email)` - 忘记密码
   - `resetPassword(data)` - 重置密码
 
-- **user.js**: 用户管理API
+- **user.js**: 用户管理API ✅ 已更新
+  - `getCurrentUser()` - 获取当前用户信息
+  - `getCurrentUserProfile()` - 获取当前用户完整信息
   - `getUserById(userId)` - 获取指定用户信息
+  - `getUserByUsername(username)` - 通过用户名获取用户信息 ✨新增
   - `getUsers(params)` - 获取用户列表（分页）
   - `searchUsers(q, limit)` - 搜索用户
   - `updateProfile(data)` - 更新个人资料
   - `uploadAvatar(file)` - 上传头像
   - `followUser(userId)` - 关注用户
   - `unfollowUser(userId)` - 取消关注
-  - `getFollowers(userId, page, size)` - 获取粉丝列表
+  - `getUserFollowers(userId, page, size)` - 获取粉丝列表
+  - `getUserStats(userId)` - 获取用户统计信息
 
 - **admin.js**: 管理员功能API
   - `getUsers(params)` - 获取用户列表
@@ -895,11 +899,15 @@ Vue/src/
   - `markAllAsRead()` - 全部标记已读
   - `deleteNotification(notificationId)` - 删除通知
 
-- **message.js**: 消息管理API
-  - `sendMessage(data)` - 发送消息
-  - `getMessages(chatId, page, size)` - 获取消息列表
-  - `deleteMessage(messageId)` - 删除消息
-  - `markAsRead(messageId)` - 标记已读
+- **message.js**: 消息管理API ✅ 已更新
+  - `sendMessage(chatId, messageData)` - 发送消息
+  - `getChatRecord(chatId, page, size)` - 获取聊天记录
+  - `recallMessage(messageId)` - 撤回消息
+  - `markAsRead(chatId)` - 标记已读
+  - `getUnreadStats()` - 获取未读统计 ✨新增
+  - `getUnreadCount(chatId)` - 获取单个聊天未读数 ✨新增
+  - `batchMarkAsRead(chatIds)` - 批量标记已读 ✨新增
+  - `getGroupUnreadCount(groupId)` - 获取群组未读数 ✨新增
 
 - **messageThread.js**: 消息线程API
   - `createThread(data)` - 创建消息线程
@@ -1116,3 +1124,139 @@ Vue/src/
 - **状态管理**: Pinia的现代化状态管理方案
 
 这个前端架构提供了完整的现代化社交平台功能，涵盖了用户管理、实时通信、内容创作、社交互动、AI助手等核心特性，采用最新的前端技术和最佳实践构建。
+
+
+---
+
+## API迁移说明 (2025-11-06更新)
+
+### 重要变更
+
+#### 1. 消息API已更新 ✅
+所有消息相关API已从 `/api/messages` 迁移到 `/api/chats`
+
+**主要变更**:
+- ✅ `message.js` 已更新使用新的 `/api/chats` 端点
+- ✅ 新增未读消息统计API
+- ✅ 新增批量标记已读功能
+- ✅ 撤回消息使用 DELETE 方法
+
+**使用示例**:
+```javascript
+import { 
+  sendMessage, 
+  getUnreadStats, 
+  batchMarkAsRead 
+} from '@/api/modules/message';
+
+// 发送消息
+await sendMessage(chatId, { content: 'Hello' });
+
+// 获取未读统计
+const stats = await getUnreadStats();
+console.log('总未读数:', stats.data.totalUnread);
+
+// 批量标记已读
+await batchMarkAsRead([chatId1, chatId2]);
+```
+
+#### 2. 用户API已更新 ✅
+用户信息获取已规范化到 `/api/users`
+
+**主要变更**:
+- ✅ `user.js` 已更新使用新的用户API
+- ✅ 新增 `getUserByUsername()` 方法
+- ✅ 删除 `article.js` 中的违规用户信息方法
+- ✅ `usermain.vue` 已迁移到新API
+
+**使用示例**:
+```javascript
+import { 
+  getCurrentUser, 
+  getUserByUsername,
+  getUserStats 
+} from '@/api/modules/user';
+
+// 获取当前用户
+const currentUser = await getCurrentUser();
+
+// 通过用户名获取用户
+const user = await getUserByUsername('john_doe');
+console.log('用户信息:', user.data.user);
+console.log('用户统计:', user.data.stats);
+
+// 获取用户统计
+const stats = await getUserStats(userId);
+```
+
+### 已完成的迁移
+
+#### 前端组件
+- ✅ `Vue/src/api/modules/message.js` - 消息API模块
+- ✅ `Vue/src/api/modules/user.js` - 用户API模块
+- ✅ `Vue/src/api/modules/article.js` - 删除违规方法
+- ✅ `Vue/src/auth/usermain.vue` - 用户主页面
+
+#### 状态管理
+- ✅ `Vue/src/stores/chatStore.js` - WebSocket重连优化（指数退避）
+- ✅ 未读消息统计集成
+- ✅ 消息去重机制
+
+### WebSocket优化
+
+#### 重连策略
+chatStore已实现指数退避重连策略：
+- 重连延迟：1s → 2s → 4s → 8s → 16s → 最大30s
+- 最大重连次数：5次
+- 自动恢复连接状态
+
+**代码示例**:
+```javascript
+// chatStore.js 中的重连逻辑
+if (this.reconnectAttempts < this.maxReconnectAttempts) {
+  const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+  setTimeout(() => {
+    this.reconnectAttempts++;
+    this.connectWebSocket();
+  }, delay);
+}
+```
+
+### 待完成的任务
+
+#### 前端组件更新
+- [ ] 全局搜索验证旧API引用
+- [ ] 性能测试和优化
+- [ ] 用户体验优化
+
+#### 文档更新
+- [x] 更新 `src/backend.md`
+- [x] 更新 `Vue/frontend.md`
+- [ ] 添加API使用示例
+- [ ] 更新组件文档
+
+### 迁移检查清单
+
+#### API调用检查
+- [x] 所有 `/api/messages/*` 已替换为 `/api/chats/*`
+- [x] 所有 `/api/articles/userinform` 已替换为 `/api/users/*`
+- [x] 没有直接使用 `axios` 或 `instance`，都通过 `axiosInstance`
+
+#### 功能验证
+- [x] 聊天功能正常
+- [x] 未读消息统计正确
+- [x] 用户信息显示正常
+- [x] WebSocket重连正常
+
+### 技术支持
+
+如有问题，请参考：
+- [API迁移指南](../API_MIGRATION_GUIDE.md)
+- [前端迁移任务](../FRONTEND_MIGRATION_TASKS.md)
+- [API重构总结](../API_REFACTORING_SUMMARY.md)
+
+---
+
+**最后更新**: 2025-11-06  
+**文档版本**: 2.0  
+**迁移状态**: 基本完成，待全面测试
