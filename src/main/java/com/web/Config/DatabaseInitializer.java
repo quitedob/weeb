@@ -65,6 +65,9 @@ public class DatabaseInitializer implements CommandLineRunner {
             // 4. 插入初始数据
             insertInitialData();
 
+            // 5. 优化数据库索引
+            optimizeDatabaseIndexes();
+
             log.info("==================== WEEB 数据库初始化完成 ====================");
 
         } catch (Exception e) {
@@ -1930,4 +1933,125 @@ public class DatabaseInitializer implements CommandLineRunner {
     // 🔒 权限系统已完全移除
     // 所有权限相关的初始化方法已被删除
     // ========================================
+
+    /**
+     * 优化数据库索引
+     * 根据查询模式创建复合索引以提升性能
+     */
+    private void optimizeDatabaseIndexes() {
+        log.info("开始优化数据库索引...");
+
+        try {
+            // 1. message表索引优化
+            createIndexIfNotExists("idx_message_private_chat_optimized", 
+                "message", "sender_id, receiver_id, created_at DESC",
+                "优化私聊消息查询");
+
+            createIndexIfNotExists("idx_message_group_chat_optimized", 
+                "message", "group_id, created_at DESC",
+                "优化群聊消息查询");
+
+            createIndexIfNotExists("idx_message_chat_time", 
+                "message", "chat_id, created_at DESC",
+                "优化chat_id相关查询");
+
+            // 2. chat_list表索引优化
+            createIndexIfNotExists("idx_chat_list_user_update", 
+                "chat_list", "user_id, update_time DESC",
+                "优化用户聊天列表查询");
+
+            createIndexIfNotExists("idx_chat_list_user_type", 
+                "chat_list", "user_id, type, update_time DESC",
+                "优化聊天类型查询");
+
+            // 3. group_member表索引优化
+            createIndexIfNotExists("idx_group_member_user_status", 
+                "group_member", "user_id, join_status",
+                "优化用户所在群组查询");
+
+            // 4. contact表索引优化
+            createIndexIfNotExists("idx_contact_user_friend_status", 
+                "contact", "user_id, friend_id, status",
+                "优化联系人查询");
+
+            createIndexIfNotExists("idx_contact_user_status", 
+                "contact", "user_id, status",
+                "优化好友状态查询");
+
+            // 5. article表索引优化
+            createIndexIfNotExists("idx_article_status_time", 
+                "articles", "status, created_at DESC",
+                "优化文章状态查询");
+
+            createIndexIfNotExists("idx_article_author_status", 
+                "articles", "user_id, status, created_at DESC",
+                "优化文章作者查询");
+
+            createIndexIfNotExists("idx_article_moderation", 
+                "articles", "status, review_priority DESC, created_at ASC",
+                "优化文章审核优先级查询");
+
+            // 6. notification表索引优化
+            createIndexIfNotExists("idx_notification_user_read", 
+                "notifications", "recipient_id, is_read, created_at DESC",
+                "优化用户通知查询");
+
+            // 7. article_comment表索引优化
+            createIndexIfNotExists("idx_article_comment_time", 
+                "article_comment", "article_id, created_at DESC",
+                "优化文章评论查询");
+
+            // 8. user_follow表索引优化
+            createIndexIfNotExists("idx_user_follow_relation", 
+                "user_follow", "follower_id, followee_id",
+                "优化关注关系查询");
+
+            createIndexIfNotExists("idx_user_follow_followee", 
+                "user_follow", "followee_id, created_at DESC",
+                "优化粉丝查询");
+
+            log.info("✅ 数据库索引优化完成");
+
+        } catch (Exception e) {
+            log.error("❌ 数据库索引优化失败", e);
+            // 不抛出异常，允许系统继续运行
+        }
+    }
+
+    /**
+     * 创建索引（如果不存在）
+     * @param indexName 索引名称
+     * @param tableName 表名
+     * @param columns 列定义（如: "user_id, created_at DESC"）
+     * @param description 索引描述
+     */
+    private void createIndexIfNotExists(String indexName, String tableName, String columns, String description) {
+        try {
+            // 检查索引是否存在
+            String checkSql = String.format(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS " +
+                "WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s' AND INDEX_NAME = '%s'",
+                databaseName, tableName, indexName
+            );
+
+            Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class);
+
+            if (count == null || count == 0) {
+                // 索引不存在，创建索引
+                String createSql = String.format(
+                    "CREATE INDEX %s ON %s (%s)",
+                    indexName, tableName, columns
+                );
+
+                jdbcTemplate.execute(createSql);
+                log.info("✅ 创建索引成功: {} - {}", indexName, description);
+            } else {
+                log.debug("索引已存在，跳过: {}", indexName);
+            }
+
+        } catch (Exception e) {
+            log.warn("⚠️ 创建索引失败: {} - {}", indexName, e.getMessage());
+            // 不抛出异常，继续创建其他索引
+        }
+    }
 }
