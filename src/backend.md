@@ -36,11 +36,11 @@
 | POST | `/login` | 用户登录 | `LoginVo` (body) |
 | POST | `/logout` | 用户登出 | `Authorization` (header) |
 | POST | `/refresh` | 刷新令牌 | `Authorization` (header) |
-| POST | `/validate` | 验证邮箱 | `email` (query) |
-| POST | `/change-password` | 修改密码 | `PasswordChangeVo` (body), `userId` (@Userid) |
+| POST | `/validate` | 验证令牌 | `Authorization` (header) |
+| POST | `/change-password` | 修改密码 | `PasswordChangeVo` (body), `Authorization` (header) |
 | POST | `/forgot-password` | 忘记密码 | `ForgotPasswordVo` (body) |
 | POST | `/reset-password` | 重置密码 | `PasswordResetVo` (body) |
-| GET | `/verify-reset-token` | 验证重置令牌 | `token` (query), `email` (query) |
+| GET | `/verify-reset-token` | 验证重置令牌 | `token` (query) |
 
 ### 2. StandardUserController (用户管理) ✅ 规范化用户API
 **基路径**: `/api/users`
@@ -136,6 +136,7 @@
 
 ### 6. SearchController (全局搜索)
 **基路径**: `/api/search`
+**条件装配**: 仅在启用Elasticsearch时加载 (`elasticsearch.enabled=true`)
 
 | 方法 | 路径 | 描述 | 参数 |
 |------|------|------|------|
@@ -151,29 +152,30 @@
 | 方法 | 路径 | 描述 | 参数 |
 |------|------|------|------|
 | GET | `/{id}` | 根据ID获取文章信息 | `id` (path) |
-| ~~GET~~ | ~~/userinform~~ | ❌ 已删除 - 请使用 `/api/users/{userId}` | ~~userId (query)~~ |
-| POST | `/{id}/like` | 文章点赞 | `id` (path) |
-| GET | `/` | 获取文章列表 | `page`, `size` (query) |
-| POST | `/` | 创建文章 | `ArticleCreateVo` (body), `userId` (@Userid) |
+| POST | `/{id}/like` | 文章点赞 | `id` (path), `userId` (@Userid) |
+| DELETE | `/{id}/like` | 取消点赞文章 | `id` (path), `userId` (@Userid) |
+| GET | `/{id}/like/status` | 检查点赞状态 | `id` (path), `userId` (@Userid) |
+| POST | `/subscribe` | 订阅用户 | `targetUserId` (query), `userId` (@Userid) |
 | PUT | `/{id}` | 更新文章 | `id` (path), `ArticleUpdateVo` (body), `userId` (@Userid) |
-| DELETE | `/{id}` | 删除文章 | `id` (path), `userId` (@Userid) |
-| GET | `/search` | 搜索文章 | `keyword`, `page`, `size` (query) |
-| GET | `/advanced-search` | 高级搜索文章 | `ArticleSearchAdvancedVo` (query params) |
-| GET | `/{id}/comments` | 获取文章评论 | `id` (path), `page`, `size` (query) |
-| POST | `/{id}/comments` | 添加文章评论 | `id` (path), `CommentCreateVo` (body), `userId` (@Userid) |
+| POST | `/{id}/addcoin` | 增加文章金币 | `id` (path), `amount` (query) |
+| POST | `/{id}/read` | 增加阅读数量 | `id` (path) |
+| POST | `/new` | 创建新文章 | `ArticleCreateVo` (body), `userId` (@Userid) |
+| POST | `/userinform` | 获取用户文章统计 | `userId` (query) |
+| GET | `/myarticles` | 获取用户文章列表 | `userId` (query) |
+| POST | `/{id}/favorite` | 收藏文章 | `id` (path), `userId` (@Userid) |
+| DELETE | `/{id}/favorite` | 取消收藏文章 | `id` (path), `userId` (@Userid) |
+| GET | `/{id}/favorite/status` | 检查收藏状态 | `id` (path), `userId` (@Userid) |
+| GET | `/favorites` | 获取用户收藏文章 | `userId` (@Userid), `page`, `pageSize` (query) |
 | GET | `/categories` | 获取文章分类 | 无 |
-| GET | `/tags` | 获取文章标签 | 无 |
-| GET | `/hot` | 获取热门文章 | `limit` (query) |
-| GET | `/recommend` | 获取推荐文章 | `userId` (@Userid), `limit` (query) |
-| POST | `/{id}/collect` | 收藏文章 | `id` (path), `userId` (@Userid) |
-| DELETE | `/{id}/collect` | 取消收藏文章 | `id` (path), `userId` (@Userid) |
-| GET | `/user/{userId}/collected` | 获取用户收藏的文章 | `userId` (path), `page`, `size` (query) |
-| GET | `/user/{userId}/published` | 获取用户发布的文章 | `userId` (path), `page`, `size` (query) |
-| GET | `/statistics` | 获取文章统计信息 | 无 |
-| DELETE | `/{id}/admin` | 管理员删除文章 | `id` (path) |
-| GET | `/moderation/pending` | 获取待审核文章 | 无 |
-| POST | `/{id}/approve` | 审核通过文章 | `id` (path), `userId` (@Userid) |
-| POST | `/{id}/reject` | 审核拒绝文章 | `id` (path), `userId` (@Userid) |
+| GET | `/recommended` | 获取推荐文章 | `page`, `pageSize` (query) |
+| GET | `/search` | 搜索文章 | `query`, `page`, `pageSize`, `sortBy`, `sortOrder` (query) |
+| GET | `/search/advanced` | 高级搜索文章 | `ArticleSearchAdvancedVo` (query params) |
+| GET | `/getall` | 获取所有文章（分页） | `page`, `pageSize`, `sortBy`, `sortOrder` (query) |
+| DELETE | `/{id}` | 删除文章 | `id` (path), `userId` (@Userid) |
+| DELETE | `/{id}/admin` | 管理员删除文章 | `id` (path), `userId` (@Userid), `reason` (body) |
+| GET | `/moderation/pending` | 获取待审核文章 | `page`, `pageSize`, `status`, `keyword` (query) |
+| POST | `/{id}/approve` | 审核通过文章 | `id` (path) |
+| POST | `/{id}/reject` | 审核拒绝文章 | `id` (path), `reason` (body) |
 | GET | `/moderation/statistics` | 获取审核统计 | 无 |
 
 ### 8. AIController (AI功能)
@@ -281,25 +283,7 @@
 | POST | `/clean-expired` | 手动清理过期连接 | 无 |
 | GET | `/user/{userId}/sessions` | 获取用户活跃会话列表 | `userId` (path) |
 
-### 11. UnifiedMessageController (统一消息管理) ⚠️ 已废弃
-**基路径**: `/api/messages`
-**状态**: 已标记为 @Deprecated，请使用 ChatController (`/api/chats`)
-
-> ⚠️ **重要提示**: 此Controller已废弃，所有功能已迁移到ChatController。
-> 请参考 [API迁移指南](../API_MIGRATION_GUIDE.md) 了解如何迁移到新API。
-
-| 方法 | 路径 | 描述 | 迁移到 |
-|------|------|------|--------|
-| POST | `/send` | 发送消息 | `POST /api/chats/{chatId}/messages` |
-| GET | `/history` | 获取消息历史 | `GET /api/chats/{chatId}/messages` |
-| GET | `/unread` | 获取未读消息 | `GET /api/chats/unread/stats` |
-| PUT | `/{messageId}/read` | 标记消息为已读 | `POST /api/chats/{chatId}/read` |
-| DELETE | `/{messageId}` | 删除消息 | `DELETE /api/chats/messages/{messageId}` |
-| POST | `/{messageId}/reaction` | 添加消息反应 | `POST /api/chats/messages/{messageId}/react` |
-| POST | `/{messageId}/recall` | 撤回消息 | `DELETE /api/chats/messages/{messageId}` |
-| GET | `/search` | 搜索消息 | 使用 SearchController |
-
-### 12. MessageThreadController (消息线程管理)
+### 11. MessageThreadController (消息线程管理)
 **基路径**: `/api/threads`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -321,7 +305,7 @@
 | GET | `/{threadId}/statistics` | 获取线程统计信息 | `threadId` (path) |
 | GET | `/context/{messageId}` | 获取消息的线程上下文 | `messageId` (path), `userId` (@Userid) |
 
-### 13. ContentReportController (内容举报管理)
+### 12. ContentReportController (内容举报管理)
 **基路径**: `/api/content-reports`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -340,7 +324,7 @@
 | GET | `/{reportId}` | 获取举报详情 | `reportId` (path) |
 | GET | `/can-report` | 检查用户是否可以举报内容 | `userId`, `contentType`, `contentId` (query) |
 
-### 14. UserLevelIntegrationController (用户等级积分管理)
+### 13. UserLevelIntegrationController (用户等级积分管理)
 **基路径**: `/api/user-level-integration`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -350,7 +334,7 @@
 | GET | `/user/{userId}/complete-info` | 获取用户完整等级信息 | `userId` (path) |
 | GET | `/validate-level-change` | 验证等级变更 | `userId`, `newLevel`, `reason` (query) |
 
-### 15. UserLevelHistoryController (用户等级历史管理)
+### 14. UserLevelHistoryController (用户等级历史管理)
 **基路径**: `/api/user-level-history`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -365,7 +349,7 @@
 | GET | `/level-down` | 获取降级记录 | `page`, `size` (query) |
 | GET | `/user/{userId}/count` | 获取用户等级变更次数 | `userId` (path) |
 
-### 16. NotificationController (通知管理)
+### 15. NotificationController (通知管理)
 **基路径**: `/api/notifications`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -382,7 +366,7 @@
 | PUT | `/settings` | 更新通知设置 | `NotificationSettingsVo` (body), `userId` (@Userid) |
 | GET | `/settings` | 获取通知设置 | `userId` (@Userid) |
 
-### 17. MigrationController (数据迁移管理)
+### 16. MigrationController (数据迁移管理)
 **基路径**: `/api/migration`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -396,7 +380,7 @@
 | DELETE | `/cleanup/{migrationId}` | 清理迁移临时数据 | `migrationId` (path), `operatorId` (@Userid) |
 | GET | `/statistics` | 获取迁移统计信息 | 无 |
 
-### 18. ArticleCommentController (文章评论管理)
+### 17. ArticleCommentController (文章评论管理)
 **基路径**: `/api/article-comments`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -410,7 +394,7 @@
 | GET | `/{commentId}/replies` | 获取评论回复 | `commentId` (path), `page`, `size` (query) |
 | POST | `/{commentId}/reply` | 回复评论 | `commentId` (path), `ArticleCommentCreateVo` (body), `userId` (@Userid) |
 
-### 19. UserFollowController (用户关注管理)
+### 18. UserFollowController (用户关注管理)
 **基路径**: `/api/user-follows`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -424,7 +408,7 @@
 | GET | `/count/{userId}` | 获取用户关注统计 | `userId` (path) |
 | GET | `/recommendations` | 获取关注推荐 | `userId` (@Userid), `limit` (query) |
 
-### 20. ArticleVersionController (文章版本管理)
+### 19. ArticleVersionController (文章版本管理)
 **基路径**: `/api/article-versions`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -435,7 +419,7 @@
 | GET | `/article/{articleId}/compare` | 比较两个版本 | `articleId` (path), `versionId1`, `versionId2` (query) |
 | DELETE | `/{versionId}` | 删除版本记录 | `versionId` (path), `userId` (@Userid) |
 
-### 21. SocialRelationshipController (社交关系管理)
+### 20. SocialRelationshipController (社交关系管理)
 **基路径**: `/api/social`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -452,7 +436,7 @@
 | GET | `/recommendations/follow` | 获取关注推荐 | `userId` (@Userid), `limit` (query) |
 | GET | `/statistics` | 获取社交统计信息 | `userId` (@Userid) |
 
-### 22. ContactGroupController (联系人分组管理)
+### 21. ContactGroupController (联系人分组管理)
 **基路径**: `/api/contact-groups`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -467,7 +451,7 @@
 | GET | `/{groupId}/contacts` | 获取分组联系人列表 | `groupId` (path), `userId` (@Userid) |
 | GET | `/default` | 获取默认分组 | `userId` (@Userid) |
 
-### 23. RateLimitController (限流管理)
+### 22. RateLimitController (限流管理)
 **基路径**: `/api/rate-limit`
 
 | 方法 | 路径 | 描述 | 参数 |
@@ -481,6 +465,30 @@
 | GET | `/alerts` | 获取限流告警 | `page`, `size` (query) |
 | DELETE | `/statistics` | 清空限流统计 | 无 |
 | POST | `/unlock` | 解锁限流 | `path` (query) |
+
+### 23. DiagnosticController (系统诊断)
+**基路径**: `/api/diagnostic`
+
+| 方法 | 路径 | 描述 | 参数 |
+|------|------|------|------|
+| GET | `/health` | 系统健康检查 | 无 |
+| GET | `/info` | 系统信息 | 无 |
+| GET | `/metrics` | 系统指标 | 无 |
+
+---
+
+## 其他重要信息
+
+### 条件装配控制器
+某些控制器使用了Spring Boot的条件装配功能，仅在特定条件下加载：
+
+- **SearchController**: 仅在 `elasticsearch.enabled=true` 时加载
+- **WebSocket相关控制器**: 仅在WebSocket配置启用时加载
+
+### 注解说明
+- `@Userid`: 自定义注解，从SecurityContext中自动提取当前用户ID
+- `@UrlLimit`: 自定义注解，应用接口限流保护
+- `@Deprecated`: 标记已废弃的控制器，将在新版本中移除
 
 ---
 
@@ -523,99 +531,3 @@
 - `ForgotPasswordVo`: 忘记密码信息
 
 ---
-
-## 优化建议
-
-### 1. 接口整合
-- 将 `ChatController` 和 `UnifiedMessageController` 合并为一个统一的聊天控制器
-- 统一 `ContactController` 和 `ContactGroupController` 的分组管理功能
-- 整合 `UserFollowController` 和 `SocialRelationshipController` 的关注功能
-
-### 2. 路径标准化
-- 所有路径使用复数形式：`/api/users`, `/api/groups`, `/api/articles`
-- 统一分页参数：`page`, `size` 替代 `page`, `pageSize`
-- 统一搜索参数：`q` 用于关键词搜索
-
-### 3. 参数优化
-- 减少重复的参数定义
-- 统一使用 `@Userid` 注解获取用户ID
-- 标准化错误响应格式
-
-### 4. 安全增强
-- 添加接口权限验证
-- 统一参数校验
-- 加强敏感操作的审计日志
-
-### 5. 性能优化
-- 添加缓存机制
-- 优化数据库查询
-- 实现接口限流保护
-
---
--
-
-## API迁移说明 (2025-11-06更新)
-
-### 重要变更
-
-#### 1. 聊天API统一 ✅
-**UnifiedMessageController** (`/api/messages/*`) 已标记为废弃，所有功能已迁移到 **ChatController** (`/api/chats/*`)
-
-**迁移对照表**:
-| 旧端点 | 新端点 | 说明 |
-|--------|--------|------|
-| POST /api/messages/send | POST /api/chats/{chatId}/messages | 发送消息 |
-| GET /api/messages/chats | GET /api/chats | 获取聊天列表 |
-| GET /api/messages/unread/stats | GET /api/chats/unread/stats | 未读统计 |
-| POST /api/messages/{id}/read | POST /api/chats/{chatId}/read | 标记已读 |
-| POST /api/messages/{id}/recall | DELETE /api/chats/messages/{id} | 撤回消息 |
-
-**新增功能**:
-- `POST /api/chats/read/batch` - 批量标记已读
-- `GET /api/chats/{chatId}/unread` - 获取单个聊天未读数
-- `GET /api/chats/groups/{groupId}/unread` - 获取群组未读数
-- `GET /api/chats/online-users` - 获取在线用户列表
-
-#### 2. 用户信息API规范化 ✅
-**ArticleCenterController** 中的用户信息端点已删除，统一使用 **StandardUserController**
-
-**迁移对照表**:
-| 旧端点 | 新端点 | 说明 |
-|--------|--------|------|
-| GET /api/articles/userinform | GET /api/users/{userId} | 获取用户信息 |
-| GET /api/articles/userinform-by-username | GET /api/users/by-username/{username} | 通过用户名获取 |
-| - | GET /api/users/{userId}/stats | 获取用户统计 |
-
-**新增功能**:
-- `GET /api/users/by-username/{username}` - 通过用户名获取完整用户信息（含统计数据）
-
-### 迁移时间表
-
-- **2025-11-06**: API重构完成，旧端点标记为废弃
-- **2025-11-20**: 前端完成迁移（预计）
-- **2025-12-01**: 移除废弃端点（计划）
-
-### 详细迁移指南
-
-请参考以下文档了解详细的迁移步骤：
-- [API迁移指南](../API_MIGRATION_GUIDE.md) - 完整的API迁移说明
-- [前端迁移任务](../FRONTEND_MIGRATION_TASKS.md) - 前端组件迁移清单
-- [API重构总结](../API_REFACTORING_SUMMARY.md) - 重构详细说明
-
-### 兼容性说明
-
-- 废弃的端点仍然可用，但会在响应头中包含 `X-Deprecated-API: true`
-- 建议尽快迁移到新端点，旧端点将在下一个主版本中移除
-- 新端点提供更好的性能和更完整的功能
-
-### 技术支持
-
-如有迁移问题，请：
-1. 查看迁移文档
-2. 检查API响应日志
-3. 联系开发团队
-
----
-
-**最后更新**: 2025-11-06  
-**文档版本**: 2.0

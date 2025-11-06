@@ -541,24 +541,38 @@ const loadContacts = async () => {
 };
 
 const selectChat = async (chat) => {
-  if (activeChatId.value === chat.id) return;
+  console.log('🎯 选择聊天:', chat);
+  
+  if (!chat || !chat.id) {
+    console.error('❌ 无效的聊天对象:', chat);
+    return;
+  }
+  
+  if (activeChatId.value === chat.id) {
+    console.log('⚠️ 已经在当前聊天中');
+    return;
+  }
   
   activeChatId.value = chat.id;
   chatStore.setActiveChat(chat);
   isLoadingMessages.value = true;
 
   try {
+    console.log('📥 开始加载消息: chatId=', chat.id);
     await chatStore.fetchMessagesForChat(chat.id);
+    console.log('✅ 消息加载完成，消息数量:', messages.value.length);
     
     // ✅ 如果是群聊，加载群成员
     if (chat.type === 'GROUP' && chat.groupId) {
+      console.log('👥 加载群成员: groupId=', chat.groupId);
       await loadGroupMembers(chat.groupId);
     }
     
     await nextTick();
     scrollToBottom();
   } catch (error) {
-    console.error('加载消息失败:', error);
+    console.error('❌ 加载消息失败:', error);
+    alert('加载消息失败: ' + (error.message || '未知错误'));
   } finally {
     isLoadingMessages.value = false;
   }
