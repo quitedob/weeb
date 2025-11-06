@@ -76,6 +76,47 @@ const addReaction = (messageId, reactionType) => {
   });
 };
 
+// ==================== 未读计数相关API ====================
+
+/**
+ * 获取未读消息统计
+ * GET /api/chats/unread/stats
+ * @returns {Promise} { totalUnread: int, unreadList: Array }
+ */
+const getUnreadStats = () => {
+  return axiosInstance.get('/api/chats/unread/stats');
+};
+
+/**
+ * 获取单个聊天的未读数
+ * GET /api/chats/{chatId}/unread
+ * @param {Number} chatId - 聊天ID
+ * @returns {Promise} unreadCount: int
+ */
+const getUnreadCount = (chatId) => {
+  return axiosInstance.get(`/api/chats/${chatId}/unread`);
+};
+
+/**
+ * 批量标记已读
+ * POST /api/chats/read/batch
+ * @param {Array} chatIds - 聊天ID列表
+ * @returns {Promise}
+ */
+const batchMarkAsRead = (chatIds) => {
+  return axiosInstance.post('/api/chats/read/batch', chatIds);
+};
+
+/**
+ * 获取群组未读数（优化版）
+ * GET /api/chats/groups/{groupId}/unread
+ * @param {Number} groupId - 群组ID
+ * @returns {Promise} unreadCount: int
+ */
+const getGroupUnreadCount = (groupId) => {
+  return axiosInstance.get(`/api/chats/groups/${groupId}/unread`);
+};
+
 export default {
   getChatList,
   createChat,
@@ -83,5 +124,10 @@ export default {
   sendMessage,
   markAsRead,
   deleteChat,
-  addReaction
+  addReaction,
+  // 未读计数相关
+  getUnreadStats,
+  getUnreadCount,
+  batchMarkAsRead,
+  getGroupUnreadCount
 };

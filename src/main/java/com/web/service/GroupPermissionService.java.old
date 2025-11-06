@@ -1,0 +1,160 @@
+package com.web.service;
+
+import com.web.exception.WeebException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+
+/**
+ * 群组权限管理服务
+ * 使用位图管理群组成员权限
+ */
+@Slf4j
+@Service
+public class GroupPermissionService {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    // 权限位定义
+    public static final int PERMISSION_EDIT_INFO = 1;      // 编辑群信息
+    public static final int PERMISSION_DELETE_MSG = 2;     // 删除消息
+    public static final int PERMISSION_INVITE = 4;         // 邀请成员
+    public static final int PERMISSION_KICK = 8;           // 踢出成员
+    public static final int PERMISSION_MUTE = 16;          // 禁言成员
+    public static final int PERMISSION_SET_ADMIN = 32;     // 设置管理员
+    public static final int PERMISSION_DISSOLVE = 64;      // 解散群组
+
+    // 角色预设权限
+    public static final int ROLE_OWNER = 127;              // 群主：所有权限
+    public static final int ROLE_ADMIN = 31;               // 管理员：除解散外的权限
+    public static final int ROLE_MEMBER = 0;               // 普通成员：无特殊权限
+
+    /**
+     * 检查用户是否有指定权限
+     */
+    public boolean hasPermission(Long userId, Long groupId, int permission) {
+        try {
+            String sql = "SELECT permissions FROM group_member WHERE user_id = ? AND group_id = ? AND join_status = 'ACCEPTED'";
+            Integer permissions = jdbcTemplate.queryForObject(sql, Integer.class, userId, groupId);
+            
+            if (permissions == null) {
+                return false;
+            }
+            
+            return (permissions & permission) == permission;
+        } catch (Exception e) {
+            log.error("检查权限失败: userId={}, groupId={}, permission={}", userId, groupId, permission, e);
+            return false;
+        }
+    }
+
+    /**
+     * 授予权限
+     */
+    public boolean grantPermission(Long userId, Long groupId, int permission) {
+        try {
+            String sql = "UPDATE group_member SET permissions = permissions | ? WHERE user_id = ? AND group_id = ?";
+            int rows = jdbcTemplate.update(sql, permission, userId, groupId);
+            
+            if (rows > 0) {
+                log.info("✅ 授予权限成功: userId={}, groupId={}, permission={}", userId, groupId, permission);
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("❌ 授予权限失败: userId={}, groupId={}, permission={}", userId, groupId, permission, e);
+            return false;
+        }
+    }
+
+    /**
+     * 撤销权限
+     */
+    public boolean revokePermission(Long userId, Long groupId, int permission) {
+        try {
+            String sql = "UPDATE group_member SET permissions = permissions & ~? WHERE user_id = ? AND group_id = ?";
+            int rows = jdbcTemplate.update(sql, permission, userId, groupId);
+            
+            if (rows > 0) {
+                log.info("✅ 撤销权限成功: userId={}, groupId={}, permission={}", userId, groupId, permission);
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("❌ 撤销权限失败: userId={}, groupId={}, permission={}", userId, groupId, permission, e);
+            return false;
+        }
+    }
+
+    /**
+     * 设置用户权限
+     */
+    public boolean setPermissions(Long userId, Long groupId, int permissions) {
+        try {
+            String sql = "UPDATE group_member SET permissions = ? WHERE user_id = ? AND group_id = ?";
+            int rows = jdbcTemplate.update(sql, permissions, userId, groupId);
+            
+            if (rows > 0) {
+                log.info("✅ 设置权限成功: userId={}, groupId={}, permissions={}", userId, groupId, permissions);
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("❌ 设置权限失败: userId={}, groupId={}, permissions={}", userId, groupId, permissions, e);
+            return false;
+        }
+    }
+
+    /**
+     * 获取用户权限
+     */
+    public int getPermissions(Long userId, Long groupId) {
+        try {
+            String sql = "SELECT permissions FROM group_member WHERE user_id = ? AND group_id = ? AND join_status = 'ACCEPTED'";
+            Integer permissions = jdbcTemplate.queryForObject(sql, Integer.class, userId, groupId);
+            return permissions != null ? permissions : 0;
+        } catch (Exception e) {
+            log.error("获取权限失败: userId={}, groupId={}", userId, groupId, e);
+            return 0;
+        }
+    }
+
+    /**
+     * 检查并要求权限
+     */
+    public void requirePermission(Long userId, Long groupId, int permission, String errorMessage) {
+        if (!hasPermission(userId, groupId, permission)) {
+            throw new WeebException(errorMessage != null ? errorMessage : "权限不足");
+        }
+    }
+
+    /**
+     * 检查是否是群主
+     */
+    public boolean isOwner(Long userId, Long groupId) {
+        try {
+            String sql = "SELECT role FROM group_member WHERE user_id = ? AND group_id = ? AND join_status = 'ACCEPTED'";
+            String role = jdbcTemplate.queryForObject(sql, String.class, userId, groupId);
+            return "OWNER".equals(role);
+        } catch (Exception e) {
+            log.error("检查群主失败: userId={}, groupId={}", userId, groupId, e);
+            return false;
+        }
+    }
+
+    /**
+     * 检查是否是管理员或群主
+     */
+    public boolean isAdminOrOwner(Long userId, Long groupId) {
+        try {
+            String sql = "SELECT role FROM group_member WHERE user_id = ? AND group_id = ? AND join_status = 'ACCEPTED'";
+            String role = jdbcTemplate.queryForObject(sql, String.class, userId, groupId);
+            return "OWNER".equals(role) || "ADMIN".equals(role);
+        } catch (Exception e) {
+            log.error("检查管理员失败: userId={}, groupId={}", userId, groupId, e);
+            return false;
+        }
+    }
+}

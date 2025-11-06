@@ -224,6 +224,7 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"contact", "id,user_id,friend_id,status,remarks,expire_at,group_id,create_time,update_time"},
             {"contact_group", "id,user_id,group_name,group_order,is_default,created_at,updated_at"},
             {"chat_list", "id,user_id,target_id,group_id,target_info,type,unread_count,last_message,create_time,update_time"},
+            {"chat_unread_count", "id,user_id,chat_id,unread_count,last_read_message_id,updated_at"},
             {"message", "id,client_message_id,sender_id,receiver_id,group_id,chat_id,content,message_type,status,read_status,is_read,is_recalled,user_ip,source,is_show_time,reply_to_message_id,created_at,updated_at"},
             {"message_retry", "id,message_id,client_message_id,sender_id,receiver_id,group_id,content,message_type,retry_count,max_retries,last_error,next_retry_at,status,created_at,updated_at"},
             {"message_reaction", "id,message_id,user_id,reaction_type,create_time"},
@@ -352,6 +353,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         createGroupMemberTable();
         createContactTable();
         createChatListTable();
+        createChatUnreadCountTable(); // 聊天未读计数表
         createMessageTable();
         createMessageRetryTable();
         createMessageReactionTable();
@@ -513,10 +515,12 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_message_receiver_status` (`receiver_id`, `status`, `created_at` DESC),
                 KEY `idx_message_type_time` (`message_type`, `created_at` DESC),
                 KEY `idx_message_status_time` (`status`, `created_at` DESC),
+                KEY `idx_message_chat_status` (`chat_id`, `status`, `created_at` DESC) COMMENT '聊天消息状态查询优化',
+                KEY `idx_message_sender_status` (`sender_id`, `status`, `created_at` DESC) COMMENT '发送者消息状态查询优化',
                 CONSTRAINT `fk_message_sender` FOREIGN KEY (`sender_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `fk_message_reply` FOREIGN KEY (`reply_to_message_id`) REFERENCES `message` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
-            COMMENT='消息内容表（status字段统一管理消息状态）'
+            COMMENT='消息内容表（status字段统一管理消息状态，支持已读回执和离线消息）'
             """;
 
         try {
@@ -708,6 +712,37 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("❌ 创建聊天列表表失败", e);
             throw new RuntimeException("创建聊天列表表失败", e);
+        }
+    }
+
+    private void createChatUnreadCountTable() {
+        log.info("创建聊天未读计数表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `chat_unread_count` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                `user_id` BIGINT NOT NULL COMMENT '用户ID',
+                `chat_id` BIGINT NOT NULL COMMENT '聊天ID（私聊或群聊）',
+                `unread_count` INT NOT NULL DEFAULT 0 COMMENT '未读消息数',
+                `last_read_message_id` BIGINT COMMENT '最后已读消息ID',
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_user_chat` (`user_id`, `chat_id`),
+                KEY `idx_user_id` (`user_id`),
+                KEY `idx_chat_id` (`chat_id`),
+                KEY `idx_unread_count` (`unread_count`),
+                KEY `idx_updated_at` (`updated_at`),
+                CONSTRAINT `fk_unread_count_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='聊天未读计数表（优化未读消息性能）'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 聊天未读计数表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建聊天未读计数表失败", e);
+            throw new RuntimeException("创建聊天未读计数表失败", e);
         }
     }
 

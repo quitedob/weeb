@@ -31,13 +31,26 @@
           @click="selectChat(chat)"
         >
           <div class="chat-avatar">
-            <img :src="chat.targetInfo?.avatar || defaultAvatar" :alt="chat.targetInfo?.name" />
-            <span v-if="isUserOnline(chat.targetInfo?.id)" class="online-indicator"></span>
+            <!-- 群聊显示群组图标 -->
+            <img 
+              :src="chat.type === 'GROUP' ? defaultGroupAvatar : defaultAvatar" 
+              :alt="getChatName(chat)" 
+            />
+            <!-- 私聊显示在线状态 -->
+            <span 
+              v-if="chat.type === 'PRIVATE' && isUserOnline(chat.targetId)" 
+              class="online-indicator"
+            ></span>
+            <!-- 群聊显示群组标识 -->
+            <span v-if="chat.type === 'GROUP'" class="group-indicator">👥</span>
           </div>
           <div v-if="!sidebarCollapsed" class="chat-info">
             <div class="chat-header-row">
-              <div class="chat-name">{{ chat.targetInfo?.name }}</div>
-              <div class="chat-time">{{ formatChatTime(chat.lastMessageTime) }}</div>
+              <div class="chat-name">
+                {{ getChatName(chat) }}
+                <span v-if="chat.type === 'GROUP'" class="chat-type-badge">群聊</span>
+              </div>
+              <div class="chat-time">{{ formatChatTime(chat.updateTime) }}</div>
             </div>
             <div class="chat-preview-row">
               <div class="chat-last-msg">
@@ -63,17 +76,43 @@
         <div class="chat-header">
           <div class="header-left">
             <div class="chat-avatar-small">
-              <img :src="currentChat?.targetInfo?.avatar || defaultAvatar" :alt="currentChat?.targetInfo?.name" />
-              <span v-if="isUserOnline(currentChat?.targetInfo?.id)" class="online-indicator"></span>
+              <img 
+                :src="currentChat?.type === 'GROUP' ? defaultGroupAvatar : defaultAvatar" 
+                :alt="getChatName(currentChat)" 
+              />
+              <span 
+                v-if="currentChat?.type === 'PRIVATE' && isUserOnline(currentChat?.targetId)" 
+                class="online-indicator"
+              ></span>
+              <span v-if="currentChat?.type === 'GROUP'" class="group-indicator-small">👥</span>
             </div>
             <div class="chat-title-info">
-              <div class="chat-title">{{ currentChat?.targetInfo?.name }}</div>
+              <div class="chat-title">
+                {{ getChatName(currentChat) }}
+                <span v-if="currentChat?.type === 'GROUP'" class="member-count">
+                  ({{ groupMemberCount }}人)
+                </span>
+              </div>
               <div class="chat-status">
-                {{ isUserOnline(currentChat?.targetInfo?.id) ? '在线' : '离线' }}
+                <template v-if="currentChat?.type === 'GROUP'">
+                  <span v-if="onlineGroupMembers > 0">{{ onlineGroupMembers }}人在线</span>
+                  <span v-else>群聊</span>
+                </template>
+                <template v-else>
+                  {{ isUserOnline(currentChat?.targetId) ? '🟢 在线' : '⚪ 离线' }}
+                </template>
               </div>
             </div>
           </div>
           <div class="header-right">
+            <button 
+              v-if="currentChat?.type === 'GROUP'" 
+              @click="showGroupMembers = !showGroupMembers" 
+              class="icon-btn" 
+              title="群成员"
+            >
+              <span>👥</span>
+            </button>
             <button @click="loadMoreMessages" :disabled="!canLoadMore" class="icon-btn" title="加载更多">
               <span>⬆️</span>
             </button>
@@ -245,12 +284,51 @@
       </div>
       <div class="info-content">
         <div class="info-avatar">
-          <img :src="currentChat?.targetInfo?.avatar || defaultAvatar" :alt="currentChat?.targetInfo?.name" />
+          <img :src="currentChat?.type === 'GROUP' ? defaultGroupAvatar : defaultAvatar" :alt="getChatName(currentChat)" />
         </div>
-        <div class="info-name">{{ currentChat?.targetInfo?.name }}</div>
+        <div class="info-name">{{ getChatName(currentChat) }}</div>
         <div class="info-actions">
           <button @click="viewUserProfile" class="info-btn">查看资料</button>
           <button @click="confirmDeleteChat" class="info-btn danger">删除聊天</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ 群成员侧边栏 -->
+    <div v-if="showGroupMembers && currentChat?.type === 'GROUP'" class="group-members-sidebar">
+      <div class="info-header">
+        <h3>群成员 ({{ groupMemberCount }})</h3>
+        <button @click="showGroupMembers = false" class="close-btn">✕</button>
+      </div>
+      <div class="members-content">
+        <div v-if="groupMembers.length === 0" class="empty-members">
+          <p>暂无群成员</p>
+        </div>
+        <div v-else class="member-list">
+          <div
+            v-for="member in groupMembers"
+            :key="member.userId"
+            class="member-item"
+          >
+            <div class="member-avatar">
+              <img :src="member.avatar || defaultAvatar" :alt="member.username" />
+              <span 
+                v-if="chatStore.onlineUsers.has(member.userId)" 
+                class="online-indicator"
+              ></span>
+            </div>
+            <div class="member-info">
+              <div class="member-name">
+                {{ member.username }}
+                <span v-if="member.role === 1" class="role-badge owner">群主</span>
+                <span v-else-if="member.role === 2" class="role-badge admin">管理员</span>
+              </div>
+              <div class="member-status">
+                <span v-if="chatStore.onlineUsers.has(member.userId)" class="status-online">🟢 在线</span>
+                <span v-else class="status-offline">⚪ 离线</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -358,6 +436,26 @@ const isTyping = ref(false);
 const typingTimeout = ref(null);
 
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png';
+const defaultGroupAvatar = 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png';
+
+// ✅ 群聊相关数据
+const showGroupMembers = ref(false);
+const groupMembers = ref([]);
+const groupMemberCount = computed(() => {
+  if (currentChat.value?.type === 'GROUP') {
+    return groupMembers.value.length || 0;
+  }
+  return 0;
+});
+
+const onlineGroupMembers = computed(() => {
+  if (currentChat.value?.type === 'GROUP') {
+    return groupMembers.value.filter(member => 
+      chatStore.onlineUsers.has(member.userId)
+    ).length;
+  }
+  return 0;
+});
 
 // 常用表情
 const commonEmojis = ['😊', '😂', '❤️', '👍', '👎', '🎉', '😢', '😡', '🤔', '👏', '🙏', '💪', '🔥', '✨', '🎈'];
@@ -389,9 +487,10 @@ const canSendMessage = computed(() => {
 const filteredChatList = computed(() => {
   if (!searchQuery.value.trim()) return chatList.value;
   const query = searchQuery.value.toLowerCase();
-  return chatList.value.filter(chat =>
-    chat.targetInfo?.name?.toLowerCase().includes(query)
-  );
+  return chatList.value.filter(chat => {
+    const chatName = getChatName(chat);
+    return chatName?.toLowerCase().includes(query);
+  });
 });
 
 const filteredContacts = computed(() => {
@@ -409,10 +508,21 @@ const loadChatList = async () => {
   try {
     const response = await api.chat.getChatList();
     if (response.code === 0) {
-      chatList.value = response.data || [];
+      // ✅ 处理不同的响应结构
+      const list = Array.isArray(response.data) 
+        ? response.data 
+        : (response.data?.data || response.data?.list || []);
+      
+      chatList.value = list;
+      console.log('✅ 聊天列表加载成功:', chatList.value.length, '个会话');
+      
+      // 打印第一个会话的结构以便调试
+      if (chatList.value.length > 0) {
+        console.log('📋 第一个会话结构:', chatList.value[0]);
+      }
     }
   } catch (error) {
-    console.error('加载聊天列表失败:', error);
+    console.error('❌ 加载聊天列表失败:', error);
   }
 };
 
@@ -439,12 +549,33 @@ const selectChat = async (chat) => {
 
   try {
     await chatStore.fetchMessagesForChat(chat.id);
+    
+    // ✅ 如果是群聊，加载群成员
+    if (chat.type === 'GROUP' && chat.groupId) {
+      await loadGroupMembers(chat.groupId);
+    }
+    
     await nextTick();
     scrollToBottom();
   } catch (error) {
     console.error('加载消息失败:', error);
   } finally {
     isLoadingMessages.value = false;
+  }
+};
+
+// ✅ 加载群成员列表
+const loadGroupMembers = async (groupId) => {
+  try {
+    // 调用群组成员API
+    const response = await api.group.getMembers(groupId);
+    if (response.code === 0) {
+      groupMembers.value = response.data || [];
+      console.log('✅ 群成员加载成功:', groupMembers.value.length);
+    }
+  } catch (error) {
+    console.error('❌ 加载群成员失败:', error);
+    groupMembers.value = [];
   }
 };
 
@@ -650,9 +781,26 @@ const isUserOnline = (userId) => {
 };
 
 const viewUserProfile = () => {
-  if (currentChat.value?.targetInfo?.id) {
-    router.push(`/user/${currentChat.value.targetInfo.id}`);
+  if (currentChat.value?.targetId) {
+    router.push(`/user/${currentChat.value.targetId}`);
   }
+};
+
+// ✅ 获取聊天名称的辅助函数
+const getChatName = (chat) => {
+  if (!chat) return '未知';
+  
+  // 如果targetInfo是字符串，直接返回
+  if (typeof chat.targetInfo === 'string') {
+    return chat.targetInfo || '未知';
+  }
+  
+  // 如果targetInfo是对象，提取name
+  if (typeof chat.targetInfo === 'object' && chat.targetInfo) {
+    return chat.targetInfo.name || chat.targetInfo.username || '未知';
+  }
+  
+  return '未知';
 };
 
 const confirmDeleteChat = async () => {
@@ -1764,3 +1912,157 @@ watch(() => chatStore.isTypingInCurrentChat, (newVal) => {
   background: var(--apple-bg-tertiary, #e8e8ed);
 }
 </style>
+
+
+/* ✅ 群聊相关样式 */
+.group-indicator {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  background: var(--apple-blue, #007aff);
+  border: 2px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
+.group-indicator-small {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  font-size: 12px;
+}
+
+.chat-type-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--apple-blue-light, #e3f2fd);
+  color: var(--apple-blue, #007aff);
+  border-radius: 4px;
+  font-size: 10px;
+  margin-left: 6px;
+  font-weight: normal;
+}
+
+.member-count {
+  font-size: 12px;
+  color: var(--apple-text-tertiary, #999);
+  font-weight: normal;
+  margin-left: 4px;
+}
+
+/* 群成员侧边栏 */
+.group-members-sidebar {
+  width: 300px;
+  background: var(--apple-bg-secondary, #f5f5f7);
+  border-left: 1px solid var(--apple-border, #e0e0e0);
+  display: flex;
+  flex-direction: column;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.members-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.empty-members {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--apple-text-tertiary, #999);
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--apple-bg-primary, #fff);
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.member-item:hover {
+  background: var(--apple-bg-tertiary, #e8e8ed);
+}
+
+.member-avatar {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-name {
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: normal;
+}
+
+.role-badge.owner {
+  background: var(--apple-red-light, #ffebee);
+  color: var(--apple-red, #ff3b30);
+}
+
+.role-badge.admin {
+  background: var(--apple-blue-light, #e3f2fd);
+  color: var(--apple-blue, #007aff);
+}
+
+.member-status {
+  font-size: 12px;
+}
+
+.status-online {
+  color: #34c759;
+}
+
+.status-offline {
+  color: var(--apple-text-tertiary, #999);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .group-members-sidebar {
+    position: fixed;
+    right: 0;
+    top: 0;
+    height: 100vh;
+    z-index: 100;
+  }
+}

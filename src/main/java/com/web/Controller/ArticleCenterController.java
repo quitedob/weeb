@@ -60,22 +60,9 @@ public class ArticleCenterController {
         }
     }
 
-    
-    /**
-     * 原本的方法：根据 userId 获取用户各类统计信息
-     * GET /articles/userinform?userId=123
-     */
-    @GetMapping("/userinform")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserInformation(@RequestParam Long userId) {
-        try {
-            Map<String, Object> userInfo = articleService.getUserInformation(userId);
-            return ResponseEntity.ok(ApiResponse.success(userInfo));
-        } catch (Exception e) {
-            logger.error("获取信息时出错,用户ID为 {}", userId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.systemError(ApiResponse.Messages.SYSTEM_ERROR));
-        }
-    }
+    // ❌ 已废弃：违规端点已删除
+    // 用户信息应通过 /api/users/* 端点获取
+    // 请使用 UserController 提供的标准用户信息接口
 
 
     /**

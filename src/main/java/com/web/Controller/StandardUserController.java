@@ -154,6 +154,23 @@ public class StandardUserController {
     }
 
     /**
+     * 通过用户名获取用户信息
+     * GET /api/users/by-username/{username}
+     */
+    @GetMapping("/by-username/{username}")
+    public ResponseEntity<ApiResponse<UserWithStats>> getUserByUsername(@PathVariable String username) {
+        try {
+            UserWithStats userProfile = userService.getUserProfileByUsername(username);
+            if (userProfile == null) {
+                return ApiResponseUtil.badRequestUserWithStats("用户不存在");
+            }
+            return ApiResponseUtil.successUserWithStats(userProfile);
+        } catch (Exception e) {
+            return ApiResponseUtil.handleServiceExceptionUserWithStats(e, "通过用户名获取用户信息", username);
+        }
+    }
+
+    /**
      * 获取用户列表（分页）
      * GET /api/users?page=1&pageSize=20&keyword=example
      */

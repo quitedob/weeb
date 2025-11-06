@@ -28,7 +28,7 @@ export function getChatHistoryApi(params) {
 
 // 撤回消息 - 使用新的DELETE API
 export function recallMessage(messageId) {
-  return axiosInstance.delete(`/api/messages/${messageId}`);
+  return axiosInstance.delete(`/api/chats/messages/${messageId}`);
 }
 
 // 对消息添加反应 - 使用新的统一API路径
@@ -62,6 +62,26 @@ export function addReaction(messageId, reactionType) {
   });
 }
 
+// 获取未读消息统计
+export function getUnreadStats() {
+  return axiosInstance.get('/api/chats/unread/stats');
+}
+
+// 获取单个聊天的未读数
+export function getUnreadCount(chatId) {
+  return axiosInstance.get(`/api/chats/${chatId}/unread`);
+}
+
+// 批量标记已读
+export function batchMarkAsRead(chatIds) {
+  return axiosInstance.post('/api/chats/read/batch', chatIds);
+}
+
+// 获取群组未读数
+export function getGroupUnreadCount(groupId) {
+  return axiosInstance.get(`/api/chats/groups/${groupId}/unread`);
+}
+
 export default {
   sendMessage,
   getChatRecord,
@@ -71,5 +91,9 @@ export default {
   createChat,
   markAsRead,
   deleteChat,
-  addReaction
+  addReaction,
+  getUnreadStats,
+  getUnreadCount,
+  batchMarkAsRead,
+  getGroupUnreadCount
 };

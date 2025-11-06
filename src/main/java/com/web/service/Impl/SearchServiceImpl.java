@@ -31,20 +31,22 @@ public class SearchServiceImpl implements SearchService {
 
     /**
      * 构建用户搜索的排序SQL子句
+     * 修复SQL注入漏洞：不再直接拼接keyword，改用参数化查询
      */
     private String buildUserSortClause(String sortBy, String keyword) {
         if (sortBy == null || sortBy.trim().isEmpty()) {
             sortBy = "relevance";
         }
         
+        // 验证sortBy参数，防止SQL注入
+        if (!SqlInjectionUtils.validateSortParams(sortBy, "desc")) {
+            sortBy = "relevance";
+        }
+        
         switch (sortBy.toLowerCase()) {
             case "relevance":
-                return "CASE " +
-                       "WHEN u.username = '" + keyword + "' THEN 1 " +
-                       "WHEN u.nickname = '" + keyword + "' THEN 2 " +
-                       "WHEN u.username LIKE '" + keyword + "%' THEN 3 " +
-                       "WHEN u.nickname LIKE '" + keyword + "%' THEN 4 " +
-                       "ELSE 5 END, u.id DESC";
+                // 不再直接拼接keyword，由Mapper层使用参数化查询处理
+                return "relevance";
             case "time_desc":
                 return "u.registration_date DESC, u.id DESC";
             case "time_asc":
@@ -60,18 +62,22 @@ public class SearchServiceImpl implements SearchService {
 
     /**
      * 构建群组搜索的排序SQL子句
+     * 修复SQL注入漏洞：不再直接拼接keyword，改用参数化查询
      */
     private String buildGroupSortClause(String sortBy, String keyword) {
         if (sortBy == null || sortBy.trim().isEmpty()) {
             sortBy = "relevance";
         }
         
+        // 验证sortBy参数，防止SQL注入
+        if (!SqlInjectionUtils.validateSortParams(sortBy, "desc")) {
+            sortBy = "relevance";
+        }
+        
         switch (sortBy.toLowerCase()) {
             case "relevance":
-                return "CASE " +
-                       "WHEN g.group_name = '" + keyword + "' THEN 1 " +
-                       "WHEN g.group_name LIKE '" + keyword + "%' THEN 2 " +
-                       "ELSE 3 END, g.create_time DESC";
+                // 不再直接拼接keyword，由Mapper层使用参数化查询处理
+                return "relevance";
             case "time_desc":
                 return "g.create_time DESC, g.id DESC";
             case "time_asc":
@@ -180,14 +186,22 @@ public class SearchServiceImpl implements SearchService {
             return result;
         }
 
+        // 使用SqlInjectionUtils进行SQL注入防护
+        if (!SqlInjectionUtils.validateSqlParam(keyword, "搜索关键词")) {
+            throw new WeebException("搜索关键词包含非法字符");
+        }
+
+        // 对搜索关键词进行安全清理
+        keyword = SqlInjectionUtils.sanitizeInput(keyword.trim());
+
         // 计算偏移量
         int offset = page * size;
 
-        // 构建排序SQL子句
-        String sortClause = buildGroupSortClause(sortBy, keyword.trim());
+        // 构建排序SQL子句（已修复SQL注入）
+        String sortClause = buildGroupSortClause(sortBy, keyword);
 
-        List<Group> groups = groupMapper.searchGroupsWithFilters(keyword.trim(), offset, size, startDate, endDate, sortClause);
-        long total = groupMapper.countSearchGroupsWithFilters(keyword.trim(), startDate, endDate);
+        List<Group> groups = groupMapper.searchGroupsWithFilters(keyword, offset, size, startDate, endDate, sortClause);
+        long total = groupMapper.countSearchGroupsWithFilters(keyword, startDate, endDate);
 
         Map<String, Object> result = new HashMap<>();
         result.put("list", groups);
@@ -206,14 +220,22 @@ public class SearchServiceImpl implements SearchService {
             return result;
         }
 
+        // 使用SqlInjectionUtils进行SQL注入防护
+        if (!SqlInjectionUtils.validateSqlParam(keyword, "搜索关键词")) {
+            throw new WeebException("搜索关键词包含非法字符");
+        }
+
+        // 对搜索关键词进行安全清理
+        keyword = SqlInjectionUtils.sanitizeInput(keyword.trim());
+
         // 计算偏移量
         int offset = page * size;
 
-        // 构建排序SQL子句
-        String sortClause = buildUserSortClause(sortBy, keyword.trim());
+        // 构建排序SQL子句（已修复SQL注入）
+        String sortClause = buildUserSortClause(sortBy, keyword);
 
-        List<User> users = userMapper.searchUsersWithFilters(keyword.trim(), offset, size, startDate, endDate, sortClause);
-        long total = userMapper.countSearchUsersWithFilters(keyword.trim(), startDate, endDate);
+        List<User> users = userMapper.searchUsersWithFilters(keyword, offset, size, startDate, endDate, sortClause);
+        long total = userMapper.countSearchUsersWithFilters(keyword, startDate, endDate);
 
         // 过滤敏感信息（不返回密码等）
         users.forEach(user -> {

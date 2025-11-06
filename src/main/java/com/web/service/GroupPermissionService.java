@@ -1,113 +1,283 @@
 package com.web.service;
 
+import com.web.mapper.GroupMemberMapper;
+import com.web.model.GroupMember;
+import com.web.model.User;
+import com.web.constants.GroupRoleConstants;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.concurrent.TimeUnit;
+
 /**
- * 群组权限服务接口
+ * 群组权限服务
  * 统一管理群组相关的权限检查逻辑
- * 提供缓存支持以提高性能
+ * 使用Redis缓存提高性能
+ * 已修复：统一使用GroupRoleConstants定义角色
  */
-public interface GroupPermissionService {
+@Slf4j
+@Service
+public class GroupPermissionService {
+
+    @Autowired
+    private GroupMemberMapper groupMemberMapper;
+
+    @Autowired
+    private UserTypeSecurityService userTypeSecurityService;
+
+    @Autowired
+    private AuthService authService;
+
+    @Autowired
+    private RedisCacheService redisCacheService;
+
+    // 缓存键前缀
+    private static final String CACHE_PREFIX = "group:permission:";
+    private static final long CACHE_EXPIRE_SECONDS = 300; // 5分钟
 
     /**
-     * 检查用户是否为群主
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @return 是否为群主
+     * 获取缓存�?
      */
-    boolean isGroupOwner(Long groupId, Long userId);
+    private String getCacheKey(Long groupId, Long userId) {
+        return CACHE_PREFIX + groupId + ":" + userId;
+    }
 
     /**
-     * 检查用户是否为群组管理员（包括群主）
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @return 是否为管理员
+     * 从缓存或数据库获取用户角�?
      */
-    boolean isGroupAdmin(Long groupId, Long userId);
+    private int getUserRoleFromCacheOrDb(Long groupId, Long userId) {
+        String cacheKey = getCacheKey(groupId, userId);
+
+        try {
+            // 尝试从缓存获�?
+            Object cachedRole = redisCacheService.get(cacheKey);
+            if (cachedRole != null) {
+                return (Integer) cachedRole;
+            }
+
+            // 缓存未命中，从数据库查询
+            GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
+            int role = (member != null && "ACCEPTED".equals(member.getJoinStatus())) 
+                ? member.getRole() : GroupRoleConstants.ROLE_NON_MEMBER;
+
+            // 存入缓存
+            redisCacheService.set(cacheKey, role, CACHE_EXPIRE_SECONDS);
+
+            return role;
+        } catch (Exception e) {
+            log.error("获取用户群组角色失败: groupId={}, userId={}", groupId, userId, e);
+            // 缓存失败时直接查询数据库
+            GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
+            return (member != null && "ACCEPTED".equals(member.getJoinStatus())) 
+                ? member.getRole() : GroupRoleConstants.ROLE_NON_MEMBER;
+        }
+    }
 
     /**
-     * 检查用户是否为群组成员
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @return 是否为成员
+     * 检查用户是否有指定权限（位图方式）
+     * 注意：这是简化版本，实际权限通过角色判断
      */
-    boolean isGroupMember(Long groupId, Long userId);
+    public boolean hasPermission(Long userId, Long groupId, int permission) {
+        try {
+            int role = getUserRoleFromCacheOrDb(groupId, userId);
+            
+            // 群主拥有所有权限
+            if (role == GroupRoleConstants.ROLE_OWNER) {
+                return true;
+            }
+            
+            // 管理员拥有大部分权限（除了解散群组）
+            if (role == GroupRoleConstants.ROLE_ADMIN) {
+                // 这里可以根据具体权限位判断
+                return true;
+            }
+            
+            // 普通成员没有特殊权限
+            return false;
+        } catch (Exception e) {
+            log.error("检查权限失败: userId={}, groupId={}, permission={}", userId, groupId, permission, e);
+            return false;
+        }
+    }
 
-    /**
-     * 检查用户是否可以管理群组（修改群组信息）
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @return 是否可以管理
-     */
-    boolean canManageGroup(Long groupId, Long userId);
+    public boolean isGroupOwner(Long groupId, Long userId) {
+        try {
+            // 系统管理员拥有所有权�?
+            User currentUser = authService.findByUserID(userId);
+            if (currentUser != null && userTypeSecurityService.isAdmin(currentUser.getUsername())) {
+                log.debug("系统管理员拥有群主权�? userId={}, groupId={}", userId, groupId);
+                return true;
+            }
 
-    /**
-     * 检查用户是否可以邀请成员
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @return 是否可以邀请
-     */
-    boolean canInviteMembers(Long groupId, Long userId);
+            int role = getUserRoleFromCacheOrDb(groupId, userId);
+            return GroupRoleConstants.isOwner(role);
+        } catch (Exception e) {
+            log.error("检查群主权限失�? groupId={}, userId={}", groupId, userId, e);
+            return false;
+        }
+    }
 
-    /**
-     * 检查用户是否可以踢出成员
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @param targetUserId 目标用户ID
-     * @return 是否可以踢出
-     */
-    boolean canKickMember(Long groupId, Long userId, Long targetUserId);
 
-    /**
-     * 检查用户是否可以解散群组
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @return 是否可以解散
-     */
-    boolean canDissolveGroup(Long groupId, Long userId);
+    public boolean isGroupAdmin(Long groupId, Long userId) {
+        try {
+            // 系统管理员拥有所有权�?
+            User currentUser = authService.findByUserID(userId);
+            if (currentUser != null && userTypeSecurityService.isAdmin(currentUser.getUsername())) {
+                log.debug("系统管理员拥有管理员权限: userId={}, groupId={}", userId, groupId);
+                return true;
+            }
 
-    /**
-     * 检查用户是否可以转让群组
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @return 是否可以转让
-     */
-    boolean canTransferGroup(Long groupId, Long userId);
+            int role = getUserRoleFromCacheOrDb(groupId, userId);
+            return GroupRoleConstants.isAdminOrOwner(role);
+        } catch (Exception e) {
+            log.error("检查管理员权限失败: groupId={}, userId={}", groupId, userId, e);
+            return false;
+        }
+    }
 
-    /**
-     * 检查用户是否可以发送消息
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @return 是否可以发送消息
-     */
-    boolean canSendMessage(Long groupId, Long userId);
 
-    /**
-     * 检查用户是否可以设置成员角色
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @param targetUserId 目标用户ID
-     * @param newRole 新角色
-     * @return 是否可以设置
-     */
-    boolean canSetMemberRole(Long groupId, Long userId, Long targetUserId, int newRole);
+    public boolean isGroupMember(Long groupId, Long userId) {
+        try {
+            int role = getUserRoleFromCacheOrDb(groupId, userId);
+            return GroupRoleConstants.isMember(role);
+        } catch (Exception e) {
+            log.error("检查成员权限失�? groupId={}, userId={}", groupId, userId, e);
+            return false;
+        }
+    }
 
-    /**
-     * 获取用户在群组中的角色
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     * @return 角色值（0=普通成员, 1=管理员, 2=群主, -1=非成员）
-     */
-    int getUserRoleInGroup(Long groupId, Long userId);
 
-    /**
-     * 清除用户的群组权限缓存
-     * @param groupId 群组ID
-     * @param userId 用户ID
-     */
-    void clearPermissionCache(Long groupId, Long userId);
+    public boolean canManageGroup(Long groupId, Long userId) {
+        // 群主和管理员可以管理群组信息
+        return isGroupAdmin(groupId, userId);
+    }
 
-    /**
-     * 清除群组的所有权限缓存
-     * @param groupId 群组ID
-     */
-    void clearGroupPermissionCache(Long groupId);
+
+    public boolean canInviteMembers(Long groupId, Long userId) {
+        // 群主和管理员可以邀请成�?
+        return isGroupAdmin(groupId, userId);
+    }
+
+
+    public boolean canKickMember(Long groupId, Long userId, Long targetUserId) {
+        try {
+            // 系统管理员可以踢出任何人
+            User currentUser = authService.findByUserID(userId);
+            if (currentUser != null && userTypeSecurityService.isAdmin(currentUser.getUsername())) {
+                return true;
+            }
+
+            // 获取操作者和目标用户的角�?
+            int operatorRole = getUserRoleFromCacheOrDb(groupId, userId);
+            int targetRole = getUserRoleFromCacheOrDb(groupId, targetUserId);
+
+            // 不能踢出自己
+            if (userId.equals(targetUserId)) {
+                return false;
+            }
+
+            // 不能踢出群主
+            if (GroupRoleConstants.isOwner(targetRole)) {
+                return false;
+            }
+
+            // 群主可以踢出任何人（除了自己�?
+            if (GroupRoleConstants.isOwner(operatorRole)) {
+                return true;
+            }
+
+            // 管理员只能踢出普通成�?
+            if (GroupRoleConstants.isAdminOrOwner(operatorRole) && targetRole == GroupRoleConstants.ROLE_MEMBER) {
+                return true;
+            }
+
+            return false;
+        } catch (Exception e) {
+            log.error("检查踢出权限失�? groupId={}, userId={}, targetUserId={}", groupId, userId, targetUserId, e);
+            return false;
+        }
+    }
+
+
+    public boolean canDissolveGroup(Long groupId, Long userId) {
+        // 只有群主可以解散群组
+        return isGroupOwner(groupId, userId);
+    }
+
+
+    public boolean canTransferGroup(Long groupId, Long userId) {
+        // 只有群主可以转让群组
+        return isGroupOwner(groupId, userId);
+    }
+
+
+    public boolean canSendMessage(Long groupId, Long userId) {
+        // 所有群组成员都可以发送消�?
+        return isGroupMember(groupId, userId);
+    }
+
+
+    public boolean canSetMemberRole(Long groupId, Long userId, Long targetUserId, int newRole) {
+        try {
+            // 系统管理员可以设置任何角�?
+            User currentUser = authService.findByUserID(userId);
+            if (currentUser != null && userTypeSecurityService.isAdmin(currentUser.getUsername())) {
+                return true;
+            }
+
+            // 获取操作者和目标用户的角�?
+            int operatorRole = getUserRoleFromCacheOrDb(groupId, userId);
+            int targetRole = getUserRoleFromCacheOrDb(groupId, targetUserId);
+
+            // 不能修改自己的角�?
+            if (userId.equals(targetUserId)) {
+                return false;
+            }
+
+            // 不能修改群主的角�?
+            if (GroupRoleConstants.isOwner(targetRole)) {
+                return false;
+            }
+
+            // 只有群主可以设置管理�?
+            if (GroupRoleConstants.isOwner(operatorRole)) {
+                return true;
+            }
+
+            return false;
+        } catch (Exception e) {
+            log.error("检查设置角色权限失�? groupId={}, userId={}, targetUserId={}, newRole={}",
+                groupId, userId, targetUserId, newRole, e);
+            return false;
+        }
+    }
+
+
+    public int getUserRoleInGroup(Long groupId, Long userId) {
+        return getUserRoleFromCacheOrDb(groupId, userId);
+    }
+
+
+    public void clearPermissionCache(Long groupId, Long userId) {
+        try {
+            String cacheKey = getCacheKey(groupId, userId);
+            redisCacheService.delete(cacheKey);
+            log.debug("清除用户群组权限缓存: groupId={}, userId={}", groupId, userId);
+        } catch (Exception e) {
+            log.error("清除权限缓存失败: groupId={}, userId={}", groupId, userId, e);
+        }
+    }
+
+
+    public void clearGroupPermissionCache(Long groupId) {
+        try {
+            // 清除该群组所有用户的权限缓存
+            // TODO: 实现批量删除缓存功能
+            // 暂时不清除缓存，等待缓存自动过期
+            log.debug("群组权限缓存将在{}秒后自动过期: groupId={}", CACHE_EXPIRE_SECONDS, groupId);
+        } catch (Exception e) {
+            log.error("清除群组权限缓存失败: groupId={}", groupId, e);
+        }
+    }
 }

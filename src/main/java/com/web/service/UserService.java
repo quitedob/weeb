@@ -228,6 +228,13 @@ public interface UserService {
     User findByUsername(String username);
 
     /**
+     * 通过用户名获取用户完整信息（包含统计数据）
+     * @param username 用户名
+     * @return 用户完整信息
+     */
+    UserWithStats getUserProfileByUsername(String username);
+
+    /**
      * 获取用户的所有权限（权限系统已禁用）
      * @param userId 用户ID
      * @return 用户权限列表（空列表）

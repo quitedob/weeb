@@ -20,12 +20,13 @@ export const useChatStore = defineStore('chat', {
     storage: localStorage,
   },
   state: () => ({
-    activeChatSession: null, // Stores the currently active chat session object
+    activeChatSession: null, // Stores currently active chat session object
                              // e.g., { id: 'group101', name: 'Tech Talk', type: 'GROUP', ... }
     chatMessages: {},        // Object to store messages per chatId: { chatId1: [msg1, msg2], chatId2: [...] }
     chatPagination: {},      // Pagination info per chat: { chatId1: { hasMore: true, page: 1 }, ... }
     recentSessions: [],      // List of recent chat sessions for a chat list panel
     unreadCounts: {},        // Unread message counts per chatId: { chatId1: 2, chatId2: 0 }
+    unreadCountMap: {},      // ✅ 新增：未读计数映射 { chatId: unreadCount }
     connectionStatus: 'disconnected', // STOMP connection status: 'disconnected', 'connecting', 'connected', 'error'
     stompClient: null,       // STOMP client instance
     reconnectAttempts: 0,    // Number of reconnection attempts
@@ -138,6 +139,9 @@ export const useChatStore = defineStore('chat', {
 
           // Start heartbeat
           this.startHeartbeat();
+
+          // ✅ 拉取离线消息
+          this.fetchOfflineMessages();
         };
 
         // Connection error
@@ -147,13 +151,18 @@ export const useChatStore = defineStore('chat', {
           console.error('错误消息:', frame.body);
           this.connectionStatus = 'error';
 
-          // Attempt to reconnect
+          // ✅ 指数退避重连策略
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            // 计算延迟时间：1s, 2s, 4s, 8s, 16s, 最大30s
+            const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+            
             setTimeout(() => {
               this.reconnectAttempts++;
-              console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+              console.log(`🔄 尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts}), 延迟: ${delay}ms`);
               this.connectWebSocket();
-            }, 3000 * this.reconnectAttempts);
+            }, delay);
+          } else {
+            console.error('❌ 达到最大重连次数，停止重连');
           }
         };
 
@@ -198,16 +207,59 @@ export const useChatStore = defineStore('chat', {
 
       if (!username) return;
 
-      // Subscribe to private messages
+      console.log('📡 订阅WebSocket队列: username=', username);
+
+      // ✅ 订阅私聊消息
       this.stompClient.subscribe(`/user/${username}/queue/private`, (message) => {
         const parsedMessage = JSON.parse(message.body);
+        console.log('📨 收到私聊消息:', parsedMessage);
         this.handleIncomingChatMessage(parsedMessage);
+      });
+
+      // ✅ 订阅聊天列表更新
+      this.stompClient.subscribe(`/user/${username}/queue/chat-list-update`, (message) => {
+        const data = JSON.parse(message.body);
+        console.log('📋 聊天列表已更新:', data);
+        this.handleChatListUpdate(data);
+      });
+
+      // ✅ 订阅消息状态更新
+      this.stompClient.subscribe(`/user/${username}/queue/message-status`, (message) => {
+        const data = JSON.parse(message.body);
+        console.log('✓ 消息状态更新:', data);
+        this.handleMessageStatusUpdate(data);
+      });
+
+      // ✅ 订阅已读回执
+      this.stompClient.subscribe(`/user/${username}/queue/read-receipt`, (message) => {
+        const data = JSON.parse(message.body);
+        console.log('👁️ 收到已读回执:', data);
+        this.handleReadReceipt(data);
+      });
+
+      // ✅ 订阅群组成员变更事件
+      this.stompClient.subscribe(`/user/${username}/queue/group-member-change`, (message) => {
+        const data = JSON.parse(message.body);
+        console.log('👥 收到群组成员变更事件:', data);
+        this.handleGroupMemberChange(data);
+      });
+
+      // ✅ 订阅群组信息变更事件
+      this.stompClient.subscribe(`/user/${username}/queue/group-info-change`, (message) => {
+        const data = JSON.parse(message.body);
+        console.log('ℹ️ 收到群组信息变更事件:', data);
+        this.handleGroupInfoChange(data);
       });
 
       // Subscribe to error messages
       this.stompClient.subscribe(`/user/${username}/queue/errors`, (message) => {
         const errorMessage = JSON.parse(message.body);
-        console.error('STOMP error message:', errorMessage);
+        console.error('❌ STOMP错误消息:', errorMessage);
+        
+        // 如果有clientMessageId，更新对应消息状态为失败
+        if (errorMessage.clientMessageId) {
+          this.updateMessageStatus(null, MESSAGE_STATUS.FAILED, errorMessage.clientMessageId);
+        }
       });
 
       // Subscribe to general chat topics (optional)
@@ -217,6 +269,8 @@ export const useChatStore = defineStore('chat', {
           console.log('Chat room status:', parsedMessage);
         }
       });
+
+      console.log('✅ 已订阅所有WebSocket队列');
     },
 
     sendWebSocketMessage(message) {
@@ -263,10 +317,19 @@ export const useChatStore = defineStore('chat', {
     },
 
     handleIncomingChatMessage(message) {
-      // Handle both Spring WebSocket format and old format
-      const chatId = message.roomId || message.data?.chatId || message.data?.targetId || message.targetId;
+      console.log('📥 处理接收到的消息:', message);
+      
+      // ✅ 改进：支持多种消息格式
+      const chatId = message.chatId || message.roomId || message.data?.chatId || message.data?.targetId || message.targetId;
       const authStore = useAuthStore();
-      const isFromMe = (message.fromId || message.data?.fromUserId) === authStore.currentUser?.id;
+      const currentUserId = authStore.currentUser?.id;
+      
+      // ✅ 判断是否是自己发的消息
+      const isFromMe = message.isFromMe !== undefined 
+        ? message.isFromMe 
+        : (message.fromId || message.data?.fromUserId) === currentUserId;
+
+      console.log('📊 消息信息: chatId=', chatId, 'isFromMe=', isFromMe, 'currentUserId=', currentUserId);
 
       // Parse message content for file messages
       let content, displayContent, fileData;
@@ -275,13 +338,17 @@ export const useChatStore = defineStore('chat', {
         // Spring WebSocket format
         content = message.content;
         displayContent = message.content;
+      } else if (message.msgContent !== undefined) {
+        // MessageResponse format
+        content = message.msgContent;
+        displayContent = message.msgContent;
       } else if (message.data?.content !== undefined) {
         // Old format
         content = message.data.content;
         displayContent = message.data.content;
       }
 
-      if (message.type === 2 || message.data?.messageType === 2) {
+      if (message.messageType === 2 || message.type === 2 || message.data?.messageType === 2) {
         // File message - parse JSON content
         try {
           fileData = JSON.parse(content);
@@ -292,44 +359,203 @@ export const useChatStore = defineStore('chat', {
         }
       }
 
-      // Create standardized message object
+      // ✅ 创建标准化消息对象
       const standardizedMessage = {
         id: message.id || message.messageId || Date.now(),
+        tempId: message.tempId,
+        clientMessageId: message.clientMessageId,
         fromId: message.fromId || message.data?.fromUserId,
-        fromName: message.fromName || message.data?.fromName,
+        fromName: message.fromName || message.data?.fromName || 'Unknown',
         msgContent: displayContent,
         content: content,
         isRecalled: message.isRecalled || 0,
-        messageType: message.type || message.data?.messageType || 1,
-        chatType: message.type === 'private' ? 'PRIVATE' : (message.data?.chatType || 'GROUP'),
+        messageType: message.messageType || message.type || message.data?.messageType || 1,
+        chatType: message.type === 'private' ? 'PRIVATE' : (message.data?.chatType || 'PRIVATE'),
         targetId: chatId,
         chatId: chatId,
         timestamp: message.timestamp || message.data?.timestamp || new Date(),
         isFromMe: isFromMe,
-        msgType: message.type || message.data?.messageType || 1,
-        fileData: fileData, // Store parsed file data
-        // 使用新的统一状态系统
+        msgType: message.messageType || message.type || message.data?.messageType || 1,
+        fileData: fileData,
+        // ✅ 使用后端返回的状态
         status: message.status !== undefined ? message.status : MESSAGE_STATUS.SENT
       };
+
+      console.log('📦 标准化消息:', standardizedMessage);
 
       // 标准化消息对象，确保状态字段正确
       const normalizedMessage = normalizeMessage(standardizedMessage);
 
-      // Add message to chat
-      this.addMessage(chatId, normalizedMessage);
-
-      // Update unread counts if not from current user
-      if (!isFromMe && chatId !== this.currentChatId) {
-        this.incrementUnreadCount(chatId);
+      // ✅ 消息去重检查
+      if (this.isDuplicateMessage(chatId, message.id, message.clientMessageId)) {
+        console.log('⚠️ 重复消息已忽略');
+        return;
       }
 
-      // Update recent sessions
+      // ✅ 如果有clientMessageId，先查找并更新临时消息
+      if (message.clientMessageId) {
+        console.log('🔄 更新临时消息: clientMessageId=', message.clientMessageId);
+        this.updateMessageStatus(message.id, message.status, message.clientMessageId);
+        // 如果找到了临时消息，就不再添加新消息
+        const found = this.findMessageByTempId(chatId, message.clientMessageId);
+        if (found) {
+          console.log('✅ 临时消息已更新，不重复添加');
+          return;
+        }
+      }
+
+      // ✅ 添加消息到聊天
+      console.log('➕ 添加消息到聊天: chatId=', chatId);
+      this.addMessage(chatId, normalizedMessage);
+
+      // ✅ 更新未读计数（仅对接收的消息）
+      if (!isFromMe) {
+        if (chatId !== this.currentChatId) {
+          console.log('📬 增加未读计数: chatId=', chatId);
+          this.incrementUnreadCount(chatId);
+          // ✅ 使用新的未读计数系统
+          this.updateUnreadOnNewMessage(chatId, false);
+        } else {
+          console.log('👁️ 当前聊天，发送已读回执');
+          // 如果当前在该聊天，发送已读确认
+          this.sendReadReceipt(chatId, normalizedMessage.id);
+        }
+      }
+
+      // ✅ 更新聊天列表
+      console.log('📋 更新聊天列表');
       this.updateRecentSession(chatId, {
         content: displayContent,
         timestamp: standardizedMessage.timestamp,
         fromUserId: standardizedMessage.fromId,
         messageType: standardizedMessage.messageType
       });
+
+      console.log('✅ 消息处理完成');
+    },
+
+    /**
+     * ✅ 新增：处理聊天列表更新
+     */
+    handleChatListUpdate(chatList) {
+      console.log('📋 处理聊天列表更新:', chatList);
+      
+      const existingIndex = this.recentSessions.findIndex(
+        session => session.id === chatList.id
+      );
+
+      if (existingIndex >= 0) {
+        // 更新现有会话
+        this.recentSessions.splice(existingIndex, 1);
+      }
+
+      // 将更新的会话移到列表顶部
+      this.recentSessions.unshift({
+        id: chatList.id,
+        targetId: chatList.targetId,
+        targetInfo: chatList.targetInfo,
+        lastMessage: chatList.lastMessage,
+        lastMessageTime: chatList.updateTime,
+        unreadCount: chatList.unreadCount || 0
+      });
+
+      console.log('✅ 聊天列表已更新');
+    },
+
+    /**
+     * ✅ 新增：处理消息状态更新
+     */
+    handleMessageStatusUpdate(data) {
+      console.log('✓ 处理消息状态更新:', data);
+      
+      if (data.messageId) {
+        this.updateMessageStatus(data.messageId, data.status, data.clientMessageId);
+      }
+    },
+
+    /**
+     * ✅ 新增：处理已读回执
+     */
+    handleReadReceipt(data) {
+      console.log('👁️ 处理已读回执:', data);
+      
+      const { chatId, messageId, timestamp } = data;
+      
+      // 更新该聊天中所有消息的状态为已读
+      if (this.chatMessages[chatId]) {
+        this.chatMessages[chatId].forEach(msg => {
+          // 只更新已发送或已送达的消息为已读
+          if (msg.isFromMe && msg.status < MESSAGE_STATUS.READ) {
+            msg.status = MESSAGE_STATUS.READ;
+          }
+        });
+      }
+      
+      console.log('✅ 已读回执处理完成');
+    },
+
+    /**
+     * ✅ 新增：查找临时消息
+     */
+    findMessageByTempId(chatId, tempId) {
+      if (!this.chatMessages[chatId] || !tempId) return null;
+      
+      return this.chatMessages[chatId].find(msg => 
+        msg.tempId === tempId || msg.clientMessageId === tempId
+      );
+    },
+
+    /**
+     * ✅ 消息去重检查
+     */
+    isDuplicateMessage(chatId, messageId, clientMessageId) {
+      if (!this.chatMessages[chatId]) return false;
+      
+      const messages = this.chatMessages[chatId];
+      
+      // 检查消息ID是否已存在
+      if (messageId && messages.some(msg => msg.id === messageId)) {
+        console.log('⚠️ 检测到重复消息ID:', messageId);
+        return true;
+      }
+      
+      // 检查客户端消息ID是否已存在
+      if (clientMessageId && messages.some(msg => 
+        msg.clientMessageId === clientMessageId || msg.tempId === clientMessageId
+      )) {
+        console.log('⚠️ 检测到重复客户端消息ID:', clientMessageId);
+        return true;
+      }
+      
+      return false;
+    },
+
+    /**
+     * ✅ 发送已读回执
+     */
+    async sendReadReceipt(chatId, messageId) {
+      try {
+        console.log('📨 发送已读回执: chatId=', chatId, 'messageId=', messageId);
+        
+        // 通过HTTP API标记消息为已读
+        await api.chat.markAsRead(chatId);
+        
+        // 通过WebSocket通知发送者消息已读
+        if (this.stompClient && this.stompClient.connected) {
+          this.stompClient.publish({
+            destination: '/app/chat/read-receipt',
+            body: JSON.stringify({
+              chatId: chatId,
+              messageId: messageId,
+              timestamp: new Date().toISOString()
+            })
+          });
+        }
+        
+        console.log('✅ 已读回执发送成功');
+      } catch (error) {
+        console.error('❌ 发送已读回执失败:', error);
+      }
     },
 
     handleUserStatusChange(message) {
@@ -447,23 +673,27 @@ export const useChatStore = defineStore('chat', {
         });
 
         if (response.code === 0 && response.data) {
-          const hasMore = response.data.length === batchSize;
+          // ✅ 修复：处理不同的响应结构
+          const messages = Array.isArray(response.data) 
+            ? response.data 
+            : (response.data.data || response.data.list || []);
+          
+          const hasMore = messages.length === batchSize;
 
           // 为每条消息添加isFromMe字段并标准化状态
-          const messagesWithFlag = response.data.map(msg => ({
+          const messagesWithFlag = messages.map(msg => ({
             ...msg,
             isFromMe: msg.senderId === currentUserId,
             msgContent: typeof msg.content === 'object' ? msg.content.content : msg.content
           }));
 
-          // 标准化消息列表，确保所有消息都有正确的status字段
           const normalizedMsgs = normalizeMessages(messagesWithFlag);
 
-          // Update pagination info
+          // 更新分页信息
           this.chatPagination[chatId] = {
             hasMore,
             page,
-            total: response.data.length
+            total: messages.length
           };
 
           if (page === 1) {
@@ -504,7 +734,11 @@ export const useChatStore = defineStore('chat', {
         // 使用新的chat API获取聊天列表
         const response = await api.chat.getChatList();
         if (response.code === 0 && response.data) {
-          this.recentSessions = response.data;
+          // ✅ 修复：处理不同的响应结构
+          const chatList = Array.isArray(response.data) 
+            ? response.data 
+            : (response.data.data || response.data.list || []);
+          this.recentSessions = chatList;
         }
       } catch (error) {
         console.error('Failed to fetch recent chats:', error);
@@ -617,6 +851,303 @@ export const useChatStore = defineStore('chat', {
           }
         }
       });
+    },
+
+    /**
+     * ✅ 拉取离线消息
+     */
+    async fetchOfflineMessages() {
+      try {
+        console.log('📥 拉取离线消息...');
+        
+        // 获取所有聊天列表
+        await this.fetchRecentChats();
+        
+        // 获取未读统计
+        await this.fetchUnreadStats();
+        
+        // 对于有未读消息的聊天，拉取最新消息
+        for (const session of this.recentSessions) {
+          if (session.unreadCount > 0) {
+            console.log(`📬 拉取聊天 ${session.id} 的离线消息`);
+            await this.fetchMessagesForChat(session.id, 1, session.unreadCount);
+          }
+        }
+        
+        console.log('✅ 离线消息拉取完成');
+      } catch (error) {
+        console.error('❌ 拉取离线消息失败:', error);
+      }
+    },
+
+    // ==================== 未读计数相关方法 ====================
+
+    /**
+     * ✅ 获取未读统计
+     */
+    async fetchUnreadStats() {
+      try {
+        const response = await api.chat.getUnreadStats();
+        if (response.code === 0 && response.data) {
+          // 更新未读计数映射
+          this.unreadCountMap = {};
+          this.unreadCounts = {}; // 清空旧的未读计数
+          
+          // ✅ 修复：处理不同的响应结构
+          const unreadData = response.data.data || response.data;
+          const unreadList = unreadData?.unreadList || unreadData?.list || [];
+          
+          if (unreadList && Array.isArray(unreadList)) {
+            unreadList.forEach(item => {
+              this.unreadCountMap[item.chat_id] = item.unread_count;
+              this.unreadCounts[item.chat_id] = item.unread_count;
+            });
+          }
+          
+          console.log('✅ 未读统计已更新:', this.totalUnreadCount);
+        }
+      } catch (error) {
+        console.error('❌ 获取未读统计失败:', error);
+      }
+    },
+
+    /**
+     * ✅ 获取单个聊天的未读数
+     */
+    getUnreadCount(chatId) {
+      return this.unreadCountMap[chatId] || 0;
+    },
+
+    /**
+     * ✅ 标记聊天已读（增强版）
+     */
+    async markChatAsRead(chatId) {
+      try {
+        await api.chat.markAsRead(chatId);
+        
+        // 更新本地状态
+        const oldUnread = this.unreadCountMap[chatId] || 0;
+        this.unreadCountMap[chatId] = 0;
+        this.unreadCounts[chatId] = 0; // 更新 unreadCounts 而不是直接修改 totalUnreadCount
+        
+        console.log('✅ 标记已读成功: chatId=', chatId);
+      } catch (error) {
+        console.error('❌ 标记已读失败:', error);
+      }
+    },
+
+    /**
+     * ✅ 批量标记已读
+     */
+    async batchMarkAsRead(chatIds) {
+      try {
+        await api.chat.batchMarkAsRead(chatIds);
+        
+        // 更新本地状态
+        chatIds.forEach(chatId => {
+          this.unreadCountMap[chatId] = 0;
+          this.unreadCounts[chatId] = 0; // 更新 unreadCounts 而不是直接修改 totalUnreadCount
+        });
+        
+        console.log('✅ 批量标记已读成功');
+      } catch (error) {
+        console.error('❌ 批量标记已读失败:', error);
+      }
+    },
+
+    /**
+     * ✅ 收到新消息时更新未读计数
+     */
+    updateUnreadOnNewMessage(chatId, isFromMe) {
+      if (!isFromMe && chatId !== this.currentChatId) {
+        this.unreadCountMap[chatId] = (this.unreadCountMap[chatId] || 0) + 1;
+        this.unreadCounts[chatId] = (this.unreadCounts[chatId] || 0) + 1; // 更新 unreadCounts 而不是直接修改 totalUnreadCount
+        console.log('📬 未读计数已更新: chatId=', chatId, 'total=', this.totalUnreadCount);
+      }
+    },
+
+    /**
+     * ✅ 处理群组成员变更事件
+     * @param {Object} data - 群组成员变更数据
+     * @param {String} data.type - 事件类型: GROUP_MEMBER_CHANGE
+     * @param {Number} data.groupId - 群组ID
+     * @param {String} data.changeType - 变更类型: MEMBER_ADDED, MEMBER_REMOVED, MEMBER_LEFT, ROLE_CHANGED
+     * @param {Number} data.affectedUserId - 受影响的用户ID
+     * @param {Number} data.operatorId - 操作者ID
+     * @param {String} data.affectedUsername - 受影响用户的用户名
+     * @param {String} data.affectedNickname - 受影响用户的昵称
+     * @param {String} data.operatorUsername - 操作者用户名
+     * @param {String} data.operatorNickname - 操作者昵称
+     */
+    handleGroupMemberChange(data) {
+      console.log('👥 处理群组成员变更:', data);
+
+      const { groupId, changeType, affectedUserId, operatorId, affectedUsername, affectedNickname } = data;
+
+      // ✅ 乐观更新：立即更新UI
+      // 1. 更新recentSessions中的群组信息
+      const sessionIndex = this.recentSessions.findIndex(s => s.id === String(groupId) && s.type === 'GROUP');
+      if (sessionIndex !== -1) {
+        const session = this.recentSessions[sessionIndex];
+        
+        // 根据变更类型更新成员数
+        if (changeType === 'MEMBER_ADDED') {
+          if (session.memberCount) {
+            session.memberCount++;
+          }
+          console.log(`✅ 群组成员增加: ${affectedNickname || affectedUsername} 加入了群组`);
+        } else if (changeType === 'MEMBER_REMOVED' || changeType === 'MEMBER_LEFT') {
+          if (session.memberCount && session.memberCount > 0) {
+            session.memberCount--;
+          }
+          const action = changeType === 'MEMBER_LEFT' ? '退出了' : '被移出';
+          console.log(`✅ 群组成员减少: ${affectedNickname || affectedUsername} ${action}群组`);
+        } else if (changeType === 'ROLE_CHANGED') {
+          console.log(`✅ 群组成员角色变更: ${affectedNickname || affectedUsername} 的角色已更新`);
+        }
+
+        // 更新最后消息时间
+        session.lastMessageTime = new Date();
+      }
+
+      // 2. 如果当前正在查看该群组，触发成员列表刷新
+      if (this.activeChatSession && this.activeChatSession.id === String(groupId)) {
+        console.log('🔄 当前群组成员变更，触发刷新');
+        // 触发自定义事件，让ChatPage组件刷新成员列表
+        window.dispatchEvent(new CustomEvent('group-member-changed', { 
+          detail: { groupId, changeType, affectedUserId, operatorId } 
+        }));
+      }
+
+      // 3. 后台同步：获取最新的群组信息
+      this.refreshGroupInfo(groupId);
+    },
+
+    /**
+     * ✅ 处理群组信息变更事件
+     * @param {Object} data - 群组信息变更数据
+     * @param {String} data.type - 事件类型: GROUP_INFO_CHANGE
+     * @param {Number} data.groupId - 群组ID
+     * @param {String} data.changeType - 变更类型: INFO_UPDATED, OWNER_TRANSFERRED, GROUP_DISSOLVED
+     * @param {Number} data.operatorId - 操作者ID
+     */
+    handleGroupInfoChange(data) {
+      console.log('ℹ️ 处理群组信息变更:', data);
+
+      const { groupId, changeType, operatorId } = data;
+
+      if (changeType === 'GROUP_DISSOLVED') {
+        // 群组已解散
+        console.log('⚠️ 群组已解散:', groupId);
+        
+        // 从recentSessions中移除该群组
+        const sessionIndex = this.recentSessions.findIndex(s => s.id === String(groupId) && s.type === 'GROUP');
+        if (sessionIndex !== -1) {
+          this.recentSessions.splice(sessionIndex, 1);
+        }
+
+        // 如果当前正在查看该群组，关闭会话
+        if (this.activeChatSession && this.activeChatSession.id === String(groupId)) {
+          this.activeChatSession = null;
+          // 触发自定义事件，让ChatPage组件显示提示
+          window.dispatchEvent(new CustomEvent('group-dissolved', { 
+            detail: { groupId } 
+          }));
+        }
+
+        // 清除该群组的消息
+        delete this.chatMessages[groupId];
+        delete this.unreadCountMap[groupId];
+
+      } else if (changeType === 'OWNER_TRANSFERRED') {
+        // 群主转让
+        console.log('👑 群主已转让:', data);
+        
+        // 更新群组信息
+        this.refreshGroupInfo(groupId);
+        
+        // 触发自定义事件
+        window.dispatchEvent(new CustomEvent('group-owner-transferred', { 
+          detail: data 
+        }));
+
+      } else if (changeType === 'INFO_UPDATED') {
+        // 群组信息更新（名称、头像等）
+        console.log('📝 群组信息已更新:', data);
+        
+        // 乐观更新：立即更新本地缓存
+        const sessionIndex = this.recentSessions.findIndex(s => s.id === String(groupId) && s.type === 'GROUP');
+        if (sessionIndex !== -1) {
+          const session = this.recentSessions[sessionIndex];
+          
+          // 更新群组名称
+          if (data.newGroupName) {
+            session.name = data.newGroupName;
+          }
+          
+          // 更新群组头像
+          if (data.newGroupAvatarUrl) {
+            session.avatar = data.newGroupAvatarUrl;
+          }
+        }
+
+        // 后台同步：获取最新的群组信息
+        this.refreshGroupInfo(groupId);
+        
+        // 触发自定义事件
+        window.dispatchEvent(new CustomEvent('group-info-updated', { 
+          detail: data 
+        }));
+      }
+    },
+
+    /**
+     * ✅ 刷新群组信息（后台同步）
+     * @param {Number} groupId - 群组ID
+     */
+    async refreshGroupInfo(groupId) {
+      try {
+        console.log('🔄 刷新群组信息: groupId=', groupId);
+        
+        // 调用API获取最新的群组信息
+        const response = await api.group.getGroupDetails(groupId);
+        
+        if (response.code === 0 && response.data) {
+          // ✅ 修复：处理不同的响应结构
+          const groupInfo = response.data.data || response.data;
+          
+          if (!groupInfo) {
+            console.warn('⚠️ 群组信息为空');
+            return;
+          }
+          
+          // 更新recentSessions中的群组信息
+          const sessionIndex = this.recentSessions.findIndex(s => s.id === String(groupId) && s.type === 'GROUP');
+          if (sessionIndex !== -1) {
+            this.recentSessions[sessionIndex] = {
+              ...this.recentSessions[sessionIndex],
+              name: groupInfo.groupName,
+              avatar: groupInfo.groupAvatarUrl,
+              memberCount: groupInfo.memberCount,
+              // 其他字段...
+            };
+          }
+
+          // 如果当前正在查看该群组，更新activeChatSession
+          if (this.activeChatSession && this.activeChatSession.id === String(groupId)) {
+            this.activeChatSession = {
+              ...this.activeChatSession,
+              name: groupInfo.groupName,
+              avatar: groupInfo.groupAvatarUrl,
+              memberCount: groupInfo.memberCount,
+            };
+          }
+
+          console.log('✅ 群组信息刷新成功');
+        }
+      } catch (error) {
+        console.error('❌ 刷新群组信息失败:', error);
+      }
     }
   },
 });

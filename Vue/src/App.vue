@@ -6,29 +6,16 @@
 
 <script setup>
 import { onMounted } from 'vue'
+import { useThemeStore } from './stores/themeStore'
 
-// 简单的主题初始化
+// 使用主题Store
+const themeStore = useThemeStore()
+
 onMounted(() => {
-  // 检测系统主题偏好
-  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-  const savedTheme = localStorage.getItem('theme-preference') || 'system'
+  // 初始化主题（使用Store管理）
+  themeStore.initTheme()
   
-  const applyTheme = () => {
-    let theme = savedTheme
-    if (savedTheme === 'system') {
-      theme = mediaQuery.matches ? 'dark' : 'light'
-    }
-    
-    document.documentElement.setAttribute('data-theme', theme)
-    document.body.classList.toggle('dark-theme', theme === 'dark')
-    document.body.classList.toggle('light-theme', theme === 'light')
-  }
-  
-  // 监听系统主题变化
-  mediaQuery.addEventListener('change', applyTheme)
-  
-  // 初始化主题
-  applyTheme()
+  console.log('✅ App已挂载，主题已初始化')
 })
 </script>
 

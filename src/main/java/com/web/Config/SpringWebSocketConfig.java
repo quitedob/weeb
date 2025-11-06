@@ -33,6 +33,9 @@ public class SpringWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private com.web.service.UserOnlineStatusService onlineStatusService;
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         // 启用简单消息代理，支持 /topic 和 /queue 前缀

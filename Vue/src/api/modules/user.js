@@ -40,6 +40,11 @@ export function getUserById(userId) {
   return axiosInstance.get(`/api/users/${userId}`);
 }
 
+// 通过用户名获取用户信息
+export function getUserByUsername(username) {
+  return axiosInstance.get(`/api/users/by-username/${username}`);
+}
+
 // 获取当前用户的群组列表
 export function getMyGroups() {
   return axiosInstance.get('/api/users/me/groups');
@@ -125,6 +130,7 @@ export default {
   getUsers,
   searchUsers,
   getUserById,
+  getUserByUsername,
   getMyGroups,
   followUser,
   unfollowUser,
