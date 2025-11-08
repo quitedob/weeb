@@ -223,6 +223,7 @@ import { useRouter } from 'vue-router'
 import { showMessage } from '@/utils/message' // 导入消息工具
 
 import contactApi from '@/api/modules/contact'
+import chatApi from '@/api/modules/chat'
 import AppleButton from '@/components/common/AppleButton.vue'
 import AppleInput from '@/components/common/AppleInput.vue'
 import AppleCard from '@/components/common/AppleCard.vue'
@@ -252,16 +253,29 @@ const addForm = ref({
 
 // 方法
 const loadContacts = async () => {
+  // ✅ 防止重复加载
+  if (loadingContacts.value) {
+    return
+  }
+  
   loadingContacts.value = true
   try {
     const response = await contactApi.getContacts('ACCEPTED')
     if (response && response.code === 0) {
-      // Handle new ContactDto field structure
-      contacts.value = (response.data || []).map(contact => ({
-        ...contact,
-        // Map contactTime to a more readable format if needed
-        contactTime: contact.contactTime || contact.createdAt
-      }))
+      // ✅ 后端已经处理去重，但保留前端去重作为防御性编程
+      const uniqueContacts = new Map()
+      ;(response.data || []).forEach(contact => {
+        // 使用用户ID去重，因为同一个用户不应该出现多次
+        const userId = contact.id
+        if (!uniqueContacts.has(userId)) {
+          uniqueContacts.set(userId, {
+            ...contact,
+            contactTime: contact.contactTime || contact.createdAt
+          })
+        }
+      })
+      contacts.value = Array.from(uniqueContacts.values())
+      console.log('✅ 联系人列表加载成功:', contacts.value.length, '个联系人')
     } else {
       showMessage.error(response?.message || '获取联系人列表失败')
     }
@@ -440,9 +454,21 @@ const deleteContact = async (contact) => {
   }
 }
 
-const startChat = (contact) => {
-  // 跳转到聊天页面
-  router.push(`/chat/user/${contact.id}`)
+const startChat = async (contact) => {
+  try {
+    // 先创建或获取聊天会话
+    const response = await chatApi.createChat({ targetId: contact.id })
+    if (response && response.code === 0) {
+      const chatData = response.data
+      // 使用chatId跳转到聊天页面
+      router.push(`/chat/private/${chatData.id || chatData.chatId}`)
+    } else {
+      showMessage.error(response?.message || '创建聊天失败')
+    }
+  } catch (error) {
+    console.error('创建聊天失败:', error)
+    showMessage.error('创建聊天失败')
+  }
 }
 
 const formatTime = (timeString) => {

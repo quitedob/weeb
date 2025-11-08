@@ -178,7 +178,7 @@ const searchPublicGroups = async () => {
   loadingDiscoveredGroups.value = true;
   initialDiscoverLoad.value = false;
   try {
-    const response = await api.search.searchGroups(searchQuery.value);
+    const response = await api.group.searchGroups(searchQuery.value);
      if (response && response.code === 0 && response.data) {
         // Handle both list format and direct array format
         const groupList = response.data.list || response.data;
@@ -257,7 +257,10 @@ const applyToJoinGroup = async (groupId) => {
   }).then(async () => {
     const loading = ElLoading.service({ text: '正在处理...' });
     try {
-      const response = await api.group.applyToJoinGroup({ groupId });
+      const response = await api.group.applyToJoinGroup({
+        groupId,
+        message: '请允许我加入群组'
+      });
       if (response.code === 0) {
          ElMessage.success('操作成功！请等待群主或管理员审核或查看群组列表。');
          fetchMyGroups();

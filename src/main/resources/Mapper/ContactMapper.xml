@@ -98,14 +98,14 @@
 
     <!-- 查询联系人详细信息 - 支持双向关系，防止重复 -->
     <select id="selectContactsWithDetails" resultType="com.web.dto.ContactDto">
-        SELECT DISTINCT
-            c.id as contactId,
+        SELECT 
+            MIN(c.id) as contactId,
             u.id,
             u.username,
             u.nickname,
             u.avatar,
             u.bio,
-            c.create_time as contactTime
+            MAX(c.create_time) as contactTime
         FROM contact c
         JOIN user u ON (
             (c.user_id = #{userId} AND c.friend_id = u.id) OR
@@ -114,7 +114,25 @@
         WHERE (c.user_id = #{userId} OR c.friend_id = #{userId})
           AND c.status = #{status.code}
           AND u.id != #{userId}
-        ORDER BY c.create_time DESC
+        GROUP BY u.id, u.username, u.nickname, u.avatar, u.bio
+        ORDER BY contactTime DESC
     </select>
+
+    <!-- 查询特定的待处理好友申请 -->
+    <select id="selectPendingRequest" resultType="com.web.model.Contact">
+        SELECT *
+        FROM contact
+        WHERE user_id = #{fromUserId}
+          AND friend_id = #{toUserId}
+          AND status = 0  <!-- PENDING status -->
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 删除过期的请求 -->
+    <delete id="deleteExpiredRequest">
+        DELETE FROM contact
+        WHERE id = #{contactId}
+    </delete>
 
 </mapper>

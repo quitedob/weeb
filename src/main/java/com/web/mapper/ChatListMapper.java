@@ -112,8 +112,42 @@ public interface ChatListMapper extends BaseMapper<ChatList> {
 
     /**
      * 根据聊天ID删除聊天记录
-     * @param chatId 聊天ID
+     * @param chatId 聊天ID（String类型）
      * @return 受影响的行数
      */
-    int deleteChatList(@Param("chatId") Long chatId);
+    int deleteChatList(@Param("chatId") String chatId);
+
+    /**
+     * 根据ID查询聊天记录（String类型ID）
+     * @param chatId 聊天ID（String类型）
+     * @return 聊天记录
+     */
+    ChatList selectChatListByIdString(@Param("chatId") String chatId);
+
+    /**
+     * 查找共享聊天ID
+     * @param participant1Id 参与者1的ID（较小的ID）
+     * @param participant2Id 参与者2的ID（较大的ID）
+     * @return 共享聊天ID，如果不存在则返回null
+     */
+    Long findSharedChatId(@Param("participant1Id") Long participant1Id, @Param("participant2Id") Long participant2Id);
+
+    /**
+     * 创建共享聊天记录
+     * @param participant1Id 参与者1的ID（较小的ID）
+     * @param participant2Id 参与者2的ID（较大的ID）
+     * @param chatType 聊天类型
+     * @return 新创建的共享聊天ID
+     */
+    Long createSharedChat(@Param("participant1Id") Long participant1Id, 
+                         @Param("participant2Id") Long participant2Id, 
+                         @Param("chatType") String chatType);
+
+    /**
+     * ✅ 新增：根据用户ID和共享聊天ID查询聊天记录
+     * @param userId 用户ID
+     * @param sharedChatId 共享聊天ID
+     * @return 聊天记录
+     */
+    ChatList selectChatListByUserIdAndSharedChatId(@Param("userId") Long userId, @Param("sharedChatId") Long sharedChatId);
 }

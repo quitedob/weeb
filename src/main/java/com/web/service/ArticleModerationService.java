@@ -1,5 +1,6 @@
 package com.web.service;
 
+import com.web.constant.ArticleStatus;
 import com.web.exception.WeebException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,8 @@ import java.util.regex.Pattern;
 /**
  * 文章审核服务
  * 实现文章审核流程和敏感词检测
+ * 
+ * ✅ 已适配ArticleStatus枚举 - 2025-11-07
  */
 @Slf4j
 @Service
@@ -21,12 +24,6 @@ public class ArticleModerationService {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    // 审核状态
-    public static final String STATUS_DRAFT = "DRAFT";
-    public static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
-    public static final String STATUS_PUBLISHED = "PUBLISHED";
-    public static final String STATUS_REJECTED = "REJECTED";
 
     // 审核优先级
     public static final int PRIORITY_LOW = 1;      // 低优先级
@@ -69,16 +66,16 @@ public class ArticleModerationService {
             List<String> foundSensitiveWords = detectSensitiveWords(fullText);
             List<Map<String, Object>> wordPositions = getSensitiveWordPositions(fullText);
             
-            String newStatus;
+            ArticleStatus newStatus;
             int priority = PRIORITY_NORMAL;
             
             if (foundSensitiveWords.isEmpty()) {
                 // 无敏感词，直接发布
-                newStatus = STATUS_PUBLISHED;
+                newStatus = ArticleStatus.PUBLISHED;
                 result.put("autoPublished", true);
             } else {
                 // 有敏感词，提交审核
-                newStatus = STATUS_PENDING_REVIEW;
+                newStatus = ArticleStatus.PENDING_REVIEW;
                 
                 // 根据敏感词数量设置优先级
                 if (foundSensitiveWords.size() >= 5) {
@@ -96,12 +93,13 @@ public class ArticleModerationService {
                         articleId, foundSensitiveWords, priority);
             }
 
-            // 更新文章状态和优先级
+            // 更新文章状态和优先级（使用枚举的code值）
             String updateSql = "UPDATE article SET status = ?, moderation_priority = ?, updated_at = ? WHERE id = ?";
-            jdbcTemplate.update(updateSql, newStatus, priority, new Timestamp(System.currentTimeMillis()), articleId);
+            jdbcTemplate.update(updateSql, newStatus.getCode(), priority, new Timestamp(System.currentTimeMillis()), articleId);
 
             result.put("success", true);
-            result.put("status", newStatus);
+            result.put("status", newStatus.getCode());
+            result.put("statusName", newStatus.getDescription());
             result.put("articleId", articleId);
             
             log.info("✅ 文章已提交审核: articleId={}, status={}, priority={}", articleId, newStatus, priority);
@@ -167,7 +165,7 @@ public class ArticleModerationService {
         try {
             String sql = "UPDATE article SET status = ?, reviewer_id = ?, reviewed_at = ?, updated_at = ? WHERE id = ?";
             Timestamp now = new Timestamp(System.currentTimeMillis());
-            int rows = jdbcTemplate.update(sql, STATUS_PUBLISHED, reviewerId, now, now, articleId);
+            int rows = jdbcTemplate.update(sql, ArticleStatus.PUBLISHED.getCode(), reviewerId, now, now, articleId);
             
             if (rows > 0) {
                 log.info("✅ 文章审核通过: articleId={}, reviewerId={}", articleId, reviewerId);
@@ -188,7 +186,7 @@ public class ArticleModerationService {
         try {
             String sql = "UPDATE article SET status = ?, reviewer_id = ?, reject_reason = ?, reviewed_at = ?, updated_at = ? WHERE id = ?";
             Timestamp now = new Timestamp(System.currentTimeMillis());
-            int rows = jdbcTemplate.update(sql, STATUS_REJECTED, reviewerId, reason, now, now, articleId);
+            int rows = jdbcTemplate.update(sql, ArticleStatus.REJECTED.getCode(), reviewerId, reason, now, now, articleId);
             
             if (rows > 0) {
                 log.info("✅ 文章审核拒绝: articleId={}, reviewerId={}, reason={}", articleId, reviewerId, reason);
@@ -217,7 +215,7 @@ public class ArticleModerationService {
                         "ORDER BY priority DESC, created_at ASC " +
                         "LIMIT ? OFFSET ?";
             
-            return jdbcTemplate.queryForList(sql, PRIORITY_NORMAL, STATUS_PENDING_REVIEW, size, offset);
+            return jdbcTemplate.queryForList(sql, PRIORITY_NORMAL, ArticleStatus.PENDING_REVIEW.getCode(), size, offset);
 
         } catch (Exception e) {
             log.error("❌ 获取待审核文章失败", e);
@@ -231,7 +229,7 @@ public class ArticleModerationService {
     public int getPendingArticleCount() {
         try {
             String sql = "SELECT COUNT(*) FROM article WHERE status = ?";
-            Integer count = jdbcTemplate.queryForObject(sql, Integer.class, STATUS_PENDING_REVIEW);
+            Integer count = jdbcTemplate.queryForObject(sql, Integer.class, ArticleStatus.PENDING_REVIEW.getCode());
             return count != null ? count : 0;
         } catch (Exception e) {
             log.error("❌ 获取待审核文章数量失败", e);
@@ -257,7 +255,7 @@ public class ArticleModerationService {
                         "WHERE status = ? AND created_at < DATE_SUB(NOW(), INTERVAL ? HOUR) " +
                         "ORDER BY created_at ASC";
             
-            List<Map<String, Object>> overdueArticles = jdbcTemplate.queryForList(sql, STATUS_PENDING_REVIEW, hours);
+            List<Map<String, Object>> overdueArticles = jdbcTemplate.queryForList(sql, ArticleStatus.PENDING_REVIEW.getCode(), hours);
             
             if (!overdueArticles.isEmpty()) {
                 log.warn("⚠️ 发现 {} 篇超期未审核文章（超过{}小时）", overdueArticles.size(), hours);
@@ -293,7 +291,7 @@ public class ArticleModerationService {
             String prioritySql = "SELECT COALESCE(moderation_priority, ?) as priority, COUNT(*) as count " +
                                "FROM article WHERE status = ? GROUP BY priority";
             List<Map<String, Object>> priorityStats = jdbcTemplate.queryForList(
-                prioritySql, PRIORITY_NORMAL, STATUS_PENDING_REVIEW);
+                prioritySql, PRIORITY_NORMAL, ArticleStatus.PENDING_REVIEW.getCode());
             stats.put("priorityDistribution", priorityStats);
             
             return stats;
@@ -316,7 +314,7 @@ public class ArticleModerationService {
 
             String sql = "UPDATE article SET moderation_priority = ?, updated_at = ? WHERE id = ? AND status = ?";
             int rows = jdbcTemplate.update(sql, priority, new Timestamp(System.currentTimeMillis()), 
-                                         articleId, STATUS_PENDING_REVIEW);
+                                         articleId, ArticleStatus.PENDING_REVIEW.getCode());
             
             if (rows > 0) {
                 log.info("✅ 文章优先级已更新: articleId={}, priority={}", articleId, priority);

@@ -7,10 +7,12 @@ import java.util.Objects;
 public class ChatList implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // 主键ID（对应数据库 id 字段，varchar(255)）
+    // 主键ID（对应数据库 id 字段，varchar(255)）- 用户维度的唯一标识
     private String id;
     // 用户ID（对应数据库 user_id 字段，BIGINT）
     private Long userId;
+    // 共享聊天ID（对应数据库 shared_chat_id 字段，BIGINT）- 私聊双方共用，群聊所有成员共用
+    private Long sharedChatId;
     // 目标用户ID（对应数据库 target_id 字段，BIGINT）
     private Long targetId;
     // 会话标题或目标信息（对应数据库 target_info 字段，text，不允许为 null）
@@ -33,10 +35,11 @@ public class ChatList implements Serializable {
     }
 
     // 全参构造函数
-    public ChatList(String id, Long userId, Long targetId, String targetInfo, Integer unreadCount, String lastMessage,
+    public ChatList(String id, Long userId, Long sharedChatId, Long targetId, String targetInfo, Integer unreadCount, String lastMessage,
                     String type, LocalDateTime createTime, LocalDateTime updateTime, Long groupId) {
         this.id = id;
         this.userId = userId;
+        this.sharedChatId = sharedChatId;
         this.targetId = targetId;
         this.targetInfo = targetInfo;
         this.unreadCount = unreadCount;
@@ -63,6 +66,14 @@ public class ChatList implements Serializable {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public Long getSharedChatId() {
+        return sharedChatId;
+    }
+
+    public void setSharedChatId(Long sharedChatId) {
+        this.sharedChatId = sharedChatId;
     }
 
     public Long getTargetId() {
@@ -135,6 +146,7 @@ public class ChatList implements Serializable {
         return "ChatList{" +
                 "id='" + id + '\'' +
                 ", userId=" + userId +
+                ", sharedChatId=" + sharedChatId +
                 ", targetId=" + targetId +
                 ", targetInfo='" + targetInfo + '\'' +
                 ", unreadCount=" + unreadCount +
@@ -154,6 +166,7 @@ public class ChatList implements Serializable {
         ChatList chatList = (ChatList) o;
         return Objects.equals(id, chatList.id) &&
                 Objects.equals(userId, chatList.userId) &&
+                Objects.equals(sharedChatId, chatList.sharedChatId) &&
                 Objects.equals(targetId, chatList.targetId) &&
                 Objects.equals(targetInfo, chatList.targetInfo) &&
                 Objects.equals(unreadCount, chatList.unreadCount) &&
@@ -167,6 +180,6 @@ public class ChatList implements Serializable {
     // 重写 hashCode 方法
     @Override
     public int hashCode() {
-        return Objects.hash(id, userId, targetId, targetInfo, unreadCount, lastMessage, type, createTime, updateTime, groupId);
+        return Objects.hash(id, userId, sharedChatId, targetId, targetInfo, unreadCount, lastMessage, type, createTime, updateTime, groupId);
     }
 }

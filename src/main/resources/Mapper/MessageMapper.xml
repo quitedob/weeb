@@ -288,4 +288,50 @@
           AND thread_id IS NOT NULL
     </select>
 
+    <!-- 根据两个聊天ID查询消息（用于私聊双向消息查询）- 已废弃 -->
+    <select id="selectMessagesByTwoChatIds" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM `message`
+        WHERE chat_id IN (#{chatId1}, #{chatId2})
+        ORDER BY `created_at` DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <!-- 根据共享聊天ID查询消息（新架构） -->
+    <select id="selectMessagesBySharedChatId" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM `message`
+        WHERE chat_id = #{sharedChatId}
+        ORDER BY `created_at` DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
 </mapper>

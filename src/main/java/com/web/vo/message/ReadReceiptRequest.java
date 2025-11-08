@@ -8,9 +8,9 @@ import lombok.Data;
 @Data
 public class ReadReceiptRequest {
     /**
-     * 聊天ID
+     * 聊天ID（String类型，因为chat_list.id是VARCHAR）
      */
-    private Long chatId;
+    private String chatId;
 
     /**
      * 消息ID

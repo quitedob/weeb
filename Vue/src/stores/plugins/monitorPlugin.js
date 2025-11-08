@@ -164,20 +164,49 @@ export function createDevToolsPlugin() {
 
     // 添加状态快照方法
     store.$snapshot = () => {
-      return JSON.parse(JSON.stringify(store.$state));
+      try {
+        return JSON.parse(JSON.stringify(store.$state, (key, value) => {
+          // 处理循环引用
+          if (typeof value === 'object' && value !== null) {
+            // 检查是否是STOMP客户端等循环引用对象
+            if (value._stompHandler || value._client || value.webSocket ||
+                (value.constructor && (value.constructor.name === 'Client' ||
+                                      value.constructor.name === 'WebSocket'))) {
+              return '[Circular Reference: WebSocket/STOMP Client]';
+            }
+            // 过滤掉函数和Symbol
+            if (typeof value === 'function' || typeof value === 'symbol') {
+              return undefined;
+            }
+          }
+          return value;
+        }));
+      } catch (error) {
+        console.warn('Failed to create state snapshot:', error);
+        return null;
+      }
     };
 
     // 添加状态对比方法
     store.$diff = (snapshot) => {
       const current = store.$snapshot();
+      if (!current || !snapshot) {
+        console.warn('Cannot diff: invalid snapshots');
+        return {};
+      }
+
       const diff = {};
 
       Object.keys(current).forEach(key => {
-        if (JSON.stringify(current[key]) !== JSON.stringify(snapshot[key])) {
-          diff[key] = {
-            old: snapshot[key],
-            new: current[key],
-          };
+        try {
+          if (JSON.stringify(current[key]) !== JSON.stringify(snapshot[key])) {
+            diff[key] = {
+              old: snapshot[key],
+              new: current[key],
+            };
+          }
+        } catch (error) {
+          console.warn(`Failed to diff key "${key}":`, error);
         }
       });
 
@@ -247,7 +276,22 @@ export function createHistoryPlugin(options = {}) {
       history.push({
         timestamp: Date.now(),
         mutation,
-        state: JSON.parse(JSON.stringify(state)),
+        state: JSON.parse(JSON.stringify(state, (key, value) => {
+          // 处理循环引用
+          if (typeof value === 'object' && value !== null) {
+            // 检查是否是STOMP客户端等循环引用对象
+            if (value._stompHandler || value._client || value.webSocket ||
+                (value.constructor && (value.constructor.name === 'Client' ||
+                                      value.constructor.name === 'WebSocket'))) {
+              return '[Circular Reference: WebSocket/STOMP Client]';
+            }
+            // 过滤掉函数和Symbol
+            if (typeof value === 'function' || typeof value === 'symbol') {
+              return undefined;
+            }
+          }
+          return value;
+        })),
       });
 
       // 限制历史记录数量

@@ -98,4 +98,19 @@ public interface ContactMapper extends BaseMapper<Contact> {
      * @return 联系人详细信息列表
      */
     List<com.web.dto.ContactDto> selectContactsWithDetails(@Param("userId") Long userId, @Param("status") com.web.constant.ContactStatus status);
+
+    /**
+     * 查询特定的待处理好友申请
+     * @param fromUserId 申请人ID
+     * @param toUserId 被申请人ID
+     * @return 待处理的联系人请求
+     */
+    com.web.model.Contact selectPendingRequest(@Param("fromUserId") Long fromUserId, @Param("toUserId") Long toUserId);
+
+    /**
+     * 删除过期的请求
+     * @param contactId 联系人记录ID
+     * @return 受影响行数
+     */
+    int deleteExpiredRequest(@Param("contactId") Long contactId);
 }

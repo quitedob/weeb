@@ -37,6 +37,7 @@
     "@vue/test-utils": "^2.4.6",
     "jsdom": "^27.0.0",
     "rollup-plugin-visualizer": "^6.0.5",
+    "terser": "^5.44.1",
     "vite": "^5.4.11",
     "vite-plugin-vue-devtools": "^7.6.5",
     "vitest": "^3.2.4"

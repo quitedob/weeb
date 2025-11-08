@@ -342,23 +342,31 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理类型转换异常
+     * ✅ ENHANCED: Provides structured, machine-readable error response
      */
     @ExceptionHandler(org.springframework.beans.TypeMismatchException.class)
     public ResponseEntity<ApiResponse<Object>> handleTypeMismatchException(
             org.springframework.beans.TypeMismatchException e, WebRequest request) {
         String eventId = UUID.randomUUID().toString();
         String path = getPath(request);
+        String property = e.getPropertyName();
+        String requiredType = e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "unknown";
+        Object value = e.getValue();
 
         // 简化日志输出
         log.warn("参数类型转换错误 eventId={}, path={}, property={}, requiredType={}, value={}",
-                eventId, path, e.getPropertyName(), 
-                e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "unknown", 
-                e.getValue());
+                eventId, path, property, requiredType, value);
 
-        ApiResponse<Object> response = ApiResponse.badRequest(String.format(
-                "参数 '%s' 类型错误，期望类型: %s", e.getPropertyName(), 
-                e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "unknown"))
-                .withPath(path);
+        // ✅ Provide clear, actionable error message
+        String message = String.format(
+                "Invalid format for parameter '%s'. Expected type '%s' but received value '%s'.",
+                property, requiredType, value);
+
+        ApiResponse<Object> response = new ApiResponse<>(
+                ApiResponse.ErrorCode.PARAM_ERROR,
+                message,
+                null
+        ).withPath(path);
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }

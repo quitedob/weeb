@@ -12,6 +12,7 @@ import {
   updateMessageStatus,
   isMessageFailed
 } from '@/utils/messageStatus';
+import bugReporter from '@/utils/bugReporter';
 
 export const useChatStore = defineStore('chat', {
   persist: {
@@ -78,14 +79,14 @@ export const useChatStore = defineStore('chat', {
     // STOMP WebSocket Connection Methods
     connectWebSocket() {
       const authStore = useAuthStore();
-      
+
       // authStore使用accessToken，不是token
       const token = authStore.accessToken;
-      
+
       console.log('🔌 尝试连接WebSocket...');
       console.log('Token存在:', !!token);
       console.log('Token长度:', token ? token.length : 0);
-      
+
       if (!token) {
         console.error('❌ 无法连接WebSocket: 缺少认证token');
         console.error('请先登录！');
@@ -94,10 +95,17 @@ export const useChatStore = defineStore('chat', {
         return;
       }
 
-      if (this.stompClient && this.stompClient.connected) {
-        console.log('✅ WebSocket已连接');
-        log.debug('STOMP already connected');
-        return;
+      // Clean up existing connection
+      if (this.stompClient) {
+        try {
+          if (this.stompClient.connected) {
+            console.log('🔄 断开现有WebSocket连接...');
+            this.stompClient.deactivate();
+          }
+        } catch (error) {
+          console.warn('清理现有连接时出错:', error);
+        }
+        this.stompClient = null;
       }
 
       this.connectionStatus = 'connecting';
@@ -107,23 +115,71 @@ export const useChatStore = defineStore('chat', {
         // 获取WebSocket URL（根据环境配置）
         const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
         console.log('🌐 WebSocket URL:', wsUrl);
-        
-        // Create STOMP client with SockJS fallback
+
+        // ✅ 修复2：创建STOMP客户端（增强认证）
         this.stompClient = new Client({
           webSocketFactory: () => {
             console.log('🏭 创建SockJS连接...');
-            return new SockJS(wsUrl);
+            console.log('🔗 连接URL:', wsUrl);
+            console.log('🔑 Token长度:', token ? token.length : 0);
+            console.log('🔑 Token前缀:', token ? token.substring(0, 20) + '...' : 'N/A');
+
+            const sockJS = new SockJS(wsUrl);
+
+            // ✅ 修复2：增强错误处理
+            sockJS.onclose = (event) => {
+              console.log('🔌 SockJS连接关闭:', event.code, event.reason);
+              console.log('🔌 关闭详情:', {
+                code: event.code,
+                reason: event.reason,
+                wasClean: event.wasClean,
+                timestamp: new Date().toISOString()
+              });
+              
+              // ✅ 修复2：根据关闭码判断是否需要重连
+              if (event.code === 1006) {
+                console.warn('⚠️ 连接异常关闭，可能是认证失败或网络问题');
+              } else if (event.code === 1008) {
+                console.error('❌ 连接被服务器拒绝，可能是认证失败');
+              }
+              
+              if (this.connectionStatus === 'connecting') {
+                this.connectionStatus = 'error';
+              }
+            };
+
+            sockJS.onerror = (error) => {
+              console.error('❌ SockJS连接错误:', error);
+              console.error('❌ 错误详情:', {
+                type: error.type,
+                target: error.target,
+                timestamp: new Date().toISOString()
+              });
+              this.connectionStatus = 'error';
+            };
+
+            return sockJS;
           },
           connectHeaders: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'X-Client-Type': 'web',
+            'X-Client-Version': '1.0.0'
           },
           debug: (str) => {
-            console.log('📡 STOMP:', str);
+            // ✅ 修复2：更详细的调试日志
+            if (str.includes('ERROR') || str.includes('RECEIPT')) {
+              console.error('📡 STOMP错误:', str);
+            } else if (str.includes('CONNECTED')) {
+              console.log('📡 STOMP已连接:', str);
+            } else {
+              console.log('📡 STOMP:', str);
+            }
             log.debug('STOMP Debug:', str);
           },
-          reconnectDelay: 5000,
+          reconnectDelay: 3000,
           heartbeatIncoming: 4000,
           heartbeatOutgoing: 4000,
+          connectionTimeout: 15000,
         });
 
         // Connection successful
@@ -134,14 +190,21 @@ export const useChatStore = defineStore('chat', {
           this.connectionStatus = 'connected';
           this.reconnectAttempts = 0;
 
-          // Subscribe to user-specific queues
-          this.subscribeToQueues();
+          try {
+            // Subscribe to user-specific queues
+            this.subscribeToQueues();
 
-          // Start heartbeat
-          this.startHeartbeat();
+            // Start heartbeat
+            this.startHeartbeat();
 
-          // ✅ 拉取离线消息
-          this.fetchOfflineMessages();
+            // ✅ 拉取离线消息
+            this.fetchOfflineMessages().catch(error => {
+              console.error('拉取离线消息失败:', error);
+            });
+          } catch (error) {
+            console.error('连接后处理失败:', error);
+            // 不中断连接，只记录错误
+          }
         };
 
         // Connection error
@@ -155,11 +218,13 @@ export const useChatStore = defineStore('chat', {
           if (this.reconnectAttempts < this.maxReconnectAttempts) {
             // 计算延迟时间：1s, 2s, 4s, 8s, 16s, 最大30s
             const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-            
+
             setTimeout(() => {
-              this.reconnectAttempts++;
-              console.log(`🔄 尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts}), 延迟: ${delay}ms`);
-              this.connectWebSocket();
+              if (this.connectionStatus === 'error') { // 只有在错误状态时才重连
+                this.reconnectAttempts++;
+                console.log(`🔄 尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts}), 延迟: ${delay}ms`);
+                this.connectWebSocket();
+              }
             }, delay);
           } else {
             console.error('❌ 达到最大重连次数，停止重连');
@@ -181,7 +246,14 @@ export const useChatStore = defineStore('chat', {
 
         // Connect to STOMP server
         console.log('🚀 激活STOMP客户端...');
-        this.stompClient.activate();
+
+        // 直接激活STOMP客户端
+        try {
+          this.stompClient.activate();
+        } catch (error) {
+          console.error('❌ 激活STOMP客户端失败:', error);
+          this.connectionStatus = 'error';
+        }
 
       } catch (error) {
         console.error('❌ 创建STOMP连接失败:', error);
@@ -191,86 +263,139 @@ export const useChatStore = defineStore('chat', {
     },
 
     disconnectWebSocket() {
-      if (this.stompClient) {
-        this.stompClient.deactivate();
+      try {
+        if (this.stompClient) {
+          console.log('🔌 断开WebSocket连接...');
+          this.stompClient.deactivate();
+          this.stompClient = null;
+        }
+        this.stopHeartbeat();
+        this.connectionStatus = 'disconnected';
+        this.reconnectAttempts = 0; // Reset reconnect attempts
+        console.log('✅ WebSocket已断开连接');
+      } catch (error) {
+        console.error('❌ 断开WebSocket连接失败:', error);
+        // 强制重置状态
         this.stompClient = null;
+        this.connectionStatus = 'disconnected';
+        this.reconnectAttempts = 0;
       }
-      this.stopHeartbeat();
-      this.connectionStatus = 'disconnected';
     },
 
     subscribeToQueues() {
-      if (!this.stompClient || !this.stompClient.connected) return;
+      if (!this.stompClient || !this.stompClient.connected) {
+        console.warn('⚠️ STOMP客户端未连接，无法订阅队列');
+        return;
+      }
 
       const authStore = useAuthStore();
       const username = authStore.currentUser?.username;
 
-      if (!username) return;
+      if (!username) {
+        console.warn('⚠️ 用户名为空，无法订阅队列');
+        return;
+      }
 
       console.log('📡 订阅WebSocket队列: username=', username);
 
-      // ✅ 订阅私聊消息
-      this.stompClient.subscribe(`/user/${username}/queue/private`, (message) => {
-        const parsedMessage = JSON.parse(message.body);
-        console.log('📨 收到私聊消息:', parsedMessage);
-        this.handleIncomingChatMessage(parsedMessage);
-      });
+      try {
+        // ✅ 订阅私聊消息
+        this.stompClient.subscribe(`/user/${username}/queue/private`, (message) => {
+          try {
+            const parsedMessage = JSON.parse(message.body);
+            console.log('📨 收到私聊消息:', parsedMessage);
+            this.handleIncomingChatMessage(parsedMessage);
+          } catch (error) {
+            console.error('❌ 处理私聊消息失败:', error, message.body);
+          }
+        });
 
-      // ✅ 订阅聊天列表更新
-      this.stompClient.subscribe(`/user/${username}/queue/chat-list-update`, (message) => {
-        const data = JSON.parse(message.body);
-        console.log('📋 聊天列表已更新:', data);
-        this.handleChatListUpdate(data);
-      });
+        // ✅ 订阅聊天列表更新
+        this.stompClient.subscribe(`/user/${username}/queue/chat-list-update`, (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log('📋 聊天列表已更新:', data);
+            this.handleChatListUpdate(data);
+          } catch (error) {
+            console.error('❌ 处理聊天列表更新失败:', error, message.body);
+          }
+        });
 
-      // ✅ 订阅消息状态更新
-      this.stompClient.subscribe(`/user/${username}/queue/message-status`, (message) => {
-        const data = JSON.parse(message.body);
-        console.log('✓ 消息状态更新:', data);
-        this.handleMessageStatusUpdate(data);
-      });
+        // ✅ 订阅消息状态更新
+        this.stompClient.subscribe(`/user/${username}/queue/message-status`, (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log('✓ 消息状态更新:', data);
+            this.handleMessageStatusUpdate(data);
+          } catch (error) {
+            console.error('❌ 处理消息状态更新失败:', error, message.body);
+          }
+        });
 
-      // ✅ 订阅已读回执
-      this.stompClient.subscribe(`/user/${username}/queue/read-receipt`, (message) => {
-        const data = JSON.parse(message.body);
-        console.log('👁️ 收到已读回执:', data);
-        this.handleReadReceipt(data);
-      });
+        // ✅ 订阅已读回执
+        this.stompClient.subscribe(`/user/${username}/queue/read-receipt`, (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log('👁️ 收到已读回执:', data);
+            this.handleReadReceipt(data);
+          } catch (error) {
+            console.error('❌ 处理已读回执失败:', error, message.body);
+          }
+        });
 
-      // ✅ 订阅群组成员变更事件
-      this.stompClient.subscribe(`/user/${username}/queue/group-member-change`, (message) => {
-        const data = JSON.parse(message.body);
-        console.log('👥 收到群组成员变更事件:', data);
-        this.handleGroupMemberChange(data);
-      });
+        // ✅ 订阅群组成员变更事件
+        this.stompClient.subscribe(`/user/${username}/queue/group-member-change`, (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log('👥 收到群组成员变更事件:', data);
+            this.handleGroupMemberChange(data);
+          } catch (error) {
+            console.error('❌ 处理群组成员变更失败:', error, message.body);
+          }
+        });
 
-      // ✅ 订阅群组信息变更事件
-      this.stompClient.subscribe(`/user/${username}/queue/group-info-change`, (message) => {
-        const data = JSON.parse(message.body);
-        console.log('ℹ️ 收到群组信息变更事件:', data);
-        this.handleGroupInfoChange(data);
-      });
+        // ✅ 订阅群组信息变更事件
+        this.stompClient.subscribe(`/user/${username}/queue/group-info-change`, (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log('ℹ️ 收到群组信息变更事件:', data);
+            this.handleGroupInfoChange(data);
+          } catch (error) {
+            console.error('❌ 处理群组信息变更失败:', error, message.body);
+          }
+        });
 
-      // Subscribe to error messages
-      this.stompClient.subscribe(`/user/${username}/queue/errors`, (message) => {
-        const errorMessage = JSON.parse(message.body);
-        console.error('❌ STOMP错误消息:', errorMessage);
-        
-        // 如果有clientMessageId，更新对应消息状态为失败
-        if (errorMessage.clientMessageId) {
-          this.updateMessageStatus(null, MESSAGE_STATUS.FAILED, errorMessage.clientMessageId);
-        }
-      });
+        // Subscribe to error messages
+        this.stompClient.subscribe(`/user/${username}/queue/errors`, (message) => {
+          try {
+            const errorMessage = JSON.parse(message.body);
+            console.error('❌ STOMP错误消息:', errorMessage);
 
-      // Subscribe to general chat topics (optional)
-      this.stompClient.subscribe('/topic/chat/*', (message) => {
-        const parsedMessage = JSON.parse(message.body);
-        if (parsedMessage.type === 'join' || parsedMessage.type === 'leave') {
-          console.log('Chat room status:', parsedMessage);
-        }
-      });
+            // 如果有clientMessageId，更新对应消息状态为失败
+            if (errorMessage.clientMessageId) {
+              this.updateMessageStatus(null, MESSAGE_STATUS.FAILED, errorMessage.clientMessageId);
+            }
+          } catch (error) {
+            console.error('❌ 处理错误消息失败:', error, message.body);
+          }
+        });
 
-      console.log('✅ 已订阅所有WebSocket队列');
+        // Subscribe to general chat topics (optional)
+        this.stompClient.subscribe('/topic/chat/*', (message) => {
+          try {
+            const parsedMessage = JSON.parse(message.body);
+            if (parsedMessage.type === 'join' || parsedMessage.type === 'leave') {
+              console.log('Chat room status:', parsedMessage);
+            }
+          } catch (error) {
+            console.error('❌ 处理聊天主题消息失败:', error, message.body);
+          }
+        });
+
+        console.log('✅ 已订阅所有WebSocket队列');
+      } catch (error) {
+        console.error('❌ 订阅WebSocket队列失败:', error);
+      }
     },
 
     sendWebSocketMessage(message) {
@@ -283,15 +408,18 @@ export const useChatStore = defineStore('chat', {
           case 'chat':
             if (message.data.chatType === 'PRIVATE') {
               destination = '/app/chat/private';
-              // 后端期望targetUser（用户名），而不是targetId
-              // 如果有targetId，需要转换为targetUser
-              if (payload.targetId && !payload.targetUser) {
-                // 这里暂时使用targetId作为targetUser
-                // 实际应该从用户信息中获取username
-                payload.targetUser = String(payload.targetId);
+              // 后端期望targetUser（用户名），但我们通常只有targetId
+              // 保持targetId用于后端查找用户，后端会处理转换
+              if (!payload.targetUser && payload.targetId) {
+                // 后端会根据targetId查找用户
+                payload.targetId = String(payload.targetId);
+              }
+              // 确保chatId正确设置
+              if (!payload.chatId && payload.targetId) {
+                payload.chatId = String(payload.targetId);
               }
             } else {
-              // 群聊消息
+              // 群聊消息 - 使用正确的STOMP端点
               destination = '/app/chat.sendMessage';
               payload.roomId = `group_${message.data.targetId}`;
             }
@@ -319,8 +447,9 @@ export const useChatStore = defineStore('chat', {
     handleIncomingChatMessage(message) {
       console.log('📥 处理接收到的消息:', message);
       
-      // ✅ 改进：支持多种消息格式
-      const chatId = message.chatId || message.roomId || message.data?.chatId || message.data?.targetId || message.targetId;
+      // ✅ 修复3：优先使用sharedChatId
+      const sharedChatId = message.sharedChatId || message.chatId;
+      const chatId = sharedChatId || message.roomId || message.data?.chatId || message.data?.targetId || message.targetId;
       const authStore = useAuthStore();
       const currentUserId = authStore.currentUser?.id;
       
@@ -329,7 +458,7 @@ export const useChatStore = defineStore('chat', {
         ? message.isFromMe 
         : (message.fromId || message.data?.fromUserId) === currentUserId;
 
-      console.log('📊 消息信息: chatId=', chatId, 'isFromMe=', isFromMe, 'currentUserId=', currentUserId);
+      console.log('📊 消息信息: chatId=', chatId, 'sharedChatId=', sharedChatId, 'isFromMe=', isFromMe, 'currentUserId=', currentUserId);
 
       // Parse message content for file messages
       let content, displayContent, fileData;
@@ -359,7 +488,7 @@ export const useChatStore = defineStore('chat', {
         }
       }
 
-      // ✅ 创建标准化消息对象
+      // ✅ 修复3：创建标准化消息对象，包含sharedChatId
       const standardizedMessage = {
         id: message.id || message.messageId || Date.now(),
         tempId: message.tempId,
@@ -373,6 +502,7 @@ export const useChatStore = defineStore('chat', {
         chatType: message.type === 'private' ? 'PRIVATE' : (message.data?.chatType || 'PRIVATE'),
         targetId: chatId,
         chatId: chatId,
+        sharedChatId: sharedChatId, // ✅ 保存sharedChatId
         timestamp: message.timestamp || message.data?.timestamp || new Date(),
         isFromMe: isFromMe,
         msgType: message.messageType || message.type || message.data?.messageType || 1,
@@ -582,12 +712,49 @@ export const useChatStore = defineStore('chat', {
 
     // Chat Methods
     setActiveChat(session) {
-      this.activeChatSession = session;
-      // Mark messages as read when opening a chat
-      if (session && this.unreadCounts[session.id]) {
-        this.markAsRead(session.id);
+      console.log('🎯 ChatStore设置活跃聊天:', session);
+
+      if (!session) {
+        console.log('❌ 会话对象为空，清空活跃聊天');
+        this.activeChatSession = null;
+        return;
       }
-      console.log('ChatStore: Active chat set to', session);
+
+      // ✅ 修复：优先使用sharedChatId作为标识，并确保类型正确
+      const sharedChatId = session.sharedChatId || session.shared_chat_id;
+      
+      if (!sharedChatId) {
+        console.error('🐛 BUG REPORT: Session missing sharedChatId', {
+          session: session,
+          availableFields: Object.keys(session),
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      const normalizedSession = {
+        ...session,
+        id: Number(sharedChatId || session.id || session.chatId || session.chat_id), // ✅ 使用Number类型
+        sharedChatId: Number(sharedChatId || session.id), // ✅ 确保sharedChatId是Number
+        type: session.type || 'PRIVATE',
+        name: session.name || session.groupName || session.targetInfo || '未知聊天',
+        targetId: session.targetId || session.target_user_id
+      };
+
+      this.activeChatSession = normalizedSession;
+
+      console.log('✅ ChatStore: 活跃聊天已设置:', {
+        id: normalizedSession.id,
+        sharedChatId: normalizedSession.sharedChatId,
+        type: normalizedSession.type,
+        name: normalizedSession.name
+      });
+
+      // ✅ 修复：使用sharedChatId标记已读
+      const chatIdForRead = normalizedSession.sharedChatId || normalizedSession.id;
+      if (chatIdForRead && this.unreadCounts[chatIdForRead]) {
+        console.log('👁️ 标记聊天已读:', chatIdForRead);
+        this.markAsRead(chatIdForRead);
+      }
     },
 
     clearActiveChat() {
@@ -595,12 +762,15 @@ export const useChatStore = defineStore('chat', {
     },
 
     addMessage(chatId, message) {
-      if (!this.chatMessages[chatId]) {
-        this.chatMessages[chatId] = [];
+      // ✅ 修复3：统一使用sharedChatId作为key
+      const normalizedChatId = String(message.sharedChatId || chatId);
+      
+      if (!this.chatMessages[normalizedChatId]) {
+        this.chatMessages[normalizedChatId] = [];
       }
       // 确保消息包含status字段
       const normalizedMsg = normalizeMessage(message);
-      this.chatMessages[chatId].push(normalizedMsg);
+      this.chatMessages[normalizedChatId].push(normalizedMsg);
     },
 
     setMessages(chatId, messages) {
@@ -611,6 +781,20 @@ export const useChatStore = defineStore('chat', {
       if (!content || !targetId) {
         throw new Error('Content and targetId are required');
       }
+
+      // ✅ 修复：使用sharedChatId而不是targetId
+      const sharedChatId = this.activeChatSession?.sharedChatId || this.activeChatSession?.id;
+      
+      if (!sharedChatId) {
+        console.error('🐛 BUG REPORT: Missing sharedChatId in activeChatSession', {
+          activeChatSession: this.activeChatSession,
+          targetId: targetId,
+          timestamp: new Date().toISOString()
+        });
+        throw new Error('无法发送消息：缺少sharedChatId');
+      }
+
+      console.log('📤 发送消息: sharedChatId=', sharedChatId, 'targetId=', targetId);
 
       // 生成临时消息ID用于跟踪
       const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -627,15 +811,16 @@ export const useChatStore = defineStore('chat', {
         messageType: messageType,
         chatType: chatType,
         targetId: targetId,
-        chatId: targetId,
+        chatId: sharedChatId, // ✅ 使用sharedChatId
+        sharedChatId: sharedChatId, // ✅ 明确保存sharedChatId
         timestamp: new Date(),
         isFromMe: true,
         status: MESSAGE_STATUS.SENDING, // 设置为发送中状态
         isRecalled: 0
       };
 
-      // 立即添加到消息列表（乐观更新）
-      this.addMessage(targetId, tempMessage);
+      // ✅ 修复：使用sharedChatId添加到消息列表
+      this.addMessage(sharedChatId, tempMessage);
 
       // 发送消息
       const message = {
@@ -645,15 +830,23 @@ export const useChatStore = defineStore('chat', {
           targetId,
           chatType,
           messageType,
-          chatId: targetId,
+          chatId: sharedChatId, // ✅ 使用sharedChatId
+          sharedChatId: sharedChatId, // ✅ 明确发送sharedChatId
           clientMessageId: tempId // 传递临时ID用于后端关联
         }
       };
 
       try {
+        console.log('📡 通过WebSocket发送消息:', message);
         this.sendWebSocketMessage(message);
         // 消息发送后，状态会通过WebSocket回调更新
       } catch (error) {
+        console.error('🐛 BUG REPORT: sendWebSocketMessage failed', {
+          error: error.message,
+          stack: error.stack,
+          message: message,
+          timestamp: new Date().toISOString()
+        });
         // 发送失败，更新消息状态为失败
         this.updateMessageStatus(null, MESSAGE_STATUS.FAILED, tempId);
         throw error;
@@ -666,8 +859,12 @@ export const useChatStore = defineStore('chat', {
         const authStore = useAuthStore();
         const currentUserId = authStore.currentUser?.id;
         
+        // ✅ 修复3：确保使用正确的chatId（优先使用sharedChatId）
+        const normalizedChatId = String(chatId);
+        console.log('📥 获取聊天消息: chatId=', normalizedChatId);
+        
         // 使用新的chat API
-        const response = await api.chat.getChatMessages(chatId, {
+        const response = await api.chat.getChatMessages(normalizedChatId, {
           page,
           size: batchSize
         });
@@ -684,25 +881,31 @@ export const useChatStore = defineStore('chat', {
           const messagesWithFlag = messages.map(msg => ({
             ...msg,
             isFromMe: msg.senderId === currentUserId,
-            msgContent: typeof msg.content === 'object' ? msg.content.content : msg.content
+            msgContent: typeof msg.content === 'object' ? msg.content.content : msg.content,
+            sharedChatId: msg.chatId // 保存sharedChatId
           }));
 
           const normalizedMsgs = normalizeMessages(messagesWithFlag);
 
+          // ✅ 修复3：使用sharedChatId作为key存储消息
+          const storageKey = normalizedChatId;
+
           // 更新分页信息
-          this.chatPagination[chatId] = {
+          this.chatPagination[storageKey] = {
             hasMore,
             page,
             total: messages.length
           };
 
           if (page === 1) {
-            this.setMessages(chatId, normalizedMsgs);
+            this.setMessages(storageKey, normalizedMsgs);
           } else {
             // Append messages for pagination
-            const existingMessages = this.chatMessages[chatId] || [];
-            this.setMessages(chatId, [...normalizedMsgs, ...existingMessages]);
+            const existingMessages = this.chatMessages[storageKey] || [];
+            this.setMessages(storageKey, [...normalizedMsgs, ...existingMessages]);
           }
+          
+          console.log('✅ 消息获取成功: count=', normalizedMsgs.length);
         }
       } catch (error) {
         console.error(`Failed to fetch messages for chat ${chatId}:`, error);

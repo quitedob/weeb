@@ -57,6 +57,7 @@ public class Message implements Serializable {
     /**
      * @deprecated 使用独立的isRecalled字段
      */
+    @Deprecated
     private Integer isRecalled; // 是否撤回：0未撤回，1已撤回
     private String userIp; // 用户IP
     private String source; // 消息来源

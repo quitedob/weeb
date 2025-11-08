@@ -209,15 +209,12 @@ const loading = ref(true);
 const activeTab = ref('info');
 
 const currentUser = computed(() => authStore.currentUser);
-const isOwner = computed(() => group.value && currentUser.value && group.value.ownerId === currentUser.value.id); // Corrected: currentUser.value.id to currentUser.value.userId
-const isAdmin = computed(() => {
-    // Placeholder: Implement admin check logic if applicable
-    // e.g., check if currentUser.id is in a list of admin IDs for this group
-    // For now, only owner has admin-like privileges shown in template
-    if (!group.value || !currentUser.value) return false;
-    const currentMember = members.value.find(m => m.userId === currentUser.value.id); // Corrected: currentUser.value.id to currentUser.value.userId
-    return currentMember && currentMember.role === 'ADMIN'; // Assuming role might be 'ADMIN'
-});
+
+// ✅ 修复：基于后端返回的currentUserRole判断权限
+const userRole = computed(() => group.value?.currentUserRole || 'NON_MEMBER');
+const isOwner = computed(() => userRole.value === 'OWNER');
+const isAdmin = computed(() => ['OWNER', 'ADMIN'].includes(userRole.value));
+const canManage = computed(() => ['OWNER', 'ADMIN'].includes(userRole.value));
 
 
 const editGroupDialogVisible = ref(false);
@@ -248,7 +245,8 @@ const fetchGroupDetails = async () => {
 
       if (group.value.ownerId) {
           try {
-            const ownerRes = await api.user.getUserInfoById(group.value.ownerId);
+            // ✅ 修复：使用正确的API方法名 getUserById
+            const ownerRes = await api.user.getUserById(group.value.ownerId);
             if(ownerRes.code === 0 && ownerRes.data) ownerInfo.value = ownerRes.data;
           } catch (e) { console.warn("获取群主信息失败", e)}
       }
@@ -268,9 +266,8 @@ const fetchGroupDetails = async () => {
 
 const fetchGroupMembers = async () => {
   try {
-    // Assuming api.group.getGroupMembers returns { code, message, data: [members] }
-    // And each member has { userId, username, avatar, role_in_group (or derive from ownerId) }
-    const membersRes = await api.group.getGroupMembers(groupId.value);
+    // ✅ 修复：使用正确的API方法名 getMembers
+    const membersRes = await api.group.getMembers(groupId.value);
      if (membersRes.code === 0 && membersRes.data) {
       members.value = membersRes.data.map(member => ({
           ...member,
@@ -513,7 +510,8 @@ const navigateToGroupChat = (gId, gName) => {
         // lastMessage, unreadCount might not be relevant here or fetched by ChatWindow/ChatStore
     };
     chatStore.setActiveChat(groupChatSession);
-    router.push('/chat'); // Navigate to the main chat view, which should pick up activeChatSession
+    // ✅ 修复：导航到具体的群聊路由，而不是通用的 /chat
+    router.push(`/chat/group/${gId}`);
 };
 
 // 申请管理相关方法
@@ -530,7 +528,8 @@ const fetchApplications = async (status = 'pending') => {
       const applicationsWithUserInfo = await Promise.all(
         response.data.map(async (app) => {
           try {
-            const userRes = await api.user.getUserInfoById(app.userId);
+            // ✅ 修复：使用正确的API方法名 getUserById
+            const userRes = await api.user.getUserById(app.userId);
             return {
               ...app,
               username: userRes.data?.username || `用户${app.userId}`,

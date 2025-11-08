@@ -61,6 +61,12 @@ public class GroupDto {
     private Integer role;
     
     /**
+     * 当前用户在群组中的角色名称
+     * OWNER=群主, ADMIN=管理员, MEMBER=普通成员, NON_MEMBER=非成员
+     */
+    private String currentUserRole;
+    
+    /**
      * 创建时间
      */
     private LocalDateTime createdAt;

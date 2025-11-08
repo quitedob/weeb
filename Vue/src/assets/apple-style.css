@@ -45,9 +45,27 @@
   
   /* 间距 */
   --apple-spacing-xs: 4px;
-  --apple-spacing-sm: 8px;      /* 10px */                                                                                  
+  --apple-spacing-sm: 8px;
   --apple-spacing-md: 16px;
   --apple-spacing-lg: 24px;
+  
+  /* 新增间距系统 */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  
+  /* 新增圆角系统 */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  
+  /* 新增阴影系统 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   --apple-spacing-xl: 32px;
   --apple-spacing-xxl: 48px;
   

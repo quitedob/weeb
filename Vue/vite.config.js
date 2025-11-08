@@ -48,6 +48,12 @@ export default defineConfig(async ({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        '/ws': { // 代理WebSocket连接
+          target: env.VITE_WS_URL || 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+          ws: true, // 启用WebSocket代理
+        },
       },
     },
     // 确保环境变量在客户端代码中可用

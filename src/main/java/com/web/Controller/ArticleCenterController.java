@@ -284,14 +284,15 @@ public class ArticleCenterController {
     /**
      * 获取当前用户的所有文章标题、内容、阅读数量、点赞数量
      * 请求示例：GET /articles/myarticles?userId=123
+     * ✅ 修复：0篇文章时返回空列表而不是404错误
      */
     @GetMapping("/myarticles")
     public ResponseEntity<ApiResponse<List<Article>>> getUserArticles(@RequestParam Long userId) {
         try {
             List<Article> articles = articleService.getArticlesByUserId(userId);
-            if (articles == null || articles.isEmpty()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.notFound("用户文章列表未找到"));
+            // ✅ 修复：即使列表为空也返回成功响应，而不是404错误
+            if (articles == null) {
+                articles = new java.util.ArrayList<>();
             }
             return ResponseEntity.ok(ApiResponse.success(articles));
         } catch (Exception e) {

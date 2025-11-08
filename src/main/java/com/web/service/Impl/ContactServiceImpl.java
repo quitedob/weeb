@@ -54,6 +54,23 @@ public class ContactServiceImpl implements ContactService {
             throw new WeebException("联系人关系已存在");
         }
         
+        // ✅ 改进：检查是否已有待处理的申请（7天有效期）
+        com.web.model.Contact existingRequest = contactMapper.selectPendingRequest(fromUserId, applyVo.getFriendId());
+        if (existingRequest != null) {
+            // 检查申请是否在有效期内（7天）
+            java.time.LocalDateTime createdAt = existingRequest.getCreatedAt();
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            java.time.Duration duration = java.time.Duration.between(createdAt, now);
+            
+            if (duration.toDays() < 7) {
+                throw new WeebException("申请已存在且在有效期内，请等待对方处理");
+            } else {
+                // 申请已过期，删除旧申请
+                log.info("删除过期的好友申请: fromUserId={}, toUserId={}", fromUserId, applyVo.getFriendId());
+                contactMapper.deleteExpiredRequest(existingRequest.getId());
+            }
+        }
+        
         // 创建联系人申请记录
         int result = contactMapper.createContactApply(fromUserId, applyVo.getFriendId(), applyVo.getRemarks());
         if (result <= 0) {

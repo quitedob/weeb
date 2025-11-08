@@ -1,51 +1,53 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE mapper
-        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.web.mapper.MessageReactionMapper">
 
+    <!-- 结果映射 -->
     <resultMap id="MessageReactionResultMap" type="com.web.model.MessageReaction">
-        <id column="id" property="id" />
-        <result column="message_id" property="messageId" />
-        <result column="user_id" property="userId" />
-        <result column="reaction_type" property="reactionType" />
-        <result column="create_time" property="createTime" />
+        <id property="id" column="id"/>
+        <result property="messageId" column="message_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="reactionType" column="reaction_type"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
     </resultMap>
 
-    <select id="selectByMessageId" parameterType="java.lang.Long" resultMap="MessageReactionResultMap">
-        SELECT 
-            id,
-            message_id,
-            user_id,
-            reaction_type,
-            create_time
-        FROM `message_reaction`
-        WHERE `message_id` = #{messageId}
-        ORDER BY `create_time` ASC
+    <!-- 根据消息ID查询所有反应 -->
+    <select id="selectByMessageId" resultMap="MessageReactionResultMap">
+        SELECT * FROM message_reaction
+        WHERE message_id = #{messageId}
+        ORDER BY created_at DESC
     </select>
 
+    <!-- 根据消息ID和用户ID查询反应 -->
     <select id="selectByMessageIdAndUserId" resultMap="MessageReactionResultMap">
-        SELECT 
-            id,
-            message_id,
-            user_id,
-            reaction_type,
-            create_time
-        FROM `message_reaction`
-        WHERE `message_id` = #{messageId} AND `user_id` = #{userId}
-        LIMIT 1
+        SELECT * FROM message_reaction
+        WHERE message_id = #{messageId} AND user_id = #{userId}
+        ORDER BY created_at DESC
     </select>
 
+    
+    <!-- 删除特定的反应记录 -->
     <delete id="deleteByMessageIdAndUserId">
-        DELETE FROM `message_reaction`
-        WHERE `message_id` = #{messageId} AND `user_id` = #{userId}
+        DELETE FROM message_reaction
+        WHERE message_id = #{messageId}
+          AND user_id = #{userId}
     </delete>
 
-    <select id="countByMessageId" parameterType="java.lang.Long" resultType="java.lang.Integer">
-        SELECT COUNT(*)
-        FROM `message_reaction`
-        WHERE `message_id` = #{messageId}
+    
+    <!-- 删除消息的所有反应 -->
+    <delete id="deleteByMessageId">
+        DELETE FROM message_reaction
+        WHERE message_id = #{messageId}
+    </delete>
+
+    <!-- 统计消息的反应数量 -->
+    <select id="countByMessageId" resultType="int">
+        SELECT COUNT(*) FROM message_reaction
+        WHERE message_id = #{messageId}
     </select>
 
-</mapper> 
+    
+</mapper>

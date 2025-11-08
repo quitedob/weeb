@@ -91,4 +91,17 @@ public class Contact implements Serializable {
         }
         this.friendId = friendId;
     }
+
+    /**
+     * 获取创建时间的LocalDateTime版本，用于7天过期检查
+     * @return 创建时间的LocalDateTime表示
+     */
+    public java.time.LocalDateTime getCreatedAt() {
+        if (createTime != null) {
+            return createTime.toInstant()
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDateTime();
+        }
+        return null;
+    }
 }

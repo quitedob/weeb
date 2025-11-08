@@ -515,11 +515,7 @@
         </if>
     </select>
 
-    <!-- 统计用户总数 -->
-    <select id="countUsers" resultType="int">
-        SELECT COUNT(*) FROM user
-    </select>
-
+  
     <!-- 根据状态统计用户数量 -->
     <select id="countUsersByStatus" resultType="int">
         SELECT COUNT(*) FROM user

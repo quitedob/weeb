@@ -148,12 +148,29 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             throw new WeebException("群组描述不能超过200个字符");
         }
         
+        // ✅ 2人群组类型判断：如果初始成员只有1人（加上创建者共2人）且类型为PRIVATE，建议使用私聊
+        if (createVo.getInitialMemberIds() != null && createVo.getInitialMemberIds().size() == 1) {
+            if ("PRIVATE".equalsIgnoreCase(createVo.getGroupType())) {
+                log.warn("创建2人PRIVATE群组，建议使用私聊功能: userId={}, targetUserId={}", 
+                    userId, createVo.getInitialMemberIds().get(0));
+                // 注意：这里只是警告，不阻止创建。如果需要强制阻止，可以抛出异常
+                // throw new WeebException("2人私密群组建议使用私聊功能，请使用聊天功能直接发送消息");
+            }
+        }
+        
         // 创建群组对象
         Group group = new Group();
         group.setGroupName(createVo.getGroupName().trim());
         group.setOwnerId(userId);
         // Note: Group model uses createTime (Date) instead of createdAt (LocalDateTime)
         group.setCreateTime(new Date());
+        
+        // 设置群组类型（如果提供）
+        if (createVo.getGroupType() != null && !createVo.getGroupType().trim().isEmpty()) {
+            // 这里假设Group模型有groupType字段，如果没有则需要添加
+            // group.setGroupType(createVo.getGroupType().toUpperCase());
+            log.debug("群组类型: {}", createVo.getGroupType());
+        }
         
         // 保存群组
         boolean saved = save(group);
@@ -1105,30 +1122,83 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             if (groupId == null || groupId <= 0) {
                 throw new WeebException("群组ID必须为正数");
             }
-            
-            if (userId == null || userId <= 0) {
-                throw new WeebException("用户ID必须为正数");
-            }
-            
-            log.debug("获取群组详细信息: groupId={}, userId={}", groupId, userId);
-            
-            // 使用新的Mapper方法获取群组详细信息
-            GroupDto group = groupMapper.selectGroupWithDetails(groupId, userId);
-            
+
+            // 获取群组基本信息
+            Group group = getById(groupId);
             if (group == null) {
-                log.warn("群组不存在或用户无权限访问: groupId={}, userId={}", groupId, userId);
-                throw new WeebException("群组不存在或无权限访问");
+                throw new WeebException("群组不存在");
             }
-            
-            log.debug("获取群组详细信息成功: groupId={}, groupName={}", groupId, group.getGroupName());
-            
-            return group;
-            
+
+            // 创建GroupDto对象
+            GroupDto groupDto = new GroupDto();
+            groupDto.setId(group.getId());
+            groupDto.setGroupName(group.getGroupName());
+            groupDto.setGroupDescription(group.getGroupDescription());
+            groupDto.setOwnerId(group.getOwnerId());
+            groupDto.setGroupAvatarUrl(group.getGroupAvatarUrl());
+            groupDto.setStatus(group.getStatus() != null ? String.valueOf(group.getStatus()) : "1");
+            groupDto.setMaxMembers(group.getMaxMembers());
+            groupDto.setMemberCount(group.getMemberCount());
+            // 修复：将Date转换为LocalDateTime
+            if (group.getCreateTime() != null) {
+                groupDto.setCreatedAt(new java.sql.Timestamp(group.getCreateTime().getTime()).toLocalDateTime());
+            }
+            if (group.getLastTransferAt() != null) {
+                groupDto.setLastTransferAt(new java.sql.Timestamp(group.getLastTransferAt().getTime()).toLocalDateTime());
+            }
+            groupDto.setTransferCount(group.getTransferCount());
+
+            // 获取群主用户名
+            if (group.getOwnerId() != null) {
+                User owner = userMapper.selectById(group.getOwnerId());
+                if (owner != null) {
+                    groupDto.setOwnerUsername(owner.getUsername());
+                }
+            }
+
+            // ✅ 关键修复：查询当前用户在群组中的角色
+            if (userId != null && userId > 0) {
+                GroupMember member = groupMemberMapper.findByGroupAndUser(groupId, userId);
+                if (member != null && "ACCEPTED".equals(member.getJoinStatus())) {
+                    // 设置角色数值
+                    groupDto.setRole(member.getRole());
+                    
+                    // ✅ 设置角色名称
+                    String roleName;
+                    switch (member.getRole()) {
+                        case 1: // GroupRoleConstants.ROLE_OWNER
+                            roleName = "OWNER";
+                            break;
+                        case 2: // GroupRoleConstants.ROLE_ADMIN
+                            roleName = "ADMIN";
+                            break;
+                        case 3: // GroupRoleConstants.ROLE_MEMBER
+                            roleName = "MEMBER";
+                            break;
+                        default:
+                            roleName = "MEMBER";
+                    }
+                    groupDto.setCurrentUserRole(roleName);
+                    
+                    log.debug("用户在群组中的角色: userId={}, groupId={}, role={}, roleName={}", 
+                        userId, groupId, member.getRole(), roleName);
+                } else {
+                    // 用户不是群组成员
+                    groupDto.setCurrentUserRole("NON_MEMBER");
+                    log.debug("用户不是群组成员: userId={}, groupId={}", userId, groupId);
+                }
+            } else {
+                // 未提供用户ID，设置为非成员
+                groupDto.setCurrentUserRole("NON_MEMBER");
+            }
+
+            return groupDto;
         } catch (WeebException e) {
+            log.warn("获取群组详情失败: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("获取群组详细信息失败: groupId={}, userId={}", groupId, userId, e);
-            throw new WeebException("获取群组详细信息失败: " + e.getMessage());
+            log.error("获取群组详情失败: groupId={}, userId={}", groupId, userId, e);
+            throw new WeebException("获取群组详情失败: " + e.getMessage());
         }
     }
 
