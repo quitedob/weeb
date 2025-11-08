@@ -34,6 +34,9 @@ public class MessageBroadcastService {
     @Autowired
     private com.web.service.ChatUnreadCountService chatUnreadCountService;
 
+    @Autowired(required = false)
+    private org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
+
     /**
      * ✅ 群聊消息转发
      * @param message 消息对象
@@ -56,13 +59,15 @@ public class MessageBroadcastService {
             // 3. 构建消息响应对象
             MessageResponse response = new MessageResponse();
             response.setId(message.getId());
+            response.setMessageId(message.getId()); // 前端期望messageId字段
             response.setFromId(message.getSenderId());
             response.setFromName(senderName);
             response.setContent(extractContent(message));
             response.setMsgContent(extractContent(message));
             response.setTimestamp(message.getCreatedAt());
             response.setMessageType(message.getMessageType());
-            response.setChatId(message.getChatId());
+            response.setChatId(String.valueOf(message.getChatId()));
+            response.setTargetId(message.getChatId()); // 前端期望targetId字段
             response.setRoomId(String.valueOf(groupId));
             response.setIsRecalled(message.getIsRecalled() != null ? message.getIsRecalled() : 0);
 
@@ -156,6 +161,7 @@ public class MessageBroadcastService {
             // 3. 构建消息响应对象
             MessageResponse response = new MessageResponse();
             response.setId(message.getId());
+            response.setMessageId(message.getId()); // 前端期望messageId字段
             response.setFromId(message.getSenderId());
             response.setFromName(senderName);
             response.setContent(extractContent(message));
@@ -163,7 +169,8 @@ public class MessageBroadcastService {
             response.setTimestamp(message.getCreatedAt());
             response.setIsFromMe(false); // 对接收者来说不是自己发的
             response.setMessageType(message.getMessageType());
-            response.setChatId(message.getChatId());
+            response.setChatId(String.valueOf(message.getChatId()));
+            response.setTargetId(message.getChatId()); // 前端期望targetId字段
             response.setRoomId(String.valueOf(message.getChatId()));
             response.setIsRecalled(message.getIsRecalled() != null ? message.getIsRecalled() : 0);
 
@@ -212,14 +219,17 @@ public class MessageBroadcastService {
         try {
             // 使用Redis List存储离线消息
             String offlineKey = "chat:offline:" + userId;
-            // 这里需要注入RedisTemplate，暂时记录日志
-            log.debug("📦 离线消息已标记存储: userId={}, messageId={}", userId, message.getId());
             
-            // TODO: 实现Redis离线消息队列
-            // redisTemplate.opsForList().rightPush(offlineKey, message);
-            // redisTemplate.expire(offlineKey, 7, TimeUnit.DAYS); // 7天过期
+            // ✅ 实现Redis离线消息队列
+            if (redisTemplate != null) {
+                redisTemplate.opsForList().rightPush(offlineKey, message);
+                redisTemplate.expire(offlineKey, 7, java.util.concurrent.TimeUnit.DAYS); // 7天过期
+                log.debug("✅ 离线消息已存储到Redis: userId={}, messageId={}", userId, message.getId());
+            } else {
+                log.warn("⚠️ RedisTemplate未注入，离线消息仅存储在数据库");
+            }
         } catch (Exception e) {
-            log.error("❌ 存储离线消息失败: userId={}", userId, e);
+            log.error("❌ 存储离线消息到Redis失败: userId={}, 消息将仅存储在数据库", userId, e);
         }
     }
 
@@ -239,6 +249,7 @@ public class MessageBroadcastService {
 
             MessageResponse response = new MessageResponse();
             response.setId(message.getId());
+            response.setMessageId(message.getId()); // 前端期望messageId字段
             response.setFromId(message.getSenderId());
             response.setFromName(sender.getUsername());
             response.setContent(extractContent(message));
@@ -247,7 +258,8 @@ public class MessageBroadcastService {
             response.setStatus(1); // SENT状态
             response.setIsFromMe(true);
             response.setMessageType(message.getMessageType());
-            response.setChatId(message.getChatId());
+            response.setChatId(String.valueOf(message.getChatId()));
+            response.setTargetId(message.getChatId()); // 前端期望targetId字段
             response.setRoomId(String.valueOf(message.getChatId()));
             response.setClientMessageId(clientMessageId); // 关联临时消息
             response.setIsRecalled(message.getIsRecalled() != null ? message.getIsRecalled() : 0);

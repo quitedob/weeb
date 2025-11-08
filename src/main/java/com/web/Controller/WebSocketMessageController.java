@@ -50,6 +50,7 @@ public class WebSocketMessageController {
      * @param userId 发送者ID
      * @return Message对象
      */
+    @SuppressWarnings("deprecation")
     private Message convertWebSocketMessageToMessage(Map<String, Object> messageData, Long userId) {
         Message message = new Message();
 
@@ -83,10 +84,10 @@ public class WebSocketMessageController {
         // 设置消息类型和chatId
         if (roomId != null && roomId.startsWith("group_")) {
             message.setMessageType(1); // 群聊
-            message.setChatId(extractChatIdFromRoomId(roomId));
+            message.setChatId(extractChatIdFromRoomId(roomId, null));
         } else {
             message.setMessageType(0); // 私聊
-            message.setChatId(extractChatIdFromRoomId(roomId));
+            message.setChatId(extractChatIdFromRoomId(roomId, null));
         }
 
         // 设置其他默认值
@@ -118,17 +119,21 @@ public class WebSocketMessageController {
     /**
      * 从roomId中提取chatId
      * @param roomId 房间ID
+     * @param principal 当前用户
      * @return chatId
      */
-    private Long extractChatIdFromRoomId(String roomId) {
+    private Long extractChatIdFromRoomId(String roomId, Principal principal) {
         if (roomId == null) return null;
 
         try {
-            // 假设roomId格式为 "private_{userId}" 或 "group_{chatId}"
             if (roomId.startsWith("private_")) {
-                // 对于私聊，需要根据发送者和接收者查找或创建chatId
-                // 这里暂时返回一个默认值，实际实现需要更复杂的逻辑
-                return 1L; // 临时返回值
+                // 提取目标用户ID
+                String targetUserIdStr = roomId.substring(8);
+                Long targetUserId = Long.valueOf(targetUserIdStr);
+                Long currentUserId = SecurityUtils.getCurrentUserId();
+                
+                // 查找或创建私聊会话
+                return chatService.findOrCreatePrivateChat(currentUserId, targetUserId);
             } else if (roomId.startsWith("group_")) {
                 // 对于群聊，直接提取chatId
                 return Long.valueOf(roomId.substring(6));
@@ -137,7 +142,7 @@ public class WebSocketMessageController {
             log.warn("无法从roomId提取chatId: {}", roomId, e);
         }
 
-        return 1L; // 默认值
+        return null; // 出错时返回null而不是1L
     }
 
     /**
@@ -157,6 +162,7 @@ public class WebSocketMessageController {
     /**
      * 发送聊天消息
      */
+    @SuppressWarnings("deprecation")
     @MessageMapping("/chat.sendMessage")
     @SendTo("/topic/chat/{roomId}")
     public Map<String, Object> sendMessage(
@@ -187,17 +193,36 @@ public class WebSocketMessageController {
 
             // 保存消息到数据库 - 使用ChatService统一消息存储逻辑
             Message messageObj = convertWebSocketMessageToMessage(chatMessage, SecurityUtils.getCurrentUserId());
-            Message savedMessage = chatService.sendMessage(SecurityUtils.getCurrentUserId(), messageObj);
+            
+            // ✅ 获取chatId（String类型）- WebSocket使用roomId作为chatId
+            // roomId格式: "private_<chatId>" 或 "group_<chatId>" 或直接是chatId
+            String chatId = roomId;
+            if (roomId.startsWith("private_")) {
+                chatId = roomId.substring(8); // 移除"private_"前缀
+            } else if (roomId.startsWith("group_")) {
+                chatId = roomId.substring(6); // 移除"group_"前缀
+            }
+            
+            Message savedMessage = chatService.sendMessage(SecurityUtils.getCurrentUserId(), chatId, messageObj);
 
-            // 构建返回的消息对象
+            // 构建返回的消息对象，匹配前端期望的格式
             Map<String, Object> responseMessage = new HashMap<>();
             responseMessage.put("id", savedMessage.getId());
+            responseMessage.put("messageId", savedMessage.getId()); // 前端期望messageId字段
             responseMessage.put("fromId", savedMessage.getSenderId());
             responseMessage.put("fromName", principal.getName());
             responseMessage.put("content", message.get("content"));
+            responseMessage.put("msgContent", message.get("content")); // 前端期望msgContent字段
             responseMessage.put("roomId", roomId);
+            responseMessage.put("chatId", chatId); // ✅ 使用String类型的chatId而不是sharedChatId
+            responseMessage.put("targetId", savedMessage.getChatId()); // targetId仍使用sharedChatId（Long）
             responseMessage.put("timestamp", savedMessage.getCreatedAt().toLocalDateTime());
             responseMessage.put("type", message.getOrDefault("type", "text"));
+            responseMessage.put("messageType", savedMessage.getMessageType());
+            responseMessage.put("chatType", roomId != null && roomId.startsWith("group_") ? "GROUP" : "PRIVATE");
+            responseMessage.put("status", savedMessage.getStatus()); // 使用后端status字段
+            responseMessage.put("isRecalled", savedMessage.getIsRecalled());
+            responseMessage.put("isFromMe", false); // 接收到的消息，isFromMe为false
 
             return responseMessage;
         } catch (Exception e) {
@@ -274,6 +299,7 @@ public class WebSocketMessageController {
      * 发送私聊消息
      * ✅ 修复：使用MessageBroadcastService统一处理消息转发
      */
+    @SuppressWarnings("deprecation")
     @MessageMapping("/chat/private")
     public void sendPrivateMessage(
             @Payload Map<String, Object> message,
@@ -286,8 +312,8 @@ public class WebSocketMessageController {
             Object targetIdObj = message.get("targetId");
             Object chatIdObj = message.get("chatId");
 
-            log.info("📨 收到私聊消息: from={}, to={}, content={}, clientMessageId={}",
-                    principal.getName(), targetUser, content, clientMessageId);
+            log.info("📨 收到私聊消息: from={}, targetUser={}, targetId={}, content={}, clientMessageId={}",
+                    principal.getName(), targetUser, targetIdObj, content, clientMessageId);
 
             // ✅ 消息去重检查
             if (clientMessageId != null && deduplicationService.isDuplicate(clientMessageId)) {
@@ -317,11 +343,33 @@ public class WebSocketMessageController {
             textContent.setContentType(com.web.constant.TextContentType.TEXT.getCode());
             messageObj.setContent(textContent);
 
-            // 设置chatId
+            // ✅ 获取chatId（String类型）- 优先使用chatId，然后处理targetId或targetUser
+            String chatId = null;
             if (chatIdObj != null) {
-                messageObj.setChatId(Long.valueOf(chatIdObj.toString()));
-            } else if (targetIdObj != null) {
-                messageObj.setChatId(Long.valueOf(targetIdObj.toString()));
+                chatId = chatIdObj.toString();
+            } else {
+                Long targetUserId = null;
+
+                // 尝试从targetId获取
+                if (targetIdObj != null) {
+                    targetUserId = Long.valueOf(targetIdObj.toString());
+                }
+                // 尝试从targetUser（用户名）获取targetId
+                else if (targetUser != null && !targetUser.isEmpty()) {
+                    // 这里应该根据用户名查找用户ID，暂时跳过实现
+                    // 实际项目中应该调用用户服务: userService.getUserIdByUsername(targetUser)
+                    log.warn("⚠️ 暂不支持通过用户名查找用户ID: {}", targetUser);
+                }
+
+                if (targetUserId != null) {
+                    // 查找或创建私聊会话，获取chat_list.id
+                    Long currentUserId = SecurityUtils.getCurrentUserId();
+                    com.web.model.ChatList chatList = chatService.createChat(currentUserId, targetUserId);
+                    chatId = chatList.getId(); // 使用String类型的chat_list.id
+                } else {
+                    log.error("❌ 无法确定聊天接收者: targetUser={}, targetId={}", targetUser, targetIdObj);
+                    throw new RuntimeException("无法确定聊天接收者");
+                }
             }
 
             // 设置消息类型
@@ -333,7 +381,7 @@ public class WebSocketMessageController {
             messageObj.setIsRecalled(0);
 
             // ✅ 保存消息到数据库（ChatService会自动转发给接收者）
-            Message savedMessage = chatService.sendMessage(SecurityUtils.getCurrentUserId(), messageObj);
+            Message savedMessage = chatService.sendMessage(SecurityUtils.getCurrentUserId(), chatId, messageObj);
 
             // ✅ 标记消息已处理（防止重复）
             if (clientMessageId != null) {
@@ -435,18 +483,19 @@ public class WebSocketMessageController {
             @Payload Map<String, Object> receipt,
             Principal principal) {
         try {
-            Long chatId = receipt.get("chatId") != null 
-                ? Long.valueOf(receipt.get("chatId").toString()) 
+            // ✅ chatId是String类型（UUID），需要转换为sharedChatId
+            String chatIdStr = receipt.get("chatId") != null
+                ? receipt.get("chatId").toString()
                 : null;
-            Long messageId = receipt.get("messageId") != null 
-                ? Long.valueOf(receipt.get("messageId").toString()) 
+            Long messageId = receipt.get("messageId") != null
+                ? Long.valueOf(receipt.get("messageId").toString())
                 : null;
             String timestamp = (String) receipt.get("timestamp");
 
-            log.info("👁️ 收到已读回执: from={}, chatId={}, messageId={}", 
-                principal.getName(), chatId, messageId);
+            log.info("👁️ 收到已读回执: from={}, chatId={}, messageId={}",
+                principal.getName(), chatIdStr, messageId);
 
-            if (chatId == null) {
+            if (chatIdStr == null) {
                 log.warn("已读回执缺少chatId");
                 return;
             }
@@ -454,7 +503,7 @@ public class WebSocketMessageController {
             // 获取聊天会话信息，确定发送者
             com.web.model.ChatList chatList = chatService.getChatList(SecurityUtils.getCurrentUserId())
                 .stream()
-                .filter(c -> c.getId().equals(chatId.toString()))
+                .filter(c -> c.getId().equals(chatIdStr))
                 .findFirst()
                 .orElse(null);
 
@@ -481,7 +530,7 @@ public class WebSocketMessageController {
                 if (otherUser != null) {
                     // 构建已读回执响应
                     Map<String, Object> readReceiptResponse = new HashMap<>();
-                    readReceiptResponse.put("chatId", chatId);
+                    readReceiptResponse.put("chatId", chatIdStr);
                     readReceiptResponse.put("messageId", messageId);
                     readReceiptResponse.put("timestamp", timestamp);
                     readReceiptResponse.put("status", 3); // READ状态

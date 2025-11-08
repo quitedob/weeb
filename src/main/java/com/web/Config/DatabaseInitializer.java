@@ -68,6 +68,9 @@ public class DatabaseInitializer implements CommandLineRunner {
             // 5. 优化数据库索引
             optimizeDatabaseIndexes();
 
+            // 6. ✅ 执行聊天系统数据迁移（确保shared_chat_id正确）
+            migrateChatSharedChatId();
+
             log.info("==================== WEEB 数据库初始化完成 ====================");
 
         } catch (Exception e) {
@@ -226,7 +229,8 @@ public class DatabaseInitializer implements CommandLineRunner {
             {"group_application", "id,group_id,user_id,message,status,reviewer_id,review_note,created_at,reviewed_at"},
             {"contact", "id,user_id,friend_id,status,remarks,expire_at,group_id,create_time,update_time"},
             {"contact_group", "id,user_id,group_name,group_order,is_default,created_at,updated_at"},
-            {"chat_list", "id,user_id,target_id,group_id,target_info,type,unread_count,last_message,create_time,update_time"},
+            {"shared_chat", "id,chat_type,participant_1_id,participant_2_id,group_id,created_at,updated_at"},
+            {"chat_list", "id,user_id,shared_chat_id,target_id,group_id,target_info,type,unread_count,last_message,create_time,update_time"},
             {"chat_unread_count", "id,user_id,chat_id,unread_count,last_read_message_id,updated_at"},
             {"message", "id,client_message_id,sender_id,receiver_id,group_id,chat_id,content,message_type,status,read_status,is_read,is_recalled,user_ip,source,is_show_time,reply_to_message_id,created_at,updated_at"},
             {"message_retry", "id,message_id,client_message_id,sender_id,receiver_id,group_id,content,message_type,retry_count,max_retries,last_error,next_retry_at,status,created_at,updated_at"},
@@ -280,7 +284,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         try {
             // 检查表是否存在
             if (!tableExists(tableName)) {
-                log.info("表 {} 不存在", tableName);
+                log.debug("表 {} 不存在", tableName);
                 return false;
             }
 
@@ -355,6 +359,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         createGroupTable();
         createGroupMemberTable();
         createContactTable();
+        createSharedChatTable(); // 共享聊天表（必须在chat_list之前创建）
         createChatListTable();
         createChatUnreadCountTable(); // 聊天未读计数表
         createMessageTable();
@@ -391,16 +396,16 @@ public class DatabaseInitializer implements CommandLineRunner {
             String identifier = "`" + rawName + "`";
             String sql = "SELECT 1 FROM " + identifier + " LIMIT 1";
             jdbcTemplate.execute(sql);
-            log.info("表 {} 已存在", tableName);
+            log.debug("表 {} 已存在", tableName);
             return true;
         } catch (Exception e) {
-            log.info("表 {} 不存在，将创建", tableName);
+            log.debug("表 {} 不存在，将创建", tableName);
             return false;
         }
     }
 
-    private void createUserTable() {
-        log.info("创建用户表...");
+    private int createUserTable() {
+        log.debug("创建用户表...");
 
         String sql = """
             CREATE TABLE IF NOT EXISTS `user` (
@@ -430,21 +435,22 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_type` (`type`),
                 KEY `idx_online_status` (`online_status`),
                 KEY `idx_status` (`status`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='用户基础信息表（统计数据分离至user_stats表）'
             """;
 
         try {
             jdbcTemplate.execute(sql);
-            log.info("✅ 用户表创建成功");
+            log.debug("✅ 用户表创建成功");
+            return 1;
         } catch (Exception e) {
             log.error("❌ 创建用户表失败", e);
             throw new RuntimeException("创建用户表失败", e);
         }
     }
 
-    private void createUserStatsTable() {
-        log.info("创建用户统计表...");
+    private int createUserStatsTable() {
+        log.debug("创建用户统计表...");
 
         String sql = """
             CREATE TABLE IF NOT EXISTS `user_stats` (
@@ -463,13 +469,14 @@ public class DatabaseInitializer implements CommandLineRunner {
                 KEY `idx_total_likes` (`total_likes`),
                 KEY `idx_website_coins` (`website_coins`),
                 KEY `idx_updated_at` (`updated_at`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             COMMENT='用户统计数据表（分离以提高并发性能）'
             """;
 
         try {
             jdbcTemplate.execute(sql);
-            log.info("✅ 用户统计表创建成功");
+            log.debug("✅ 用户统计表创建成功");
+            return 1;
         } catch (Exception e) {
             log.error("❌ 创建用户统计表失败", e);
             throw new RuntimeException("创建用户统计表失败", e);
@@ -683,15 +690,51 @@ public class DatabaseInitializer implements CommandLineRunner {
         }
     }
 
+    private void createSharedChatTable() {
+        log.info("创建共享聊天表...");
+
+        String sql = """
+            CREATE TABLE IF NOT EXISTS `shared_chat` (
+                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '共享聊天ID',
+                `chat_type` VARCHAR(50) NOT NULL COMMENT '聊天类型：PRIVATE、GROUP',
+                `participant_1_id` BIGINT COMMENT '参与者1的用户ID（私聊时使用，较小的ID）',
+                `participant_2_id` BIGINT COMMENT '参与者2的用户ID（私聊时使用，较大的ID）',
+                `group_id` BIGINT COMMENT '群组ID（群聊时使用）',
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uk_private_chat` (`participant_1_id`, `participant_2_id`, `chat_type`),
+                UNIQUE KEY `uk_group_chat` (`group_id`, `chat_type`),
+                KEY `idx_participant_1` (`participant_1_id`),
+                KEY `idx_participant_2` (`participant_2_id`),
+                KEY `idx_group_id` (`group_id`),
+                KEY `idx_chat_type` (`chat_type`),
+                CONSTRAINT `fk_shared_chat_participant_1` FOREIGN KEY (`participant_1_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_shared_chat_participant_2` FOREIGN KEY (`participant_2_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_shared_chat_group` FOREIGN KEY (`group_id`) REFERENCES `group` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
+            COMMENT='共享聊天表（管理私聊和群聊的共享ID）'
+            """;
+
+        try {
+            jdbcTemplate.execute(sql);
+            log.info("✅ 共享聊天表创建成功");
+        } catch (Exception e) {
+            log.error("❌ 创建共享聊天表失败", e);
+            throw new RuntimeException("创建共享聊天表失败", e);
+        }
+    }
+
     private void createChatListTable() {
         log.info("创建聊天列表表...");
 
         String sql = """
             CREATE TABLE IF NOT EXISTS `chat_list` (
-                `id` VARCHAR(255) NOT NULL COMMENT '聊天列表ID',
+                `id` VARCHAR(255) NOT NULL COMMENT '聊天列表ID（用户维度）',
                 `user_id` BIGINT NOT NULL COMMENT '用户ID',
+                `shared_chat_id` BIGINT NOT NULL COMMENT '共享聊天ID（私聊双方共用，群聊所有成员共用）',
                 `target_id` BIGINT COMMENT '目标ID（用户ID或群组ID）',
-                   `group_id` BIGINT COMMENT '群组ID（群聊时使用）',
+                `group_id` BIGINT COMMENT '群组ID（群聊时使用）',
                 `target_info` TEXT NOT NULL COMMENT '目标信息（用户名或群组名）',
                 `type` VARCHAR(255) NOT NULL COMMENT '聊天类型：PRIVATE、GROUP',
                 `unread_count` INT DEFAULT 0 COMMENT '未读消息数',
@@ -700,13 +743,16 @@ public class DatabaseInitializer implements CommandLineRunner {
                 `update_time` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
                 PRIMARY KEY (`id`),
                 KEY `idx_user_id` (`user_id`),
+                KEY `idx_shared_chat_id` (`shared_chat_id`),
                 KEY `idx_target_id` (`target_id`),
                 KEY `idx_group_id` (`group_id`),
                 KEY `idx_type` (`type`),
                 KEY `idx_update_time` (`update_time`),
+                KEY `idx_user_shared` (`user_id`, `shared_chat_id`),
+                UNIQUE KEY `uk_user_target` (`user_id`, `target_id`, `type`),
                 CONSTRAINT `fk_chat_list_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
-            COMMENT='用户聊天列表表'
+            COMMENT='用户聊天列表表（使用shared_chat_id实现消息共享）'
             """;
 
         try {
@@ -1099,6 +1145,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                 {"eve", "eve@weeb.com", "伊芙", "$2a$10$bk5/XQfztGfK/1zuXNqKIOWxbbo1uwZFMh9Ws7/yIVZVwFpeiscgW"} // password500
             };
 
+            int createdTestUsers = 0;
             for (String[] userInfo : testUsers) {
                 String username = userInfo[0];
                 String email = userInfo[1];
@@ -1121,8 +1168,12 @@ public class DatabaseInitializer implements CommandLineRunner {
                         """, userId, (int)(Math.random() * 50), (int)(Math.random() * 25), (int)(Math.random() * 10),
                            Math.random() * 500, Math.random() * 1000, Math.random() * 200);
 
-                    log.info("✅ 测试用户 {} 创建成功", nickname);
+                    createdTestUsers++;
                 }
+            }
+
+            if (createdTestUsers > 0) {
+                log.info("✅ 成功创建 {} 个测试用户", createdTestUsers);
             }
             
             // 检查是否已有文章分类
@@ -2052,6 +2103,223 @@ public class DatabaseInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("⚠️ 创建索引失败: {} - {}", indexName, e.getMessage());
             // 不抛出异常，继续创建其他索引
+        }
+    }
+
+    /**
+     * ✅ 聊天系统数据迁移：确保所有chat_list记录都有正确的shared_chat_id
+     * 这是修复"分叉会话"架构缺陷的关键步骤
+     * 基于database_migration_shared_chat_id.sql脚本实现
+     */
+    private void migrateChatSharedChatId() {
+        log.info("==================== 开始聊天系统数据迁移 ====================");
+
+        try {
+            // 步骤1：检查当前状态
+            log.info("步骤1：检查当前chat_list表状态...");
+            Integer totalChats = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM chat_list", Integer.class);
+            Integer missingSharedChatId = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM chat_list WHERE shared_chat_id IS NULL", Integer.class);
+            Integer hasSharedChatId = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM chat_list WHERE shared_chat_id IS NOT NULL", Integer.class);
+
+            log.info("  - 总聊天记录数: {}", totalChats);
+            log.info("  - 缺少shared_chat_id: {}", missingSharedChatId);
+            log.info("  - 已有shared_chat_id: {}", hasSharedChatId);
+
+            if (missingSharedChatId == null || missingSharedChatId == 0) {
+                log.info("✅ 所有chat_list记录都已有shared_chat_id，跳过迁移");
+                return;
+            }
+
+            // 步骤2：为现有的私聊记录关联shared_chat_id
+            log.info("步骤2：关联现有的shared_chat记录...");
+            int updated = jdbcTemplate.update("""
+                UPDATE chat_list c1
+                SET shared_chat_id = (
+                    SELECT sc.id
+                    FROM shared_chat sc
+                    WHERE sc.chat_type = 'PRIVATE'
+                      AND sc.participant_1_id = LEAST(c1.user_id, c1.target_id)
+                      AND sc.participant_2_id = GREATEST(c1.user_id, c1.target_id)
+                    LIMIT 1
+                )
+                WHERE c1.type = 'PRIVATE'
+                  AND c1.shared_chat_id IS NULL
+                  AND c1.target_id IS NOT NULL
+                """);
+            log.info("  - 已关联 {} 条私聊记录", updated);
+
+            // 步骤3：为没有shared_chat记录的私聊创建新记录
+            log.info("步骤3：创建缺失的shared_chat记录...");
+
+            // 使用临时表避免重复插入（与SQL脚本保持一致）
+            try {
+                jdbcTemplate.execute("DROP TEMPORARY TABLE IF EXISTS temp_missing_shared_chats");
+            } catch (Exception e) {
+                log.debug("清理临时表（可能不存在）: {}", e.getMessage());
+            }
+
+            // 创建临时表
+            jdbcTemplate.execute("""
+                CREATE TEMPORARY TABLE temp_missing_shared_chats AS
+                SELECT DISTINCT
+                    LEAST(c1.user_id, c1.target_id) as participant_1_id,
+                    GREATEST(c1.user_id, c1.target_id) as participant_2_id
+                FROM chat_list c1
+                WHERE c1.type = 'PRIVATE'
+                  AND c1.shared_chat_id IS NULL
+                  AND c1.target_id IS NOT NULL
+                  AND NOT EXISTS (
+                      SELECT 1 FROM shared_chat sc
+                      WHERE sc.chat_type = 'PRIVATE'
+                        AND sc.participant_1_id = LEAST(c1.user_id, c1.target_id)
+                        AND sc.participant_2_id = GREATEST(c1.user_id, c1.target_id)
+                  )
+                """);
+
+            // 获取需要创建的记录数
+            Integer missingCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM temp_missing_shared_chats", Integer.class);
+            log.info("  - 需要创建 {} 个shared_chat记录", missingCount != null ? missingCount : 0);
+
+            // 批量插入shared_chat记录
+            if (missingCount != null && missingCount > 0) {
+                int inserted = jdbcTemplate.update("""
+                    INSERT INTO shared_chat (chat_type, participant_1_id, participant_2_id, created_at, updated_at)
+                    SELECT
+                        'PRIVATE' as chat_type,
+                        participant_1_id,
+                        participant_2_id,
+                        CURRENT_TIMESTAMP as created_at,
+                        CURRENT_TIMESTAMP as updated_at
+                    FROM temp_missing_shared_chats
+                    """);
+                log.info("  - 成功创建 {} 条shared_chat记录", inserted);
+            }
+
+            // 清理临时表
+            try {
+                jdbcTemplate.execute("DROP TEMPORARY TABLE IF EXISTS temp_missing_shared_chats");
+            } catch (Exception e) {
+                log.debug("清理临时表失败: {}", e.getMessage());
+            }
+
+            // 步骤4：再次更新chat_list，关联新创建的shared_chat_id
+            log.info("步骤4：关联新创建的shared_chat记录...");
+            updated = jdbcTemplate.update("""
+                UPDATE chat_list c1
+                SET shared_chat_id = (
+                    SELECT sc.id
+                    FROM shared_chat sc
+                    WHERE sc.chat_type = 'PRIVATE'
+                      AND sc.participant_1_id = LEAST(c1.user_id, c1.target_id)
+                      AND sc.participant_2_id = GREATEST(c1.user_id, c1.target_id)
+                    LIMIT 1
+                )
+                WHERE c1.type = 'PRIVATE'
+                  AND c1.shared_chat_id IS NULL
+                  AND c1.target_id IS NOT NULL
+                """);
+            log.info("  - 已关联 {} 条私聊记录", updated);
+
+            // 步骤5：处理群聊记录
+            log.info("步骤5：处理群聊记录...");
+            updated = jdbcTemplate.update("""
+                UPDATE chat_list
+                SET shared_chat_id = group_id
+                WHERE type = 'GROUP'
+                  AND shared_chat_id IS NULL
+                  AND group_id IS NOT NULL
+                """);
+            log.info("  - 已更新 {} 条群聊记录", updated);
+
+            // 步骤6：验证迁移结果
+            log.info("步骤6：验证迁移结果...");
+            java.util.List<java.util.Map<String, Object>> results = jdbcTemplate.queryForList("""
+                SELECT
+                    type,
+                    COUNT(*) as total,
+                    SUM(CASE WHEN shared_chat_id IS NULL THEN 1 ELSE 0 END) as missing_shared_chat_id,
+                    SUM(CASE WHEN shared_chat_id IS NOT NULL THEN 1 ELSE 0 END) as has_shared_chat_id
+                FROM chat_list
+                GROUP BY type
+                """);
+
+            for (java.util.Map<String, Object> result : results) {
+                log.info("  - 类型: {}, 总数: {}, 缺少shared_chat_id: {}, 已有shared_chat_id: {}",
+                    result.get("type"),
+                    result.get("total"),
+                    result.get("missing_shared_chat_id"),
+                    result.get("has_shared_chat_id"));
+            }
+
+            // 步骤7：检查是否还有孤立的chat_list记录
+            Integer remainingMissing = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM chat_list WHERE shared_chat_id IS NULL", Integer.class);
+
+            if (remainingMissing != null && remainingMissing > 0) {
+                log.warn("⚠️ 仍有 {} 条chat_list记录缺少shared_chat_id", remainingMissing);
+
+                // 列出前10条问题记录
+                java.util.List<java.util.Map<String, Object>> orphanRecords = jdbcTemplate.queryForList("""
+                    SELECT id, user_id, target_id, type, group_id, create_time
+                    FROM chat_list
+                    WHERE shared_chat_id IS NULL
+                    ORDER BY create_time DESC
+                    LIMIT 10
+                    """);
+
+                log.warn("  问题记录示例:");
+                for (java.util.Map<String, Object> record : orphanRecords) {
+                    log.warn("    - ID: {}, user_id: {}, target_id: {}, type: {}, group_id: {}",
+                        record.get("id"),
+                        record.get("user_id"),
+                        record.get("target_id"),
+                        record.get("type"),
+                        record.get("group_id"));
+                }
+            } else {
+                log.info("✅ 所有chat_list记录都已有shared_chat_id");
+            }
+
+            // 步骤8：验证shared_chat表的完整性（额外验证）
+            log.info("步骤8：验证shared_chat表完整性...");
+            java.util.List<java.util.Map<String, Object>> orphanSharedChats = jdbcTemplate.queryForList("""
+                SELECT
+                    sc.id as shared_chat_id,
+                    sc.chat_type,
+                    sc.participant_1_id,
+                    sc.participant_2_id,
+                    COUNT(cl.id) as chat_list_count
+                FROM shared_chat sc
+                LEFT JOIN chat_list cl ON cl.shared_chat_id = sc.id
+                GROUP BY sc.id, sc.chat_type, sc.participant_1_id, sc.participant_2_id
+                HAVING chat_list_count = 0
+                LIMIT 20
+                """);
+
+            if (!orphanSharedChats.isEmpty()) {
+                log.warn("⚠️ 发现 {} 个孤立的shared_chat记录（没有对应的chat_list记录）", orphanSharedChats.size());
+                for (java.util.Map<String, Object> orphan : orphanSharedChats) {
+                    log.warn("    - shared_chat_id: {}, chat_type: {}, participants: {}, {}",
+                        orphan.get("shared_chat_id"),
+                        orphan.get("chat_type"),
+                        orphan.get("participant_1_id"),
+                        orphan.get("participant_2_id"));
+                }
+            } else {
+                log.info("✅ shared_chat表完整性验证通过");
+            }
+
+            log.info("==================== 聊天系统数据迁移完成 ====================");
+
+        } catch (Exception e) {
+            log.error("❌ 聊天系统数据迁移失败", e);
+            // 不抛出异常，允许应用继续启动
+            // 但记录详细错误信息供排查
+            log.error("迁移失败详情: {}", e.getMessage());
         }
     }
 }

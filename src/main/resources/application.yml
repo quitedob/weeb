@@ -37,7 +37,8 @@ spring:
     level:
       root: INFO
       com.web: DEBUG
-      org.springframework.security: DEBUG
+      org.springframework.security: INFO
+      org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
       org.springframework.web: DEBUG
       org.springframework.jdbc: DEBUG
       org.springframework.transaction: DEBUG

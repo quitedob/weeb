@@ -25,13 +25,7 @@ public interface UserMapper extends BaseMapper<User> {
     @Update("UPDATE `user` SET online_status = #{onlineStatus} WHERE id = #{userId}")
     void updateOnlineStatus(@Param("userId") Long userId, @Param("onlineStatus") Integer onlineStatus);
 
-    /**
-     * 根据用户ID获取用户基本信息
-     * @param userId 用户ID
-     * @return 用户基本信息
-     */
-    User selectById(@Param("userId") Long userId);
-
+  
     /**
      * 根据用户ID获取用户完整信息（包含统计数据）
      * @param userId 用户ID
@@ -98,13 +92,7 @@ public interface UserMapper extends BaseMapper<User> {
      */
     int updateUser(User user);
 
-    /**
-     * 删除用户（注意：统计数据会通过外键级联删除）
-     * @param userId 用户ID
-     * @return 受影响行数
-     */
-    int deleteById(@Param("userId") Long userId);
-
+    
     /**
      * 统计用户总数
      * @param type 用户类型（可选）

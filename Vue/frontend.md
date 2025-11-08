@@ -2,82 +2,100 @@
 
 ## 项目概述
 
-这是一个基于Vue 3.5.13的前端社交平台项目，采用现代化的前端架构设计，提供实时聊天、内容管理、AI对话、用户社交等完整功能。项目使用Vite作为构建工具，Element Plus作为UI组件库，实现了响应式设计和TypeScript支持。
+这是一个基于Vue 3.5.13的前端社交平台项目，采用现代化的前端架构设计，提供实时聊天、内容管理、用户社交等完整功能。项目使用Vite作为构建工具，Element Plus作为UI组件库，实现了响应式设计和Apple风格的用户界面。
 
 ### 技术栈
-- **Vue 3.5.13**: 渐进式JavaScript框架
-- **Vue Router 4.5.0**: 路由管理
-- **Pinia 2.1.7**: 状态管理
+- **Vue 3.5.13**: 渐进式JavaScript框架，使用Composition API
+- **Vue Router 4.5.0**: 路由管理，支持懒加载和路由守卫
+- **Pinia 2.1.7**: 状态管理，集成持久化插件
 - **Element Plus 2.11.5**: UI组件库
-- **Axios 1.7.9**: HTTP客户端
-- **Vite 5.4.11**: 构建工具
-- **Quill 2.0.3**: 富文本编辑器
-- **@tanstack/vue-virtual 3.13.12**: 虚拟滚动
-- **@stomp/stompjs 7.2.1**: WebSocket通信
+- **Axios 1.7.9**: HTTP客户端，统一API调用
+- **Vite 5.4.11**: 构建工具，支持热重载
+- **Quill 2.0.3**: 富文本编辑器，用于文章编辑
+- **@tanstack/vue-virtual 3.13.12**: 虚拟滚动，优化大列表性能
+- **@stomp/stompjs 7.2.1**: WebSocket通信，STOMP协议支持
+- **SockJS-client 1.6.1**: WebSocket降级支持
+- **Socket.io-client 4.8.1**: 备用WebSocket通信
 - **Day.js 1.11.18**: 日期处理库
 - **Lodash-es 4.17.21**: 工具函数库
-- **DOMPurify 3.3.0**: HTML内容净化
+- **DOMPurify 3.3.0**: HTML内容净化，XSS防护
 - **Marked 16.4.1**: Markdown解析器
+- **Pinia-plugin-persistedstate 2.4.0**: 状态持久化
+
+### 项目特性
+- **Apple风格UI**: 统一的Apple设计语言组件库
+- **实时通信**: WebSocket + STOMP实现的聊天系统
+- **响应式设计**: 完美适配桌面端和移动端
+- **主题系统**: 支持亮色/暗色/系统主题切换
+- **性能优化**: 虚拟滚动、懒加载、缓存策略
+- **权限管理**: 基于JWT的身份认证和授权
 
 ---
 
-## 项目结构
+## 实际项目结构
 
 ```
 Vue/src/
 ├── api/                          # API接口封装
 │   ├── axiosInstance.js          # Axios实例配置
-│   └── modules/                  # API模块 (19个模块)
+│   ├── index.js                  # API统一导出
+│   └── modules/                  # API模块 (20+个模块)
 │       ├── admin.js              # 管理员功能API
 │       ├── ai.js                 # AI功能API
 │       ├── article.js            # 文章管理API
 │       ├── auth.js               # 认证相关API
-│       ├── chat.js               # 聊天功能API 
+│       ├── chat.js               # 聊天功能API
 │       ├── comment.js            # 评论管理API
 │       ├── contact.js            # 联系人管理API
 │       ├── follow.js             # 关注管理API
 │       ├── group.js              # 群组管理API
-│       ├── message.js            # 消息管理API 
+│       ├── message.js            # 消息管理API
 │       ├── messageThread.js      # 消息线程API
 │       ├── notification.js       # 通知管理API
 │       ├── rolePermission.js     # 角色权限API
 │       ├── search.js             # 搜索功能API
+│       ├── searchEnhanced.js     # 增强搜索API
 │       ├── user.js               # 用户管理API
 │       ├── userLevel.js          # 用户等级API
 │       ├── userLevelHistory.js   # 等级历史API
 │       └── userLevelIntegration.js # 等级积分API
 ├── components/                   # 公共组件
-│   ├── common/                   # Apple系列组件 (21个组件)
+│   ├── common/                   # Apple系列组件 (19个组件)
 │   │   ├── AppleButton.vue       # 统一按钮组件
-│   │   ├── AppleInput.vue        # 统一输入框
 │   │   ├── AppleCard.vue         # 卡片容器
+│   │   ├── AppleCol.vue          # 列组件
+│   │   ├── AppleDropdown.vue     # 下拉菜单
+│   │   ├── AppleDropdownItem.vue # 下拉菜单项
+│   │   ├── AppleGrid.vue         # 网格布局
+│   │   ├── AppleInput.vue        # 统一输入框
+│   │   ├── AppleMessage.vue      # 消息组件
 │   │   ├── AppleModal.vue        # 模态对话框
-│   │   ├── AppleTable.vue        # 数据表格
-│   │   ├── AppleSelect.vue       # 下拉选择
-│   │   ├── AppleTextarea.vue     # 多行文本
+│   │   ├── AppleOption.vue       # 选项组件
 │   │   ├── ApplePagination.vue   # 分页组件
+│   │   ├── AppleSelect.vue       # 下拉选择
+│   │   ├── AppleSwitch.vue       # 开关组件
+│   │   ├── AppleTable.vue        # 数据表格
+│   │   ├── AppleTabPane.vue      # 标签面板
 │   │   ├── AppleTabs.vue         # 标签页
 │   │   ├── AppleTag.vue          # 标签组件
-│   │   ├── AppleSwitch.vue       # 开关组件
-│   │   ├── AppleDropdown.vue     # 下拉菜单
-│   │   ├── AppleGrid.vue         # 网格布局
-│   │   ├── AppleCol.vue          # 列组件
-│   │   ├── AppleOption.vue       # 选项组件
-│   │   ├── AppleTabPane.vue      # 标签面板
-│   │   ├── AppleMessage.vue      # 消息组件
+│   │   ├── AppleTextarea.vue     # 多行文本
 │   │   ├── SimpleTabs.vue        # 简单标签页
 │   │   └── ThemeToggle.vue       # 主题切换
 │   ├── message/                  # 消息相关组件
+│   │   ├── EmojiSelector.vue     # 表情选择器
 │   │   ├── MessageInput.vue      # 消息输入组件
 │   │   ├── MessageList.vue       # 消息列表
-│   │   └── EmojiSelector.vue     # 表情选择器
+│   │   ├── MessageThread.vue     # 消息线程
+│   │   └── MessageThreadDisplay.vue # 消息线程显示
 │   ├── article/                  # 文章相关组件
 │   │   └── ArticleVersions.vue   # 文章版本管理
 │   ├── group/                    # 群组相关组件
+│   │   ├── GroupApplicationHandler.vue # 群组申请处理
+│   │   └── GroupMemberManager.vue # 群组成员管理
 │   ├── EnhancedSearch.vue        # 增强搜索组件
 │   ├── UserMenu.vue              # 用户菜单
 │   └── VirtualMessageList.vue    # 虚拟消息列表
-├── views/                        # 页面组件 (22个页面)
+├── views/                        # 页面组件 (21个页面)
 │   ├── chat/                     # 聊天相关页面
 │   │   ├── ChatPage.vue          # 聊天页面
 │   │   ├── ChatWindow.vue        # 聊天窗口
@@ -105,28 +123,29 @@ Vue/src/
 │       └── GroupDetail.vue       # 群组详情
 ├── stores/                       # Pinia状态管理
 │   ├── authStore.js              # 用户认证状态
-│   ├── chatStore.js              # 聊天状态管理 
+│   ├── chatStore.js              # 聊天状态管理
 │   ├── newChatStore.js           # 新聊天状态管理
 │   ├── notificationStore.js      # 通知状态管理
 │   ├── themeStore.js             # 主题状态管理
 │   ├── index.js                  # Store统一导出
 │   ├── setup.js                  # Store配置初始化
+│   ├── README.md                 # Store说明文档
 │   └── plugins/                  # Store插件
 │       ├── monitorPlugin.js      # 监控插件
 │       └── persistPlugin.js      # 持久化插件
 ├── router/                       # 路由配置
 │   ├── index.js                  # 主路由配置
-│   └── admin-routes.js           # 管理员路由
+│   └── admin-routes.js           # 管理员路由（已禁用）
 ├── utils/                        # 工具函数 (10个工具模块)
-│   ├── appleMessage.js           # 消息处理工具
-│   ├── appleIcons.js             # 图标管理
 │   ├── appleConfirm.js           # 确认对话框
+│   ├── appleIcons.js             # 图标管理
+│   ├── appleMessage.js           # 消息处理工具
+│   ├── elementMigrationHelper.js # Element迁移助手
 │   ├── logger.js                 # 日志记录
-│   ├── uuid.js                   # UUID生成
 │   ├── message.js                # 消息格式化
 │   ├── messageStatus.js          # 消息状态
 │   ├── performance.js            # 性能监控
-│   ├── elementMigrationHelper.js # Element迁移助手
+│   ├── uuid.js                   # UUID生成
 │   └── websocketDebug.js         # WebSocket调试工具
 ├── layout/                       # 布局组件
 │   ├── Layout.vue                # 主布局
@@ -136,19 +155,44 @@ Vue/src/
 ├── assets/                       # 静态资源
 │   ├── apple-style.css           # Apple风格样式
 │   └── main.css                  # 主样式文件
+├── config/                       # 配置文件
+│   └── performance.js            # 性能配置
 ├── constant/                     # 常量定义
 │   └── emoji/                    # 表情相关常量
 │       └── emoji.js              # 表情数据
+├── article/                      # 文章页面组件
+│   ├── ArticleEdit.vue           # 文章编辑页面
+│   ├── ArticleMain.vue           # 文章主页
+│   ├── ArticleManage.vue         # 文章管理
+│   ├── ArticleModeration.vue     # 文章审核
+│   ├── ArticleRead.vue           # 文章阅读
+│   └── ArticleWrite.vue          # 文章写作
 ├── auth/                         # 认证相关页面
-│   ├── Register.vue              # 注册页面（备用）
 │   ├── HelpCenter.vue            # 帮助中心
+│   ├── Register.vue              # 注册页面（备用）
 │   ├── UserInform.vue            # 用户信息
 │   └── usermain.vue              # 用户主页面
+├── Chat/                         # 聊天组件
+│   ├── ChatPage.vue              # 聊天页面
+│   ├── ChatPage.vue.backup       # 聊天页面备份
+│   └── components/               # 聊天子组件
+│       ├── CustomStatus.vue      # 自定义状态
+│       ├── LinkPreview.vue       # 链接预览
+│       ├── MessageThread.vue     # 消息线程
+│       └── UserMention.vue       # 用户提及
+├── contact/                      # 联系人页面
+│   └── ContactPage.vue           # 联系人页面
+├── group/                        # 群组页面
+│   ├── GroupDetailPage.vue       # 群组详情页面
+│   └── GroupPage.vue             # 群组页面
+├── search/                       # 搜索页面
+│   └── SearchPage.vue            # 搜索页面
 ├── value/                        # 值相关组件
 │   ├── usevalue.vue              # 值使用组件
 │   └── value.vue                 # 值组件
 ├── video/                        # 视频相关功能
 │   └── Video.vue                 # 视频组件
+├── App.vue                       # 根组件
 └── main.js                       # 应用入口
 ```
 
@@ -162,48 +206,50 @@ Vue/src/
 **文件路径**: `views/Login.vue`
 **设计目的**:
 - 提供用户身份验证入口
-- 支持JWT令牌认证
-- 记住登录状态和自动登录
+- 支持JWT令牌认证和自动刷新
+- 实现智能路由跳转和登录状态持久化
 - 友好的错误提示和验证反馈
 
 **核心功能**:
 - 用户名/密码登录
 - 表单验证（必填、格式校验）
-- 登录状态持久化
+- JWT令牌管理（访问令牌+刷新令牌）
+- 登录状态持久化（localStorage）
+- 自动跳转到目标页面
 - 登录失败错误处理
-- 跳转到注册页面链接
 
 **对应后端API**:
 - `POST /api/auth/login` - 用户登录
 - `GET /api/users/me` - 获取用户信息（验证token）
 
-**设计特点**:
-- 简洁的登录表单
-- 响应式布局适配移动端
-- 加载状态指示器
+**技术特点**:
+- **智能令牌管理**: 自动检测令牌过期并刷新
+- **路由守卫集成**: 自动重定向到登录前页面
+- **Pinia状态管理**: 与authStore深度集成
+- **响应式布局**: 适配桌面端和移动端
 
 #### 1.2 注册页面 (`/register`)
 **文件路径**: `views/Register.vue`
 **设计目的**:
 - 新用户注册账号
 - 收集必要用户信息
-- 密码强度验证
-- 防止恶意注册
+- 密码强度验证和实时反馈
+- 防止恶意注册和重复提交
 
 **核心功能**:
 - 用户名、邮箱、密码注册
 - 密码确认验证
 - 邮箱格式验证
-- 注册协议同意
+- 用户名可用性检查
 - 注册成功自动登录
 
 **对应后端API**:
 - `POST /api/auth/register` - 用户注册
 
-**设计特点**:
-- 分步骤注册流程
-- 实时密码强度提示
-- 邮箱验证状态显示
+**技术特点**:
+- **实时验证**: 用户名和邮箱实时可用性检查
+- **密码强度指示**: 动态密码强度提示
+- **防重复提交**: 注册按钮状态管理
 
 #### 1.3 忘记密码页面 (`/forget`)
 **文件路径**: `views/Forget.vue`
@@ -222,9 +268,18 @@ Vue/src/
 - `POST /api/auth/forgot-password` - 忘记密码
 - `POST /api/auth/reset-password` - 重置密码
 
-**设计特点**:
-- 邮件发送状态反馈
-- 安全的密码重置流程
+#### 1.4 重置密码页面 (`/reset-password`)
+**文件路径**: `views/ResetPassword.vue`
+**设计目的**:
+- 通过重置链接设置新密码
+- 验证重置令牌有效性
+- 安全的密码更新流程
+
+**核心功能**:
+- 重置令牌验证
+- 新密码设置和确认
+- 密码强度验证
+- 重置成功后自动登录
 
 ### 2. 主功能页面
 
@@ -951,183 +1006,181 @@ Vue/src/
 
 ---
 
-## API模块说明
+## 实际API模块说明
 
-### 1. API模块 (`api/modules/`)
-基于axios实例封装的API模块，按功能领域组织：
+### API模块 (`api/modules/`)
+基于axios实例封装的20+个API模块，统一错误处理和响应拦截：
 
-#### 核心API模块
-- **auth.js**: 用户认证相关API
-  - `login(data)` - 用户登录
-  - `register(data)` - 用户注册
-  - `logout()` - 用户登出
-  - `validateToken()` - 验证令牌
-  - `refreshToken()` - 刷新令牌
-  - `changePassword(data)` - 修改密码
-  - `forgotPassword(email)` - 忘记密码
-  - `resetPassword(data)` - 重置密码
-  - `verifyResetToken(token)` - 验证重置令牌
+#### 认证与用户管理
+- **auth.js**: JWT认证系统，自动令牌刷新
+- **user.js**: 用户资料、关注、统计信息
+- **admin.js**: 管理员功能（封禁、重置密码）
+- **rolePermission.js**: 角色权限管理
 
-- **user.js**: 用户管理API 
-  - `getCurrentUser()` - 获取当前用户信息
-  - `getCurrentUserProfile()` - 获取当前用户完整信息
-  - `getCurrentUserInfo()` - 获取当前用户基本信息
-  - `getUserById(userId)` - 获取指定用户信息
-  - `getUserByUsername(username)` - 通过用户名获取用户信息 
-  - `getUsers(params)` - 获取用户列表（分页）
-  - `searchUsers(q, limit)` - 搜索用户
-  - `updateProfile(data)` - 更新个人资料
-  - `updateCurrentUser(data)` - 更新当前用户信息
-  - `uploadAvatar(file)` - 上传头像
-  - `followUser(userId)` - 关注用户
-  - `unfollowUser(userId)` - 取消关注
-  - `getUserFollowers(userId, page, size)` - 获取粉丝列表
-  - `getUserStats(userId)` - 获取用户统计信息
-  - `getUserRecentActivities(userId, limit)` - 获取用户最近活动
+#### 实时通信模块
+- **chat.js**: 聊天会话管理、在线状态、WebSocket集成
+- **message.js**: 消息发送、状态管理、反应系统
+- **messageThread.js**: 消息线程和回复管理
 
-- **admin.js**: 管理员功能API
-  - `getUsers(params)` - 获取用户列表
-  - `banUser(userId)` - 封禁用户
-  - `unbanUser(userId)` - 解封用户
-  - `resetUserPassword(userId, password)` - 重置密码
+#### 内容管理系统
+- **article.js**: 文章CRUD、点赞收藏、审核功能
+- **comment.js**: 评论系统，支持嵌套回复
+- **group.js**: 群组创建、成员管理、权限控制
 
-- **rolePermission.js**: 角色权限API
-  - `getRoles()` - 获取角色列表
-  - `createRole(data)` - 创建角色
-  - `updateRole(id, data)` - 更新角色
-  - `deleteRole(id)` - 删除角色
+#### 社交功能
+- **contact.js**: 好友管理、申请处理、分组系统
+- **follow.js**: 关注/取消关注、关系状态
+- **notification.js**: 实时通知推送和管理
 
-- **chat.js**: 聊天功能API 
-  - `getChatList()` - 获取聊天列表
-  - `createChat(data)` - 创建聊天会话
-  - `getChatMessages(chatId, params)` - 获取聊天消息
-  - `sendMessage(chatId, data)` - 发送消息
-  - `markAsRead(chatId)` - 标记已读
-  - `deleteChat(chatId)` - 删除聊天
-  - `addReaction(messageId, reaction)` - 添加消息反应
-  - `recallMessage(messageId)` - 撤回消息
-  - `getOnlineUsers()` - 获取在线用户列表
-  - `checkUserOnline(targetUserId)` - 检查用户在线状态
-  - `getUnreadStats()` - 获取未读消息统计 
-  - `getUnreadCount(chatId)` - 获取单个聊天未读数 
-  - `batchMarkAsRead(chatIds)` - 批量标记已读 
-  - `getGroupUnreadCount(groupId)` - 获取群组未读数 
+#### 高级功能
+- **ai.js**: 15+种AI功能（文本处理、翻译、摘要等）
+- **search.js**: 基础搜索功能
+- **searchEnhanced.js**: 增强搜索（Elasticsearch + Redis缓存）
 
-#### 内容管理API模块
-- **article.js**: 文章管理API
-  - `getArticles(params)` - 获取文章列表
-  - `getArticleById(id)` - 获取文章详情
-  - `createArticle(data)` - 创建文章
-  - `updateArticle(id, data)` - 更新文章
-  - `deleteArticle(id)` - 删除文章
-  - `searchArticles(query, page, size)` - 搜索文章
-  - `likeArticle(id)` - 点赞文章
-  - `collectArticle(id)` - 收藏文章
-  - `getArticleComments(id, page, size)` - 获取文章评论
+#### 用户成长系统
+- **userLevel.js**: 用户等级和积分管理
+- **userLevelHistory.js**: 等级变更历史追踪
+- **userLevelIntegration.js**: 等级系统集成
 
-- **comment.js**: 评论管理API
-  - `getComments(articleId, page, size)` - 获取文章评论
-  - `addComment(articleId, content)` - 添加评论
-  - `updateComment(commentId, content)` - 更新评论
-  - `deleteComment(commentId)` - 删除评论
-  - `likeComment(commentId)` - 点赞评论
+### 2. 状态管理 (`stores/`)
+基于Pinia的集中式状态管理，支持持久化和跨标签页同步：
 
-#### 社交功能API模块
-- **contact.js**: 联系人管理API
-  - `getContacts(status)` - 获取联系人列表
-  - `applyFriend(applyVo)` - 发送好友申请
-  - `acceptFriend(contactId)` - 接受好友申请
-  - `declineFriend(contactId)` - 拒绝好友申请
-  - `blockContact(contactId)` - 拉黑联系人
-  - `getContactGroups()` - 获取联系人分组
-  - `createContactGroup(name, order)` - 创建分组
+#### **authStore.js** - 认证状态管理
+```javascript
+// 核心功能
+- JWT令牌自动管理（访问令牌 + 刷新令牌）
+- 智能令牌刷新（过期前5分钟自动刷新）
+- 用户信息缓存和同步
+- 登录状态持久化
+- 自动清理机制
+```
 
-- **group.js**: 群组管理API
-  - `getMyGroups()` - 获取我的群组
-  - `getMyCreatedGroups()` - 获取我创建的群组
-  - `createGroup(data)` - 创建群组
-  - `updateGroup(groupId, data)` - 更新群组
-  - `deleteGroup(groupId)` - 删除群组
-  - `inviteUser(groupId, userId)` - 邀请用户加入群组
-  - `leaveGroup(groupId)` - 退出群组
+#### **chatStore.js** - 聊天状态管理
+```javascript
+// 核心功能
+- WebSocket连接管理（STOMP协议）
+- 聊天列表和消息缓存
+- 实时消息推送
+- 在线用户状态同步
+- 未读消息计数
+- 消息状态管理（发送中/已发送/已读）
+```
 
-- **follow.js**: 关注管理API
-  - `followUser(targetUserId)` - 关注用户
-  - `unfollowUser(targetUserId)` - 取消关注
-  - `getFollowStatus(targetUserId)` - 获取关注状态
-  - `getFollowers(userId, page, size)` - 获取粉丝列表
-  - `getFollowing(userId, page, size)` - 获取关注列表
+#### **notificationStore.js** - 通知状态管理
+```javascript
+// 核心功能
+- 通知列表管理
+- 实时通知推送
+- 未读通知计数
+- 通知类型筛选
+- 自动刷新机制
+```
 
-#### 高级功能API模块
-- **ai.js**: AI功能API
-  - `chatWithAI(messages)` - AI聊天对话
-  - `generateArticleSummary(content)` - 生成文章摘要
-  - `refineText(content, tone)` - 润色文本
-  - `translateText(content, targetLang)` - 翻译文本
-  - `extractKeywords(content, count)` - 提取关键词
-  - `generateTitleSuggestions(content, count)` - 生成标题建议
+#### **themeStore.js** - 主题状态管理
+```javascript
+// 核心功能
+- 亮色/暗色/系统主题切换
+- 主题配置持久化
+- 主题变量动态更新
+```
 
-- **search.js**: 搜索功能API
-  - `searchMessages(q, page, size, filters)` - 搜索消息
-  - `searchUsers(q, page, size)` - 搜索用户
-  - `searchGroups(q, page, size)` - 搜索群组
-  - `searchArticles(q, page, size)` - 搜索文章
-  - `searchAll(q, page, size)` - 综合搜索
+#### **newChatStore.js** - 扩展聊天功能
+```javascript
+// 核心功能
+- 高级聊天功能状态
+- 消息线程管理
+- 文件上传状态
+- 消息搜索和过滤
+```
 
-- **notification.js**: 通知管理API
-  - `getNotifications(page, size)` - 获取通知列表
-  - `markAsRead(notificationId)` - 标记已读
-  - `markAllAsRead()` - 全部标记已读
-  - `deleteNotification(notificationId)` - 删除通知
+### Store特性
+- **持久化**: localStorage/sessionStorage自动持久化
+- **跨标签页同步**: 多标签页状态实时同步
+- **自动刷新**: 数据自动同步和令牌刷新
+- **错误恢复**: 网络错误和认证失败自动处理
+- **开发监控**: 开发环境状态变化监控
 
-- **message.js**: 消息管理API 
-  - `sendMessage(chatId, messageData)` - 发送消息
-  - `getChatRecord(chatId, page, size)` - 获取聊天记录
-  - `recallMessage(messageId)` - 撤回消息
-  - `markAsRead(chatId)` - 标记已读
-  - `getUnreadStats()` - 获取未读统计
-  - `getUnreadCount(chatId)` - 获取单个聊天未读数 
-  - `batchMarkAsRead(chatIds)` - 批量标记已读 
-  - `getGroupUnreadCount(groupId)` - 获取群组未读数 
+## 核心技术架构
 
-- **messageThread.js**: 消息线程API
-  - `createThread(data)` - 创建消息线程
-  - `getThreadMessages(threadId, page, size)` - 获取线程消息
-  - `replyToThread(threadId, content)` - 回复线程
-  - `addThreadParticipant(threadId, userId)` - 添加参与者
+### 1. 工具函数库 (`utils/`)
+完整的前端工具函数库，支持日常开发需求：
 
-- **comment.js**: 评论管理API
-  - `getComments(articleId, page, size)` - 获取文章评论
-  - `addComment(articleId, content)` - 添加评论
-  - `updateComment(commentId, content)` - 更新评论
-  - `deleteComment(commentId)` - 删除评论
-  - `likeComment(commentId)` - 点赞评论
+- **appleMessage.js**: Apple风格消息提示系统
+- **appleConfirm.js**: 统一确认对话框组件
+- **appleIcons.js**: 图标管理和缓存系统
+- **message.js**: 消息格式化和处理
+- **messageStatus.js**: 消息状态管理（发送中/已发送/已读/失败）
+- **logger.js**: 开发日志记录系统
+- **performance.js**: 性能监控和分析
+- **uuid.js**: UUID生成工具
+- **elementMigrationHelper.js**: Element Plus迁移助手
+- **websocketDebug.js**: WebSocket连接调试工具
 
-#### 等级管理API模块
-- **userLevel.js**: 用户等级API
-  - `getUserLevel(userId)` - 获取用户等级
-  - `getLevelDefinitions()` - 获取等级定义
-  - `addPoints(userId, points, reason)` - 增加积分
+### 2. 路由系统 (`router/`)
+基于Vue Router 4.x的现代化路由系统：
 
-- **userLevelHistory.js**: 等级历史API
-  - `getUserLevelHistory(userId, page, size)` - 获取等级历史
-  - `getLevelStatistics()` - 获取等级统计
+#### **主路由配置 (index.js)**
+```javascript
+// 核心特性
+- 懒加载路由组件（代码分割）
+- 路由守卫和权限控制
+- JWT令牌自动验证
+- 智能重定向机制
+- 元数据管理（页面标题、权限要求）
 
-- **userLevelIntegration.js**: 等级积分API
-  - `completeTask(userId, taskId)` - 完成任务
-  - `getAvailableTasks(userId)` - 获取可用任务
+// 实际路由结构
+├── / → /chat (默认重定向)
+├── 认证路由 (/login, /register, /forget)
+├── 主应用路由 (Layout包装)
+│   ├── /chat - 聊天系统
+│   ├── /chat/:type/:id - 指定聊天
+│   ├── /article - 文章中心
+│   ├── /article/read/:id - 文章阅读
+│   ├── /article/write - 文章发布
+│   ├── /article/manage - 文章管理
+│   ├── /article/edit/:id - 文章编辑
+│   ├── /contact - 联系人管理
+│   ├── /groups - 群组列表
+│   ├── /groups/manage - 群组管理
+│   ├── /group/:id - 群组详情
+│   ├── /profile - 个人资料
+│   ├── /level-history - 等级历史
+│   ├── /setting - 系统设置
+│   ├── /search - 全局搜索
+│   ├── /notifications - 通知中心
+│   ├── /test-notifications - 通知测试
+│   └── /user/:id - 用户详情
+└── /* → 404页面
+```
 
-## 工具库说明
+#### **路由守卫功能**
+- **认证检查**: 自动验证JWT令牌有效性
+- **智能刷新**: 令牌即将过期时自动刷新
+- **权限控制**: 基于用户角色的页面访问控制
+- **重定向管理**: 登录后自动跳转到目标页面
+- **错误处理**: 认证失败时自动清理并重定向
 
-### 2. 工具函数 (`utils/`)
-- **appleMessage.js**: 消息处理工具
-- **appleIcons.js**: 图标管理
-- **appleConfirm.js**: 确认对话框
-- **logger.js**: 日志记录
-- **uuid.js**: UUID生成
-- **message.js**: 消息格式化
-- **elementMigrationHelper.js**: Element迁移助手
-- **websocketDebug.js**: WebSocket调试工具
+### 3. 布局系统 (`layout/`)
+响应式布局组件，支持多种设备：
+
+#### **Layout.vue - 主布局容器**
+- **侧边栏导航**: 折叠/展开，响应式适配
+- **顶部导航栏**: 页面标题、用户菜单、通知铃铛
+- **主内容区**: 路由视图容器，自适应高度
+- **主题集成**: 完整的主题切换支持
+- **移动端适配**: 小屏幕自动折叠侧边栏
+
+#### **AsideMenu.vue - 侧边导航菜单**
+- **导航分组**: 功能模块分类显示
+- **状态指示**: 当前页面高亮显示
+- **用户信息**: 头像、昵称、在线状态
+- **快捷操作**: 主题切换、设置入口
+
+#### **NotificationBell.vue - 通知铃铛组件**
+- **实时更新**: WebSocket推送通知
+- **未读计数**: 动态显示未读数量
+- **快速预览**: 下拉显示最新通知
+- **标记已读**: 批量标记已读功能
 
 ### 3. 状态管理 (`stores/`)
 基于Pinia的状态管理，按功能模块组织：
@@ -1166,42 +1219,92 @@ Vue/src/
 
 ---
 
-## 设计原则
+## 项目架构特性
 
-### 1. 用户体验原则
-- **一致性**: 统一的Apple风格UI组件和交互模式
-- **响应式**: 完美适配桌面端和移动端设备
-- **直观性**: 清晰的信息层级和操作反馈
-- **可访问性**: 支持键盘导航和屏幕阅读器
-- **流畅性**: 60fps动画和流畅的页面切换
+### 1. 实时通信架构
+- **WebSocket + STOMP**: 实现稳定的实时消息传输
+- **连接管理**: 自动重连、心跳保活、连接状态监控
+- **消息队列**: 确保消息可靠传递和顺序
+- **多协议支持**: SockJS降级、Socket.io备用方案
 
-### 2. 性能优化原则
-- **懒加载**: 路由组件和页面按需加载，首屏优化
-- **虚拟滚动**: 使用@tanstack/vue-virtual处理大列表
-- **缓存策略**: 多层缓存（浏览器缓存、内存缓存、IndexedDB）
-- **代码分割**: 基于路由和功能的代码分割
-- **资源优化**: 图片懒加载、字体子集、CDN加速
+### 2. Apple风格设计系统
+- **统一组件库**: 19个Apple风格UI组件
+- **设计语言**: 遵循Apple Human Interface Guidelines
+- **主题系统**: 亮色/暗色/系统主题无缝切换
+- **响应式设计**: 完美适配各种设备尺寸
 
-### 3. 可维护性原则
-- **组件化**: 高内聚、低耦合的组件设计
-- **模块化**: 清晰的目录结构和功能划分
-- **标准化**: 统一的命名规范和代码风格
-- **文档化**: 完整的组件文档和API说明
-- **测试驱动**: 组件单元测试和集成测试
+### 3. 高性能架构
+- **虚拟滚动**: @tanstack/vue-virtual优化大列表性能
+- **懒加载**: 路由和组件按需加载，减少首屏时间
+- **缓存策略**: 多层缓存提升响应速度
+- **代码分割**: 基于功能的智能代码分割
 
-### 4. 安全性原则
-- **身份验证**: JWT令牌管理和自动刷新
-- **权限控制**: 基于用户角色的功能访问控制
-- **数据验证**: 前后端双重数据校验和XSS防护
-- **通信安全**: HTTPS强制使用和API请求签名
-- **敏感信息**: 密码等敏感信息的安全处理
+### 4. 状态管理架构
+- **Pinia生态**: 现代化状态管理，支持DevTools
+- **持久化**: 自动状态持久化和跨标签页同步
+- **模块化**: 按功能域拆分，高内聚低耦合
+- **响应式**: 完整的Vue 3 Composition API集成
 
-### 5. 架构设计原则
-- **状态管理**: 基于Pinia的集中式状态管理
-- **组合式API**: Vue 3 Composition API优先使用
-- **类型安全**: 完整的TypeScript类型定义
-- **错误处理**: 统一的错误捕获和用户友好的错误提示
-- **国际化**: 支持多语言切换的架构设计
+### 5. 开发体验
+- **热重载**: Vite提供极速的开发体验
+- **组件文档**: 完整的组件使用说明和示例
+- **调试工具**: WebSocket调试、性能监控、状态追踪
+- **代码质量**: ESLint + Prettier统一代码风格
+
+### 6. 安全特性
+- **JWT管理**: 智能令牌刷新和安全存储
+- **XSS防护**: DOMPurify内容净化，防止注入攻击
+- **CSRF防护**: 请求签名和验证机制
+- **权限控制**: 细粒度的页面和功能权限控制
+
+---
+
+## 实际开发脚本
+
+### NPM Scripts
+```json
+{
+  "dev": "vite",                           // 开发服务器
+  "build": "vite build",                   // 生产构建
+  "preview": "vite preview",               // 构建预览
+  "test": "vitest",                        // 单元测试
+  "test:run": "vitest run",                // 运行测试
+  "clean:console": "清理console.log",      // 清理调试代码
+  "build:prod": "生产构建(清理后)",        // 生产环境构建
+  "dev:check": "开发环境检查",              // 开发环境验证
+  "precommit": "提交前检查"                // Git提交前验证
+}
+```
+
+### 开发工具链
+- **Vite 5.4.11**: 极速构建工具
+- **Vitest 3.2.4**: 单元测试框架
+- **Vue DevTools**: Vue 3开发者工具
+- **Rollup Visualizer**: 包大小分析工具
+- **Terser**: JavaScript压缩工具
+
+---
+
+## 项目统计
+
+### 代码规模
+- **Vue组件**: 50+ 个组件文件
+- **API模块**: 20+ 个功能模块
+- **工具函数**: 10+ 个实用工具
+- **路由页面**: 21+ 个功能页面
+- **状态管理**: 5个核心Store
+
+### 功能覆盖
+- ✅ **实时聊天**: WebSocket + 消息状态管理
+- ✅ **文章系统**: 创建、编辑、版本管理、审核
+- ✅ **用户管理**: 认证、权限、等级系统
+- ✅ **社交功能**: 好友、群组、关注、通知
+- ✅ **搜索功能**: 全文搜索、高级筛选
+- ✅ **AI集成**: 15+种AI功能接口
+- ✅ **管理系统**: 角色、权限、内容审核
+- ✅ **主题系统**: 完整的主题切换支持
+
+这是一个功能完整、架构现代化、性能优化的前端社交平台项目。
 
 ---
 

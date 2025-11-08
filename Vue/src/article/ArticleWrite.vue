@@ -60,9 +60,6 @@
               class="content-editor"
             ></el-input>
           </div>
-          <div class="form-help">
-            支持Markdown格式：**粗体** *斜体* `代码` ### 标题 - 列表，最多10000字符
-          </div>
         </el-form-item>
 
         <el-form-item label="文章链接" prop="articleLink">
@@ -217,8 +214,32 @@ const publishArticle = async () => {
       
       const response = await createArticle(articleData);
       if (response.code === 0) {
-        ElMessage.success('文章发布成功！');
-        router.push({ name: 'ArticleMain' });
+        // ✅ 改进：根据返回的状态显示不同的提示
+        const article = response.data;
+        const status = article?.status;
+        
+        if (status === 1) {
+          // 待审核状态
+          ElMessageBox.alert(
+            '您的文章已提交审核，审核通过后将自动发布。我们会尽快处理，请耐心等待。',
+            '提交成功',
+            {
+              confirmButtonText: '查看我的文章',
+              type: 'success',
+              callback: () => {
+                router.push({ name: 'ArticleManage' });
+              }
+            }
+          );
+        } else if (status === 2) {
+          // 已发布状态（无需审核）
+          ElMessage.success('文章发布成功！');
+          router.push({ name: 'ArticleMain' });
+        } else {
+          // 其他状态
+          ElMessage.success('文章已保存');
+          router.push({ name: 'ArticleManage' });
+        }
       } else {
         ElMessage.error(response?.message || '发布失败');
       }

@@ -14,7 +14,27 @@ import java.util.Map;
 /**
  * 社交关系控制器
  * 统一管理好友和关注关系
+ * 
+ * ⚠️ 已废弃 (DEPRECATED) - 2025-11-07
+ * 
+ * 此Controller的关注功能已废弃，项目采用好友模型（对称关系）
+ * 
+ * 迁移指南：
+ * - /api/social/follow/{targetUserId} → 使用 /api/contacts/request (POST) 发送好友申请
+ * - /api/social/unfollow/{targetUserId} → 使用 /api/contacts/{contactId} (DELETE) 删除好友
+ * - /api/social/followers → 使用 /api/contacts?status=ACCEPTED (GET) 获取好友列表
+ * - /api/social/following → 使用 /api/contacts?status=ACCEPTED (GET) 获取好友列表
+ * - /api/social/relationship/{targetUserId} → 使用 /api/contacts 查询好友关系
+ * 
+ * 理由：
+ * 1. 好友模型（对称关系）更符合熟人社交产品定位
+ * 2. 关注模型（非对称关系）与好友模型并存导致逻辑混乱
+ * 3. 简化社交关系管理，降低系统复杂度
+ * 
+ * 请更新前端代码使用ContactController的API端点
+ * 此Controller将在下一个版本中移除
  */
+@Deprecated
 @Slf4j
 @RestController
 @RequestMapping("/api/social")

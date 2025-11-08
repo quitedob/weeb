@@ -15,6 +15,11 @@ public class MessageResponse {
     private Long id;
 
     /**
+     * 消息ID（前端期望的字段名）
+     */
+    private Long messageId;
+
+    /**
      * 客户端消息ID（用于关联临时消息）
      */
     private String clientMessageId;
@@ -45,9 +50,14 @@ public class MessageResponse {
     private Integer messageType;
 
     /**
-     * 聊天ID
+     * 聊天ID（String类型，因为chat_list.id是VARCHAR）
      */
-    private Long chatId;
+    private String chatId;
+
+    /**
+     * 目标ID（前端期望的字段）
+     */
+    private Long targetId;
 
     /**
      * 房间ID（兼容旧格式）

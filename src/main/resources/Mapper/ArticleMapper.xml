@@ -273,18 +273,22 @@
 
     <select id="selectArticlesByUserId" parameterType="long" resultMap="ArticleResultMap">
         SELECT
-        article_id,
-        user_id,
-        article_title,
-        article_content,
-        likes_count,
-        favorites_count,
-        sponsors_count,
-        exposure_count,
-        created_at,
-        updated_at
+            article_id,
+            user_id,
+            category_id,
+            article_title,
+            article_content,
+            article_link,
+            status,
+            likes_count,
+            favorites_count,
+            sponsors_count,
+            exposure_count,
+            created_at,
+            updated_at
         FROM articles
         WHERE user_id = #{userId}
+        ORDER BY created_at DESC
     </select>
 
     <!-- 更新用户统计表的文章相关统计数据 -->

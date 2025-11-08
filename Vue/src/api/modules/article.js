@@ -8,6 +8,25 @@ import { getUserById, getUserByUsername } from './user';  // 导入用户相关A
  * 负责所有与文章相关的操作
  */
 
+// 文章状态常量
+export const ARTICLE_STATUS = {
+    DRAFT: 0,           // 草稿
+    PENDING_REVIEW: 1,  // 待审核
+    PUBLISHED: 2,       // 已发布
+    REJECTED: 3         // 已拒绝
+};
+
+// 文章状态标签映射
+export const getStatusTag = (status) => {
+    const statusMap = {
+        0: { type: 'info', text: '草稿' },
+        1: { type: 'warning', text: '待审核' },
+        2: { type: 'success', text: '已发布' },
+        3: { type: 'danger', text: '已拒绝' }
+    };
+    return statusMap[status] || { type: '', text: '未知状态' };
+};
+
 // [修改] 获取所有文章列表（分页）
 export const getAllArticles = (page, pageSize) => {
     return axiosInstance.get('/api/articles/getall', { params: { page, pageSize } });
@@ -15,6 +34,11 @@ export const getAllArticles = (page, pageSize) => {
 
 // 根据文章 ID 获取文章详情
 export const getArticleById = (id) => {
+    return axiosInstance.get(`/api/articles/${id}`);
+};
+
+// 根据文章 ID 获取文章详情（别名）
+export const getArticle = (id) => {
     return axiosInstance.get(`/api/articles/${id}`);
 };
 
@@ -104,9 +128,9 @@ export const getCategories = () => {
     return axiosInstance.get('/api/articles/categories');
 };
 
-// 获取推荐文章列表 - 使用标准的文章列表接口
+// 获取推荐文章列表 - 修复为正确的推荐接口
 export const getRecommendedArticles = (page, pageSize) => {
-    return axiosInstance.get('/api/articles/getall', { params: { page, pageSize } });
+    return axiosInstance.get('/api/articles/recommended', { params: { page, pageSize } });
 };
 
 // 搜索文章

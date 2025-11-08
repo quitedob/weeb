@@ -117,6 +117,32 @@ const getGroupUnreadCount = (groupId) => {
   return axiosInstance.get(`/api/chats/groups/${groupId}/unread`);
 };
 
+/**
+ * 撤回消息
+ * DELETE /api/chats/messages/{messageId}
+ * @param {Number} messageId - 消息ID
+ */
+const recallMessage = (messageId) => {
+  return axiosInstance.delete(`/api/chats/messages/${messageId}`);
+};
+
+/**
+ * 获取在线用户列表
+ * GET /api/chats/online-users
+ */
+const getOnlineUsers = () => {
+  return axiosInstance.get('/api/chats/online-users');
+};
+
+/**
+ * 检查用户是否在线
+ * GET /api/chats/users/{targetUserId}/online
+ * @param {Number} targetUserId - 目标用户ID
+ */
+const checkUserOnline = (targetUserId) => {
+  return axiosInstance.get(`/api/chats/users/${targetUserId}/online`);
+};
+
 export default {
   getChatList,
   createChat,
@@ -125,6 +151,9 @@ export default {
   markAsRead,
   deleteChat,
   addReaction,
+  recallMessage,
+  getOnlineUsers,
+  checkUserOnline,
   // 未读计数相关
   getUnreadStats,
   getUnreadCount,

@@ -23,6 +23,7 @@
         SELECT
         id,               <!-- 聊天记录的主键ID -->
         user_id,          <!-- 用户ID -->
+        shared_chat_id,   <!-- 共享聊天ID -->
         target_id,        <!-- 目标用户ID -->
         target_info,      <!-- 会话标题/目标信息 -->
         type,             <!-- 会话类型 -->
@@ -40,6 +41,7 @@
         SELECT
         id,
         user_id,
+        shared_chat_id,
         target_id,
         target_info,
         type,
@@ -58,6 +60,7 @@
         SELECT
         id,
         user_id,
+        shared_chat_id,
         target_id,
         target_info,
         type,
@@ -75,11 +78,12 @@
     <!-- 4. 插入新的聊天记录 -->
     <insert id="insertChatList" parameterType="com.web.model.ChatList">
         INSERT INTO chat_list
-        (id, user_id, target_id, target_info, type, unread_count, last_message, update_time, create_time)
+        (id, user_id, shared_chat_id, target_id, target_info, type, unread_count, last_message, update_time, create_time)
         VALUES
-        (#{id}, #{userId}, #{targetId}, #{targetInfo}, #{type}, #{unreadCount}, #{lastMessage}, 
+        (#{id}, #{userId}, #{sharedChatId}, #{targetId}, #{targetInfo}, #{type}, #{unreadCount}, #{lastMessage}, 
          COALESCE(#{updateTime}, CURRENT_TIMESTAMP(3)), COALESCE(#{createTime}, CURRENT_TIMESTAMP(3)))
         <!-- 此处使用实体中对应的属性：
+             sharedChatId 对应数据库字段 shared_chat_id（新架构必需字段），
              targetInfo 对应数据库字段 target_info，
              updateTime 对应 update_time，如果为null则使用当前时间
              createTime 对应 create_time，如果为null则使用当前时间 -->
@@ -125,6 +129,7 @@
         SELECT
         id,
         user_id,
+        shared_chat_id,
         target_id,
         target_info,
         type,
@@ -142,6 +147,7 @@
         SELECT
         id,
         user_id,
+        shared_chat_id,
         target_id,
         target_info,
         type,
@@ -160,6 +166,7 @@
         SELECT
         id,
         user_id,
+        shared_chat_id,
         target_id,
         target_info,
         type,
@@ -194,4 +201,73 @@
         DELETE FROM chat_list
         WHERE id = #{chatId}
     </delete>
+
+    <!-- 14.5. 根据ID查询聊天记录（String类型ID） -->
+    <select id="selectChatListByIdString" resultType="com.web.model.ChatList">
+        SELECT
+        id,
+        user_id,
+        shared_chat_id,
+        target_id,
+        target_info,
+        type,
+        unread_count,
+        last_message,
+        update_time,
+        create_time
+        FROM chat_list
+        WHERE id = #{chatId}
+        LIMIT 1
+    </select>
+
+    <!-- 15. 查找共享聊天ID -->
+    <select id="findSharedChatId" resultType="java.lang.Long">
+        SELECT id
+        FROM shared_chat
+        WHERE participant_1_id = #{participant1Id}
+          AND participant_2_id = #{participant2Id}
+          AND chat_type = 'PRIVATE'
+        LIMIT 1
+    </select>
+
+    <!-- 16. 创建共享聊天记录 -->
+    <insert id="createSharedChat" useGeneratedKeys="true" keyColumn="id" keyProperty="id">
+        <selectKey keyProperty="id" resultType="java.lang.Long" order="AFTER">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+        INSERT INTO shared_chat (
+            chat_type,
+            participant_1_id,
+            participant_2_id,
+            created_at,
+            updated_at
+        ) VALUES (
+            #{chatType},
+            #{participant1Id},
+            #{participant2Id},
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+        )
+    </insert>
+
+    <!-- 17. ✅ 新增：根据用户ID和共享聊天ID查询聊天记录 -->
+    <select id="selectChatListByUserIdAndSharedChatId" resultType="com.web.model.ChatList">
+        SELECT
+        id,
+        user_id,
+        shared_chat_id,
+        target_id,
+        target_info,
+        type,
+        unread_count,
+        last_message,
+        update_time,
+        create_time,
+        group_id
+        FROM chat_list
+        WHERE user_id = #{userId}
+        AND shared_chat_id = #{sharedChatId}
+        LIMIT 1
+    </select>
+
 </mapper>

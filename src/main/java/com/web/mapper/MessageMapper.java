@@ -148,4 +148,30 @@ public interface MessageMapper extends BaseMapper<Message> {
      * @return 线程数量
      */
     int countUserThreads(@Param("userId") Long userId);
+
+    /**
+     * 根据两个聊天ID查询消息（用于私聊双向消息查询）- 已废弃，使用selectMessagesBySharedChatId
+     * @param chatId1 聊天ID1
+     * @param chatId2 聊天ID2
+     * @param offset 偏移量
+     * @param size 每页大小
+     * @return 消息列表
+     * @deprecated 使用selectMessagesBySharedChatId代替
+     */
+    @Deprecated
+    List<Message> selectMessagesByTwoChatIds(@Param("chatId1") Long chatId1, 
+                                            @Param("chatId2") Long chatId2, 
+                                            @Param("offset") int offset, 
+                                            @Param("size") int size);
+
+    /**
+     * 根据共享聊天ID查询消息（新架构）
+     * @param sharedChatId 共享聊天ID
+     * @param offset 偏移量
+     * @param size 每页大小
+     * @return 消息列表
+     */
+    List<Message> selectMessagesBySharedChatId(@Param("sharedChatId") Long sharedChatId, 
+                                              @Param("offset") int offset, 
+                                              @Param("size") int size);
 }

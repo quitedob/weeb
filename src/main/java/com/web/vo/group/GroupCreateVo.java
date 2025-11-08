@@ -17,4 +17,6 @@ public class GroupCreateVo {
 
     @Size(max = 50) // 初始成员可选
     private List<Long> initialMemberIds; // 初始成员ID列表 (Changed to Long)
+    
+    private String groupType; // 群组类型: PUBLIC, PRIVATE (可选，默认PUBLIC)
 }

@@ -120,15 +120,64 @@ const handleNotificationClick = async (notification) => {
   
   // 根据通知类型跳转到相应页面
   switch (notification.type) {
+    // 文章相关
     case 'ARTICLE_LIKE':
-      router.push(`/article/read/${notification.entityId}`)
-      break
-    case 'NEW_FOLLOWER':
-      router.push(`/user/${notification.actorId}`)
-      break
+    case 'ARTICLE_COMMENT':
+    case 'ARTICLE_FAVORITE':
     case 'COMMENT_MENTION':
-      router.push(`/article/read/${notification.entityId}`)
+      if (notification.entityId) {
+        router.push(`/article/read/${notification.entityId}`)
+      }
       break
+    
+    // 用户关系
+    case 'NEW_FOLLOWER':
+    case 'FRIEND_ACCEPTED':
+      if (notification.actorId) {
+        router.push(`/user/${notification.actorId}`)
+      }
+      break
+    
+    // 好友申请
+    case 'FRIEND_REQUEST':
+      router.push('/contact?tab=requests')
+      break
+    
+    // 聊天消息
+    case 'CHAT_MESSAGE':
+    case 'PRIVATE_MESSAGE':
+      if (notification.entityId) {
+        router.push(`/chat/private/${notification.entityId}`)
+      } else {
+        router.push('/chat')
+      }
+      break
+    
+    // 群组消息
+    case 'GROUP_MESSAGE':
+      if (notification.entityId) {
+        router.push(`/chat/group/${notification.entityId}`)
+      } else {
+        router.push('/chat')
+      }
+      break
+    
+    // 群组相关
+    case 'GROUP_INVITE':
+    case 'GROUP_JOIN':
+      if (notification.entityId) {
+        router.push(`/group/${notification.entityId}`)
+      } else {
+        router.push('/groups')
+      }
+      break
+    
+    // 联系人更新
+    case 'CONTACT_UPDATED':
+      router.push('/contact')
+      break
+    
+    // 默认跳转到通知列表
     default:
       router.push('/notifications')
   }
@@ -150,10 +199,33 @@ const markAllAsRead = async () => {
 // 获取通知图标
 const getNotificationIcon = (type) => {
   const icons = {
+    // 文章相关
     'ARTICLE_LIKE': '👍',
+    'ARTICLE_COMMENT': '💬',
+    'ARTICLE_FAVORITE': '⭐',
+    
+    // 用户关系
     'NEW_FOLLOWER': '👤',
-    'COMMENT_MENTION': '💬',
+    'FRIEND_REQUEST': '🤝',
+    'FRIEND_ACCEPTED': '✅',
+    'FRIEND_REJECTED': '❌',
+    
+    // 聊天消息
+    'CHAT_MESSAGE': '💬',
+    'GROUP_MESSAGE': '👥',
+    'PRIVATE_MESSAGE': '✉️',
+    
+    // 群组相关
+    'GROUP_INVITE': '📨',
+    'GROUP_JOIN': '🎉',
+    'GROUP_LEAVE': '👋',
+    
+    // 系统通知
     'SYSTEM': '🔔',
+    'CONTACT_UPDATED': '🔄',
+    
+    // 其他
+    'COMMENT_MENTION': '💬',
     'default': '📢'
   }
   return icons[type] || icons.default

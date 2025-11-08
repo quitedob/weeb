@@ -17,8 +17,11 @@
         </div>
       </el-card>
     </div>
-    <p v-if="loading" class="loading-text">加载中...</p>
-    <p v-if="noMoreData" class="loading-text">没有更多了</p>
+    <p v-if="loading" class="loading-text">加载中…</p>
+    <el-empty v-if="!loading && articles.length === 0" description="暂无推荐内容">
+      <el-button type="primary" @click="fetchRecommendedArticles">刷新试试</el-button>
+    </el-empty>
+    <p v-if="noMoreData && articles.length > 0" class="loading-text">没有更多了</p>
   </div>
 </template>
 
@@ -69,7 +72,7 @@ const viewArticle = (articleId) => {
 
 const truncate = (text, length) => {
   if (!text) return '';
-  return text.length > length ? text.substring(0, length) + '...' : text;
+  return text.length > length ? text.substring(0, length) + '…' : text;
 };
 
 onMounted(() => {

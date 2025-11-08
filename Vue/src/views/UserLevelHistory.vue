@@ -207,9 +207,9 @@ import {
   Trophy, Refresh, TrendCharts, Right
 } from '@element-plus/icons-vue'
 import * as userLevelApi from '@/api/modules/userLevel'
-import { useUserStore } from '@/stores/userStore'
+import { useAuthStore } from '@/stores/authStore'
 
-const userStore = useUserStore()
+const authStore = useAuthStore()
 
 // 响应式数据
 const loading = ref(false)

@@ -16,6 +16,13 @@
                 <a @click.prevent="readArticle(scope.row.articleId || scope.row.id)" href="#" class="article-title-link">{{ scope.row.articleTitle }}</a>
             </template>
         </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="scope">
+            <el-tag :type="getStatusTag(scope.row.status).type">
+              {{ getStatusTag(scope.row.status).text }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="updatedAt" label="最后更新" width="180">
           <template #default="scope">
             <span>{{ formatDate(scope.row.updatedAt) }}</span>
@@ -30,7 +37,15 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty description="您还没有发布任何文章。" v-else />
+      <!-- ✅ 改进的空状态UI -->
+      <div v-else class="empty-state">
+        <el-empty description="您还没有发布任何文章">
+          <el-button type="primary" @click="goToWriteArticle">
+            <el-icon><PlusIcon /></el-icon>
+            发布第一篇文章
+          </el-button>
+        </el-empty>
+      </div>
     </el-card>
   </div>
 </template>
@@ -38,7 +53,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { getArticlesByUserId, deleteArticle } from '@/api/modules/article'; // Use @ alias
+import { getArticlesByUserId, deleteArticle, getStatusTag } from '@/api/modules/article'; // Use @ alias
 import { useAuthStore } from '@/stores/authStore'; // Use @ alias
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus as PlusIcon, Edit as EditIcon, Delete as DeleteIcon } from '@element-plus/icons-vue'; // Icons
@@ -70,14 +85,27 @@ const fetchUserArticles = async () => {
   try {
     const response = await getArticlesByUserId(userId);
     // 后端ApiResponse成功时code为0，不是200
-    if (response.code === 0 && response.data) {
-        articles.value = response.data;
-    } else {
-        // 如果返回的data为空数组或null，显示空状态
-        articles.value = [];
-        if (response.message && response.message !== '成功') {
-            ElMessage.warning(response.message || '暂无文章数据。');
+    if (response.code === 0) {
+        // ✅ 改进：处理不同的响应结构，确保总是得到数组
+        if (Array.isArray(response.data)) {
+            articles.value = response.data;
+        } else if (response.data && Array.isArray(response.data.list)) {
+            articles.value = response.data.list;
+        } else if (response.data && Array.isArray(response.data.data)) {
+            articles.value = response.data.data;
+        } else {
+            // 如果data为null或其他格式，设置为空数组
+            articles.value = [];
         }
+        
+        // ✅ 只在真正有错误消息时显示警告
+        if (articles.value.length === 0 && response.message && response.message !== '成功') {
+            console.log('暂无文章数据');
+        }
+    } else {
+        // 如果返回的code不是0，显示错误
+        articles.value = [];
+        ElMessage.warning(response.message || '获取文章列表失败。');
     }
   } catch (error) {
     console.error('获取个人文章列表失败:', error);
@@ -162,5 +190,10 @@ const handleDelete = async (id) => {
 }
 .article-title-link:hover {
   text-decoration: underline;
+}
+/* ✅ 空状态样式 */
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
 }
 </style>

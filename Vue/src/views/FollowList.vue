@@ -1,5 +1,5 @@
 <template>
-  <div class="follow-list-page">
+  <div class="friend-list-page">
     <el-card class="header-card">
       <h2>{{ pageTitle }}</h2>
       <p class="subtitle">{{ pageSubtitle }}</p>
@@ -8,19 +8,19 @@
     <!-- 标签页切换 -->
     <el-card class="tabs-card">
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="我的关注" name="following">
+        <el-tab-pane label="我的好友" name="friends">
           <template #label>
             <span class="tab-label">
               <el-icon><User /></el-icon>
-              我的关注 ({{ followingCount }})
+              我的好友 ({{ friendsCount }})
             </span>
           </template>
         </el-tab-pane>
-        <el-tab-pane label="我的粉丝" name="followers">
+        <el-tab-pane label="好友申请" name="requests">
           <template #label>
             <span class="tab-label">
               <el-icon><UserFilled /></el-icon>
-              我的粉丝 ({{ followersCount }})
+              好友申请 ({{ requestsCount }})
             </span>
           </template>
         </el-tab-pane>
@@ -70,23 +70,32 @@
 
           <div class="user-actions">
             <el-button
-              v-if="activeTab === 'following'"
+              v-if="activeTab === 'friends'"
               type="danger"
               size="small"
-              @click="handleUnfollow(user)"
+              @click="handleDeleteFriend(user)"
               :loading="user.loading"
             >
-              取消关注
+              删除好友
             </el-button>
-            <el-button
-              v-else
-              :type="user.isFollowing ? 'info' : 'primary'"
-              size="small"
-              @click="handleFollowToggle(user)"
-              :loading="user.loading"
-            >
-              {{ user.isFollowing ? '已关注' : '关注' }}
-            </el-button>
+            <template v-else>
+              <el-button
+                type="success"
+                size="small"
+                @click="handleAcceptRequest(user)"
+                :loading="user.loading"
+              >
+                接受
+              </el-button>
+              <el-button
+                type="danger"
+                size="small"
+                @click="handleRejectRequest(user)"
+                :loading="user.loading"
+              >
+                拒绝
+              </el-button>
+            </template>
           </div>
         </div>
       </div>
@@ -99,8 +108,8 @@
         :page-sizes="[10, 20, 50]"
         :total="total"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadUserList"
-        @current-change="loadUserList"
+        @size-change="fetchData"
+        @current-change="fetchData"
         class="pagination"
       />
     </el-card>
@@ -112,145 +121,163 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, UserFilled, Document } from '@element-plus/icons-vue'
-import followApi from '@/api/modules/follow'
-import userApi from '@/api/modules/user'
+import contactApi from '@/api/modules/contact'
 
 const authStore = useAuthStore()
 
 // 数据
-const activeTab = ref('following')
+const activeTab = ref('friends')
 const userList = ref([])
 const loading = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
-const followingCount = ref(0)
-const followersCount = ref(0)
+const friendsCount = ref(0)
+const requestsCount = ref(0)
 
 // 计算属性
 const pageTitle = computed(() => {
-  return activeTab.value === 'following' ? '我的关注' : '我的粉丝'
+  return activeTab.value === 'friends' ? '我的好友' : '好友申请'
 })
 
 const pageSubtitle = computed(() => {
-  return activeTab.value === 'following' 
-    ? '管理你关注的用户' 
-    : '查看关注你的用户'
+  return activeTab.value === 'friends' 
+    ? '管理你的好友列表' 
+    : '处理好友申请'
 })
 
 const emptyText = computed(() => {
-  return activeTab.value === 'following' 
-    ? '你还没有关注任何人' 
-    : '还没有人关注你'
+  return activeTab.value === 'friends' 
+    ? '你还没有添加任何好友' 
+    : '暂无好友申请'
 })
 
 // 方法
-const loadUserList = async () => {
-  if (!authStore.currentUser) {
-    ElMessage.error('请先登录')
-    return
-  }
-
-  loading.value = true
+const fetchFriendsList = async () => {
   try {
-    const userId = authStore.currentUser.id
-    let response
-
-    if (activeTab.value === 'following') {
-      response = await followApi.getFollowingList(userId, currentPage.value, pageSize.value)
-    } else {
-      response = await followApi.getFollowersList(userId, currentPage.value, pageSize.value)
-    }
-
-    if (response.data.success) {
-      userList.value = (response.data.data.list || []).map(user => ({
+    loading.value = true
+    const response = await contactApi.getContacts('ACCEPTED')
+    
+    if (response.code === 0) {
+      userList.value = (response.data || []).map(user => ({
         ...user,
-        loading: false,
-        isFollowing: activeTab.value === 'followers' ? user.isFollowing : true
+        loading: false
       }))
-      total.value = response.data.data.total || 0
+      total.value = response.data?.length || 0
+      friendsCount.value = response.data?.length || 0
     } else {
-      ElMessage.error(response.data.message || '加载失败')
+      ElMessage.error(response.message || '获取好友列表失败')
     }
   } catch (error) {
-    console.error('加载用户列表失败:', error)
-    ElMessage.error('加载失败，请稍后重试')
+    console.error('获取好友列表失败:', error)
+    ElMessage.error('获取好友列表失败')
   } finally {
     loading.value = false
   }
 }
 
-const loadStats = async () => {
+const fetchRequestsList = async () => {
   try {
-    const response = await followApi.getFollowStats()
-    if (response.data.success) {
-      followingCount.value = response.data.data.followingCount || 0
-      followersCount.value = response.data.data.followersCount || 0
+    loading.value = true
+    const response = await contactApi.getFriendRequests()
+    
+    if (response.code === 0) {
+      userList.value = (response.data || []).map(user => ({
+        ...user,
+        loading: false
+      }))
+      total.value = response.data?.length || 0
+      requestsCount.value = response.data?.length || 0
+    } else {
+      ElMessage.error(response.message || '获取好友申请失败')
     }
   } catch (error) {
-    console.error('加载统计失败:', error)
+    console.error('获取好友申请失败:', error)
+    ElMessage.error('获取好友申请失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const fetchData = async () => {
+  if (activeTab.value === 'friends') {
+    await fetchFriendsList()
+  } else {
+    await fetchRequestsList()
   }
 }
 
 const handleTabChange = () => {
   currentPage.value = 1
-  loadUserList()
+  fetchData()
 }
 
-const handleUnfollow = async (user) => {
+const handleDeleteFriend = async (user) => {
   try {
     await ElMessageBox.confirm(
-      `确定要取消关注 ${user.username} 吗？`,
-      '确认操作',
+      `确定要删除好友 ${user.nickname || user.username} 吗？`,
+      '确认删除好友',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
       }
     )
-
+    
     user.loading = true
-    const response = await userApi.unfollowUser(user.id)
-
-    if (response.data.success) {
-      ElMessage.success('已取消关注')
-      followingCount.value--
-      loadUserList()
+    const response = await contactApi.deleteContact(user.contactId || user.id)
+    
+    if (response.code === 0) {
+      ElMessage.success('删除好友成功')
+      await fetchData()
     } else {
-      ElMessage.error(response.data.message || '操作失败')
+      ElMessage.error(response.message || '删除好友失败')
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('取消关注失败:', error)
-      ElMessage.error('操作失败，请稍后重试')
+      console.error('删除好友失败:', error)
+      ElMessage.error('删除好友失败')
     }
   } finally {
     user.loading = false
   }
 }
 
-const handleFollowToggle = async (user) => {
-  user.loading = true
+const handleAcceptRequest = async (user) => {
   try {
-    let response
-    if (user.isFollowing) {
-      response = await userApi.unfollowUser(user.id)
-      if (response.data.success) {
-        user.isFollowing = false
-        ElMessage.success('已取消关注')
-        followingCount.value--
-      }
+    user.loading = true
+    const response = await contactApi.acceptRequest(user.requestId || user.id)
+    
+    if (response.code === 0) {
+      ElMessage.success('已接受好友申请')
+      await fetchData()
+      // 刷新好友数量
+      await fetchFriendsList()
     } else {
-      response = await userApi.followUser(user.id)
-      if (response.data.success) {
-        user.isFollowing = true
-        ElMessage.success('关注成功')
-        followingCount.value++
-      }
+      ElMessage.error(response.message || '接受申请失败')
     }
   } catch (error) {
-    console.error('操作失败:', error)
-    ElMessage.error('操作失败，请稍后重试')
+    console.error('接受申请失败:', error)
+    ElMessage.error('接受申请失败')
+  } finally {
+    user.loading = false
+  }
+}
+
+const handleRejectRequest = async (user) => {
+  try {
+    user.loading = true
+    const response = await contactApi.rejectRequest(user.requestId || user.id)
+    
+    if (response.code === 0) {
+      ElMessage.success('已拒绝好友申请')
+      await fetchData()
+    } else {
+      ElMessage.error(response.message || '拒绝申请失败')
+    }
+  } catch (error) {
+    console.error('拒绝申请失败:', error)
+    ElMessage.error('拒绝申请失败')
   } finally {
     user.loading = false
   }
@@ -269,45 +296,57 @@ const getUserLevelName = (level) => {
 
 // 初始化
 onMounted(() => {
-  loadStats()
-  loadUserList()
+  fetchData()
+  // 同时获取两个标签页的数量
+  fetchFriendsList()
+  fetchRequestsList()
 })
 </script>
 
 <style scoped>
-.follow-list-page {
-  padding: 20px;
+.friend-list-page {
+  padding: var(--space-20);
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .header-card {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-20);
+  background: var(--apple-bg-primary);
+  border: 1px solid var(--apple-border-color);
+  border-radius: var(--radius-lg);
 }
 
 .header-card h2 {
-  margin: 0 0 10px 0;
-  color: #303133;
+  margin: 0 0 var(--space-10) 0;
+  color: var(--apple-text-primary);
+  font-weight: 600;
 }
 
 .subtitle {
   margin: 0;
-  color: #909399;
+  color: var(--apple-text-secondary);
   font-size: 14px;
 }
 
 .tabs-card {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-20);
+  background: var(--apple-bg-primary);
+  border: 1px solid var(--apple-border-color);
+  border-radius: var(--radius-lg);
 }
 
 .tab-label {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-5);
 }
 
 .list-card {
   min-height: 400px;
+  background: var(--apple-bg-primary);
+  border: 1px solid var(--apple-border-color);
+  border-radius: var(--radius-lg);
 }
 
 .empty-state {
@@ -317,25 +356,27 @@ onMounted(() => {
 .user-list {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: var(--space-15);
 }
 
 .user-item {
   display: flex;
   align-items: center;
-  padding: 15px;
-  border: 1px solid #EBEEF5;
-  border-radius: 8px;
-  transition: all 0.3s;
+  padding: var(--space-15);
+  border: 1px solid var(--apple-border-color);
+  border-radius: var(--radius-md);
+  transition: all 0.3s ease;
+  background: var(--apple-bg-secondary);
 }
 
 .user-item:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
+  border-color: var(--apple-blue-light);
 }
 
 .user-avatar {
-  margin-right: 15px;
+  margin-right: var(--space-15);
 }
 
 .user-info {
@@ -345,46 +386,95 @@ onMounted(() => {
 .user-name {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 5px;
+  gap: var(--space-10);
+  margin-bottom: var(--space-5);
 }
 
 .username-link {
   font-size: 16px;
   font-weight: 500;
-  color: #303133;
+  color: var(--apple-text-primary);
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .username-link:hover {
-  color: #409EFF;
+  color: var(--apple-blue);
 }
 
 .user-bio {
-  color: #606266;
+  color: var(--apple-text-secondary);
   font-size: 14px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-8);
 }
 
 .user-stats {
   display: flex;
-  gap: 15px;
+  gap: var(--space-15);
   font-size: 13px;
-  color: #909399;
+  color: var(--apple-text-tertiary);
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-4);
 }
 
 .user-actions {
-  margin-left: 15px;
+  margin-left: var(--space-15);
+  display: flex;
+  gap: var(--space-8);
 }
 
 .pagination {
-  margin-top: 20px;
+  margin-top: var(--space-20);
   justify-content: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .friend-list-page {
+    padding: var(--space-10);
+  }
+
+  .user-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .user-avatar {
+    margin-right: 0;
+    margin-bottom: var(--space-10);
+  }
+
+  .user-actions {
+    margin-left: 0;
+    margin-top: var(--space-10);
+    width: 100%;
+  }
+
+  .user-actions .el-button {
+    flex: 1;
+  }
+}
+
+/* 暗色模式适配 */
+@media (prefers-color-scheme: dark) {
+  .header-card,
+  .tabs-card,
+  .list-card {
+    background: var(--apple-bg-primary-dark);
+    border-color: var(--apple-border-color-dark);
+  }
+
+  .user-item {
+    background: var(--apple-bg-secondary-dark);
+    border-color: var(--apple-border-color-dark);
+  }
+
+  .user-item:hover {
+    border-color: var(--apple-blue);
+  }
 }
 </style>
