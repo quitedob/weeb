@@ -64,6 +64,9 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
     @Autowired
     private com.web.service.MessageBroadcastService messageBroadcastService;
 
+    @Autowired
+    private com.web.mapper.ChatListMapper chatListMapper;
+
     /**
      * 检查用户在群组中的权限
      * @param groupId 群组ID
@@ -189,11 +192,40 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
         
         // 更新群组成员数
         group.setMemberCount(1);
+
+        // ✅ 关键修复：为群组创建SharedChat记录
+        Long sharedChatId = chatListMapper.createSharedChat(userId, userId, "GROUP");
+        if (sharedChatId == null) {
+            throw new WeebException("创建群组聊天会话失败");
+        }
+
+        // 设置群组的sharedChatId
+        group.setSharedChatId(sharedChatId);
+
+        // 保存群组（包含sharedChatId）
         updateById(group);
-        
-        log.info("群组创建成功: groupId={}, groupName={}, ownerId={}", 
-            group.getId(), group.getGroupName(), userId);
-        
+
+        // ✅ 关键修复：为群主创建ChatList记录
+        com.web.model.ChatList ownerChatList = new com.web.model.ChatList();
+        ownerChatList.setId(java.util.UUID.randomUUID().toString());
+        ownerChatList.setUserId(userId);
+        ownerChatList.setSharedChatId(sharedChatId);
+        ownerChatList.setGroupId(group.getId());
+        ownerChatList.setType("GROUP");
+        ownerChatList.setTargetInfo(group.getGroupName());
+        ownerChatList.setUnreadCount(0);
+        ownerChatList.setCreateTime(java.time.LocalDateTime.now());
+        ownerChatList.setUpdateTime(java.time.LocalDateTime.now());
+
+        int chatListResult = chatListMapper.insertChatList(ownerChatList);
+        if (chatListResult <= 0) {
+            log.error("创建群主聊天列表记录失败: groupId={}, userId={}", group.getId(), userId);
+            // 不抛出异常，因为群组已创建成功
+        }
+
+        log.info("群组创建成功: groupId={}, groupName={}, ownerId={}, sharedChatId={}",
+            group.getId(), group.getGroupName(), userId, sharedChatId);
+
         return group;
     }
 
@@ -246,11 +278,37 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
                 newMember.setInvitedBy(userId); // 记录邀请人
                 
                 groupMemberMapper.insert(newMember);
+
+                // ✅ 关键修复：为新成员创建ChatList记录
+                try {
+                    com.web.model.ChatList newMemberChatList = new com.web.model.ChatList();
+                    newMemberChatList.setId(java.util.UUID.randomUUID().toString());
+                    newMemberChatList.setUserId(inviteeId);
+                    newMemberChatList.setSharedChatId(group.getSharedChatId());  // 使用群组的SharedChat
+                    newMemberChatList.setGroupId(group.getId());
+                    newMemberChatList.setType("GROUP");
+                    newMemberChatList.setTargetInfo(group.getGroupName());
+                    newMemberChatList.setUnreadCount(0);
+                    newMemberChatList.setCreateTime(java.time.LocalDateTime.now());
+                    newMemberChatList.setUpdateTime(java.time.LocalDateTime.now());
+
+                    int chatListResult = chatListMapper.insertChatList(newMemberChatList);
+                    if (chatListResult > 0) {
+                        log.debug("为新成员创建聊天列表记录成功: groupId={}, userId={}, sharedChatId={}",
+                                group.getId(), inviteeId, group.getSharedChatId());
+                    } else {
+                        log.error("为新成员创建聊天列表记录失败: groupId={}, userId={}", group.getId(), inviteeId);
+                    }
+                } catch (Exception e) {
+                    log.error("创建新成员ChatList记录时发生异常: groupId={}, userId={}", group.getId(), inviteeId, e);
+                    // 不影响成员邀请成功
+                }
+
                 invitedCount++;
-                
-                log.info("成员邀请成功: groupId={}, inviteeId={}, inviterId={}", 
+
+                log.info("成员邀请成功: groupId={}, inviteeId={}, inviterId={}",
                     inviteVo.getGroupId(), inviteeId, userId);
-                
+
                 // ✅ 广播群组成员变更事件
                 try {
                     messageBroadcastService.broadcastGroupMemberChange(
@@ -771,6 +829,31 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             newMember.setInviteReason("申请通过");
             groupMemberMapper.insert(newMember);
 
+            // ✅ 关键修复：为新批准的成员创建ChatList记录
+            try {
+                com.web.model.ChatList approvedMemberChatList = new com.web.model.ChatList();
+                approvedMemberChatList.setId(java.util.UUID.randomUUID().toString());
+                approvedMemberChatList.setUserId(application.getUserId());
+                approvedMemberChatList.setSharedChatId(group.getSharedChatId());  // 使用群组的SharedChat
+                approvedMemberChatList.setGroupId(group.getId());
+                approvedMemberChatList.setType("GROUP");
+                approvedMemberChatList.setTargetInfo(group.getGroupName());
+                approvedMemberChatList.setUnreadCount(0);
+                approvedMemberChatList.setCreateTime(java.time.LocalDateTime.now());
+                approvedMemberChatList.setUpdateTime(java.time.LocalDateTime.now());
+
+                int chatListResult = chatListMapper.insertChatList(approvedMemberChatList);
+                if (chatListResult > 0) {
+                    log.debug("为新批准成员创建聊天列表记录成功: groupId={}, userId={}, sharedChatId={}",
+                            group.getId(), application.getUserId(), group.getSharedChatId());
+                } else {
+                    log.error("为新批准成员创建聊天列表记录失败: groupId={}, userId={}", group.getId(), application.getUserId());
+                }
+            } catch (Exception e) {
+                log.error("创建新批准成员ChatList记录时发生异常: groupId={}, userId={}", group.getId(), application.getUserId(), e);
+                // 不影响成员批准成功
+            }
+
             // 9. 更新群组成员数
             group.setMemberCount((group.getMemberCount() != null ? group.getMemberCount() : 0) + 1);
             updateById(group);
@@ -1129,12 +1212,60 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
                 throw new WeebException("群组不存在");
             }
 
+            // ✅ 自动修复：如果群组没有 sharedChatId，自动创建
+            if (group.getSharedChatId() == null) {
+                log.warn("⚠️ 群组缺少 sharedChatId，自动创建: groupId={}", groupId);
+                try {
+                    Long sharedChatId = chatListMapper.createSharedChat(group.getOwnerId(), group.getOwnerId(), "GROUP");
+                    if (sharedChatId != null) {
+                        group.setSharedChatId(sharedChatId);
+                        updateById(group);
+                        log.info("✅ 自动为群组创建 sharedChatId: groupId={}, sharedChatId={}", groupId, sharedChatId);
+                        
+                        // 为所有群成员创建 chat_list 记录
+                        List<GroupMember> members = groupMemberMapper.selectList(
+                            new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<GroupMember>()
+                                .eq("group_id", groupId)
+                        );
+                        for (GroupMember member : members) {
+                            if ("ACCEPTED".equals(member.getJoinStatus())) {
+                                try {
+                                    // 检查是否已存在
+                                    com.web.model.ChatList existingChatList = chatListMapper.selectChatListByUserIdAndSharedChatId(
+                                        member.getUserId(), sharedChatId);
+                                    
+                                    if (existingChatList == null) {
+                                        com.web.model.ChatList chatList = new com.web.model.ChatList();
+                                        chatList.setId(java.util.UUID.randomUUID().toString());
+                                        chatList.setUserId(member.getUserId());
+                                        chatList.setSharedChatId(sharedChatId);
+                                        chatList.setGroupId(groupId);
+                                        chatList.setType("GROUP");
+                                        chatList.setTargetInfo(group.getGroupName());
+                                        chatList.setUnreadCount(0);
+                                        chatList.setCreateTime(java.time.LocalDateTime.now());
+                                        chatList.setUpdateTime(java.time.LocalDateTime.now());
+                                        chatListMapper.insertChatList(chatList);
+                                        log.debug("✅ 为群成员创建 chat_list: userId={}, groupId={}", member.getUserId(), groupId);
+                                    }
+                                } catch (Exception e) {
+                                    log.error("为群成员创建 chat_list 失败: userId={}, groupId={}", member.getUserId(), groupId, e);
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("自动创建 sharedChatId 失败: groupId={}", groupId, e);
+                }
+            }
+            
             // 创建GroupDto对象
             GroupDto groupDto = new GroupDto();
             groupDto.setId(group.getId());
             groupDto.setGroupName(group.getGroupName());
             groupDto.setGroupDescription(group.getGroupDescription());
             groupDto.setOwnerId(group.getOwnerId());
+            groupDto.setSharedChatId(group.getSharedChatId()); // ✅ 添加 sharedChatId
             groupDto.setGroupAvatarUrl(group.getGroupAvatarUrl());
             groupDto.setStatus(group.getStatus() != null ? String.valueOf(group.getStatus()) : "1");
             groupDto.setMaxMembers(group.getMaxMembers());

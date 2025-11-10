@@ -115,16 +115,21 @@
 3. 生产环境权限配置必须通过环境变量控制
 
 === 数据库管理规范 ===
-1. 数据库表结构变更必须直接修改DatabaseInitializer.java中的建表语句
-2. 禁止创建独立的迁移脚本文件，所有变更集中在DatabaseInitializer中管理
-3. DatabaseInitializer会在非生产环境自动检查表结构并重建不符合的表
-4. 生产环境必须手动执行SQL变更，DatabaseInitializer会跳过自动创建
-5. 开发环境数据丢失问题通过DatabaseInitializer自动重建解决
-6. 数据一致性问题必须通过事务和后台校准任务解决
-7. 反规范化字段必须有对应的同步机制
-8. 数据库性能优化必须通过索引和查询优化实现
-9. 新增表必须在createAllTables()方法中按依赖顺序调用创建方法
-10. 修改表结构时必须同时更新checkAndCreateTables()中的表结构验证列表
+1. 所有SQL语句按功能分类存储在src/main/resources/sql/目录下，禁止在Java代码中硬编码SQL
+2. SQL文件目录结构：check/（检查脚本）、create/（建表脚本）、insert/（数据插入）、migration/（数据迁移）、index/（索引优化）
+3. 数据库初始化使用DatabaseInitializerRefactored，按预定义顺序执行所有SQL文件
+4. 禁止创建独立的迁移脚本文件，所有变更必须通过migration/目录下的SQL文件管理
+5. DatabaseInitializer会在非生产环境自动检查表结构并重建不符合的表
+6. 生产环境必须手动执行SQL变更，DatabaseInitializer会跳过自动创建
+7. 开发环境数据丢失问题通过DatabaseInitializer自动重建解决
+8. 数据一致性问题必须通过事务和后台校准任务解决
+9. 反规范化字段必须有对应的同步机制
+10. 数据库性能优化必须通过index/目录下的SQL文件实现
+11. 修改表结构时必须更新对应的create/目录下的SQL文件
+12. 新增SQL文件必须更新sql/README.md中的文件列表
+13. SQL文件命名规范：分类前缀_功能描述.sql，如01_create_user_table.sql
+14. 所有SQL文件必须包含头部注释说明创建时间、用途和依赖关系
+15. 迁移脚本必须包含回滚策略和数据完整性检查
 
 === 代码质量与重构规范 ===
 1. 所有linter警告必须在提交前清理，目标是0个警告

@@ -125,7 +125,7 @@
     </el-tabs>
 
     <div class="actions-bar bottom-actions">
-        <el-button type="primary" @click="navigateToGroupChat(group.groupId, group.groupName)"><el-icon><Search /></el-icon>进入群聊</el-button>
+        <el-button type="primary" @click="navigateToGroupChat(group.id, group.groupName)" v-if="group"><el-icon><Search /></el-icon>进入群聊</el-button>
         <el-button type="warning" @click="confirmLeaveGroup" v-if="!isOwner" plain><el-icon><Remove /></el-icon>退出群组</el-button>
     </div>
 
@@ -158,10 +158,10 @@
         >
             <el-option
             v-for="item in searchableUsers"
-            :key="item.userId"
-            :label="`${item.username} (ID: ${item.userId})`"
-            :value="item.userId"
-            :disabled="isAlreadyMember(item.userId)"
+            :key="item.id || item.userId"
+            :label="`${item.username || item.nickname || 'Unknown'} (ID: ${item.id || item.userId})`"
+            :value="item.id || item.userId"
+            :disabled="isAlreadyMember(item.id || item.userId)"
             />
         </el-select>
       <template #footer>
@@ -347,11 +347,12 @@ const searchUsersToInvite = async (query) => {
   if (query && query.trim().length > 0) {
     searchingUsers.value = true;
     try {
-      // api.search.searchUsers returns { code, message, data: [users] }
-      // Each user { userId, username, avatar }
+      // api.search.searchUsers returns { code, message, data: { list: [users], total } }
+      // Each user { id, username, nickname, avatar }
       const response = await api.search.searchUsers(query);
       if (response.code === 0 && response.data) {
-          searchableUsers.value = response.data;
+          // 后端返回的是 { list: [...], total: ... } 结构
+          searchableUsers.value = response.data.list || response.data;
       } else {
           searchableUsers.value = [];
       }
@@ -367,7 +368,11 @@ const searchUsersToInvite = async (query) => {
 };
 
 const isAlreadyMember = (userIdToInvite) => { // Renamed parameter for clarity
-    return members.value.some(member => member.userId === userIdToInvite);
+    return members.value.some(member => 
+        member.userId === userIdToInvite || 
+        member.id === userIdToInvite ||
+        String(member.userId) === String(userIdToInvite)
+    );
 };
 
 const handleInviteMembers = async () => {
@@ -500,18 +505,72 @@ const getRoleTagType = (memberUserId) => { // Renamed parameter for clarity
   return 'info';
 };
 
-const navigateToGroupChat = (gId, gName) => {
-    const groupChatSession = {
-        // Ensure properties match what ChatWindow expects or ChatStore processes
-        id: gId,
-        name: gName,
-        avatar: group.value?.avatarUrl || group.value?.avatar || defaultAvatar, // Use group's avatar
-        type: 'GROUP',
-        // lastMessage, unreadCount might not be relevant here or fetched by ChatWindow/ChatStore
-    };
-    chatStore.setActiveChat(groupChatSession);
-    // ✅ 修复：导航到具体的群聊路由，而不是通用的 /chat
-    router.push(`/chat/group/${gId}`);
+const navigateToGroupChat = async (gId, gName) => {
+    if (!gId || !group.value) {
+        ElMessage.error('群组信息不完整');
+        return;
+    }
+
+    console.log('🚀 准备导航到群聊:', { groupId: gId, groupName: gName, group: group.value });
+
+    // ✅ 修复：先确保后端创建了 chat_list 记录
+    try {
+        // 重新获取群组详情，触发后端自动创建 chat_list
+        const response = await api.group.getGroupDetails(gId);
+        console.log('📦 群组详情响应:', response);
+        
+        if (response.code !== 0 || !response.data) {
+            ElMessage.error('获取群组信息失败');
+            return;
+        }
+        
+        const groupData = response.data;
+        
+        // 检查用户是否是群成员
+        if (groupData.currentUserRole === 'NON_MEMBER') {
+            ElMessage.error('您不是该群组成员，无法进入群聊');
+            return;
+        }
+        
+        // ✅ 使用后端返回的 sharedChatId（如果有）
+        const sharedChatId = groupData.sharedChatId || gId;
+        
+        console.log('📋 群组信息:', {
+            groupId: gId,
+            sharedChatId: sharedChatId,
+            groupName: gName,
+            currentUserRole: groupData.currentUserRole
+        });
+        
+        // 构造群聊会话对象
+        const groupChatSession = {
+            id: sharedChatId,
+            sharedChatId: sharedChatId,
+            groupId: gId,
+            name: gName,
+            avatar: groupData.groupAvatarUrl || groupData.avatar || defaultAvatar,
+            type: 'GROUP',
+            targetInfo: gName
+        };
+        
+        console.log('🎯 设置活跃聊天:', groupChatSession);
+        chatStore.setActiveChat(groupChatSession);
+        
+        // 导航到聊天页面
+        router.push({
+            path: '/chat',
+            query: {
+                chatId: sharedChatId,
+                type: 'GROUP',
+                groupId: gId
+            }
+        });
+        
+        ElMessage.success('正在进入群聊...');
+    } catch (error) {
+        console.error('❌ 导航到群聊失败:', error);
+        ElMessage.error('进入群聊失败: ' + (error.message || '未知错误'));
+    }
 };
 
 // 申请管理相关方法

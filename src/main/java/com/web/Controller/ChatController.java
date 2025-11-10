@@ -6,6 +6,7 @@ import com.web.common.ApiResponse;
 import com.web.constant.TextContentType;
 import com.web.model.ChatList;
 import com.web.model.Message;
+import com.web.dto.ChatListDTO;
 import com.web.service.ChatService;
 import com.web.vo.chat.ChatCreateVo;
 import com.web.vo.chat.ChatMessageVo;
@@ -46,8 +47,14 @@ public class ChatController {
      */
     @UrlLimit
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ChatList>>> getChatList(@Userid Long userId) {
-        List<ChatList> result = chatService.getChatList(userId);
+    public ResponseEntity<ApiResponse<List<ChatListDTO>>> getChatList(@Userid Long userId) {
+        List<ChatList> chatLists = chatService.getChatList(userId);
+
+        // 转换为DTO格式
+        List<ChatListDTO> result = chatLists.stream()
+                .map(ChatListDTO::fromEntity)
+                .collect(java.util.stream.Collectors.toList());
+
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 

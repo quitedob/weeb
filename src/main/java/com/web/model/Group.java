@@ -37,6 +37,7 @@ public class Group implements Serializable {
     
     private Date lastTransferAt; // 最后转让时间
     private Integer transferCount; // 转让次数
+    private Long sharedChatId; // 关联的共享聊天ID
     private Date createTime; // 创建时间
     private Date updateTime; // 更新时间
 

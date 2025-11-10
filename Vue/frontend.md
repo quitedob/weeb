@@ -21,6 +21,7 @@
 - **DOMPurify 3.3.0**: HTML内容净化，XSS防护
 - **Marked 16.4.1**: Markdown解析器
 - **Pinia-plugin-persistedstate 2.4.0**: 状态持久化
+- **Vitest 3.2.4**: 单元测试框架
 
 ### 项目特性
 - **Apple风格UI**: 统一的Apple设计语言组件库
@@ -29,17 +30,19 @@
 - **主题系统**: 支持亮色/暗色/系统主题切换
 - **性能优化**: 虚拟滚动、懒加载、缓存策略
 - **权限管理**: 基于JWT的身份认证和授权
+- **API标准化**: 统一的ChatListDTO数据格式，解决前后端字段不一致问题
+- **智能数据解析**: 自动解析用户信息，支持JSON格式和降级处理
+- **数据完整性**: SharedChat ID确保聊天会话的统一性和完整性
 
 ---
 
 ## 实际项目结构
 
 ```
-Vue/src/
+vue/src/
 ├── api/                          # API接口封装
-│   ├── axiosInstance.js          # Axios实例配置
 │   ├── index.js                  # API统一导出
-│   └── modules/                  # API模块 (20+个模块)
+│   └── modules/                  # API模块 (20个模块)
 │       ├── admin.js              # 管理员功能API
 │       ├── ai.js                 # AI功能API
 │       ├── article.js            # 文章管理API
@@ -59,8 +62,10 @@ Vue/src/
 │       ├── userLevel.js          # 用户等级API
 │       ├── userLevelHistory.js   # 等级历史API
 │       └── userLevelIntegration.js # 等级积分API
-├── components/                   # 公共组件
-│   ├── common/                   # Apple系列组件 (19个组件)
+├── components/                   # 公共组件 (34个组件)
+│   ├── common/                   # Apple系列组件 (24个组件)
+│   │   ├── AppEmpty.vue          # 空状态组件
+│   │   ├── AppSkeleton.vue       # 骨架屏组件
 │   │   ├── AppleButton.vue       # 统一按钮组件
 │   │   ├── AppleCard.vue         # 卡片容器
 │   │   ├── AppleCol.vue          # 列组件
@@ -79,6 +84,7 @@ Vue/src/
 │   │   ├── AppleTabs.vue         # 标签页
 │   │   ├── AppleTag.vue          # 标签组件
 │   │   ├── AppleTextarea.vue     # 多行文本
+│   │   ├── ErrorBoundary.vue     # 错误边界组件
 │   │   ├── SimpleTabs.vue        # 简单标签页
 │   │   └── ThemeToggle.vue       # 主题切换
 │   ├── message/                  # 消息相关组件
@@ -95,48 +101,45 @@ Vue/src/
 │   ├── EnhancedSearch.vue        # 增强搜索组件
 │   ├── UserMenu.vue              # 用户菜单
 │   └── VirtualMessageList.vue    # 虚拟消息列表
-├── views/                        # 页面组件 (21个页面)
+├── views/                        # 页面组件 (23个页面)
 │   ├── chat/                     # 聊天相关页面
-│   │   ├── ChatPage.vue          # 聊天页面
-│   │   ├── ChatWindow.vue        # 聊天窗口
-│   │   └── NewChatWindow.vue     # 新聊天窗口
-│   ├── Login.vue                 # 登录页面
-│   ├── Register.vue              # 注册页面
-│   ├── Forget.vue                # 忘记密码页面
-│   ├── ResetPassword.vue         # 重置密码页面
-│   ├── UserProfile.vue           # 用户资料
-│   ├── UserDetail.vue            # 用户详情
-│   ├── Settings.vue              # 设置页面
-│   ├── SecurityCenter.vue        # 安全中心
-│   ├── Groups.vue                # 群组列表
-│   ├── GroupManagement.vue       # 群组管理
-│   ├── NotificationListPage.vue  # 通知列表
-│   ├── UserLevelHistory.vue      # 等级历史
+│   ├── admin/                    # 管理员页面
+│   ├── group/                    # 群组相关页面
+│   ├── DiagnosticPage.vue        # 诊断页面
 │   ├── Explore.vue               # 发现页面
 │   ├── FollowList.vue            # 关注列表
-│   ├── DiagnosticPage.vue        # 诊断页面
+│   ├── Forget.vue                # 忘记密码页面
+│   ├── GroupManagement.vue       # 群组管理
+│   ├── Groups.vue                # 群组列表
+│   ├── Login.vue                 # 登录页面
 │   ├── NotFound.vue              # 404页面
+│   ├── NotificationListPage.vue  # 通知列表
+│   ├── Register.vue              # 注册页面
+│   ├── ResetPassword.vue         # 重置密码页面
+│   ├── SecurityCenter.vue        # 安全中心
+│   ├── Settings.vue              # 设置页面
 │   ├── TestNotificationPage.vue  # 通知测试页面
 │   ├── ThemeDemo.vue             # 主题演示
 │   ├── ThemeTest.vue             # 主题测试
-│   └── group/                    # 群组相关页面
-│       └── GroupDetail.vue       # 群组详情
+│   ├── UserDetail.vue            # 用户详情
+│   ├── UserLevelHistory.vue      # 等级历史
+│   └── UserProfile.vue           # 用户资料
 ├── stores/                       # Pinia状态管理
+│   ├── index.js                  # Store统一导出
+│   ├── setup.js                  # Store配置初始化
+│   ├── README.md                 # Store说明文档
 │   ├── authStore.js              # 用户认证状态
 │   ├── chatStore.js              # 聊天状态管理
 │   ├── newChatStore.js           # 新聊天状态管理
 │   ├── notificationStore.js      # 通知状态管理
 │   ├── themeStore.js             # 主题状态管理
-│   ├── index.js                  # Store统一导出
-│   ├── setup.js                  # Store配置初始化
-│   ├── README.md                 # Store说明文档
 │   └── plugins/                  # Store插件
 │       ├── monitorPlugin.js      # 监控插件
 │       └── persistPlugin.js      # 持久化插件
 ├── router/                       # 路由配置
 │   ├── index.js                  # 主路由配置
 │   └── admin-routes.js           # 管理员路由（已禁用）
-├── utils/                        # 工具函数 (10个工具模块)
+├── utils/                        # 工具函数
 │   ├── appleConfirm.js           # 确认对话框
 │   ├── appleIcons.js             # 图标管理
 │   ├── appleMessage.js           # 消息处理工具
@@ -153,7 +156,6 @@ Vue/src/
 │   └── components/               # 布局子组件
 │       └── NotificationBell.vue  # 通知铃铛组件
 ├── assets/                       # 静态资源
-│   ├── apple-style.css           # Apple风格样式
 │   └── main.css                  # 主样式文件
 ├── config/                       # 配置文件
 │   └── performance.js            # 性能配置
@@ -174,7 +176,7 @@ Vue/src/
 │   └── usermain.vue              # 用户主页面
 ├── Chat/                         # 聊天组件
 │   ├── ChatPage.vue              # 聊天页面
-│   ├── ChatPage.vue.backup       # 聊天页面备份
+│   ├── ChatPageResponsive.vue    # 响应式聊天页面
 │   └── components/               # 聊天子组件
 │       ├── CustomStatus.vue      # 自定义状态
 │       ├── LinkPreview.vue       # 链接预览
@@ -289,6 +291,8 @@ Vue/src/
 - 提供完整的实时聊天体验
 - 支持私聊和群聊消息收发
 - 集成消息搜索和历史记录功能
+- 解决群组创建后的聊天会话中断问题
+- 修复私聊标题显示异常问题
 
 **核心功能**:
 - **聊天列表管理**: 显示所有聊天会话，支持搜索过滤
@@ -300,9 +304,24 @@ Vue/src/
 - **在线状态**: 用户在线状态实时显示
 - **消息线程**: 支持消息线程讨论
 - **文件传输**: 消息附件上传和下载
+- **智能名称显示**: 自动解析用户信息，显示真实姓名而非"Private Chat"
+
+**核心增强功能**:
+- **智能聊天名称解析**:
+  - 自动解析后端JSON格式的用户信息
+  - 支持新旧数据格式的平滑过渡
+  - 降级处理机制确保显示可用
+- **群组会话自动创建**:
+  - 群组创建时自动生成SharedChat记录
+  - 为群主和新成员自动创建ChatList记录
+  - 解决"没下文了"的工作流中断问题
+- **用户信息动态获取**:
+  - 私聊显示对方用户的真实姓名和头像
+  - 替换硬编码的"Private Chat"字符串
+  - 支持用户昵称和用户名的智能选择
 
 **对应后端API**:
-- `GET /api/chats` - 获取聊天列表
+- `GET /api/chats` - 获取聊天列表（返回ChatListDTO格式）
 - `POST /api/chats` - 创建聊天会话
 - `GET /api/chats/{chatId}/messages` - 获取聊天消息历史
 - `POST /api/chats/{chatId}/messages` - 发送消息
@@ -310,7 +329,6 @@ Vue/src/
 - `DELETE /api/chats/{chatId}` - 删除聊天会话
 - `POST /api/chats/messages/{messageId}/react` - 添加消息反应
 - `DELETE /api/chats/messages/{messageId}` - 撤回消息
-- `GET /api/messages/search` - 搜索消息内容
 
 **设计特点**:
 - **响应式布局**: 桌面端左右分栏，移动端自适应
@@ -320,6 +338,8 @@ Vue/src/
 - **打字指示器**: 显示对方正在输入状态
 - **消息预览**: 聊天列表显示最新消息预览
 - **未读计数**: 实时显示未读消息数量
+- **API标准化**: 使用ChatListDTO确保数据一致性
+- **容错机制**: 多层降级处理确保功能可用性
 
 #### 2.2 联系人页面 (`/contact`)
 **文件路径**: `contact/ContactPage.vue`
@@ -908,7 +928,12 @@ Vue/src/
 #### ChatPage.vue
 - **用途**: 主聊天页面
 - **功能**: 聊天列表、消息窗口、实时通信
-- **特点**: WebSocket集成、响应式布局、消息状态管理
+- **核心增强**: 智能名称解析、API标准化、容错机制
+- **关键方法**:
+  - `getChatName(chat)`: 智能解析聊天名称，支持JSON格式和降级处理
+  - `handleChatItemClick(chat)`: 处理聊天点击事件，使用sharedChatId
+  - `normalizeChat(chat)`: 标准化聊天对象，确保数据一致性
+- **特点**: WebSocket集成、响应式布局、消息状态管理、API标准化
 
 #### ChatWindow.vue
 - **用途**: 聊天窗口组件
@@ -1269,10 +1294,10 @@ Vue/src/
   "preview": "vite preview",               // 构建预览
   "test": "vitest",                        // 单元测试
   "test:run": "vitest run",                // 运行测试
-  "clean:console": "清理console.log",      // 清理调试代码
-  "build:prod": "生产构建(清理后)",        // 生产环境构建
-  "dev:check": "开发环境检查",              // 开发环境验证
-  "precommit": "提交前检查"                // Git提交前验证
+  "clean:console": "node scripts/clean-console.js",  // 清理调试代码
+  "build:prod": "npm run clean:console && vite build", // 生产环境构建
+  "dev:check": "node scripts/dev-check.js",            // 开发环境验证
+  "precommit": "npm run dev:check && npm run clean:console" // Git提交前验证
 }
 ```
 
@@ -1288,10 +1313,10 @@ Vue/src/
 ## 项目统计
 
 ### 代码规模
-- **Vue组件**: 50+ 个组件文件
-- **API模块**: 20+ 个功能模块
-- **工具函数**: 10+ 个实用工具
-- **路由页面**: 21+ 个功能页面
+- **Vue组件**: 57个组件文件 (34个components + 23个views)
+- **API模块**: 20个功能模块
+- **工具函数**: 10个实用工具
+- **路由页面**: 23个功能页面
 - **状态管理**: 5个核心Store
 
 ### 功能覆盖
@@ -1303,6 +1328,10 @@ Vue/src/
 - ✅ **AI集成**: 15+种AI功能接口
 - ✅ **管理系统**: 角色、权限、内容审核
 - ✅ **主题系统**: 完整的主题切换支持
+- ✅ **API标准化**: 统一的ChatListDTO数据格式
+- ✅ **智能解析**: 自动解析用户信息，支持JSON格式
+- ✅ **数据完整性**: SharedChat确保聊天会话完整性
+- ✅ **容错机制**: 多层降级处理确保功能可用性
 
 这是一个功能完整、架构现代化、性能优化的前端社交平台项目。
 

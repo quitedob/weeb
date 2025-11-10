@@ -34,7 +34,14 @@
         <if test="endDate != null and endDate != ''">
             AND DATE(g.create_time) &lt;= #{endDate}
         </if>
-        ORDER BY ${sortClause}
+        ORDER BY
+            CASE
+                WHEN g.group_name = #{keyword} THEN 1
+                WHEN g.group_name LIKE CONCAT(#{keyword}, '%') THEN 2
+                ELSE 3
+            END,
+            g.create_time DESC,
+            g.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

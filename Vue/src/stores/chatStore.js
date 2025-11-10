@@ -365,6 +365,17 @@ export const useChatStore = defineStore('chat', {
           }
         });
 
+        // ✅ 订阅消息反应变更事件
+        this.stompClient.subscribe(`/user/${username}/queue/reaction-change`, (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log('😊 收到消息反应变更事件:', data);
+            this.handleReactionChange(data);
+          } catch (error) {
+            console.error('❌ 处理消息反应变更失败:', error, message.body);
+          }
+        });
+
         // Subscribe to error messages
         this.stompClient.subscribe(`/user/${username}/queue/errors`, (message) => {
           try {
@@ -1354,3 +1365,45 @@ export const useChatStore = defineStore('chat', {
     }
   },
 });
+
+
+    /**
+     * ✅ 处理消息反应变更事件
+     * @param {Object} data - 反应变更数据
+     */
+    handleReactionChange(data) {
+      console.log('😊 处理消息反应变更:', data);
+
+      const { messageId, chatId, reactions } = data;
+
+      if (!messageId || !chatId) {
+        console.warn('⚠️ 反应变更数据不完整:', data);
+        return;
+      }
+
+      // 查找对应的消息并更新反应
+      const messages = this.chatMessages[chatId];
+      if (messages && Array.isArray(messages)) {
+        const messageIndex = messages.findIndex(msg => msg.id === messageId || msg.messageId === messageId);
+        
+        if (messageIndex !== -1) {
+          // 更新消息的反应列表
+          messages[messageIndex].reactions = reactions || [];
+          
+          console.log('✅ 消息反应已更新:', {
+            messageId,
+            chatId,
+            reactions: messages[messageIndex].reactions
+          });
+
+          // 触发自定义事件，通知UI更新
+          window.dispatchEvent(new CustomEvent('message-reaction-updated', {
+            detail: { messageId, chatId, reactions }
+          }));
+        } else {
+          console.warn('⚠️ 未找到对应的消息:', messageId);
+        }
+      } else {
+        console.warn('⚠️ 聊天消息列表不存在:', chatId);
+      }
+    },

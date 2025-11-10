@@ -326,7 +326,15 @@
         <if test="endDate != null and endDate != ''">
             AND DATE(u.registration_date) &lt;= #{endDate}
         </if>
-        ORDER BY ${sortClause}
+        ORDER BY
+            CASE
+                WHEN u.username = #{keyword} THEN 1
+                WHEN u.nickname = #{keyword} THEN 2
+                WHEN u.username LIKE CONCAT(#{keyword}, '%') THEN 3
+                WHEN u.nickname LIKE CONCAT(#{keyword}, '%') THEN 4
+                ELSE 5
+            END,
+            u.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

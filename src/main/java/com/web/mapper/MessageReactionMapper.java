@@ -2,45 +2,65 @@ package com.web.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.web.model.MessageReaction;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * 消息反应数据访问接口
- * 简化注释：消息反应Mapper
+ * 消息反应Mapper接口
  */
 @Mapper
 public interface MessageReactionMapper extends BaseMapper<MessageReaction> {
 
     /**
-     * 根据消息ID获取所有反应
-     * @param messageId 消息ID
-     * @return 反应列表
+     * 查找用户对消息的特定反应
      */
-    List<MessageReaction> selectByMessageId(@Param("messageId") Long messageId);
+    @Select("SELECT * FROM message_reaction WHERE message_id = #{messageId} AND user_id = #{userId} AND reaction_type = #{reactionType}")
+    MessageReaction findByMessageUserAndType(@Param("messageId") Long messageId, 
+                                            @Param("userId") Long userId, 
+                                            @Param("reactionType") String reactionType);
 
     /**
-     * 根据消息ID和用户ID获取特定反应
-     * @param messageId 消息ID
-     * @param userId 用户ID
-     * @return 反应对象
+     * 删除用户对消息的特定反应
      */
-    MessageReaction selectByMessageIdAndUserId(@Param("messageId") Long messageId, @Param("userId") Long userId);
+    @Delete("DELETE FROM message_reaction WHERE message_id = #{messageId} AND user_id = #{userId} AND reaction_type = #{reactionType}")
+    int deleteByMessageUserAndType(@Param("messageId") Long messageId, 
+                                   @Param("userId") Long userId, 
+                                   @Param("reactionType") String reactionType);
 
     /**
-     * 删除用户对特定消息的反应
-     * @param messageId 消息ID
-     * @param userId 用户ID
-     * @return 影响的行数
+     * 获取消息的所有反应统计
+     * 返回格式：[{reactionType: "👍", count: 5, userIds: [1,2,3,4,5]}, ...]
      */
-    int deleteByMessageIdAndUserId(@Param("messageId") Long messageId, @Param("userId") Long userId);
+    @Select("SELECT reaction_type, COUNT(*) as count, GROUP_CONCAT(user_id) as user_ids " +
+            "FROM message_reaction " +
+            "WHERE message_id = #{messageId} " +
+            "GROUP BY reaction_type")
+    @Results({
+        @Result(property = "reactionType", column = "reaction_type"),
+        @Result(property = "count", column = "count"),
+        @Result(property = "userIds", column = "user_ids")
+    })
+    List<Map<String, Object>> getReactionStatsByMessageId(@Param("messageId") Long messageId);
 
     /**
-     * 统计消息的反应数量
-     * @param messageId 消息ID
-     * @return 反应数量
+     * 获取消息的所有反应
      */
-    int countByMessageId(@Param("messageId") Long messageId);
-} 
+    @Select("SELECT * FROM message_reaction WHERE message_id = #{messageId}")
+    List<MessageReaction> findByMessageId(@Param("messageId") Long messageId);
+
+    /**
+     * 批量获取多条消息的反应统计
+     */
+    @Select("<script>" +
+            "SELECT message_id, reaction_type, COUNT(*) as count, GROUP_CONCAT(user_id) as user_ids " +
+            "FROM message_reaction " +
+            "WHERE message_id IN " +
+            "<foreach item='id' collection='messageIds' open='(' separator=',' close=')'>" +
+            "#{id}" +
+            "</foreach> " +
+            "GROUP BY message_id, reaction_type" +
+            "</script>")
+    List<Map<String, Object>> getReactionStatsByMessageIds(@Param("messageIds") List<Long> messageIds);
+}
