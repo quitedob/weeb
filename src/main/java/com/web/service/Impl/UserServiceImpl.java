@@ -1643,49 +1643,7 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    @Override
-    @Transactional
-    public String uploadUserAvatar(Long userId, org.springframework.web.multipart.MultipartFile file) {
-        try {
-            if (userId == null || file == null || file.isEmpty()) {
-                return null;
-            }
-
-            // 验证文件类型
-            String contentType = file.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                throw new IllegalArgumentException("只能上传图片文件");
-            }
-
-            // 验证文件大小
-            if (file.getSize() > 5 * 1024 * 1024) { // 5MB
-                throw new IllegalArgumentException("图片大小不能超过5MB");
-            }
-
-            // 生成文件名
-            String originalFilename = file.getOriginalFilename();
-            String extension = originalFilename != null ?
-                originalFilename.substring(originalFilename.lastIndexOf(".")) : ".jpg";
-            String filename = "avatar_" + userId + "_" + System.currentTimeMillis() + extension;
-
-            // 这里应该实现实际的文件存储逻辑
-            // 目前返回模拟的URL
-            String avatarUrl = "/uploads/avatars/" + filename;
-
-            // 更新用户头像
-            User user = new User();
-            user.setId(userId);
-            user.setAvatar(avatarUrl);
-            updateUserProfile(user);
-
-            log.info("用户头像上传成功，用户ID: {}, 头像URL: {}", userId, avatarUrl);
-            return avatarUrl;
-        } catch (Exception e) {
-            log.error("上传用户头像失败，用户ID: {}", userId, e);
-            return null;
-        }
-    }
-
+  
     // ==================== 私有辅助方法 ====================
 
     private int calculateEngagementScore(UserStats userStats) {

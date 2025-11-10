@@ -270,4 +270,53 @@
         LIMIT 1
     </select>
 
+    <!-- 18. 根据sharedChatId查找群组 -->
+    <select id="selectGroupBySharedChatId" resultType="com.web.model.Group">
+        SELECT
+            id,
+            group_name,
+            group_description,
+            owner_id,
+            shared_chat_id,
+            group_avatar_url,
+            status,
+            max_members,
+            member_count,
+            create_time,
+            last_transfer_at,
+            transfer_count
+        FROM `group`
+        WHERE shared_chat_id = #{sharedChatId}
+        LIMIT 1
+    </select>
+
+    <!-- 19. 根据groupId查找群组 -->
+    <select id="selectGroupById" resultType="com.web.model.Group">
+        SELECT
+            id,
+            group_name,
+            group_description,
+            owner_id,
+            shared_chat_id,
+            group_avatar_url,
+            status,
+            max_members,
+            member_count,
+            create_time,
+            last_transfer_at,
+            transfer_count
+        FROM `group`
+        WHERE id = #{groupId}
+        LIMIT 1
+    </select>
+
+    <!-- 20. 检查用户是否是群成员 -->
+    <select id="isUserGroupMember" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM group_member
+        WHERE user_id = #{userId}
+        AND group_id = #{groupId}
+        LIMIT 1
+    </select>
+
 </mapper>

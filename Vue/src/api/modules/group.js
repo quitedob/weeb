@@ -47,7 +47,10 @@ export default {
    */
   inviteMembers(data) {
     const { groupId, memberIds } = data;
-    return axiosInstance.post(`/api/groups/${groupId}/members`, { userIds: memberIds });
+    return axiosInstance.post(`/api/groups/${groupId}/members`, { 
+      groupId: groupId,
+      memberIds: memberIds 
+    });
   },
 
   /**
@@ -76,7 +79,7 @@ export default {
    * @returns {Promise}
    */
   leaveGroup(groupId) {
-    return axiosInstance.post(`/api/groups/${groupId}/leave`);
+    return axiosInstance.delete(`/api/groups/${groupId}/members/me`);
   },
 
   /**

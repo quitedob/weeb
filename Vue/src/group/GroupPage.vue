@@ -235,8 +235,10 @@ const createGroupRules = {
 const fetchManagedGroups = async (page = 1, pageSize = 10) => {
   loadingManagedGroups.value = true;
   try {
-    // 使用新的获取我作为群主的群组API
-    const response = await groupApi.getUserOwnedGroups();
+    // 使用正确的API方法名
+    const response = await groupApi.getMyCreatedGroups();
+    console.log('📦 获取管理的群组响应:', response);
+    
     if (response.code === 0 && response.data) {
       // Handle new GroupDto field structure - map createTime to createdAt if needed
       managedGroups.value = response.data.map(group => ({
@@ -248,14 +250,24 @@ const fetchManagedGroups = async (page = 1, pageSize = 10) => {
       managedPagination.total = response.data.length;
       managedPagination.page = page;
       managedPagination.pageSize = pageSize;
+      
+      if (managedGroups.value.length === 0) {
+        console.log('ℹ️ 您还没有创建任何群组');
+      }
     } else {
       managedGroups.value = [];
       managedPagination.total = 0;
-      ElMessage.error(response.message || '获取管理的群组失败');
+      // 只在有错误消息时才显示错误提示
+      if (response.message && response.code !== 0) {
+        ElMessage.error(response.message || '获取管理的群组失败');
+      }
     }
   } catch (error) {
     console.error('获取管理的群组失败:', error);
-    ElMessage.error('获取管理的群组失败');
+    // 只在真正的错误时才显示提示，空列表不算错误
+    if (error.response && error.response.status !== 404) {
+      ElMessage.error('获取管理的群组失败');
+    }
     managedGroups.value = [];
     managedPagination.total = 0;
   } finally {

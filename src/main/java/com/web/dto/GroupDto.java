@@ -35,6 +35,11 @@ public class GroupDto {
     private String ownerUsername;
     
     /**
+     * 共享聊天ID
+     */
+    private Long sharedChatId;
+    
+    /**
      * 群组头像URL
      */
     private String groupAvatarUrl;

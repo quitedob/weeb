@@ -461,45 +461,4 @@ public class StandardUserController {
         }
     }
 
-    /**
-     * 上传用户头像
-     * POST /api/users/avatar
-     */
-    @PostMapping("/avatar")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadAvatar(
-            @RequestParam("avatar") org.springframework.web.multipart.MultipartFile file) {
-        try {
-            Long userId = SecurityUtils.getCurrentUserId();
-            if (userId == null) {
-                return ApiResponseUtil.badRequestMap("用户未认证");
-            }
-
-            // 验证文件
-            if (file.isEmpty()) {
-                return ApiResponseUtil.badRequestMap("请选择要上传的文件");
-            }
-
-            // 验证文件类型
-            String contentType = file.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                return ApiResponseUtil.badRequestMap("只能上传图片文件");
-            }
-
-            // 验证文件大小 (5MB)
-            if (file.getSize() > 5 * 1024 * 1024) {
-                return ApiResponseUtil.badRequestMap("图片大小不能超过5MB");
-            }
-
-            String avatarUrl = userService.uploadUserAvatar(userId, file);
-            if (avatarUrl != null) {
-                Map<String, Object> result = new HashMap<>();
-                result.put("avatarUrl", avatarUrl);
-                return ApiResponseUtil.successMap(result, "头像上传成功");
-            } else {
-                return ApiResponseUtil.badRequestMap("头像上传失败");
-            }
-        } catch (Exception e) {
-            return ApiResponseUtil.handleServiceExceptionMap(e, "上传头像", SecurityUtils.getCurrentUserId());
-        }
-    }
-}
+  }

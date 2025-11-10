@@ -119,22 +119,150 @@
 **基路径**: `/api/chats`
 **特殊注解**: 所有接口使用 `@UrlLimit`
 
-| 方法 | 路径 | 描述 | 参数 |
-|------|------|------|------|
-| GET | `/` | 获取用户的聊天列表 | `@Userid Long userId` |
-| POST | `/` | 创建新的聊天会话 | `@Userid Long userId`, `ChatCreateVo` (body) |
-| GET | `/{chatId}/messages` | 获取聊天消息历史记录 | `chatId` (path), `ChatMessagesVo` (@ModelAttribute) |
-| POST | `/{chatId}/messages` | 发送聊天消息 | `chatId` (path), `@Userid Long userId`, `ChatMessageVo` (body) |
-| POST | `/{chatId}/read` | 标记消息为已读 | `chatId` (path), `@Userid Long userId` |
-| POST | `/read/batch` | 批量标记已读 | `chatIds` (body), `@Userid Long userId` |
-| DELETE | `/{chatId}` | 删除聊天会话 | `chatId` (path), `@Userid Long userId` |
-| POST | `/messages/{messageId}/react` | 对消息添加反应 | `messageId` (path), `@Userid Long userId`, `reactionType` (query) |
-| DELETE | `/messages/{messageId}` | 撤回消息 | `messageId` (path), `@Userid Long userId` |
-| GET | `/unread/stats` | 获取未读消息统计 | `@Userid Long userId` |
-| GET | `/{chatId}/unread` | 获取单个聊天未读数 | `chatId` (path), `@Userid Long userId` |
-| GET | `/groups/{groupId}/unread` | 获取群组未读数 | `groupId` (path), `@Userid Long userId` |
-| GET | `/online-users` | 获取在线用户列表 | 无 |
-| GET | `/users/{targetUserId}/online` | 检查用户是否在线 | `targetUserId` (path) |
+#### 5.1 ChatListDTO 数据传输对象
+**文件位置**: `src/main/java/com/web/dto/ChatListDTO.java`
+
+**设计目的**: 提供标准化的聊天列表数据格式，解决前后端字段不一致问题，支持动态用户信息解析，优化群聊和私聊的显示逻辑。
+
+**核心字段**:
+```java
+public class ChatListDTO {
+    private String id;                    // 聊天记录ID (格式: "userId_targetId" 或 "groupId")
+    private Long userId;                  // 当前用户ID
+    private Long sharedChatId;            // 共享聊天ID（核心关联字段）
+    private Long targetId;                // 目标用户ID（私聊场景）
+    private String targetInfo;            // 目标信息（JSON格式或字符串）
+    private Integer unreadCount;          // 未读消息数
+    private String lastMessage;           // 最后一条消息内容
+    private String type;                  // 会话类型：PRIVATE/GROUP
+    private LocalDateTime createTime;      // 创建时间
+    private LocalDateTime updateTime;      // 最后更新时间
+    private Long groupId;                // 群组ID（群聊场景）
+    private String groupName;            // 群组名称（解析后字段）
+    private TargetUserInfo targetUserInfo; // 目标用户信息（解析后字段）
+}
+```
+
+**TargetUserInfo 内部类**:
+```java
+public static class TargetUserInfo {
+    private Long id;          // 用户ID
+    private String username;  // 用户名
+    private String name;      // 显示名称
+    private String avatar;    // 头像URL
+}
+```
+
+**特殊方法详解**:
+- `getDisplayName()`: 智能获取显示名称
+  - 私聊：返回 `targetUserInfo.name` 或 `targetUserInfo.username`
+  - 群聊：返回 `groupName`
+- `getDisplayAvatar()`: 获取显示头像
+  - 仅私聊有效，返回 `targetUserInfo.avatar`
+  - 群聊返回 null 或群组头像
+- `fromEntity(ChatList)`: 静态转换方法
+  - 自动解析 `targetInfo` 字段的 JSON 或字符串格式
+  - 填充 `targetUserInfo` 和 `groupName` 字段
+  - 处理数据格式兼容性
+
+**数据库关联说明**:
+- `sharedChatId` 是核心字段，关联到 `shared_chat` 表
+- 通过 `sharedChatId` 可以获取完整的聊天会话信息
+- `targetId` 用于私聊场景，快速定位对方用户
+- `groupId` 用于群聊场景，快速定位群组信息
+
+**JSON格式示例**:
+
+**私聊场景**:
+```json
+{
+  "id": "123_456",
+  "userId": 123,
+  "sharedChatId": 789,
+  "targetId": 456,
+  "targetInfo": "{\"id\":456,\"username\":\"john\",\"name\":\"John Doe\",\"avatar\":\"https://example.com/avatar.jpg\"}",
+  "unreadCount": 2,
+  "lastMessage": "Hello there!",
+  "type": "PRIVATE",
+  "createTime": "2024-01-01T10:00:00",
+  "updateTime": "2024-01-01T10:05:00",
+  "displayName": "John Doe",
+  "targetUserInfo": {
+    "id": 456,
+    "username": "john",
+    "name": "John Doe",
+    "avatar": "https://example.com/avatar.jpg"
+  }
+}
+```
+
+**群聊场景**:
+```json
+{
+  "id": "group_789",
+  "userId": 123,
+  "sharedChatId": 789,
+  "targetId": null,
+  "targetInfo": null,
+  "unreadCount": 5,
+  "lastMessage": "Welcome to the group!",
+  "type": "GROUP",
+  "createTime": "2024-01-01T09:00:00",
+  "updateTime": "2024-01-01T11:30:00",
+  "groupId": 789,
+  "groupName": "Development Team",
+  "displayName": "Development Team",
+  "targetUserInfo": null
+}
+}
+```
+
+**API使用说明**:
+- **获取聊天列表**: `GET /api/chats/` 返回 `List<ChatListDTO>`
+- **创建聊天**: `POST /api/chats/` 自动生成对应的 `ChatListDTO`
+- **更新未读数**: 通过 WebSocket 实时更新 `unreadCount` 字段
+- **消息发送**: 自动更新 `lastMessage` 和 `updateTime` 字段
+
+**错误处理和兼容性**:
+- `targetInfo` 字段支持新旧数据格式的自动识别
+- 如果 JSON 解析失败，自动降级为字符串显示
+- 确保向后兼容，支持历史数据的平滑迁移
+
+#### 5.2 ChatController API接口
+
+| 方法 | 路径 | 描述 | 参数 | 返回类型 |
+|------|------|------|------|---------|
+| GET | `/` | 获取用户的聊天列表 | `@Userid Long userId` | `List<ChatListDTO>` |
+| POST | `/` | 创建新的聊天会话 | `@Userid Long userId`, `ChatCreateVo` (body) | `ChatList` |
+| GET | `/{chatId}/messages` | 获取聊天消息历史记录 | `chatId` (path), `ChatMessagesVo` (@ModelAttribute) | `List<Message>` |
+| POST | `/{chatId}/messages` | 发送聊天消息 | `chatId` (path), `@Userid Long userId`, `ChatMessageVo` (body) | `Message` |
+| POST | `/{chatId}/read` | 标记消息为已读 | `chatId` (path), `@Userid Long userId` | `Boolean` |
+| POST | `/read/batch` | 批量标记已读 | `chatIds` (body), `@Userid Long userId` | `String` |
+| DELETE | `/{chatId}` | 删除聊天会话 | `chatId` (path), `@Userid Long userId` | `Boolean` |
+| POST | `/messages/{messageId}/react` | 对消息添加反应 | `messageId` (path), `@Userid Long userId`, `reactionType` (query) | `String` |
+| DELETE | `/messages/{messageId}` | 撤回消息 | `messageId` (path), `@Userid Long userId` | `Boolean` |
+| GET | `/unread/stats` | 获取未读消息统计 | `@Userid Long userId` | `Map<String, Object>` |
+| GET | `/{chatId}/unread` | 获取单个聊天未读数 | `chatId` (path), `@Userid Long userId` | `Integer` |
+| GET | `/groups/{groupId}/unread` | 获取群组未读数 | `groupId` (path), `@Userid Long userId` | `Integer` |
+| GET | `/online-users` | 获取在线用户列表 | 无 | `Set<Object>` |
+| GET | `/users/{targetUserId}/online` | 检查用户是否在线 | `targetUserId` (path) | `Boolean` |
+
+#### 5.3 关键特性说明
+
+**5.3.1 统一数据格式**
+- 所有聊天列表API返回标准化的ChatListDTO格式
+- 自动解析targetInfo字段为结构化数据
+- 支持向后兼容的降级处理
+
+**5.3.2 智能字段解析**
+- targetInfo字段自动识别JSON格式和字符串格式
+- 群聊显示群组名称，私聊显示用户真实姓名
+- 提供displayName便捷方法供前端直接使用
+
+**5.3.3 数据完整性保障**
+- SharedChat ID确保聊天会话的统一性
+- 自动关联群组成员和聊天记录
+- 支持孤岛数据的自动修复
 
 ### 6. SearchController (全局搜索)
 **基路径**: `/api/search`
@@ -551,6 +679,15 @@
 - `ChatMessageVo`: 聊天消息内容
 - `ChatMessagesVo`: 聊天消息分页参数
 - `SendMessageVo`: 发送消息封装
+- `ChatListDTO`: 聊天列表标准化数据传输对象
+  - **设计目的**: 提供统一的聊天列表API响应格式
+  - **核心功能**: 自动解析targetInfo字段，支持JSON和字符串格式
+  - **关键特性**:
+    - `getDisplayName()`: 智能获取显示名称
+    - `getDisplayAvatar()`: 获取用户头像
+    - `fromEntity()`: 实体到DTO转换
+  - **兼容性**: 支持新旧数据格式的平滑迁移
+  - **解析逻辑**: 私聊显示用户真实姓名，群聊显示群组名称
 
 ### 5. 文章相关
 - `ArticleCreateVo`: 文章创建信息

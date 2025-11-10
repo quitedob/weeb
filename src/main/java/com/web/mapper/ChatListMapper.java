@@ -150,4 +150,26 @@ public interface ChatListMapper extends BaseMapper<ChatList> {
      * @return 聊天记录
      */
     ChatList selectChatListByUserIdAndSharedChatId(@Param("userId") Long userId, @Param("sharedChatId") Long sharedChatId);
+    
+    /**
+     * 根据sharedChatId查找群组
+     * @param sharedChatId 共享聊天ID
+     * @return 群组信息
+     */
+    com.web.model.Group selectGroupBySharedChatId(@Param("sharedChatId") Long sharedChatId);
+    
+    /**
+     * 根据groupId查找群组
+     * @param groupId 群组ID
+     * @return 群组信息
+     */
+    com.web.model.Group selectGroupById(@Param("groupId") Long groupId);
+    
+    /**
+     * 检查用户是否是群成员
+     * @param userId 用户ID
+     * @param groupId 群组ID
+     * @return 是否是群成员
+     */
+    boolean isUserGroupMember(@Param("userId") Long userId, @Param("groupId") Long groupId);
 }

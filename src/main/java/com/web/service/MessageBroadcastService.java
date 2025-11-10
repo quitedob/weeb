@@ -481,6 +481,91 @@ public class MessageBroadcastService {
     }
 
     /**
+     * ✅ 广播消息反应变更事件
+     * @param chatId 聊天ID（sharedChatId）
+     * @param reactionData 反应数据
+     */
+    public void broadcastReactionChange(Long chatId, java.util.Map<String, Object> reactionData) {
+        try {
+            log.info("📢 开始广播消息反应变更: chatId={}, messageId={}", 
+                chatId, reactionData.get("messageId"));
+
+            // 1. 确定接收者列表
+            List<Long> recipientIds = new java.util.ArrayList<>();
+            
+            // 检查是否是群聊
+            String sql = "SELECT user_id FROM chat_list WHERE shared_chat_id = ? AND type = 'GROUP'";
+            List<Long> groupMembers = jdbcTemplate.queryForList(sql, Long.class, chatId);
+            
+            if (!groupMembers.isEmpty()) {
+                // 群聊：发送给所有群成员
+                recipientIds.addAll(groupMembers);
+                log.debug("群聊反应变更，接收者数量: {}", recipientIds.size());
+            } else {
+                // 私聊：发送给聊天的两个参与者
+                String privateSql = "SELECT user_id FROM chat_list WHERE shared_chat_id = ? AND type = 'PRIVATE'";
+                recipientIds.addAll(jdbcTemplate.queryForList(privateSql, Long.class, chatId));
+                log.debug("私聊反应变更，接收者数量: {}", recipientIds.size());
+            }
+
+            if (recipientIds.isEmpty()) {
+                log.warn("未找到接收者: chatId={}", chatId);
+                return;
+            }
+
+            // 2. 构建反应变更事件消息
+            java.util.Map<String, Object> reactionEvent = new java.util.HashMap<>();
+            reactionEvent.put("type", "MESSAGE_REACTION_CHANGE");
+            reactionEvent.put("chatId", chatId);
+            reactionEvent.put("messageId", reactionData.get("messageId"));
+            reactionEvent.put("userId", reactionData.get("userId"));
+            reactionEvent.put("reactionType", reactionData.get("reactionType"));
+            reactionEvent.put("action", reactionData.get("action")); // "add" or "remove"
+            reactionEvent.put("reactions", reactionData.get("reactions")); // 完整的反应统计
+            reactionEvent.put("timestamp", new java.util.Date());
+
+            // 3. 批量广播给所有相关用户
+            int successCount = 0;
+            int failCount = 0;
+
+            for (Long recipientId : recipientIds) {
+                try {
+                    // 检查用户是否在线
+                    boolean isOnline = onlineStatusService.isUserOnline(recipientId);
+                    
+                    if (isOnline) {
+                        User recipient = userService.getUserBasicInfo(recipientId);
+                        if (recipient != null) {
+                            // 在线：立即发送WebSocket消息
+                            messagingTemplate.convertAndSendToUser(
+                                recipient.getUsername(),
+                                "/queue/reaction-change",
+                                reactionEvent
+                            );
+                            successCount++;
+                            log.debug("✅ 反应变更事件已发送: recipientId={}, username={}", 
+                                recipientId, recipient.getUsername());
+                        }
+                    } else {
+                        // 离线：用户上线后会通过HTTP API获取最新消息（包含反应）
+                        failCount++;
+                        log.debug("📦 用户离线，反应变更事件未发送: recipientId={}", recipientId);
+                    }
+                } catch (Exception e) {
+                    log.error("发送反应变更事件失败: recipientId={}", recipientId, e);
+                    failCount++;
+                }
+            }
+
+            log.info("✅ 消息反应变更广播完成: chatId={}, messageId={}, 成功={}, 离线={}", 
+                chatId, reactionData.get("messageId"), successCount, failCount);
+
+        } catch (Exception e) {
+            log.error("❌ 广播消息反应变更失败: chatId={}", chatId, e);
+        }
+    }
+
+    /**
      * 提取消息内容
      * @param message 消息对象
      * @return 消息内容字符串

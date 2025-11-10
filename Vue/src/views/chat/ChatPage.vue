@@ -1038,21 +1038,60 @@ const viewUserProfile = () => {
   }
 };
 
-// ✅ 获取聊天名称的辅助函数
+// ✅ 获取聊天名称的辅助函数 - 增强JSON解析
 const getChatName = (chat) => {
   if (!chat) return '未知';
-  
-  // 如果targetInfo是字符串，直接返回
-  if (typeof chat.targetInfo === 'string') {
-    return chat.targetInfo || '未知';
+
+  try {
+    // 优先使用新API的displayName字段（如果有）
+    if (chat.displayName) {
+      return chat.displayName;
+    }
+
+    // 处理targetInfo字段
+    if (chat.targetInfo) {
+      // 如果targetInfo是字符串，尝试解析为JSON
+      if (typeof chat.targetInfo === 'string') {
+        // 检查是否是JSON格式
+        if (chat.targetInfo.startsWith('{') && chat.targetInfo.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(chat.targetInfo);
+            return parsed.name || parsed.username || '未知用户';
+          } catch (e) {
+            // JSON解析失败，可能是硬编码的"Private Chat"
+            if (chat.targetInfo === 'Private Chat') {
+              // 降级处理：显示类型
+              return chat.type === 'GROUP' ? '群聊' : '私聊';
+            }
+            return chat.targetInfo;
+          }
+        } else {
+          // 不是JSON格式，直接返回
+          return chat.targetInfo;
+        }
+      }
+
+      // 如果targetInfo已经是对象
+      if (typeof chat.targetInfo === 'object') {
+        return chat.targetInfo.name || chat.targetInfo.username || '未知用户';
+      }
+    }
+
+    // 兜底处理：使用其他字段
+    if (chat.type === 'GROUP') {
+      return chat.groupName || chat.name || '未知群聊';
+    }
+
+    // 如果是私聊且有targetUserInfo
+    if (chat.targetUserInfo && typeof chat.targetUserInfo === 'object') {
+      return chat.targetUserInfo.name || chat.targetUserInfo.username || '未知用户';
+    }
+
+    return '未知';
+  } catch (error) {
+    console.warn('getChatName解析出错:', error, chat);
+    return '未知';
   }
-  
-  // 如果targetInfo是对象，提取name
-  if (typeof chat.targetInfo === 'object' && chat.targetInfo) {
-    return chat.targetInfo.name || chat.targetInfo.username || '未知';
-  }
-  
-  return '未知';
 };
 
 const confirmDeleteChat = async () => {
@@ -1194,25 +1233,166 @@ onMounted(async () => {
     checkPageStatus();
   }, 1000);
 
-  // ✅ 处理路由参数，自动打开指定聊天
-  if (route.params.type && route.params.id) {
-    const chatType = route.params.type.toUpperCase(); // PRIVATE or GROUP
-    const chatId = route.params.id;
+  // ✅ 处理路由参数，自动打开指定聊天（支持 params 和 query）
+  const chatType = (route.params.type || route.query.type || '').toUpperCase();
+  const chatId = route.params.id || route.query.chatId;
+  const groupId = route.query.groupId;
 
-    console.log('🔗 从路由参数打开聊天:', chatType, chatId);
+  if (chatType && chatId) {
+    console.log('🔗 从路由参数打开聊天:', { chatType, chatId, groupId });
 
-    // 查找对应的聊天会话
-    const targetChat = chatList.value.find(chat =>
-      chat.id === chatId || chat.id === String(chatId)
-    );
+    // 查找对应的聊天会话（使用 sharedChatId 或 chatId）
+    const targetChat = chatList.value.find(chat => {
+      const chatIdMatch = chat.sharedChatId === Number(chatId) || 
+                         chat.id === chatId || 
+                         chat.id === String(chatId);
+      const typeMatch = chat.type === chatType;
+      return chatIdMatch && typeMatch;
+    });
 
     if (targetChat) {
       console.log('✅ 找到目标聊天，自动打开:', targetChat);
       await selectChat(targetChat);
     } else {
       console.warn('⚠️ 聊天会话不在列表中，尝试创建或加载');
+      
+      // 如果是群聊，尝试通过 groupId 查找或创建
+      if (chatType === 'GROUP' && groupId) {
+        try {
+          // 先尝试通过 groupId 查找
+          let groupChat = chatList.value.find(chat => 
+            chat.type === 'GROUP' && chat.groupId === Number(groupId)
+          );
+          
+          if (groupChat) {
+            console.log('✅ 通过 groupId 找到群聊:', groupChat);
+            await selectChat(groupChat);
+          } else {
+            console.log('⚠️ 群聊不在列表中，重新加载聊天列表...');
+            // 重新加载聊天列表
+            await loadChatList();
+            
+            // 再次查找
+            groupChat = chatList.value.find(chat => 
+              chat.type === 'GROUP' && (
+                chat.groupId === Number(groupId) ||
+                chat.sharedChatId === Number(chatId)
+              )
+            );
+            
+            if (groupChat) {
+              console.log('✅ 重新加载后找到群聊:', groupChat);
+              await selectChat(groupChat);
+            } else {
+              console.log('⚠️ 仍未找到群聊，尝试获取群组详情并创建会话...');
+              
+              // 最后尝试：获取群组详情，触发后端自动修复
+              try {
+                console.log('🔧 调用 getGroupDetails 触发后端自动修复: groupId=', groupId);
+                const groupResponse = await api.group.getGroupDetails(groupId);
+                console.log('📦 群组详情响应:', groupResponse);
+                
+                if (groupResponse.code === 0 && groupResponse.data) {
+                  const groupData = groupResponse.data;
+                  console.log('📋 群组数据:', {
+                    id: groupData.id,
+                    groupName: groupData.groupName,
+                    sharedChatId: groupData.sharedChatId,
+                    memberCount: groupData.memberCount,
+                    currentUserRole: groupData.currentUserRole
+                  });
+                  
+                  // 检查用户是否是群成员
+                  if (groupData.currentUserRole === 'NON_MEMBER') {
+                    console.error('❌ 用户不是群组成员');
+                    ElMessage.error('您不是该群组成员，无法进入群聊');
+                    return;
+                  }
+                  
+                  // ✅ 如果后端返回了 sharedChatId，直接使用它创建会话
+                  if (groupData.sharedChatId) {
+                    console.log('✅ 后端返回了 sharedChatId，直接创建会话');
+                    
+                    // 等待一下，让后端完成创建
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // 重新加载聊天列表
+                    console.log('🔄 重新加载聊天列表...');
+                    await loadChatList();
+                    console.log('📊 重新加载后的聊天列表数量:', chatList.value.length);
+                    
+                    // 查找群聊
+                    groupChat = chatList.value.find(chat => {
+                      console.log('🔍 检查聊天:', {
+                        chatId: chat.id,
+                        chatType: chat.type,
+                        chatGroupId: chat.groupId,
+                        chatSharedChatId: chat.sharedChatId,
+                        targetGroupId: Number(groupId),
+                        targetSharedChatId: groupData.sharedChatId
+                      });
+                      return chat.type === 'GROUP' && (
+                        chat.groupId === Number(groupId) ||
+                        chat.sharedChatId === groupData.sharedChatId ||
+                        chat.sharedChatId === Number(chatId)
+                      );
+                    });
+                    
+                    if (groupChat) {
+                      console.log('✅ 找到群聊，打开会话:', groupChat);
+                      await selectChat(groupChat);
+                    } else {
+                      // ✅ 如果还是找不到，手动构造一个会话对象
+                      console.log('⚠️ 聊天列表中仍未找到，手动构造会话对象');
+                      const manualGroupChat = {
+                        id: groupData.sharedChatId,
+                        sharedChatId: groupData.sharedChatId,
+                        groupId: Number(groupId),
+                        type: 'GROUP',
+                        name: groupData.groupName,
+                        targetInfo: groupData.groupName,
+                        lastMessage: null,
+                        updateTime: new Date().toISOString(),
+                        unreadCount: 0
+                      };
+                      
+                      console.log('📦 手动构造的会话对象:', manualGroupChat);
+                      
+                      // 添加到聊天列表
+                      chatList.value.unshift(manualGroupChat);
+                      
+                      // 打开会话
+                      await selectChat(manualGroupChat);
+                      
+                      ElMessage.success('已进入群聊');
+                    }
+                  } else {
+                    console.error('❌ 后端未返回 sharedChatId');
+                    console.error('💡 调试信息:', {
+                      chatListLength: chatList.value.length,
+                      chatListTypes: chatList.value.map(c => c.type),
+                      groupId: groupId,
+                      groupData: groupData
+                    });
+                    ElMessage.error('群聊数据不完整，请联系管理员');
+                  }
+                } else {
+                  console.error('❌ 获取群组信息失败:', groupResponse);
+                  ElMessage.error('获取群组信息失败: ' + (groupResponse.message || '未知错误'));
+                }
+              } catch (detailError) {
+                console.error('❌ 获取群组详情失败:', detailError);
+                ElMessage.error('加载群聊失败，请稍后重试');
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ 加载群聊失败:', error);
+          ElMessage.error('加载群聊失败');
+        }
+      }
       // 如果是私聊且聊天列表中没有，尝试创建新会话
-      if (chatType === 'PRIVATE') {
+      else if (chatType === 'PRIVATE') {
         try {
           const response = await api.chat.createChat({ targetId: chatId });
           if (response.code === 0 && response.data) {
@@ -1248,7 +1428,60 @@ watch(() => chatStore.isTypingInCurrentChat, (newVal) => {
   isTyping.value = newVal;
 });
 
-// ✅ 监听路由参数变化，支持聊天切换
+// ✅ 监听路由参数和 query 变化，支持聊天切换
+watch(() => [route.params, route.query], async ([newParams, newQuery]) => {
+  const chatType = (newParams.type || newQuery.type || '').toUpperCase();
+  const chatId = newParams.id || newQuery.chatId;
+  const groupId = newQuery.groupId;
+
+  if (chatType && chatId) {
+    console.log('🔄 路由变化，切换聊天:', { chatType, chatId, groupId });
+
+    // 查找对应的聊天会话
+    const targetChat = chatList.value.find(chat => {
+      const chatIdMatch = chat.sharedChatId === Number(chatId) || 
+                         chat.id === chatId || 
+                         chat.id === String(chatId);
+      const typeMatch = chat.type === chatType;
+      return chatIdMatch && typeMatch;
+    });
+
+    if (targetChat) {
+      await selectChat(targetChat);
+    } else if (chatType === 'GROUP' && groupId) {
+      // 重新加载聊天列表并查找群聊
+      await loadChatList();
+      let retryChat = chatList.value.find(chat => 
+        chat.type === 'GROUP' && (
+          chat.groupId === Number(groupId) ||
+          chat.sharedChatId === Number(chatId)
+        )
+      );
+      
+      if (retryChat) {
+        await selectChat(retryChat);
+      } else {
+        // 触发后端自动修复
+        try {
+          const groupResponse = await api.group.getGroupDetails(groupId);
+          if (groupResponse.code === 0) {
+            await loadChatList();
+            retryChat = chatList.value.find(chat => 
+              chat.type === 'GROUP' && chat.groupId === Number(groupId)
+            );
+            if (retryChat) {
+              await selectChat(retryChat);
+            }
+          }
+        } catch (error) {
+          console.error('❌ 自动修复群聊失败:', error);
+        }
+      }
+    }
+  }
+}, { deep: true });
+
+// 旧的 params 监听（保留兼容性）
 watch(() => route.params, async (newParams) => {
   if (newParams.type && newParams.id) {
     const chatType = newParams.type.toUpperCase();

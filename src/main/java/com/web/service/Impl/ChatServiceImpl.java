@@ -7,6 +7,7 @@ import com.web.model.ChatList;
 import com.web.model.Message;
 import com.web.service.ChatService;
 import com.web.util.ValidationUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.List;
  * 聊天服务实现类
  * 实现聊天相关的核心业务逻辑
  */
+@Slf4j
 @Service
 @Transactional(rollbackFor = Exception.class)
 public class ChatServiceImpl implements ChatService {
@@ -32,6 +34,9 @@ public class ChatServiceImpl implements ChatService {
 
     @Autowired
     private com.web.service.ChatUnreadCountService chatUnreadCountService;
+
+    @Autowired
+    private com.web.mapper.UserMapper userMapper;
 
     @Override
     public List<ChatList> getChatList(Long userId) {
@@ -100,19 +105,35 @@ public class ChatServiceImpl implements ChatService {
             return existingChat;
         }
 
-        // ✅ 修复1：为当前用户创建chat_list记录（使用sharedChatId作为ID的一部分）
+        // ✅ 修复：获取目标用户信息以动态生成targetInfo
+        com.web.model.User targetUser = userMapper.selectById(targetId);
+        String targetUserInfo = "{\"id\":" + targetId + ",\"username\":\"Unknown\",\"name\":\"Unknown\"}";
+        if (targetUser != null) {
+            String displayName = targetUser.getNickname() != null ? targetUser.getNickname() : targetUser.getUsername();
+            targetUserInfo = "{\"id\":" + targetId + ",\"username\":\"" + targetUser.getUsername() + "\",\"name\":\"" + displayName + "\",\"avatar\":\"" + (targetUser.getAvatar() != null ? targetUser.getAvatar() : "") + "\"}";
+        }
+
+        // ✅ 修复：为当前用户创建chat_list记录（使用sharedChatId作为ID的一部分）
         ChatList userChatList = new ChatList();
         userChatList.setId(String.valueOf(sharedChatId) + "_" + userId); // 使用 sharedChatId_userId 格式
         userChatList.setUserId(userId);
         userChatList.setSharedChatId(sharedChatId);
         userChatList.setTargetId(targetId);
         userChatList.setType("PRIVATE");
-        userChatList.setTargetInfo("Private Chat");
+        userChatList.setTargetInfo(targetUserInfo);
         userChatList.setUnreadCount(0);
 
         chatListMapper.insertChatList(userChatList);
 
-        // ✅ 修复1：检查对方是否已有chat_list记录，如果没有则创建（使用相同的sharedChatId）
+        // ✅ 修复：获取当前用户信息以生成对方的targetInfo
+        com.web.model.User currentUser = userMapper.selectById(userId);
+        String currentUserInfo = "{\"id\":" + userId + ",\"username\":\"Unknown\",\"name\":\"Unknown\"}";
+        if (currentUser != null) {
+            String displayName = currentUser.getNickname() != null ? currentUser.getNickname() : currentUser.getUsername();
+            currentUserInfo = "{\"id\":" + userId + ",\"username\":\"" + currentUser.getUsername() + "\",\"name\":\"" + displayName + "\",\"avatar\":\"" + (currentUser.getAvatar() != null ? currentUser.getAvatar() : "") + "\"}";
+        }
+
+        // ✅ 修复：检查对方是否已有chat_list记录，如果没有则创建（使用相同的sharedChatId）
         ChatList targetChatList = chatListMapper.selectChatListByUserAndTarget(targetId, userId);
         if (targetChatList == null) {
             targetChatList = new ChatList();
@@ -121,7 +142,7 @@ public class ChatServiceImpl implements ChatService {
             targetChatList.setSharedChatId(sharedChatId); // ✅ 关键：使用相同的sharedChatId
             targetChatList.setTargetId(userId);
             targetChatList.setType("PRIVATE");
-            targetChatList.setTargetInfo("Private Chat");
+            targetChatList.setTargetInfo(currentUserInfo);
             targetChatList.setUnreadCount(0);
 
             chatListMapper.insertChatList(targetChatList);
@@ -322,17 +343,75 @@ public class ChatServiceImpl implements ChatService {
         return chatListMapper.deleteChatList(chatId) > 0;
     }
 
+    @Autowired
+    private com.web.mapper.MessageReactionMapper messageReactionMapper;
+
     @Override
     public void addReaction(Long userId, Long messageId, String reactionType) {
+        log.info("添加消息反应: userId={}, messageId={}, reactionType={}", userId, messageId, reactionType);
+        
+        // 输入验证
+        if (!ValidationUtils.validateId(userId, "用户ID")) {
+            throw new WeebException("无效的用户ID");
+        }
+        if (!ValidationUtils.validateId(messageId, "消息ID")) {
+            throw new WeebException("无效的消息ID");
+        }
+        if (reactionType == null || reactionType.trim().isEmpty()) {
+            throw new WeebException("反应类型不能为空");
+        }
+
         // 检查消息是否存在
         Message message = messageMapper.selectMessageById(messageId);
         if (message == null) {
             throw new WeebException("消息不存在");
         }
 
-        // 添加或取消反应（这里简化处理，实际应该有专门的反应表）
-        // 这里暂时在消息内容中记录反应信息
-        // 实际实现应该有MessageReaction表和MessageReactionMapper
+        // 检查用户是否已经对该消息添加了相同的反应
+        com.web.model.MessageReaction existingReaction = messageReactionMapper.findByMessageUserAndType(
+            messageId, userId, reactionType);
+
+        if (existingReaction != null) {
+            // 如果已存在，则删除（取消反应）
+            messageReactionMapper.deleteByMessageUserAndType(messageId, userId, reactionType);
+            log.info("取消消息反应: userId={}, messageId={}, reactionType={}", userId, messageId, reactionType);
+        } else {
+            // 如果不存在，则添加
+            com.web.model.MessageReaction reaction = new com.web.model.MessageReaction();
+            reaction.setMessageId(messageId);
+            reaction.setUserId(userId);
+            reaction.setReactionType(reactionType);
+            reaction.setCreatedAt(new java.sql.Timestamp(System.currentTimeMillis()));
+            
+            messageReactionMapper.insert(reaction);
+            log.info("添加消息反应成功: reactionId={}", reaction.getId());
+        }
+
+        // ✅ 关键：广播反应变更给所有相关用户
+        try {
+            // 获取消息的聊天ID
+            Long chatId = message.getChatId();
+            
+            // 获取该消息的所有反应统计
+            List<java.util.Map<String, Object>> reactionStats = messageReactionMapper.getReactionStatsByMessageId(messageId);
+            
+            // 构造广播数据
+            java.util.Map<String, Object> reactionData = new java.util.HashMap<>();
+            reactionData.put("messageId", messageId);
+            reactionData.put("chatId", chatId);
+            reactionData.put("userId", userId);
+            reactionData.put("reactionType", reactionType);
+            reactionData.put("action", existingReaction != null ? "remove" : "add");
+            reactionData.put("reactions", reactionStats);
+            
+            // 广播反应变更
+            messageBroadcastService.broadcastReactionChange(chatId, reactionData);
+            
+            log.info("广播消息反应变更成功: messageId={}, chatId={}", messageId, chatId);
+        } catch (Exception e) {
+            log.error("广播消息反应变更失败: messageId={}", messageId, e);
+            // 不抛出异常，因为反应已经保存成功
+        }
     }
 
     @Override
@@ -538,10 +617,48 @@ public class ChatServiceImpl implements ChatService {
             throw new WeebException("无效的共享聊天ID");
         }
 
+        log.info("🔍 标记已读: userId={}, sharedChatId={}", userId, sharedChatId);
+
         // 查找用户的chat_list记录
         ChatList chatList = chatListMapper.selectChatListByUserIdAndSharedChatId(userId, sharedChatId);
+        
+        // ✅ 修复：如果chat_list记录不存在，尝试自动创建（针对群组）
         if (chatList == null) {
-            throw new WeebException("聊天会话不存在");
+            log.warn("⚠️ chat_list记录不存在，尝试自动修复: userId={}, sharedChatId={}", userId, sharedChatId);
+            
+            // 方案1: 检查是否是群组的shared_chat_id
+            com.web.model.Group group = findGroupBySharedChatId(sharedChatId);
+            
+            // 方案2: 如果方案1失败，检查sharedChatId是否实际上是groupId（前端可能传错了）
+            if (group == null) {
+                log.warn("⚠️ 未找到shared_chat_id={}的群组，尝试作为groupId查找", sharedChatId);
+                group = findGroupById(sharedChatId);
+                if (group != null && group.getSharedChatId() != null) {
+                    log.info("✅ 找到群组，但传入的是groupId而非sharedChatId。groupId={}, 正确的sharedChatId={}", 
+                        sharedChatId, group.getSharedChatId());
+                    // 递归调用，使用正确的sharedChatId
+                    return markAsReadBySharedChatId(userId, group.getSharedChatId());
+                }
+            }
+            
+            if (group != null) {
+                log.info("✅ 找到群组: groupId={}, groupName={}, sharedChatId={}", 
+                    group.getId(), group.getGroupName(), group.getSharedChatId());
+                
+                // 检查用户是否是群成员
+                if (isUserGroupMember(userId, group.getId())) {
+                    // 自动为该用户创建chat_list记录
+                    chatList = createChatListForGroupMember(userId, group);
+                    log.info("✅ 自动为群成员创建chat_list记录: userId={}, groupId={}, sharedChatId={}", 
+                        userId, group.getId(), group.getSharedChatId());
+                } else {
+                    log.error("❌ 用户不是群成员: userId={}, groupId={}", userId, group.getId());
+                    throw new WeebException("您不是该群组成员");
+                }
+            } else {
+                log.error("❌ 未找到对应的群组或私聊: sharedChatId={}", sharedChatId);
+                throw new WeebException("聊天会话不存在");
+            }
         }
         
         // 获取最后一条消息ID
@@ -553,6 +670,61 @@ public class ChatServiceImpl implements ChatService {
         
         // 同时更新chat_list表
         return chatListMapper.resetUnreadCountByChatId(chatList.getId()) > 0;
+    }
+    
+    /**
+     * 根据sharedChatId查找群组
+     */
+    private com.web.model.Group findGroupBySharedChatId(Long sharedChatId) {
+        try {
+            return chatListMapper.selectGroupBySharedChatId(sharedChatId);
+        } catch (Exception e) {
+            log.debug("未找到对应的群组: sharedChatId={}", sharedChatId);
+            return null;
+        }
+    }
+    
+    /**
+     * 根据groupId查找群组
+     */
+    private com.web.model.Group findGroupById(Long groupId) {
+        try {
+            return chatListMapper.selectGroupById(groupId);
+        } catch (Exception e) {
+            log.debug("未找到对应的群组: groupId={}", groupId);
+            return null;
+        }
+    }
+    
+    /**
+     * 检查用户是否是群成员
+     */
+    private boolean isUserGroupMember(Long userId, Long groupId) {
+        try {
+            return chatListMapper.isUserGroupMember(userId, groupId);
+        } catch (Exception e) {
+            log.error("检查群成员失败: userId={}, groupId={}", userId, groupId, e);
+            return false;
+        }
+    }
+    
+    /**
+     * 为群成员创建chat_list记录
+     */
+    private ChatList createChatListForGroupMember(Long userId, com.web.model.Group group) {
+        ChatList chatList = new ChatList();
+        chatList.setId(java.util.UUID.randomUUID().toString());
+        chatList.setUserId(userId);
+        chatList.setSharedChatId(group.getSharedChatId());
+        chatList.setGroupId(group.getId());
+        chatList.setType("GROUP");
+        chatList.setTargetInfo(group.getGroupName());
+        chatList.setUnreadCount(0);
+        chatList.setCreateTime(java.time.LocalDateTime.now());
+        chatList.setUpdateTime(java.time.LocalDateTime.now());
+        
+        chatListMapper.insertChatList(chatList);
+        return chatList;
     }
 
     @Override

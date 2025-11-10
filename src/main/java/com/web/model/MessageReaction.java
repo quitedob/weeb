@@ -1,42 +1,41 @@
 package com.web.model;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.IdType;
+import lombok.Data;
 
-import java.io.Serializable;
-import java.util.Date;
+import java.sql.Timestamp;
 
 /**
  * 消息反应实体类
- * 简化注释：消息反应实体
  */
 @Data
-@EqualsAndHashCode(callSuper = false)
-@TableName(value = "message_reaction") // MyBatis Plus注解
-public class MessageReaction implements Serializable {
-    private static final long serialVersionUID = 1L;
+@TableName("message_reaction")
+public class MessageReaction {
+    /**
+     * 反应ID
+     */
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    @TableId(type = IdType.AUTO) // MyBatis Plus主键注解
-    private Long id; // 反应ID
+    /**
+     * 消息ID
+     */
+    private Long messageId;
 
-    private Long messageId; // 消息ID
-    private Long userId; // 用户ID
-    private String reactionType; // 反应类型 (如: 👍, ❤️, 😂)
-    private Date createTime; // 创建时间
+    /**
+     * 用户ID
+     */
+    private Long userId;
 
-    // 默认构造函数
-    public MessageReaction() {
-        this.createTime = new Date();
-    }
+    /**
+     * 反应类型（如👍、❤️等）
+     */
+    private String reactionType;
 
-    // 创建时的构造函数
-    public MessageReaction(Long messageId, Long userId, String reactionType) {
-        this.messageId = messageId;
-        this.userId = userId;
-        this.reactionType = reactionType;
-        this.createTime = new Date();
-    }
+    /**
+     * 创建时间
+     */
+    private Timestamp createdAt;
 }

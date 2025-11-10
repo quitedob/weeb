@@ -34,20 +34,7 @@
               style="width: 300px;"
             />
           </div>
-          <div class="form-item">
-            <label for="avatar">头像 URL:</label>
-            <AppleInput
-              id="avatar"
-              v-model="form.avatar"
-              placeholder="请输入头像图片URL"
-              style="width: 300px;"
-            />
-          </div>
-          <div class="avatar-preview-container">
-            <label>头像预览:</label>
-            <img :src="form.avatar || defaultAvatar" alt="avatar" class="avatar-preview" @error="onAvatarError" />
-          </div>
-          <AppleButton type="primary" @click="updateProfile" class="save-btn" :loading="loading">
+            <AppleButton type="primary" @click="updateProfile" class="save-btn" :loading="loading">
             保存更改
           </AppleButton>
           <div v-if="message" :class="['message', messageType]">{{ message }}</div>

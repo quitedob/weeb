@@ -377,11 +377,4 @@ public interface UserService {
      */
     boolean updateUserProfile(User user);
 
-    /**
-     * 上传用户头像
-     * @param userId 用户ID
-     * @param file 头像文件
-     * @return 头像URL
-     */
-    String uploadUserAvatar(Long userId, org.springframework.web.multipart.MultipartFile file);
-}
+  }
