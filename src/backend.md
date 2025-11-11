@@ -27,6 +27,8 @@
 
 ## 控制器接口列表
 
+**项目统计**: 22个控制器，涵盖完整的社交平台功能
+
 ### 1. StandardAuthController (认证管理)
 **基路径**: `/api/auth`
 
@@ -310,6 +312,7 @@ public static class TargetUserInfo {
 
 ### 8. AIController (AI功能)
 **基路径**: `/api/ai`
+**特殊注解**: 大部分接口需要 `@Userid` 自动获取用户ID
 
 | 方法 | 路径 | 描述 | 参数 |
 |------|------|------|------|
@@ -328,6 +331,13 @@ public static class TargetUserInfo {
 | POST | `/text/proofread` | 校对和修正文本 | `TextProofreadRequestVo` (body) |
 | POST | `/content/outline` | 生成内容大纲 | `ContentOutlineRequestVo` (body) |
 | GET | `/config` | 获取AI配置信息 | 无 |
+
+#### AI功能特性
+- **15+种AI功能**: 涵盖文本处理、内容生成、情感分析等
+- **多语言支持**: 翻译功能支持多种语言互译
+- **内容安全**: 自动检查内容合规性和安全性
+- **智能建议**: 基于上下文生成个性化建议
+- **实时处理**: 快速响应AI处理请求
 
 ### 9. WebSocketMessageController (WebSocket消息)
 **基路径**: `/app`
@@ -492,22 +502,29 @@ public static class TargetUserInfo {
 | GET | `/stats` | 获取关注统计 | `@Userid Long userId` |
 | GET | `/stats/{targetUserId}` | 获取指定用户关注统计 | `targetUserId` (path) |
 
-### 20. SocialRelationshipController (社交关系管理)
+### 20. SocialRelationshipController (社交关系管理) ⚠️ **已废弃**
 **基路径**: `/api/social`
+**废弃时间**: 2025-11-07
+**替代方案**: 使用 ContactController 进行联系人管理
 
-| 方法 | 路径 | 描述 | 参数 |
-|------|------|------|------|
-| GET | `/relationship/{targetUserId}` | 获取两个用户间的关系 | `targetUserId` (path), `@Userid Long userId` |
-| POST | `/follow/{targetUserId}` | 关注用户 | `targetUserId` (path), `@Userid Long userId` |
-| DELETE | `/follow/{targetUserId}` | 取消关注用户 | `targetUserId` (path), `@Userid Long userId` |
-| DELETE | `/friend/{friendId}` | 删除好友关系 | `friendId` (path), `keepFollow` (query), `@Userid Long userId` |
-| GET | `/friends` | 获取好友列表 | `@Userid Long userId` |
-| GET | `/following` | 获取关注列表 | `@Userid Long userId` |
-| GET | `/followers` | 获取粉丝列表 | `@Userid Long userId` |
-| GET | `/mutual-follow` | 获取互相关注列表 | `@Userid Long userId` |
-| GET | `/recommendations/friends` | 获取好友推荐 | `@Userid Long userId`, `limit` (query) |
-| GET | `/recommendations/follow` | 获取关注推荐 | `@Userid Long userId`, `limit` (query) |
-| GET | `/statistics` | 获取社交统计信息 | `@Userid Long userId` |
+| 方法 | 路径 | 描述 | 参数 | 状态 |
+|------|------|------|------|------|
+| GET | `/relationship/{targetUserId}` | 获取两个用户间的关系 | `targetUserId` (path), `@Userid Long userId` | ⚠️ 已废弃 |
+| POST | `/follow/{targetUserId}` | 关注用户 | `targetUserId` (path), `@Userid Long userId` | ⚠️ 已废弃 |
+| DELETE | `/follow/{targetUserId}` | 取消关注用户 | `targetUserId` (path), `@Userid Long userId` | ⚠️ 已废弃 |
+| DELETE | `/friend/{friendId}` | 删除好友关系 | `friendId` (path), `keepFollow` (query), `@Userid Long userId` | ✅ 保留 |
+| GET | `/friends` | 获取好友列表 | `@Userid Long userId` | ⚠️ 已废弃 |
+| GET | `/following` | 获取关注列表 | `@Userid Long userId` | ⚠️ 已废弃 |
+| GET | `/followers` | 获取粉丝列表 | `@Userid Long userId` | ⚠️ 已废弃 |
+| GET | `/mutual-follow` | 获取互相关注列表 | `@Userid Long userId` | ⚠️ 已废弃 |
+| GET | `/recommendations/friends` | 获取好友推荐 | `@Userid Long userId`, `limit` (query) | ⚠️ 已废弃 |
+| GET | `/recommendations/follow` | 获取关注推荐 | `@Userid Long userId`, `limit` (query) | ⚠️ 已废弃 |
+| GET | `/statistics` | 获取社交统计信息 | `@Userid Long userId` | ⚠️ 已废弃 |
+
+#### 迁移指南
+- **好友管理**: 使用 `ContactController` 的相关接口
+- **关注功能**: 使用 `UserFollowController` 进行关注操作
+- **社交统计**: 使用 `UserFollowController` 的统计接口
 
 ### 21. ContactGroupController (联系人分组管理)
 **基路径**: `/api/contact-groups`
@@ -575,15 +592,32 @@ public static class TargetUserInfo {
 ## 其他重要信息
 
 ### 实际控制器统计
-本项目实际包含 **24个控制器**，涵盖了完整的社交平台功能：
+本项目实际包含 **22个控制器**，涵盖了完整的社交平台功能：
 
 - **核心功能**: 认证、用户管理、群组管理、联系人管理
 - **聊天系统**: 实时聊天、消息管理、消息线程、WebSocket通信
 - **内容管理**: 文章系统、评论、版本控制、内容审核
-- **AI功能**: 智能处理、内容生成、情感分析、多语言支持
-- **搜索服务**: 全文搜索、多类型搜索、高级搜索
+- **AI功能**: 15+种智能处理、内容生成、情感分析、多语言支持
+- **搜索服务**: 基于Elasticsearch的全文搜索、多类型搜索、高级搜索
 - **管理功能**: 用户等级、通知、举报、限流、系统诊断
 - **数据迁移**: 数据迁移工具和统计管理
+
+#### 控制器分类统计
+- **核心业务**: 4个 (Auth, User, Group, Contact)
+- **聊天通信**: 4个 (Chat, MessageThread, WebSocket, WebSocketMonitor)
+- **内容管理**: 3个 (Article, Comment, Version)
+- **AI智能**: 1个 (AIController)
+- **搜索发现**: 1个 (SearchController)
+- **社交功能**: 3个 (Contact, ContactGroup, UserFollow)
+- **系统管理**: 6个 (RateLimit, Notification, Report, Diagnostic, Migration, UserLevel)
+- **历史记录**: 2个 (UserLevelHistory, UserLevelIntegration)
+
+#### 架构变更说明
+- **社交模型重构**: 从非对称关注模型迁移到对称好友模型
+- **ContactController新增**: 完整的联系人管理系统替代旧的社交关系
+- **SocialRelationshipController废弃**: 标记为已废弃，功能迁移到新控制器
+- **WebSocket系统增强**: 新增连接监控和管理功能
+- **AI功能扩展**: 集成15+种AI智能处理功能
 
 ### 特殊注解说明
 
@@ -735,14 +769,16 @@ public static class TargetUserInfo {
 ## 更新日志
 
 ### 当前版本特性
-- ✅ **24个控制器**: 完整的社交平台API
-- ✅ **实时通信**: WebSocket支持完整的聊天功能
-- ✅ **AI集成**: 15+种AI功能接口
-- ✅ **内容管理**: 文章、评论、版本控制系统
-- ✅ **搜索服务**: 基于Elasticsearch的全文搜索
-- ✅ **权限控制**: 细粒度的权限管理系统
-- ✅ **限流保护**: 接口级别的限流控制
-- ✅ **数据迁移**: 完整的数据迁移工具
+- ✅ **22个控制器**: 完整的社交平台API（精简优化）
+- ✅ **实时通信**: WebSocket支持完整的聊天功能，增强连接监控
+- ✅ **AI集成**: 15+种AI功能接口，多语言支持
+- ✅ **内容管理**: 文章、评论、版本控制和审核系统
+- ✅ **搜索服务**: 基于Elasticsearch的多类型全文搜索
+- ✅ **社交重构**: 新的联系人管理系统，替代旧的社交关系
+- ✅ **权限控制**: 细粒度的权限管理和角色控制
+- ✅ **限流保护**: 动态可配置的接口级别限流
+- ✅ **用户等级**: 完整的用户等级和积分系统
+- ✅ **数据迁移**: 完整的数据迁移和统计工具
 
 ### 标记说明
 - ✅ **已完成**: 功能已实现并可正常使用
