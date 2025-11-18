@@ -1,0 +1,190 @@
+# WEEB社交系统开发环境与工具
+
+## 一、开发环境
+
+### 1.1 基础开发环境
+- **操作系统**: Windows 10/11 (主要开发环境)
+- **Java开发环境**:
+  - JDK 17 (Oracle/OpenJDK)
+  - Maven 3.6+ (项目构建工具)
+- **Node.js环境**:
+  - Node.js 16+ (前端构建支持)
+  - npm 8+ (包管理器)
+
+### 1.2 集成开发环境(IDE)
+- **后端开发**: IntelliJ IDEA 2023+
+- **数据库管理**:
+  - MySQL Workbench 8.0+
+  - DBeaver (通用数据库工具)
+- **API测试**: Postman 或 Apifox
+- **版本控制**: Git + GitHub/GitLab
+
+## 二、编程语言与框架版本
+
+### 2.1 后端技术栈
+- **核心语言**: Java 17
+- **主框架**: Spring Boot 3.5.4
+- **安全框架**: Spring Security 6.x
+- **ORM框架**: MyBatis-Plus 3.5.8
+- **构建工具**: Maven 3.6+
+
+### 2.2 前端技术栈
+- **UI框架**: Element Plus 2.11.5
+- **CSS预处理器**: Less 4.2.2
+- **构建工具**: Webpack/Vite (通过Less Loader 12.2.0)
+
+### 2.3 开发工具库
+- **JSON处理**: Jackson (Spring Boot内置)
+- **加密工具**: JJWT 0.11.5
+- **网络通信**: OkHttp 4.12.0
+- **网络框架**: Netty 4.1.108.Final
+- **工具库**: Hutool 5.8.18
+- **代码简化**: Lombok 1.18.38
+- **缓存框架**: Caffeine (Spring Boot内置)
+- **SSH支持**: Apache SSHD 2.14.0
+- **反射工具**: Reflections 0.10.2
+
+## 三、数据库与存储
+
+### 3.1 关系型数据库
+- **MySQL**: 8.0+
+  - 字符集: utf8mb4
+  - 排序规则: utf8mb4_unicode_ci
+  - 连接池: HikariCP (Spring Boot内置)
+
+### 3.2 缓存系统
+- **Redis**: 7.0+
+  - 数据缓存
+  - 会话存储
+  - 分布式锁
+
+### 3.3 搜索引擎
+- **Elasticsearch**: 8.18.6
+  - 全文搜索
+  - 中文分词 (IK Analyzer)
+  - 索引管理
+
+### 3.4 文件存储
+- **本地存储**: 开发环境
+- **云存储**: 阿里云OSS 3.15.1 (生产环境)
+  - 图片存储
+  - 文件上传
+  - CDN加速
+
+## 四、运行支撑环境
+
+### 4.1 应用服务器
+- **内嵌服务器**: Tomcat (Spring Boot内置)
+- **服务端口**: 8080 (开发环境)
+- **WebSocket支持**: Spring WebSocket
+- **异步处理**: Spring Async
+
+### 4.2 监控与管理
+- **健康检查**: Spring Boot Actuator
+- **API文档**: Springdoc OpenAPI 2.6.0
+- **日志管理**: Logback (Spring Boot内置)
+- **性能监控**: Micrometer (Spring Boot内置)
+
+### 4.3 安全与认证
+- **认证方式**: JWT (JSON Web Token)
+- **加密算法**: BCrypt (密码加密)
+- **权限控制**: Spring Security
+- **敏感词过滤**: sensitive-word 0.24.0
+
+## 五、AI与智能服务
+
+### 5.1 AI框架
+- **Spring AI**: 1.0.0-M1
+- **OpenAI集成**: GPT API支持
+- **智能功能**:
+  - 文本生成与处理
+  - 情感分析
+  - 内容摘要
+  - 多语言翻译
+
+## 六、开发工具版本详情
+
+### 6.1 Maven依赖版本
+```xml
+<properties>
+    <java.version>17</java.version>
+    <spring-ai.version>1.0.0-M1</spring-ai.version>
+</properties>
+```
+
+### 6.2 关键依赖版本
+- **Spring Boot**: 3.5.4
+- **MyBatis-Plus**: 3.5.8
+- **Elasticsearch**: 8.18.6
+- **MySQL Connector**: 8.0.x
+- **Redis**: 7.0+
+- **JJWT**: 0.11.5
+- **Netty**: 4.1.108.Final
+- **OkHttp**: 4.12.0
+- **Hutool**: 5.8.18
+- **Lombok**: 1.18.38
+- **Apache SSHD**: 2.14.0
+- **阿里云OSS**: 3.15.1
+- **Springdoc OpenAPI**: 2.6.0
+
+### 6.3 前端依赖版本
+```json
+{
+  "dependencies": {
+    "element-plus": "^2.11.5"
+  },
+  "devDependencies": {
+    "less": "^4.2.2",
+    "less-loader": "^12.2.0"
+  }
+}
+```
+
+## 七、配置文件版本
+
+### 7.1 应用配置
+- **主配置文件**: application.yml
+- **环境配置**: dev/prod profiles
+- **端口配置**: 8080 (开发环境)
+
+### 7.2 数据库配置
+- **连接URL**: jdbc:mysql://localhost:3306/weeb
+- **连接池**: HikariCP
+- **最大连接数**: 20
+- **最小空闲连接**: 5
+
+## 八、开发规范
+
+### 8.1 代码规范
+- **编码格式**: UTF-8
+- **代码风格**: Google Java Style Guide
+- **注释规范**: JavaDoc
+- **命名规范**: 驼峰命名法
+
+### 8.2 版本控制
+- **Git版本**: 2.30+
+- **分支策略**: Git Flow
+- **提交规范**: Conventional Commits
+
+### 8.3 构建与部署
+- **构建工具**: Maven 3.6+
+- **打包格式**: JAR
+- **容器化**: Docker (可选)
+- **部署方式**: 传统部署 / 容器化部署
+
+## 九、第三方服务集成
+
+### 9.1 云服务
+- **阿里云OSS**: 对象存储服务
+- **IP定位服务**: IP2Region 2.7.0
+- **AI服务**: OpenAI API
+
+### 9.2 开发工具
+- **API测试**: Postman/Apifox
+- **数据库管理**: MySQL Workbench
+- **Redis客户端**: RedisInsight
+- **Elasticsearch管理**: Kibana 8.18.6
+
+---
+
+**环境要求总结**: WEEB社交系统采用现代化的技术栈，需要Java 17运行环境，配合MySQL 8.0+、Redis 7.0+、Elasticsearch 8.18.6等支撑服务。开发环境推荐使用IntelliJ IDEA作为IDE，通过Maven进行项目构建和依赖管理。

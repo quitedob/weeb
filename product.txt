@@ -1,0 +1,578 @@
+# WEEB社交系统数据库完整性约束实现
+
+## 一、数据库完整性约束实现
+
+### 1.1 实体完整性约束
+
+**主键约束：**
+```sql
+-- 用户表主键
+CREATE TABLE user (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    user_email VARCHAR(100) UNIQUE NOT NULL,
+    phone_number VARCHAR(20) UNIQUE,
+    nickname VARCHAR(50),
+    type INT DEFAULT 1,
+    status INT DEFAULT 1,
+    registration_date DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 文章表主键
+CREATE TABLE articles (
+    article_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    category_id INT,
+    article_title VARCHAR(200) NOT NULL,
+    article_content LONGTEXT,
+    article_link VARCHAR(500),
+    status INT DEFAULT 1,
+    likes_count INT DEFAULT 0,
+    favorites_count INT DEFAULT 0,
+    sponsors_count INT DEFAULT 0,
+    exposure_count BIGINT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 消息表主键
+CREATE TABLE message (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    client_message_id VARCHAR(100) UNIQUE,
+    sender_id BIGINT NOT NULL,
+    chat_id BIGINT NOT NULL,
+    content JSON,
+    message_type VARCHAR(50),
+    read_status INT DEFAULT 0,
+    is_recalled INT DEFAULT 0,
+    user_ip VARCHAR(45),
+    source VARCHAR(50),
+    reply_to_message_id BIGINT,
+    thread_id BIGINT,
+    is_show_time INT DEFAULT 0,
+    status INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+**唯一性约束：**
+```sql
+-- 用户名唯一约束
+ALTER TABLE user ADD CONSTRAINT uk_username UNIQUE (username);
+
+-- 邮箱唯一约束
+ALTER TABLE user ADD CONSTRAINT uk_email UNIQUE (user_email);
+
+-- 手机号唯一约束
+ALTER TABLE user ADD CONSTRAINT uk_phone UNIQUE (phone_number);
+
+-- 客户端消息ID唯一约束
+ALTER TABLE message ADD CONSTRAINT uk_client_message_id UNIQUE (client_message_id);
+
+-- 文章分类名称唯一约束
+ALTER TABLE article_category ADD CONSTRAINT uk_category_name UNIQUE (category_name);
+
+-- 文章标签名称唯一约束
+ALTER TABLE article_tag ADD CONSTRAINT uk_tag_name UNIQUE (tag_name);
+```
+
+**非空约束：**
+```sql
+-- 用户表必填字段
+ALTER TABLE user
+MODIFY username VARCHAR(50) NOT NULL,
+MODIFY password VARCHAR(255) NOT NULL,
+MODIFY registration_date DATETIME NOT NULL,
+MODIFY status INT NOT NULL;
+
+-- 文章表必填字段
+ALTER TABLE articles
+MODIFY article_title VARCHAR(200) NOT NULL,
+MODIFY user_id BIGINT NOT NULL;
+
+-- 群组表必填字段
+ALTER TABLE `group`
+MODIFY group_name VARCHAR(100) NOT NULL,
+MODIFY owner_id BIGINT NOT NULL;
+```
+
+### 1.2 参照完整性约束
+
+**外键约束：**
+```sql
+-- 文章表用户ID外键
+ALTER TABLE articles
+ADD CONSTRAINT fk_article_user
+FOREIGN KEY (user_id) REFERENCES user(id)
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- 文章分类外键
+ALTER TABLE articles
+ADD CONSTRAINT fk_article_category
+FOREIGN KEY (category_id) REFERENCES article_category(id)
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- 用户统计表外键
+ALTER TABLE user_stats
+ADD CONSTRAINT fk_stats_user
+FOREIGN KEY (user_id) REFERENCES user(id)
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- 消息表发送者外键
+ALTER TABLE message
+ADD CONSTRAINT fk_message_sender
+FOREIGN KEY (sender_id) REFERENCES user(id)
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- 群组成员表外键
+ALTER TABLE group_member
+ADD CONSTRAINT fk_group_member_group
+FOREIGN KEY (group_id) REFERENCES `group`(id)
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE group_member
+ADD CONSTRAINT fk_group_member_user
+FOREIGN KEY (user_id) REFERENCES user(id)
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- 文章评论外键
+ALTER TABLE article_comment
+ADD CONSTRAINT fk_comment_article
+FOREIGN KEY (article_id) REFERENCES articles(article_id)
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE article_comment
+ADD CONSTRAINT fk_comment_user
+FOREIGN KEY (user_id) REFERENCES user(id)
+ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE article_comment
+ADD CONSTRAINT fk_comment_parent
+FOREIGN KEY (parent_comment_id) REFERENCES article_comment(id)
+ON DELETE CASCADE ON UPDATE CASCADE;
+```
+
+**级联操作：**
+- `ON DELETE CASCADE`: 删除用户时，自动删除其文章、消息和统计数据
+- `ON UPDATE CASCADE`: 更新用户ID时，自动更新关联表中的用户ID
+- `ON DELETE SET NULL`: 删除分类时，文章分类ID设为NULL
+
+### 1.3 用户定义完整性约束
+
+**检查约束：**
+```sql
+-- 用户类型约束
+ALTER TABLE user
+ADD CONSTRAINT chk_user_type
+CHECK (type IN (0, 1, 2, 3)); -- 0:禁用, 1:普通用户, 2:VIP用户, 3:管理员
+
+-- 用户状态约束
+ALTER TABLE user
+ADD CONSTRAINT chk_user_status
+CHECK (status IN (0, 1)); -- 0:禁用, 1:启用
+
+-- 文章状态约束
+ALTER TABLE articles
+ADD CONSTRAINT chk_article_status
+CHECK (status IN (0, 1, 2, 3)); -- 0:草稿, 1:已发布, 2:审核中, 3:已拒绝
+
+-- 数值范围约束
+ALTER TABLE articles
+ADD CONSTRAINT chk_likes_count
+CHECK (likes_count >= 0);
+
+ALTER TABLE articles
+ADD CONSTRAINT chk_exposure_count
+CHECK (exposure_count >= 0);
+
+-- 群组成员角色约束
+ALTER TABLE group_member
+ADD CONSTRAINT chk_member_role
+CHECK (role IN (1, 2, 3)); -- 1:普通成员, 2:管理员, 3:群主
+
+-- 消息状态约束
+ALTER TABLE message
+ADD CONSTRAINT chk_message_status
+CHECK (status IN (0, 1)); -- 0:未删除, 1:已删除
+```
+
+**触发器约束：**
+```sql
+-- 自动更新时间戳触发器
+DELIMITER //
+CREATE TRIGGER trg_user_update_time
+BEFORE UPDATE ON user
+FOR EACH ROW
+BEGIN
+    SET NEW.updated_at = CURRENT_TIMESTAMP;
+END//
+DELIMITER ;
+
+-- 文章更新时间触发器
+DELIMITER //
+CREATE TRIGGER trg_article_update_time
+BEFORE UPDATE ON articles
+FOR EACH ROW
+BEGIN
+    SET NEW.updated_at = CURRENT_TIMESTAMP;
+END//
+DELIMITER ;
+
+-- 消息更新时间触发器
+DELIMITER //
+CREATE TRIGGER trg_message_update_time
+BEFORE UPDATE ON message
+FOR EACH ROW
+BEGIN
+    SET NEW.updated_at = CURRENT_TIMESTAMP;
+END//
+DELIMITER ;
+
+-- 用户统计更新触发器
+DELIMITER //
+CREATE TRIGGER trg_user_stats_update
+AFTER INSERT ON articles
+FOR EACH ROW
+BEGIN
+    INSERT INTO user_stats (user_id, total_articles)
+    VALUES (NEW.user_id, 1)
+    ON DUPLICATE KEY UPDATE
+    total_articles = COALESCE(total_articles, 0) + 1;
+END//
+DELIMITER ;
+
+-- 文章删除时更新用户统计触发器
+DELIMITER //
+CREATE TRIGGER trg_user_stats_update_on_delete
+AFTER DELETE ON articles
+FOR EACH ROW
+BEGIN
+    UPDATE user_stats
+    SET total_articles = GREATEST(COALESCE(total_articles, 0) - 1, 0)
+    WHERE user_id = OLD.user_id;
+END//
+DELIMITER ;
+```
+
+## 二、MyBatis映射文件关键配置
+
+### 2.1 用户映射配置
+
+```xml
+<!-- UserMapper.xml -->
+<resultMap id="UserResultMap" type="com.web.model.User">
+    <id property="id" column="id"/>
+    <result property="username" column="username"/>
+    <result property="password" column="password"/>
+    <result property="userEmail" column="user_email"/>
+    <result property="phoneNumber" column="phone_number"/>
+    <result property="nickname" column="nickname"/>
+    <result property="type" column="type"/>
+    <result property="status" column="status"/>
+    <result property="registrationDate" column="registration_date"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+    <!-- 实体完整性：主键映射 -->
+</resultMap>
+
+<!-- 用户插入语句 -->
+<insert id="insertUser" parameterType="com.web.model.User" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO `user` (
+        username, password, user_email, phone_number,
+        nickname, type, status, registration_date,
+        created_at, updated_at
+    ) VALUES (
+        #{username}, #{password}, #{userEmail}, #{phoneNumber},
+        #{nickname}, #{type}, #{status}, #{registrationDate},
+        NOW(), NOW()
+    )
+    <!-- 用户定义完整性：非空约束在数据库层面实现 -->
+</insert>
+
+<!-- 用户更新语句 -->
+<update id="updateUser" parameterType="com.web.model.User">
+    UPDATE `user` SET
+        username = #{username},
+        user_email = #{userEmail},
+        phone_number = #{phoneNumber},
+        nickname = #{nickname},
+        type = #{type},
+        status = #{status},
+        updated_at = NOW()
+    WHERE id = #{id}
+    <!-- 实体完整性：基于主键更新 -->
+</update>
+
+<!-- 用户删除语句（级联删除） -->
+<delete id="deleteUser" parameterType="long">
+    DELETE FROM `user` WHERE id = #{userId}
+    <!-- 参照完整性：级联删除用户相关数据 -->
+</delete>
+
+<!-- 根据用户名查询用户 -->
+<select id="selectUserByUsername" parameterType="string" resultMap="UserResultMap">
+    SELECT id, username, password, user_email, phone_number,
+           nickname, type, status, registration_date,
+           created_at, updated_at
+    FROM `user`
+    WHERE username = #{username}
+    <!-- 唯一性约束：用户名唯一 -->
+</select>
+```
+
+### 2.2 用户统计映射配置
+
+```xml
+<!-- UserStatsMapper.xml -->
+<resultMap id="UserStatsResultMap" type="com.web.model.UserStats">
+    <id property="userId" column="user_id"/>
+    <result property="fansCount" column="fans_count"/>
+    <result property="totalLikes" column="total_likes"/>
+    <result property="totalFavorites" column="total_favorites"/>
+    <result property="totalSponsorship" column="total_sponsorship"/>
+    <result property="totalArticleExposure" column="total_article_exposure"/>
+    <result property="websiteCoins" column="website_coins"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+</resultMap>
+
+<!-- 用户统计插入语句 -->
+<insert id="insertUserStats" parameterType="com.web.model.UserStats">
+    INSERT INTO user_stats (
+        user_id, fans_count, total_likes, total_favorites,
+        total_sponsorship, total_article_exposure, website_coins,
+        created_at, updated_at
+    ) VALUES (
+        #{userId}, #{fansCount}, #{totalLikes}, #{totalFavorites},
+        #{totalSponsorship}, #{totalArticleExposure}, #{websiteCoins},
+        NOW(), NOW()
+    )
+    ON DUPLICATE KEY UPDATE
+        fans_count = VALUES(fans_count),
+        total_likes = VALUES(total_likes),
+        total_favorites = VALUES(total_favorites),
+        total_sponsorship = VALUES(total_sponsorship),
+        total_article_exposure = VALUES(total_article_exposure),
+        website_coins = VALUES(website_coins),
+        updated_at = NOW()
+    <!-- 参照完整性：用户ID必须存在于用户表 -->
+</insert>
+```
+
+### 2.3 文章映射配置
+
+```xml
+<!-- ArticleMapper.xml -->
+<resultMap id="ArticleResultMap" type="com.web.model.Article">
+    <id property="articleId" column="article_id"/>
+    <result property="userId" column="user_id"/>
+    <result property="categoryId" column="category_id"/>
+    <result property="articleTitle" column="article_title"/>
+    <result property="articleContent" column="article_content"/>
+    <result property="articleLink" column="article_link"/>
+    <result property="status" column="status"/>
+    <result property="likesCount" column="likes_count"/>
+    <result property="favoritesCount" column="favorites_count"/>
+    <result property="sponsorsCount" column="sponsors_count"/>
+    <result property="exposureCount" column="exposure_count"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+    <!-- 参照完整性：外键字段映射 -->
+</resultMap>
+
+<!-- 文章插入语句 -->
+<insert id="insertArticle" parameterType="com.web.model.Article" useGeneratedKeys="true" keyProperty="articleId">
+    INSERT INTO articles (
+        user_id, category_id, article_title, article_content,
+        article_link, status, likes_count, favorites_count,
+        sponsors_count, exposure_count, created_at, updated_at
+    ) VALUES (
+        #{userId}, #{categoryId}, #{articleTitle}, #{articleContent},
+        #{articleLink}, #{status}, #{likesCount}, #{favoritesCount},
+        #{sponsorsCount}, #{exposureCount}, NOW(), NOW()
+    )
+    <!-- 参照完整性：user_id 必须存在于 user 表 -->
+</insert>
+
+<!-- 文章更新语句（包含版本控制） -->
+<update id="updateArticle" parameterType="com.web.model.Article">
+    UPDATE articles SET
+        article_title = #{articleTitle},
+        article_content = #{articleContent},
+        article_link = #{articleLink},
+        category_id = #{categoryId},
+        status = #{status},
+        updated_at = NOW()
+    WHERE article_id = #{articleId}
+    AND user_id = #{userId}
+    <!-- 安全验证：确保用户只能更新自己的文章 -->
+</update>
+
+<!-- 文章删除语句（级联删除前置） -->
+<delete id="deleteArticle" parameterType="map">
+    DELETE FROM articles
+    WHERE article_id = #{articleId}
+    AND user_id = #{userId}
+    <!-- 权限控制：只能删除自己的文章 -->
+</delete>
+
+<!-- 根据用户ID统计文章数量 -->
+<select id="countByUserId" parameterType="long" resultType="int">
+    SELECT COUNT(*) FROM articles
+    WHERE user_id = #{userId}
+    AND status = 1
+    <!-- 实体完整性：基于用户ID统计 -->
+</select>
+```
+
+### 2.4 消息映射配置
+
+```xml
+<!-- MessageMapper.xml -->
+<resultMap id="MessageResultMap" type="com.web.model.Message">
+    <id property="id" column="id"/>
+    <result property="clientMessageId" column="client_message_id"/>
+    <result property="senderId" column="sender_id"/>
+    <result property="chatId" column="chat_id"/>
+    <result property="content" column="content" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+    <result property="messageType" column="message_type"/>
+    <result property="readStatus" column="read_status"/>
+    <result property="isRecalled" column="is_recalled"/>
+    <result property="userIp" column="user_ip"/>
+    <result property="source" column="source"/>
+    <result property="replyToMessageId" column="reply_to_message_id"/>
+    <result property="threadId" column="thread_id"/>
+    <result property="isShowTime" column="is_show_time"/>
+    <result property="status" column="status"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+</resultMap>
+
+<!-- 消息插入语句 -->
+<insert id="insertMessage" parameterType="com.web.model.Message" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO message (
+        client_message_id, sender_id, chat_id, content,
+        message_type, read_status, is_recalled, user_ip,
+        source, reply_to_message_id, thread_id, is_show_time,
+        status, created_at, updated_at
+    ) VALUES (
+        #{clientMessageId}, #{senderId}, #{chatId}, #{content},
+        #{messageType}, #{readStatus}, #{isRecalled}, #{userIp},
+        #{source}, #{replyToMessageId}, #{threadId}, #{isShowTime},
+        #{status}, NOW(), NOW()
+    )
+    <!-- 参照完整性：sender_id 必须存在于 user 表 -->
+</insert>
+
+<!-- 消息撤回更新语句 -->
+<update id="recallMessage" parameterType="map">
+    UPDATE message SET
+        is_recalled = 1,
+        updated_at = NOW()
+    WHERE id = #{messageId}
+    AND sender_id = #{senderId}
+    <!-- 权限控制：只能撤回自己的消息 -->
+</update>
+
+<!-- 获取聊天记录 -->
+<select id="selectMessagesByUsers" parameterType="map" resultMap="MessageResultMap">
+    SELECT id, client_message_id, sender_id, chat_id, content,
+           message_type, read_status, is_recalled, user_ip,
+           source, reply_to_message_id, thread_id, is_show_time,
+           status, created_at, updated_at
+    FROM message
+    WHERE (sender_id = #{userId} AND chat_id = #{targetId})
+       OR (sender_id = #{targetId} AND chat_id = #{userId})
+       OR (source = 'Group' AND chat_id = #{targetId})
+    AND status = 0
+    ORDER BY created_at DESC
+    LIMIT #{offset}, #{pageSize}
+    <!-- 查询优化：复合索引 (sender_id, chat_id, created_at) -->
+</select>
+```
+
+### 2.5 群组映射配置
+
+```xml
+<!-- GroupMapper.xml -->
+<resultMap id="GroupResultMap" type="com.web.model.Group">
+    <id property="id" column="id"/>
+    <result property="ownerId" column="owner_id"/>
+    <result property="groupName" column="group_name"/>
+    <result property="groupDescription" column="group_description"/>
+    <result property="groupAvatarUrl" column="group_avatar_url"/>
+    <result property="groupType" column="group_type"/>
+    <result property="status" column="status"/>
+    <result property="isPublic" column="is_public"/>
+    <result property="maxMembers" column="max_members"/>
+    <result property="memberCount" column="member_count"/>
+    <result property="createTime" column="create_time"/>
+    <result property="createdAt" column="created_at"/>
+    <result property="updatedAt" column="updated_at"/>
+</resultMap>
+
+<!-- 群组插入语句 -->
+<insert id="insertGroup" parameterType="com.web.model.Group" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO `group` (
+        owner_id, group_name, group_description, group_avatar_url,
+        group_type, status, is_public, max_members, member_count,
+        create_time, created_at, updated_at
+    ) VALUES (
+        #{ownerId}, #{groupName}, #{groupDescription}, #{groupAvatarUrl},
+        #{groupType}, #{status}, #{isPublic}, #{maxMembers}, #{memberCount},
+        NOW(), NOW(), NOW()
+    )
+    <!-- 参照完整性：owner_id 必须存在于 user 表 -->
+</insert>
+
+<!-- 群组成员插入语句 -->
+<insert id="insertGroupMember" parameterType="com.web.model.GroupMember">
+    INSERT INTO group_member (
+        group_id, user_id, role, join_time,
+        status, created_at, updated_at
+    ) VALUES (
+        #{groupId}, #{userId}, #{role}, #{joinTime},
+        #{status}, NOW(), NOW()
+    )
+    <!-- 参照完整性：group_id 和 user_id 必须存在 -->
+</insert>
+
+<!-- 查询用户所在群组 -->
+<select id="selectGroupsByUserId" parameterType="long" resultMap="GroupResultMap">
+    SELECT g.* FROM `group` g
+    INNER JOIN group_member gm ON g.id = gm.group_id
+    WHERE gm.user_id = #{userId}
+    AND g.status = 0
+    AND gm.status = 0
+    ORDER BY g.created_at DESC
+    <!-- 参照完整性：内连接确保数据一致性 -->
+</select>
+```
+
+## 三、数据完整性约束实现总结
+
+### 3.1 实体完整性实现
+- **主键约束**：所有表都有自增主键，确保记录唯一性
+- **唯一性约束**：用户名、邮箱、手机号、客户端消息ID等关键字段唯一
+- **非空约束**：关键字段不能为空，确保数据完整性
+
+### 3.2 参照完整性实现
+- **外键约束**：文章与用户、分类，消息与用户，群组成员与群组和用户等关联表的外键约束
+- **级联操作**：删除用户时级联删除相关文章、消息和统计数据
+- **权限验证**：应用层验证用户只能操作自己的数据
+
+### 3.3 用户定义完整性实现
+- **检查约束**：状态字段、数值范围、角色权限等业务规则约束
+- **触发器**：自动更新时间戳、统计数据同步等
+- **应用层验证**：数据格式验证、业务逻辑验证等
+
+### 3.4 数据库性能优化
+- **复合索引**：为频繁查询的字段组合创建索引
+- **查询优化**：合理使用JOIN、WHERE条件和LIMIT分页
+- **存储引擎**：使用InnoDB支持事务和外键约束
+
+通过以上数据库约束和MyBatis映射配置，WEEB社交系统确保了数据的完整性、一致性和高性能访问。
