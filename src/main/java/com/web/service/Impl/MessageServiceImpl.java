@@ -30,6 +30,7 @@ import java.util.List;
 @Slf4j
 @Service
 @Transactional
+@SuppressWarnings("deprecation")
 public class MessageServiceImpl implements MessageService {
 
     @Autowired
@@ -51,7 +52,10 @@ public class MessageServiceImpl implements MessageService {
         // 设置发送时间
         messageBody.setCreatedAt(Timestamp.valueOf(LocalDateTime.now()));
         // 设置消息状态为正常
-        messageBody.setIsRecalled(0);
+        // 使用新的状态字段替代已过时的isRecalled字段
+        if (messageBody.getStatus() == null) {
+            messageBody.setStatus(Message.STATUS_SENT);
+        }
         
         // 根据消息类型选择不同的发送方式
         if (messageBody.getMessageType() != null && messageBody.getMessageType() == 1) {
@@ -148,13 +152,14 @@ public class MessageServiceImpl implements MessageService {
         }
         
         // 检查用户是否已经对该消息有反应
-        MessageReaction existingReaction = messageReactionMapper.selectByMessageIdAndUserId(
+        List<MessageReaction> existingReactions = messageReactionMapper.selectByMessageIdAndUserId(
             reactionVo.getMessageId(), userId);
-        
+
         if ("add".equals(reactionVo.getAction())) {
             // 添加反应
-            if (existingReaction != null) {
+            if (existingReactions != null && !existingReactions.isEmpty()) {
                 // 如果已存在反应，更新反应类型
+                MessageReaction existingReaction = existingReactions.get(0);
                 existingReaction.setReactionType(reactionVo.getReactionType());
                 messageReactionMapper.updateById(existingReaction);
             } else {
@@ -163,12 +168,12 @@ public class MessageServiceImpl implements MessageService {
                 newReaction.setMessageId(reactionVo.getMessageId());
                 newReaction.setUserId(userId);
                 newReaction.setReactionType(reactionVo.getReactionType());
-                newReaction.setCreateTime(new Date());
+                newReaction.setCreatedAt(new Timestamp(System.currentTimeMillis()));
                 messageReactionMapper.insert(newReaction);
             }
         } else if ("remove".equals(reactionVo.getAction())) {
             // 移除反应
-            if (existingReaction != null) {
+            if (existingReactions != null && !existingReactions.isEmpty()) {
                 messageReactionMapper.deleteByMessageIdAndUserId(reactionVo.getMessageId(), userId);
             }
         } else {

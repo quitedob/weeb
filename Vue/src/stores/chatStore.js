@@ -1362,10 +1362,7 @@ export const useChatStore = defineStore('chat', {
       } catch (error) {
         console.error('❌ 刷新群组信息失败:', error);
       }
-    }
-  },
-});
-
+    },
 
     /**
      * ✅ 处理消息反应变更事件
@@ -1385,11 +1382,11 @@ export const useChatStore = defineStore('chat', {
       const messages = this.chatMessages[chatId];
       if (messages && Array.isArray(messages)) {
         const messageIndex = messages.findIndex(msg => msg.id === messageId || msg.messageId === messageId);
-        
+
         if (messageIndex !== -1) {
           // 更新消息的反应列表
           messages[messageIndex].reactions = reactions || [];
-          
+
           console.log('✅ 消息反应已更新:', {
             messageId,
             chatId,
@@ -1406,4 +1403,6 @@ export const useChatStore = defineStore('chat', {
       } else {
         console.warn('⚠️ 聊天消息列表不存在:', chatId);
       }
-    },
+    }
+  }
+});

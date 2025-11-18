@@ -51,6 +51,28 @@ public interface MessageReactionMapper extends BaseMapper<MessageReaction> {
     List<MessageReaction> findByMessageId(@Param("messageId") Long messageId);
 
     /**
+     * 根据消息ID和用户ID查询反应
+     */
+    List<MessageReaction> selectByMessageIdAndUserId(@Param("messageId") Long messageId,
+                                                   @Param("userId") Long userId);
+
+    /**
+     * 根据消息ID删除反应
+     */
+    int deleteByMessageId(@Param("messageId") Long messageId);
+
+    /**
+     * 根据消息ID和用户ID删除反应
+     */
+    int deleteByMessageIdAndUserId(@Param("messageId") Long messageId,
+                                  @Param("userId") Long userId);
+
+    /**
+     * 统计消息的反应数量
+     */
+    int countByMessageId(@Param("messageId") Long messageId);
+
+    /**
      * 批量获取多条消息的反应统计
      */
     @Select("<script>" +
