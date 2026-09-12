@@ -38,6 +38,8 @@ For a release review, use `python scripts/release_gate.py --chrome "<installed C
 
 The [2026-09-12 frozen-snapshot verification](docs/release-verification.md) passed **307 backend tests, 159 frontend tests and 23 HTTP/STOMP/browser assertions**, with zero skipped tests and identical artifacts from both builds. Its controlled evidence binds the exact source and artifact hashes; external production acceptance remains open.
 
+The subsequent [P2 capacity work](docs/p2-capacity.md) adds real group pagination, bounded message/notification caches, stale-response protection, reduced polling and measured message-search optimization. [Verified history publication](docs/history-publication.md) binds the complete clean candidate, migration versions, reproducible artifacts and exact-JAR capacity results before updating remote main. Earlier snapshot counts above describe their own verification phase.
+
 ## Run locally
 
 Start MySQL and Redis and create the intended local database. Export the environment variables documented in [.env.example](.env.example), including a newly generated `JWT_SECRET` of at least 32 bytes and `MYSQL_PASSWORD`. Also set `MYSQL_URL`, `MYSQL_USERNAME`, `REDIS_HOST`, and `REDIS_PORT` when their defaults do not match your local services. The backend does not automatically load `.env.example` or `.env`.
@@ -97,4 +99,4 @@ Thread UI prototypes are preserved under `docs/legacy/thread-prototypes`. Their 
 
 **Campus space is not implemented as a dedicated feature.** Generic articles, comments, profiles, following and groups exist, but school affiliation, student verification, a campus-specific feed and school-scoped visibility are absent. The thread prototypes are unrelated to a campus module.
 
-See [backend API documentation](docs/backend.md), [frontend documentation](docs/frontend.md), [store documentation](docs/stores.md), and [credential remediation](docs/operations.md). The original audit is in [docs/report.md](docs/report.md); fixes and evidence are tracked in [docs/remediation-plan.md](docs/remediation-plan.md) and [docs/verification.md](docs/verification.md). Live credential rotation, certificate replacement, production migrations, and repository-history publication remain deployment tasks.
+See [backend API documentation](docs/backend.md), [frontend documentation](docs/frontend.md), [store documentation](docs/stores.md), and [credential remediation](docs/operations.md). The original audit is in [docs/report.md](docs/report.md); fixes and evidence are tracked in [docs/remediation-plan.md](docs/remediation-plan.md) and [docs/verification.md](docs/verification.md). Live credential rotation, certificate replacement and actual production migrations still require deployment-side evidence. Repository-history completion is recorded separately in its verified publication manifest.

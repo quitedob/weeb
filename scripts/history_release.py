@@ -298,17 +298,80 @@ def sha256(value):
     return isinstance(value, str) and re.fullmatch(r'[0-9a-f]{64}', value) is not None
 
 
+def finite_number(value, minimum=0):
+    return type(value) in (int, float) and math.isfinite(value) and value >= minimum
+
+
+def verify_capacity_summary(summary, samples, target):
+    if not samples:
+        raise HistoryError('A required capacity endpoint has no measured requests')
+    latencies = sorted(sample['latencyMs'] for sample in samples)
+    size = len(samples)
+    expected = {'requests': size, 'errors': 0, 'contractErrors': 0, 'privacyErrors': 0,
+                'errorRate': 0, 'statusCounts': {'200': size}, 'businessCodeCounts': {'0': size},
+                'payloadBytesTotal': sum(sample['payloadBytes'] for sample in samples),
+                'payloadBytesMean': round(sum(sample['payloadBytes'] for sample in samples) / size, 2)}
+    for percentile in (50, 95, 99):
+        expected[f'p{percentile}Ms'] = round(latencies[math.ceil(percentile / 100 * size) - 1], 3)
+    if (any(summary.get(key) != value for key, value in expected.items())
+            or any(type(summary.get(key)) is not int for key in ('requests', 'errors', 'contractErrors', 'privacyErrors', 'payloadBytesTotal'))
+            or any(not finite_number(summary.get(key)) for key in ('errorRate', 'p50Ms', 'p95Ms', 'p99Ms', 'payloadBytesMean'))
+            or not finite_number(summary.get('wallSeconds')) or summary['wallSeconds'] <= 0
+            or not finite_number(summary.get('requestsPerSecond')) or summary['requestsPerSecond'] <= 0
+            or expected['p95Ms'] > target):
+        raise HistoryError('Capacity summary does not match its measured samples or latency target')
+
+
+def verify_capacity_resources(resources):
+    if (resources.get('status') != 'RECORDED'
+            or type(resources.get('samples')) is not int or resources['samples'] < 2
+            or type(resources.get('peakObservedRssBytes')) is not int or resources['peakObservedRssBytes'] <= 0
+            or not finite_number(resources.get('samplingIntervalMs')) or resources['samplingIntervalMs'] <= 0
+            or any(not finite_number(resources.get(key)) for key in ('cpuSeconds', 'cpuPercentOneCore'))):
+        raise HistoryError('Actual finite process CPU/RSS measurements are required')
+
+
+def verify_capacity_queries(profile):
+    def has_table_plan(value):
+        if isinstance(value, dict):
+            if (isinstance(value.get('table_name'), str) and value['table_name']
+                    and isinstance(value.get('access_type'), str) and value['access_type']):
+                return True
+            return any(has_table_plan(child) for child in value.values())
+        return isinstance(value, list) and any(has_table_plan(child) for child in value)
+
+    queries = profile.get('queries')
+    if (profile.get('status') != 'RECORDED' or not sha256(profile.get('harnessSha256'))
+            or not isinstance(queries, list) or len(queries) != 2):
+        raise HistoryError('Two captured search queries and EXPLAIN records are required')
+    statements = set()
+    for query in queries:
+        if not isinstance(query, dict):
+            raise HistoryError('Malformed captured query evidence')
+        sql, parameters, explain = query.get('sql'), query.get('parameters'), query.get('explain')
+        block = explain.get('query_block') if isinstance(explain, dict) else None
+        if (not isinstance(sql, str) or not re.match(r'^SELECT\s+', sql.strip(), re.I)
+                or not isinstance(parameters, dict) or not parameters
+                or not isinstance(block, dict) or type(block.get('select_id')) is not int or block['select_id'] < 1
+                or not has_table_plan(block)):
+            raise HistoryError('Captured search SQL, parameters or MySQL query plan is missing')
+        statements.add(sql.strip())
+    if len(statements) != 2:
+        raise HistoryError('Search count and result queries must be distinct captured statements')
+
+
 def verify_capacity(capacity, required):
     policy = required['policy']['capacity']
     stages = capacity.get('stages', [])
     dataset = capacity.get('dataset', {})
     if (capacity.get('scope') != policy['scope'] or capacity.get('toolSha256') != required['capacityToolSha256']
-            or dataset.get('messageCount', 0) < policy['minimumMessages']
-            or dataset.get('groupCount', 0) < policy['minimumGroups']
+            or type(dataset.get('messageCount')) is not int or dataset['messageCount'] < policy['minimumMessages']
+            or type(dataset.get('groupCount')) is not int or dataset['groupCount'] < policy['minimumGroups']
             or [stage.get('concurrency') for stage in stages] != policy['concurrencyStages']
             or capacity.get('configuration', {}).get('paging') is not True):
         raise HistoryError('Capacity dataset, tool, paging or concurrency evidence differs from candidate policy')
-    if capacity.get('localTarget', {}).get('p95MsMaximum', float('inf')) > policy['p95MsMaximum']:
+    target = capacity.get('localTarget', {}).get('p95MsMaximum')
+    if not finite_number(target) or target <= 0 or target > policy['p95MsMaximum']:
         raise HistoryError('Capacity target was relaxed relative to the reviewed policy')
     for stage in stages:
         endpoints = stage.get('endpoints', {})
@@ -318,22 +381,27 @@ def verify_capacity(capacity, required):
                 or len(samples) != summary.get('requests') or stage.get('localTargetMet') is not True
                 or stage.get('resources', {}).get('status') != 'RECORDED'):
             raise HistoryError('Required measured capacity routes, samples or resources are missing')
+        verify_capacity_resources(stage['resources'])
+        grouped = {name: [] for name in policy['endpoints']}
         for sample in samples:
-            if any(sample.get(key) is not True for key in ('success', 'contractValid', 'privacyValid')):
+            if (not isinstance(sample, dict) or sample.get('endpoint') not in grouped
+                    or any(sample.get(key) is not True for key in ('success', 'contractValid', 'privacyValid'))
+                    or type(sample.get('httpStatus')) is not int or sample['httpStatus'] != 200
+                    or type(sample.get('businessCode')) is not int or sample['businessCode'] != 0
+                    or not finite_number(sample.get('latencyMs'))
+                    or type(sample.get('payloadBytes')) is not int or sample['payloadBytes'] <= 0):
                 raise HistoryError('Capacity sample failed its response or privacy contract')
-        if sum(item.get('requests', 0) for item in endpoints.values()) != len(samples):
-            raise HistoryError('Capacity endpoint totals do not match measured samples')
-        for item in [summary, *endpoints.values()]:
-            p95 = item.get('p95Ms')
-            if (not item.get('requests') or any(item.get(key, 1) != 0 for key in ('errors', 'contractErrors', 'privacyErrors'))
-                    or not isinstance(p95, (int, float)) or not math.isfinite(p95) or p95 > policy['p95MsMaximum']):
-                raise HistoryError('Measured local capacity acceptance failed')
+            grouped[sample['endpoint']].append(sample)
+        verify_capacity_summary(summary, samples, target)
+        for name, measured in grouped.items():
+            verify_capacity_summary(endpoints[name], measured, target)
     privacy = capacity.get('responsePrivacyChecks', {})
     if (privacy.get('publicContainsNoFixturePasswordsOrBearerTokens') is not True
             or privacy.get('sensitiveResponseFieldErrors') != 0
             or privacy.get('checkedMeasuredResponses') != sum(stage['summary']['requests'] for stage in stages)
             or capacity.get('searchQueryProfile', {}).get('status') != 'RECORDED'):
         raise HistoryError('Capacity query-plan/privacy evidence is missing')
+    verify_capacity_queries(capacity['searchQueryProfile'])
     after = capacity.get('datasetAfter', {})
     for key in ('messageCount', 'groupCount', 'dataFingerprint', 'generatorSha256'):
         if not dataset.get(key) or after.get(key) != dataset[key]:
@@ -382,8 +450,15 @@ def verify_release(report, release, capacity, required):
     if not dependencies or not all(sha256(value) for value in dependencies.values()):
         raise HistoryError('Resolved backend dependency digests are missing')
     for name, pinned in policy['serviceImages'].items():
-        if pinned not in release.get('serviceImages', {}).get(name, {}).get('repoDigests', []):
+        image = release.get('serviceImages', {}).get(name, {})
+        image_id = image.get('imageId', '')
+        if (pinned not in image.get('repoDigests', []) or not isinstance(image_id, str)
+                or not image_id.startswith('sha256:') or not sha256(image_id[7:])):
             raise HistoryError('Integration service image evidence differs from candidate policy')
+        # The capacity producer records immutable image IDs; the release producer also
+        # resolves those same IDs to the repository digests pinned in candidate policy.
+        if capacity.get('serviceImages', {}).get(name, {}).get('imageId') != image_id:
+            raise HistoryError('Capacity service image differs from the pinned release image')
     if capacity.get('backendJarSha256') != release.get('artifacts', {}).get('backendJarSha256'):
         raise HistoryError('Capacity evidence must identify the exact candidate JAR')
     if capacity.get('status') != 'PASS':

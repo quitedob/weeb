@@ -8,6 +8,9 @@ The single active registry is `src/main/resources/sql/schema-manifest.json`. The
 | 002 | Persisted role normalization; old reaction timestamp and missing constraints/index compatibility |
 | 003 | Durable `auth_user_session` and `auth_token_revocation`; pre-migration tokens must sign in again |
 | 004 | Sender-scoped client message IDs, reaction revisions and durable message outbox |
+| 005 | Stored lowercase message search text, preserving the original binary literal matching |
+
+V005 adds `message.search_text` as a stored generated `LONGTEXT` column with `utf8mb4_bin` collation. It uses the original `LOWER(JSON_UNQUOTE(JSON_EXTRACT(content,'$.content')))` expression, backfills existing rows and follows subsequent content updates automatically. It adds storage/write work to avoid repeating JSON extraction on every search; it does not introduce a full-text index or change OR/relevance semantics. See [MySQL generated columns](https://dev.mysql.com/doc/refman/8.0/en/create-table-generated-columns.html). Rehearse the table rebuild, disk headroom and write interruption on a restored deployment-sized database before production apply. The runner checks the generated expression, type and collation before accepting an existing column or validating production startup; incompatible definitions require reviewed repair.
 
 Baseline category seeding resolves parent IDs by unique category name (`04_insert_article_categories_by_name.sql`). This preserves existing custom categories and supports legacy catalogs whose IDs differ from fresh-install defaults; the old hardcoded-ID seed remains historical reference only.
 

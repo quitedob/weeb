@@ -26,7 +26,7 @@
 
       <!-- 通知列表 -->
       <div class="notification-container">
-        <div v-if="notificationStore.firstPage > 1" class="load-more">
+        <div v-if="notificationStore.hasNewer" class="load-more">
           <el-button :disabled="isLoading" @click="navigateWindow('newer')">较新通知</el-button>
           <el-button :disabled="isLoading" @click="navigateWindow('latest')">返回最新</el-button>
         </div>
@@ -110,7 +110,7 @@ const notifications = computed(() => notificationStore.notifications);
 const unreadCount = computed(() => notificationStore.unreadCount);
 const isLoading = computed(() => notificationStore.isLoading);
 const hasMoreNotifications = computed(() => {
-  return notificationStore.currentPage < notificationStore.totalPages;
+  return notificationStore.hasMore;
 });
 
 // 方法

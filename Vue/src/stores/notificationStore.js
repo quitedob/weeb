@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { watch } from 'vue';
 import notificationApi from '@/api/modules/notification';
 import { captureSession, isCurrentSession } from '@/utils/session';
+import { adjacentHistoryPage } from '@/utils/historyWindow';
 
 export const useNotificationStore = defineStore('notification', {
   persist: {
@@ -12,6 +13,8 @@ export const useNotificationStore = defineStore('notification', {
   
   state: () => ({
     notifications: [],
+    previewNotifications: [],
+    previewGeneration: 0,
     unreadCount: 0,
     currentPage: 1,
     totalPages: 1,
@@ -20,6 +23,9 @@ export const useNotificationStore = defineStore('notification', {
     lastFetchTime: null,
     autoRefreshInterval: null,
     firstPage: 1,
+    windowLoaded: false,
+    hasNewer: false,
+    hasMore: false,
     totalCount: 0,
     listGeneration: 0,
     unreadGeneration: 0,
@@ -43,6 +49,25 @@ export const useNotificationStore = defineStore('notification', {
   },
 
   actions: {
+    async fetchNotificationPreview() {
+      const session = captureSession();
+      const generation = ++this.previewGeneration;
+      const initialIds = new Set(this.realtimeIds);
+      const current = () => isCurrentSession(session) && generation === this.previewGeneration;
+      try {
+        const response = await notificationApi.getNotifications(1, 10);
+        if (!current()) return null;
+        if (response.code !== 0 || !response.data) throw new Error('Invalid notification response');
+        const existing = new Map([...this.previewNotifications, ...this.notifications].map(row => [String(row.id), row]));
+        const rows = (response.data.notifications || []).map(row => ({ ...row,
+          isRead: !!(row.isRead || existing.get(String(row.id))?.isRead) }));
+        const arrived = this.previewNotifications.filter(row => this.realtimeIds.includes(String(row.id))
+          && !initialIds.has(String(row.id)));
+        this.previewNotifications = this.uniqueNotifications([...arrived, ...rows]).slice(0, 10);
+        await this.fetchUnreadCount();
+      } catch (error) { if (current()) throw error; }
+    },
+
     async fetchNotifications(page = 1, pageSize = this.pageSize, direction = page === 1 ? 'replace' : 'older', reconcileEvents = true) {
       const session = captureSession();
       const initialLiveIds = new Set(this.realtimeIds);
@@ -51,6 +76,42 @@ export const useNotificationStore = defineStore('notification', {
       const current = () => isCurrentSession(session) && generation === this.listGeneration;
       this.isLoading = true;
       try {
+        if (this.windowLoaded && this.notifications.length && ['older', 'newer'].includes(direction)) {
+          const previous = { firstPage: this.firstPage, currentPage: this.currentPage, hasMore: this.hasMore };
+          const viewed = [...this.notifications];
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const revision = this.realtimeRevision;
+            const unchanged = () => current() && revision === this.realtimeRevision;
+            const anchor = direction === 'older' ? viewed.at(-1) : viewed[0];
+            const result = await adjacentHistoryPage({ anchorId: anchor.id, direction, size: pageSize,
+              pageHint: direction === 'older' ? previous.currentPage : Math.max(1, previous.firstPage - 1),
+              existingIds: viewed.map(row => row.id), isCurrent: unchanged,
+              readPage: async (page, size) => {
+                const response = await notificationApi.getNotifications(page, size);
+                if (response.code !== 0 || !response.data) throw new Error('Invalid notification response');
+                return { ...response.data, rows: response.data.notifications || [] };
+              } });
+            if (!current()) return null;
+            if (!result) continue;
+            const existing = new Map([...this.previewNotifications, ...this.notifications].map(row => [String(row.id), row]));
+            const adjacent = result.rows.map(row => ({ ...row, isRead: !!(row.isRead || existing.get(String(row.id))?.isRead) }));
+            this.notifications = this.uniqueNotifications(direction === 'older' ? [...viewed, ...adjacent] : [...adjacent, ...viewed]);
+            this.pruneNotifications(direction);
+            const firstOffset = direction === 'newer' ? result.firstOffset
+              : Math.max(0, result.lastOffset - this.notifications.length + 1);
+            this.firstPage = Math.floor(firstOffset / pageSize) + 1;
+            this.currentPage = Math.floor((firstOffset + this.notifications.length - 1) / pageSize) + 1;
+            this.pageSize = pageSize;
+            this.totalCount = result.metadata.totalCount ?? result.metadata.total ?? 0;
+            this.totalPages = result.metadata.totalPages ?? Math.ceil(this.totalCount / pageSize);
+            this.hasNewer = firstOffset > 0;
+            this.hasMore = direction === 'older' ? result.hasMore : previous.hasMore || adjacent.length > 0;
+            this.lastFetchTime = new Date();
+            await this.fetchUnreadCount();
+            return;
+          }
+          throw new Error('New notifications interrupted navigation; please retry');
+        }
         const response = await notificationApi.getNotifications(page, pageSize);
         if (!current()) return null;
         if (response.code !== 0 || !response.data) throw new Error('Invalid notification response');
@@ -63,7 +124,7 @@ export const useNotificationStore = defineStore('notification', {
         const rowIds = new Set(rows.map(row => String(row.id)));
         const arrived = this.notifications.filter(row => this.realtimeIds.includes(String(row.id))
           && !initialLiveIds.has(String(row.id)) && !rowIds.has(String(row.id)));
-        if (reconcileEvents && direction === 'replace' && page === 1 && this.firstPage > 1 && initialRevision !== this.realtimeRevision) {
+        if (reconcileEvents && direction === 'replace' && page === 1 && this.hasNewer && initialRevision !== this.realtimeRevision) {
           // Older windows deliberately do not retain new payloads. One fresh read recovers
           // events that arrived while explicitly switching back to the head of the list.
           return this.fetchNotifications(page, pageSize, direction, false);
@@ -88,6 +149,9 @@ export const useNotificationStore = defineStore('notification', {
           this.firstPage = Math.max(this.firstPage, returnedPage - pagesInWindow + 1);
         }
         this.pruneNotifications(direction);
+        this.windowLoaded = true;
+        this.hasNewer = this.firstPage > 1;
+        this.hasMore = this.currentPage < this.totalPages;
         this.lastFetchTime = new Date();
         await this.fetchUnreadCount();
       } catch (error) {
@@ -102,8 +166,8 @@ export const useNotificationStore = defineStore('notification', {
     },
 
     loadNewerNotifications() {
-      if (this.firstPage <= 1) return;
-      return this.fetchNotifications(this.firstPage - 1, this.pageSize, 'newer');
+      if (!this.hasNewer) return;
+      return this.fetchNotifications(Math.max(1, this.firstPage - 1), this.pageSize, 'newer');
     },
 
     loadLatestNotifications() { return this.fetchNotifications(1, this.pageSize, 'replace'); },
@@ -136,6 +200,7 @@ export const useNotificationStore = defineStore('notification', {
 
     invalidateNotificationReads() {
       ++this.listGeneration;
+      ++this.previewGeneration;
       ++this.unreadGeneration;
       this.isLoading = false;
     },
@@ -149,9 +214,9 @@ export const useNotificationStore = defineStore('notification', {
       if (!isCurrentSession(session)) return null;
       if (response?.code === 0) {
         this.invalidateNotificationReads();
-        const notification = this.notifications.find(item => String(item.id) === String(notificationId));
-        const wasUnread = notification && !notification.isRead;
-        if (notification) notification.isRead = true;
+        const matching = [...this.notifications, ...this.previewNotifications].filter(item => String(item.id) === String(notificationId));
+        const wasUnread = matching.some(item => !item.isRead);
+        matching.forEach(item => { item.isRead = true; });
         if (wasUnread) this.unreadCount = Math.max(0, this.unreadCount - 1);
         ++this.unreadGeneration;
         this.requestReconciliation();
@@ -161,14 +226,14 @@ export const useNotificationStore = defineStore('notification', {
 
     async markAllAsRead() {
       const session = captureSession();
-      const ids = new Set(this.notifications.map(item => String(item.id)));
+      const ids = new Set([...this.notifications, ...this.previewNotifications].map(item => String(item.id)));
       const previousUnread = this.unreadCount;
       this.invalidateNotificationReads();
       const response = await notificationApi.markAllAsRead().catch(error => { if (isCurrentSession(session)) throw error; });
       if (!isCurrentSession(session)) return null;
       if (response?.code === 0) {
         this.invalidateNotificationReads();
-        this.notifications.forEach(item => { if (ids.has(String(item.id))) item.isRead = true; });
+        [...this.notifications, ...this.previewNotifications].forEach(item => { if (ids.has(String(item.id))) item.isRead = true; });
         this.unreadCount = Math.max(0, this.unreadCount - previousUnread);
         ++this.unreadGeneration;
         this.requestReconciliation();
@@ -184,6 +249,7 @@ export const useNotificationStore = defineStore('notification', {
       if (response?.code === 0) {
         this.invalidateNotificationReads();
         this.notifications = this.notifications.filter(item => !item.isRead);
+        this.previewNotifications = this.previewNotifications.filter(item => !item.isRead);
         await this.fetchNotifications(1, this.pageSize);
       }
       return response;
@@ -193,12 +259,17 @@ export const useNotificationStore = defineStore('notification', {
       ++this.realtimeRevision;
       const key = String(notification.id);
       const existing = this.notifications.find(item => String(item.id) === key);
-      const duplicate = !!existing || this.realtimeIds.includes(key);
+      const preview = this.previewNotifications.find(item => String(item.id) === key);
+      const duplicate = !!existing || !!preview || this.realtimeIds.includes(key);
+      if ((existing || preview) && !(existing?.isRead ?? preview?.isRead) && notification.isRead) {
+        this.unreadCount = Math.max(0, this.unreadCount - 1);
+      }
+      if (preview) Object.assign(preview, notification, { isRead: preview.isRead || notification.isRead });
+      else this.previewNotifications = [notification, ...this.previewNotifications].slice(0, 10);
       if (existing) {
-        if (!existing.isRead && notification.isRead) this.unreadCount = Math.max(0, this.unreadCount - 1);
         Object.assign(existing, notification, { isRead: existing.isRead || notification.isRead });
       }
-      else if (this.firstPage === 1) this.notifications.unshift(notification);
+      else if (!this.hasNewer && this.firstPage === 1) this.notifications.unshift(notification);
       if (!duplicate) {
         this.realtimeIds.push(key);
         this.realtimeIds = this.realtimeIds.slice(-this.maxNotifications);
@@ -214,8 +285,10 @@ export const useNotificationStore = defineStore('notification', {
     clearNotifications() {
       this.invalidateNotificationReads();
       this.notifications = [];
+      this.previewNotifications = [];
       this.unreadCount = 0;
       this.currentPage = this.firstPage = 1;
+      this.windowLoaded = this.hasNewer = this.hasMore = false;
       this.totalPages = 1;
       this.totalCount = 0;
       this.realtimeIds = [];

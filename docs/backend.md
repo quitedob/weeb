@@ -37,13 +37,16 @@ Administrative authority comes from persisted `user.type` (`ADMIN`, `USER`, `BOT
 | Message recall | DELETE `/api/chats/messages/{messageId}` |
 | Group creation | POST `/api/groups` with `groupName`, `groupDescription`, optional `groupType` and `initialMemberIds` |
 | Simple group search | GET `/api/groups/search?q=...&limit=10`; returns a list of public active groups |
+| Created/joined groups | GET `/api/groups/my-created` or `/my-groups` with paired `page=0&size=10`; returns `{list,total,page,size}`. Size is 1–100; no-parameter legacy calls return arrays |
 | Group details/members | GET `/api/groups/{groupId}` and `/members`; private groups require valid membership or the persisted system-admin role |
 | Notification pages | GET `/api/notifications?page=1&size=10`; data contains `notifications`, `totalCount`, `totalPages`, `currentPage`, `pageSize` |
-| Public profile details | GET `/api/users/{id}`; data contains nested `user` and `stats` |
+| Public profile details | GET `/api/users/{id}`; data contains nested `user` and `userStats` |
 
 Controllers and DTO validation are authoritative for all remaining parameters. Group application approval is a PUT operation with the action/reason body defined by the active group API module. Article sponsorship validates finite integer amounts, the published article, actor identity and available balance in one transaction.
 
 Group applications submit `message`; private groups are invitation-only. Initial group members are validated and deduplicated, and rejoining does not duplicate an existing chat-list entry. Comments follow article visibility; replies must reference a parent from the same article, and deletions match both article and author.
+
+Joined-list `excludeOwned=true` requires pagination and is applied before COUNT/LIMIT. Both lists use active groups and valid accepted membership, ordered by `create_time DESC,id DESC`. Search results carry the authenticated viewer's `currentUserRole` (`OWNER`, `ADMIN`, `MEMBER`, `NON_MEMBER`), so an off-page joined group retains its correct action without downloading all memberships.
 
 Reaction POSTs toggle the current user's selected emoji. History and broadcasts use `reactions: [{emoji, reactionType, count, userIds}]`, or an empty array. Consumers should use the authoritative aggregate after a toggle rather than incrementing locally.
 
@@ -52,6 +55,8 @@ Reaction POSTs toggle the current user's selected emoji. History and broadcasts 
 Paginated group/user search accepts `relevance`, `time_asc`, `time_desc`, `name_asc`, and `name_desc`. Article search accepts `created_at`, `updated_at`, `title`, or `relevance` with `sortOrder=asc|desc`. Message search accepts `relevance`, `time_asc`, `time_desc`, `username_asc`, and `username_desc`. The shared frontend selector translates its choice separately for each resource.
 
 Message search queries current SQL membership before counting and paginating. Whitespace-separated terms match case-insensitive literal substrings; any term can match. Relevance prefers exact full-query matches, then a contiguous phrase, then more distinct matching terms, followed by newest message time/ID. `%`, `_`, and `!` in the query remain literal. This is SQL ranking, without Elasticsearch linguistic stemming or BM25 scoring.
+
+GET `/api/search/messages?q=...` accepts a raw query of 1–100 characters, at most 10 distinct terms, a zero-based page and size 1–100. The requested page end must be at most 10,000; requests beyond these bounds return HTTP 400 and require a narrower query. SQL first derives authorized conversations, searches the V005 stored text and enriches only the selected result page with sender/group display fields. Literal substring matching still scans qualifying message text; the bounds and measured local profile are not a claim of unlimited search capacity.
 
 ## Chat ownership
 

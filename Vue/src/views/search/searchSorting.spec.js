@@ -57,6 +57,24 @@ async function searchWithSort(sort) {
 }
 
 describe('search page sort request contracts', () => {
+  it('finishes the active search when an empty Enter is submitted while its requests are pending', async () => {
+    const pending = []
+    instance.defaults.adapter = config => new Promise(resolve => pending.push(() => resolve({
+      status: 200, headers: {}, config, data: { code: 0, message: 'OK', data: { list: [], total: 0 } }
+    })))
+    const input = wrapper.find('input')
+    await input.setValue('active'); await input.trigger('keyup', { key: 'Enter' })
+    expect(pending).toHaveLength(4)
+    expect(wrapper.vm.$.setupState.searching).toBe(true)
+    await input.setValue(''); await input.trigger('keyup', { key: 'Enter' })
+    pending.forEach(reply => reply()); await flushPromises()
+    expect(wrapper.vm.$.setupState.searching).toBe(false)
+    await input.setValue('next'); await input.trigger('keyup', { key: 'Enter' })
+    expect(pending).toHaveLength(8)
+    pending.slice(4).forEach(reply => reply()); await flushPromises()
+    expect(wrapper.vm.$.setupState.searching).toBe(false)
+  })
+
   it('keeps all four resources on the newest query when older responses arrive later', async () => {
     const pending = []
     instance.defaults.adapter = config => new Promise(resolve => pending.push({ config, reply: label => resolve({

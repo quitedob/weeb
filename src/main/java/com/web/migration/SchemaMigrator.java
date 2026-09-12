@@ -19,6 +19,10 @@ public final class SchemaMigrator {
     private static final String HISTORY = "weeb_schema_history";
     private static final Pattern INDEX = Pattern.compile("(?is)^CREATE INDEX ([A-Za-z0-9_]+)\\s+ON ([A-Za-z0-9_]+)\\s*\\(.*$");
     private static final Pattern TABLE = Pattern.compile("(?i)CREATE\\s+TABLE\\s+IF\\s+NOT\\s+EXISTS\\s+`?([a-z0-9_]+)`?");
+    // Only SQL identifiers/functions are case-insensitive. JSON member paths are exact.
+    private static final Pattern SEARCH_EXPRESSION = Pattern.compile(
+            "(?i:lower\\s*\\(\\s*json_unquote\\s*\\(\\s*json_extract\\s*\\(\\s*`?content`?\\s*,\\s*(?:_(?:utf8mb4|utf8mb3|utf8|latin1|ascii))?\\s*)"
+                    + "'\\$\\.content'\\s*\\)\\s*\\)\\s*\\)");
     private final DataSource dataSource;
     private final List<Step> steps;
 
@@ -179,6 +183,8 @@ public final class SchemaMigrator {
     private static void executeResource(Connection connection, String path) throws Exception {
         // The retired default-account seed intentionally contains comments only.
         if (read(path).replaceAll("(?s)/\\*.*?\\*/", "").replaceAll("(?m)^\\s*--.*$", "").isBlank()) return;
+        boolean messageSearch = path.endsWith("V005__message_search_text.sql");
+        if (messageSearch) validateMessageSearchColumn(connection, true);
         if (path.endsWith("V002__legacy_compatibility.sql")) {
             try (Statement query = connection.createStatement(); ResultSet columns = query.executeQuery(
                     "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=DATABASE()"
@@ -190,6 +196,7 @@ public final class SchemaMigrator {
         }
         if (!path.startsWith("sql/index/")) {
             ScriptUtils.executeSqlScript(connection, new EncodedResource(new ClassPathResource(path), StandardCharsets.UTF_8));
+            if (messageSearch) validateMessageSearchColumn(connection, false);
             return;
         }
         for (String sql : read(path).replaceAll("(?m)^\\s*--.*$", "").split(";")) {
@@ -226,6 +233,26 @@ public final class SchemaMigrator {
 
     private void validateRequiredTables(Connection connection) throws SQLException {
         for (String table : requiredTables()) if (!tableExists(connection, table)) throw new IllegalStateException("Required schema table is missing: " + table);
+        if (steps.stream().anyMatch(step -> step.version().equals("005"))) validateMessageSearchColumn(connection, false);
+    }
+
+    private static void validateMessageSearchColumn(Connection connection, boolean allowMissing) throws SQLException {
+        try (Statement query = connection.createStatement(); ResultSet rows = query.executeQuery(
+                "SELECT DATA_TYPE,COLLATION_NAME,EXTRA,GENERATION_EXPRESSION FROM information_schema.COLUMNS"
+                + " WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='message' AND COLUMN_NAME='search_text'")) {
+            if (!rows.next()) {
+                if (allowMissing) return;
+                throw new IllegalStateException("Required message.search_text generated column is missing");
+            }
+            // MySQL serializes identifiers with backticks and the JSON path with a charset introducer.
+            String expression = rows.getString(4).replace("\\'", "'").trim();
+            if (!"longtext".equalsIgnoreCase(rows.getString(1))
+                    || !"utf8mb4_bin".equals(rows.getString(2))
+                    || !"STORED GENERATED".equals(rows.getString(3))
+                    || !SEARCH_EXPRESSION.matcher(expression).matches()) {
+                throw new IllegalStateException("Unexpected message.search_text definition; reconcile schema before reviewed resume");
+            }
+        }
     }
 
     private static boolean tableExists(Connection connection, String table) throws SQLException {

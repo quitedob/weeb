@@ -23,6 +23,76 @@ beforeEach(() => {
 afterEach(() => { store.stopAutoRefresh(); vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('bounded notification payloads and reconciliation', () => {
+  it('deduplicates preview deliveries and synchronizes read state without modifying an older history window', async () => {
+    store.notifications = [{ id: 40, isRead: false }]
+    store.firstPage = 4; store.hasNewer = true
+    count.mockResolvedValue(ok({ unreadCount: 2 }))
+    vi.spyOn(api, 'getNotifications').mockResolvedValue(ok({ notifications: [{ id: 1, isRead: false }], totalCount: 40 }))
+    vi.spyOn(api, 'markAsRead').mockResolvedValue(ok(true))
+    await store.fetchNotificationPreview()
+    store.addNotification({ id: 1, isRead: false })
+    expect(store.unreadCount).toBe(2)
+    await store.markAsRead(1)
+    expect(store.unreadCount).toBe(1)
+    expect(store.previewNotifications).toEqual([{ id: 1, isRead: true }])
+    expect(store.notifications).toEqual([{ id: 40, isRead: false }])
+    expect(store.firstPage).toBe(4)
+    const stale = deferred()
+    api.getNotifications.mockReturnValueOnce(stale.promise)
+    const oldPreview = store.fetchNotificationPreview()
+    store.resetState()
+    stale.resolve(ok({ notifications: [{ id: 2, isRead: false }] })); await oldPreview
+    expect(store.previewNotifications).toEqual([])
+    expect(store.notifications).toEqual([])
+  })
+
+  it('bridges notification offsets after arrivals before and during newer or older navigation', async () => {
+    const rows = Array.from({ length: 150 }, (_, i) => ({ id: i + 1, isRead: false }))
+    let interrupt = false
+    vi.spyOn(api, 'getNotifications').mockImplementation(async (page, size) => {
+      const notifications = rows.slice((page - 1) * size, page * size)
+      const totalCount = rows.length
+      if (interrupt) {
+        interrupt = false
+        for (let id = 2000; id < 2017; id++) { const row = { id, isRead: false }; rows.unshift(row); store.addNotification(row) }
+      }
+      return ok({ notifications, currentPage: page, pageSize: size, totalCount, totalPages: Math.ceil(totalCount / size) })
+    })
+    for (let page = 1; page <= 13; page++) await store.fetchNotifications(page)
+    for (let id = 1000; id < 1015; id++) { const row = { id, isRead: false }; rows.unshift(row); store.addNotification(row) }
+    await store.loadNewerNotifications()
+    expect(store.notifications.map(row => row.id)).toEqual(Array.from({ length: 100 }, (_, i) => i + 21))
+    interrupt = true
+    await store.fetchNotifications(store.currentPage + 1)
+    expect(store.notifications.map(row => row.id)).toEqual(Array.from({ length: 100 }, (_, i) => i + 31))
+    await store.loadNewerNotifications()
+    expect(store.notifications.map(row => row.id)).toEqual(Array.from({ length: 100 }, (_, i) => i + 21))
+  })
+
+  it('can reach the partial newer and older edges even when both lie within a server page', async () => {
+    const rows = Array.from({ length: 150 }, (_, i) => ({ id: i + 1, isRead: false }))
+    vi.spyOn(api, 'getNotifications').mockImplementation(async (page, size) => ok({
+      notifications: rows.slice((page - 1) * size, page * size), currentPage: page,
+      pageSize: size, totalCount: rows.length, totalPages: Math.ceil(rows.length / size)
+    }))
+    for (let page = 1; page <= 13; page++) await store.fetchNotifications(page)
+    for (let id = 1000; id < 1003; id++) { const row = { id, isRead: false }; rows.unshift(row); store.addNotification(row) }
+    for (let step = 0; step < 3; step++) await store.loadNewerNotifications()
+    expect(store.firstPage).toBe(1)
+    expect(store.hasNewer).toBe(true)
+    await store.loadNewerNotifications()
+    expect(store.hasNewer).toBe(false)
+    expect(store.notifications.map(row => row.id)).toEqual(rows.slice(0, 100).map(row => row.id))
+    const observed = new Set(store.notifications.map(row => row.id))
+    for (let step = 0; store.hasMore && step < 20; step++) {
+      await store.fetchNotifications(store.currentPage + 1)
+      store.notifications.forEach(row => observed.add(row.id))
+    }
+    expect(store.hasMore).toBe(false)
+    expect(observed.size).toBe(153)
+    expect(store.notifications.at(-1).id).toBe(150)
+  })
+
   it('merges a socket arrival into an older page-one response and preserves already-read state', async () => {
     const pending = deferred()
     vi.spyOn(api, 'getNotifications').mockReturnValue(pending.promise)

@@ -137,7 +137,7 @@ def app_environment(database, password, port, redis_db):
     # and migration CLI receive only this run's explicit service configuration.
     def inherited_allowed(key):
         normalized = key.upper().replace('.', '_')
-        return not (normalized.startswith(('SPRING_', 'MYSQL_', 'REDIS_', 'JWT_'))
+        return not (normalized.startswith(('SPRING_', 'MYSQL_', 'REDIS_', 'JWT_', 'SERVER_'))
                     or normalized in ('JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS'))
     env = {key: value for key, value in os.environ.items() if inherited_allowed(key)}
     mysql_url = f'jdbc:mysql://127.0.0.1:23306/{database}?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true&useServerPrepStmts=true&cachePrepStmts=true'

@@ -100,29 +100,34 @@ public class MessageSearchService {
         filter(where, params, "m.message_type", "types", types);
         filter(where, params, "m.sender_id", "senders", senders);
         if (!groups.isEmpty()) params.addValue("groups", groups);
-        // The counting chat set is unique, so each message is counted once without metadata joins or DISTINCT message IDs.
+        // Count unique authorized messages before adding any legacy duplicate group display mappings.
         String countFrom = " FROM (" + visibleChats(false, !groups.isEmpty())
                 + ") visible JOIN message m ON m.chat_id = visible.chat_id ";
-        Long total = jdbc.queryForObject("SELECT COUNT(*)" + countFrom + where, params, Long.class);
         String scores = relevance ? ", CASE WHEN " + MATCH_CONTENT + " = LOWER(:exactKeyword) THEN 2 WHEN "
                 + MATCH_CONTENT + " LIKE LOWER(:keyword) ESCAPE '!' THEN 1 ELSE 0 END AS match_quality, ("
                 + String.join(" + ", termScores) + ") AS matched_terms" : "";
-        // Rank only IDs and small sort columns. Content and display metadata are fetched for the requested page.
-        String candidates = "SELECT m.id, m.sender_id, m.created_at, m.message_type, visible.chat_type, "
-                + "visible.chat_id AS shared_chat_id, visible.group_id" + scores
+        // The window prevents a second full text scan on nonempty pages. Its temporary rows omit message content.
+        String matches = "SELECT m.id, m.sender_id, m.created_at, m.message_type, m.chat_id AS shared_chat_id"
+                + scores + ", COUNT(*) OVER () AS total_count" + countFrom + where;
+        String candidates = "SELECT matched.id, matched.sender_id, matched.created_at, matched.message_type, visible.chat_type, "
+                + "matched.shared_chat_id, visible.group_id, matched.total_count"
+                + (relevance ? ", matched.match_quality, matched.matched_terms" : "")
                 + (usernameOrder ? ", sort_sender.username AS sender_sort_name" : "")
-                + " FROM (" + visibleChats(true, !groups.isEmpty()) + ") visible JOIN message m ON m.chat_id = visible.chat_id "
-                + (usernameOrder ? "LEFT JOIN `user` sort_sender ON sort_sender.id = m.sender_id " : "")
-                + where + " ORDER BY " + order + ", visible.group_id ASC LIMIT :size OFFSET :offset";
+                + " FROM (" + matches + ") matched JOIN (" + visibleChats(true, !groups.isEmpty())
+                + ") visible ON visible.chat_id = matched.shared_chat_id "
+                + (usernameOrder ? "LEFT JOIN `user` sort_sender ON sort_sender.id = matched.sender_id " : "")
+                + " ORDER BY " + order.replace("m.", "matched.") + ", visible.group_id ASC LIMIT :size OFFSET :offset";
         String outerOrder = order.replace("m.", "ranked.").replace("match_quality", "ranked.match_quality")
                 .replace("matched_terms", "ranked.matched_terms").replace("sender_sort_name", "ranked.sender_sort_name");
         String select = "SELECT ranked.id, ranked.sender_id, sender.username AS sender_name, "
                 + CONTENT + " AS message_content, ranked.created_at, ranked.message_type, ranked.chat_type, "
-                + "ranked.shared_chat_id, ranked.group_id, display_group.group_name FROM (" + candidates + ") ranked "
+                + "ranked.shared_chat_id, ranked.group_id, ranked.total_count, display_group.group_name FROM (" + candidates + ") ranked "
                 + "JOIN message m ON m.id = ranked.id LEFT JOIN `user` sender ON sender.id = ranked.sender_id "
                 + "LEFT JOIN `group` display_group ON display_group.id = ranked.group_id "
                 + "ORDER BY " + outerOrder + ", ranked.group_id ASC";
+        long[] total = {0L};
         List<Map<String, Object>> list = jdbc.query(select, params, (rs, index) -> {
+            total[0] = rs.getLong("total_count");
             Map<String, Object> message = new LinkedHashMap<>();
             long sharedChatId = rs.getLong("shared_chat_id");
             String type = rs.getString("chat_type");
@@ -142,7 +147,12 @@ public class MessageSearchService {
             message.put("groupId", groupId);
             return message;
         });
-        return Map.of("list", list, "total", total == null ? 0L : total, "page", page, "size", size);
+        if (list.isEmpty()) {
+            // An out-of-range page has no window row from which to read its still-required exact total.
+            Long fallback = jdbc.queryForObject("SELECT COUNT(*)" + countFrom + where, params, Long.class);
+            total[0] = fallback == null ? 0L : fallback;
+        }
+        return Map.of("list", list, "total", total[0], "page", page, "size", size);
     }
 
     public static void validateRequest(Long userId, String keyword, int page, int size) {

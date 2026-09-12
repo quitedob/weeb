@@ -94,6 +94,44 @@ class SchemaMigrationIntegrationTest {
     }
 
     @Test
+    void searchUpgradeBackfillsOldRowsAndDatabaseMaintainsContentChanges() throws Exception {
+        var oldSteps = SchemaMigrator.loadSteps().stream().filter(step -> step.version().compareTo("005") < 0).toList();
+        new SchemaMigrator(source, oldSteps).migrate(false);
+        jdbc.update("INSERT INTO `user`(id,username,password,user_email,type,status) VALUES (101,'search_migration','fixture-hash','search@example.invalid','USER',1)");
+        jdbc.update("INSERT INTO message(id,sender_id,content) VALUES (301,101,JSON_OBJECT('content',?)),(302,101,JSON_OBJECT('missing','value'))", "CAFÉ 校园 😀 %_!");
+        migrator.migrate(false);
+        assertEquals("café 校园 😀 %_!", jdbc.queryForObject("SELECT search_text FROM message WHERE id=301", String.class));
+        assertNull(jdbc.queryForObject("SELECT search_text FROM message WHERE id=302", String.class));
+        jdbc.update("UPDATE message SET content=JSON_OBJECT('content','CHANGED') WHERE id=301");
+        assertEquals("changed", jdbc.queryForObject("SELECT search_text FROM message WHERE id=301", String.class));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM message WHERE NOT (search_text <=> LOWER(JSON_UNQUOTE(JSON_EXTRACT(content,'$.content'))))", Integer.class));
+        migrator.migrate(false);
+        migrator.validate();
+    }
+
+    @Test
+    void wrongSearchColumnFailsWithoutDiscardingDataAndExplicitResumeRequiresCorrectDefinition() throws Exception {
+        var oldSteps = SchemaMigrator.loadSteps().stream().filter(step -> step.version().compareTo("005") < 0).toList();
+        new SchemaMigrator(source, oldSteps).migrate(false);
+        jdbc.execute("ALTER TABLE message ADD COLUMN search_text LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin");
+        assertThrows(IllegalStateException.class, () -> migrator.migrate(false));
+        assertEquals("FAILED", jdbc.queryForObject("SELECT state FROM weeb_schema_history WHERE version='005'", String.class));
+        assertEquals("", jdbc.queryForObject("SELECT GENERATION_EXPRESSION FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='message' AND COLUMN_NAME='search_text'", String.class));
+        // Simulate an operator's reviewed repair of this empty, test-owned database.
+        jdbc.execute("ALTER TABLE message DROP COLUMN search_text");
+        jdbc.execute("ALTER TABLE message ADD COLUMN search_text LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin GENERATED ALWAYS AS (LOWER(JSON_UNQUOTE(JSON_EXTRACT(content,_latin1'$.content')))) STORED");
+        assertThrows(IllegalStateException.class, () -> migrator.migrate(false));
+        migrator.migrate(true);
+        migrator.validate();
+        jdbc.execute("ALTER TABLE message MODIFY search_text LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (LOWER(JSON_UNQUOTE(JSON_EXTRACT(content,'$.content')))) STORED");
+        assertThrows(IllegalStateException.class, () -> migrator.validate());
+        for (String wrongPath : List.of("$.CONTENT", "$.content_utf8mb4")) {
+            jdbc.execute("ALTER TABLE message MODIFY search_text LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin GENERATED ALWAYS AS (LOWER(JSON_UNQUOTE(JSON_EXTRACT(content,'" + wrongPath + "')))) STORED");
+            assertThrows(IllegalStateException.class, () -> migrator.validate(), wrongPath);
+        }
+    }
+
+    @Test
     void checksumMismatchAndNewerSchemaBlockExecutionWithoutRewritingHistory() throws Exception {
         migrator.migrate(false);
         var oldRegistry=SchemaMigrator.loadSteps().subList(0,SchemaMigrator.loadSteps().size()-1);

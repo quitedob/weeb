@@ -81,7 +81,7 @@ const bellButton = ref(null)
 const loadScope = createRequestScope()
 
 // 计算属性
-const notifications = computed(() => notificationStore.notifications.slice(0, 10))
+const notifications = computed(() => notificationStore.previewNotifications)
 const unreadCount = computed(() => notificationStore.unreadCount)
 
 // 切换弹窗显示
@@ -103,7 +103,7 @@ const loadNotifications = async () => {
   const request = loadScope.begin()
     loading.value = true
     try {
-      await notificationStore.loadLatestNotifications()
+      await notificationStore.fetchNotificationPreview()
     } catch (error) {
       if (!request.isCurrent()) return
       console.error('加载通知失败:', error)

@@ -58,6 +58,8 @@ Settings uses the guarded store save actions. Session and section versions preve
 
 History pages start at 1, with a default store batch size of 50. Sending creates a temporary message; server confirmations reconcile its status. A conversation's shared ID, a user's chat-list row ID and a target user ID are distinct values. Use the IDs returned by the chat APIs rather than constructing one from another.
 
+The message cache uses LRU eviction for 50 ordinary conversations and a sliding window of 200 persisted messages per conversation. Active conversations and pending/failed sends are pinned, so these are explicit soft limits when preserving unsent work requires more space. Eviction also releases pagination, reaction/read/sync metadata; late responses cannot resurrect an evicted cache. History remains reachable with older/newer/latest navigation and SQL reload. Initial connection loads the active conversation only (50 messages), even with a large conversation sidebar; reconnect catches up retained/active conversations instead of eagerly fetching every sidebar entry.
+
 Conversation creation, deletion, recall and reactions are API-module operations:
 
 | API helper | HTTP contract |
@@ -100,7 +102,7 @@ await notifications.markAllAsRead();
 await notifications.deleteReadNotifications();
 ```
 
-`fetchNotifications(page = 1, pageSize = 10)` replaces the first page and appends subsequent pages. `fetchUnreadCount()` reads the count separately. `startAutoRefresh(interval = 30000)` polls that count, and `stopAutoRefresh()` cancels it. Incoming socket events call `addNotification(notification)`.
+`fetchNotifications(page = 1, pageSize = 10)` loads a bounded 100-item history window with older/newer/latest navigation. Incoming socket events call `addNotification(notification)`; event IDs and read state merge monotonically, and request/session generations reject obsolete responses. `fetchUnreadCount()` reads the count separately with one in-flight request. `startAutoRefresh()` reconciles every five minutes while WebSocket is healthy; disconnected polling starts at 30 seconds and backs off on failure up to five minutes. Hidden/offline pages stop polling, becoming visible/online triggers one immediate reconciliation, and `stopAutoRefresh()` releases timers/listeners. Event bursts coalesce into one reconciliation instead of one HTTP request per event.
 
 The HTTP module uses `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all` and `DELETE /api/notifications/read`. The store does not implement a timed 30-day retention policy.
 

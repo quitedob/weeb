@@ -64,6 +64,13 @@
       "resources": [
         "sql/migration/V004__message_reliability.sql"
       ]
+    },
+    {
+      "version": "005",
+      "description": "Stored message search text with preserved binary literal matching",
+      "resources": [
+        "sql/migration/V005__message_search_text.sql"
+      ]
     }
   ]
 }

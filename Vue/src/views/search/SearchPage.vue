@@ -426,11 +426,11 @@ const articlePagination = reactive({
 
 // 执行搜索
 const performSearch = async () => {
-  const request = requestScopes.all.begin();
   if (!searchQuery.value.trim()) {
     ElMessage.warning('请输入搜索关键词');
     return;
   }
+  const request = requestScopes.all.begin();
 
   searching.value = true;
   hasSearched.value = true;

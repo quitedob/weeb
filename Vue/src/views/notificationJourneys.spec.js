@@ -64,18 +64,19 @@ async function render(component = NotificationListPage) {
 }
 
 describe('notification journeys using the backend response contract', () => {
-  it('reopens the bell at latest after the shared list moved to an older window and shows at most ten items', async () => {
+  it('opens an independent latest-ten bell preview without replacing the viewed older notification window', async () => {
     rows = makeRows(150)
     await render(NotificationBell)
     await wrapper.get('.bell-button').trigger('click')
     const store = useNotificationStore(pinia)
-    for (let page = 2; page <= 13; page++) await store.fetchNotifications(page)
+    for (let page = 1; page <= 13; page++) await store.fetchNotifications(page)
     expect(store.firstPage).toBe(4)
     expect(store.notifications).toHaveLength(100)
     await wrapper.get('.bell-button').trigger('click')
     await flushPromises()
-    expect(store.firstPage).toBe(1)
-    expect(store.notifications[0].id).toBe(1)
+    expect([store.firstPage, store.currentPage]).toEqual([4, 13])
+    expect(store.notifications.map(row => row.id)).toEqual(Array.from({ length: 100 }, (_, i) => i + 31))
+    expect(store.previewNotifications.map(row => row.id)).toEqual(Array.from({ length: 10 }, (_, i) => i + 1))
     expect(wrapper.findAll('.notification-item')).toHaveLength(10)
   })
 
@@ -107,9 +108,9 @@ describe('notification journeys using the backend response contract', () => {
     expect(wrapper.findAll('.notification-item')).toHaveLength(23)
     expect(wrapper.find('.load-more').exists()).toBe(false)
     expect(useNotificationStore(pinia).notifications.map(row => row.id)).toEqual(rows.map(row => row.id))
-    expect(requests.filter(request => request.url === '/api/notifications').map(request => request.params)).toEqual([
-      { page: 1, size: 10 }, { page: 2, size: 10 }, { page: 3, size: 10 }
-    ])
+    const historyRequests = requests.filter(request => request.url === '/api/notifications').map(request => request.params)
+    expect(historyRequests).toContainEqual({ page: 3, size: 10 })
+    expect(historyRequests.every(request => request.size === 10)).toBe(true)
   })
 
   it('reloads server pagination after clearing read items, including unread items outside the cached page', async () => {
@@ -140,7 +141,8 @@ describe('notification journeys using the backend response contract', () => {
     await flushPromises()
     expect(requests.some(request => request.method === 'post' && request.url === '/api/notifications/1/read')).toBe(true)
     expect(push).toHaveBeenCalledWith('/user/73')
-    expect(useNotificationStore(pinia).notifications[0].isRead).toBe(true)
+    const store = useNotificationStore(pinia)
+    expect((component === NotificationBell ? store.previewNotifications : store.notifications)[0].isRead).toBe(true)
     expect(useNotificationStore(pinia).unreadCount).toBe(0)
   })
 

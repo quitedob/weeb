@@ -6,6 +6,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
@@ -19,6 +20,8 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /** Production SQL against random fixtures rolled back after every test; no shared data is deleted. */
 @EnabledIfEnvironmentVariable(named = "WEEB_TEST_MYSQL_URL", matches = ".+weeb_audit.*")
@@ -122,7 +125,9 @@ class MessageSearchRelevanceMySqlIntegrationTest {
         assertEquals(List.of(secondPartial, firstPartial), ids(pageTwo));
         assertEquals(4L, pageOne.get("total"));
         assertEquals(4L, pageTwo.get("total"));
-        assertEquals(List.of(), ids(results("alpha beta", "relevance", 2, 2)));
+        var beyondLastPage = results("alpha beta", "relevance", 2, 2);
+        assertEquals(List.of(), ids(beyondLastPage));
+        assertEquals(4L, beyondLastPage.get("total"));
     }
 
     @Test
@@ -163,6 +168,14 @@ class MessageSearchRelevanceMySqlIntegrationTest {
         var result = results("alpha beta", "relevance", 0, 20);
         assertEquals(List.of(groupMessage, groupMessage, privateMessage), ids(result));
         assertEquals(2L, result.get("total"), "Two visible group labels must not count one message twice");
+        for (int page = 0; page < 3; page++) {
+            var singleRow = results("alpha beta", "relevance", page, 1);
+            assertEquals(1, ids(singleRow).size());
+            assertEquals(2L, singleRow.get("total"), "A display alias must not inflate the window total");
+        }
+        var aliasPagePastEnd = results("alpha beta", "relevance", 3, 1);
+        assertEquals(List.of(), ids(aliasPagePastEnd));
+        assertEquals(2L, aliasPagePastEnd.get("total"));
         var filtered = search.search(actor, "alpha beta", 0, 10, null, null, null, null, Long.toString(alias), "relevance");
         assertEquals(List.of(groupMessage), ids(filtered)); assertEquals(1L, filtered.get("total"));
         @SuppressWarnings("unchecked") var rows = (List<Map<String, Object>>) filtered.get("list");
@@ -261,6 +274,33 @@ class MessageSearchRelevanceMySqlIntegrationTest {
         var recalled = results("NewNeedle", "relevance", 0, 20);
         assertEquals(List.of(), ids(recalled));
         assertEquals(0L, recalled.get("total"));
+    }
+
+    @Test
+    void nonemptyPagesReadWindowTotalAndEmptyPagesStillCountExactly() {
+        var recordingJdbc = spy(new NamedParameterJdbcTemplate(jdbc.getDataSource()));
+        var countedSearch = new MessageSearchService(recordingJdbc);
+        long first = message(privateChat, actor, "windowneedle", 1);
+        long second = message(privateChat, actor, "windowneedle", 2);
+        var firstPage = countedSearch.search(actor, "windowneedle", 0, 1, null, null, null, null, null, "relevance");
+        assertEquals(List.of(second), ids(firstPage));
+        assertEquals(2L, firstPage.get("total"));
+        verify(recordingJdbc, never()).queryForObject(anyString(), any(SqlParameterSource.class), eq(Long.class));
+
+        var ascendingPage = countedSearch.search(actor, "windowneedle", 0, 1, null, null, null, null, null, "time_asc");
+        assertEquals(List.of(first), ids(ascendingPage));
+        assertEquals(2L, ascendingPage.get("total"));
+        verify(recordingJdbc, never()).queryForObject(anyString(), any(SqlParameterSource.class), eq(Long.class));
+
+        var pastEnd = countedSearch.search(actor, "windowneedle", 2, 1, null, null, null, null, null, "relevance");
+        assertEquals(List.of(), ids(pastEnd));
+        assertEquals(2L, pastEnd.get("total"));
+        verify(recordingJdbc).queryForObject(anyString(), any(SqlParameterSource.class), eq(Long.class));
+
+        var noMatches = countedSearch.search(actor, "absentneedle", 0, 1, null, null, null, null, null, "relevance");
+        assertEquals(List.of(), ids(noMatches));
+        assertEquals(0L, noMatches.get("total"));
+        verify(recordingJdbc, times(2)).queryForObject(anyString(), any(SqlParameterSource.class), eq(Long.class));
     }
 
     private long message(long chatId, long sender, String content, int day) {

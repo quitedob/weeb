@@ -26,6 +26,75 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('recoverable bounded chat windows', () => {
+  it('bridges shifted server offsets in both directions without holes or dropping failed sends', async () => {
+    const rows = Array.from({ length: 500 }, (_, i) => message(500 - i))
+    history.mockImplementation(async (id, { page, size }) => ok(rows.slice((page - 1) * size, page * size)))
+    await chat.fetchMessagesForChat(90)
+    for (let page = 2; page <= 10; page++) await chat.loadMoreMessages()
+    chat.stompClient = { connected: true, publish: vi.fn() }
+    await chat.sendMessage('Keep failed across navigation', 2)
+    const pending = chat.messagesForCurrentChat.find(row => row.sendPayload)
+    pending.status = STATUS.FAILED
+    for (let id = 501; id <= 515; id++) { rows.unshift(message(id)); chat.handleIncomingChatMessage(message(id)) }
+    await chat.loadNewerMessages()
+    expect(chat.messagesForCurrentChat.filter(row => !row.sendPayload).map(row => row.id))
+      .toEqual(Array.from({ length: 200 }, (_, i) => i + 51))
+    expect(chat.messagesForCurrentChat.find(row => row.sendPayload)).toMatchObject({ status: STATUS.FAILED })
+    for (let id = 516; id <= 532; id++) { rows.unshift(message(id)); chat.handleIncomingChatMessage(message(id)) }
+    await chat.loadMoreMessages()
+    expect(chat.messagesForCurrentChat.filter(row => !row.sendPayload).map(row => row.id))
+      .toEqual(Array.from({ length: 200 }, (_, i) => i + 1))
+  })
+
+  it('retries an anchor read interrupted by live inserts before applying a contiguous newer window', async () => {
+    const rows = Array.from({ length: 500 }, (_, i) => message(500 - i))
+    history.mockImplementation(async (id, { page, size }) => ok(rows.slice((page - 1) * size, page * size)))
+    await chat.fetchMessagesForChat(90)
+    for (let page = 2; page <= 10; page++) await chat.loadMoreMessages()
+    let interrupt = true
+    history.mockImplementation(async (id, { page, size }) => {
+      const result = rows.slice((page - 1) * size, page * size)
+      if (interrupt) {
+        interrupt = false
+        for (let value = 501; value <= 515; value++) { rows.unshift(message(value)); chat.handleIncomingChatMessage(message(value)) }
+      }
+      return ok(result)
+    })
+    await chat.loadNewerMessages()
+    expect(chat.messagesForCurrentChat.map(row => row.id)).toEqual(Array.from({ length: 200 }, (_, i) => i + 51))
+  })
+
+  it('keeps the viewed window on a missing anchor, finite interrupted retries, and stale cancellation', async () => {
+    await chat.fetchMessagesForChat(90)
+    for (let page = 2; page <= 6; page++) await chat.loadMoreMessages()
+    const viewed = chat.messagesForCurrentChat.map(row => row.id)
+    history.mockResolvedValueOnce(ok([]))
+    await expect(chat.loadNewerMessages()).rejects.toThrow('History changed')
+    expect(chat.messagesForCurrentChat.map(row => row.id)).toEqual(viewed)
+    history.mockClear()
+    let nextId = 501
+    history.mockImplementation(async () => {
+      chat.handleIncomingChatMessage(message(nextId++))
+      return ok([message(400)])
+    })
+    await expect(chat.loadNewerMessages()).rejects.toThrow('interrupted')
+    expect(history).toHaveBeenCalledTimes(3)
+    expect(chat.messagesForCurrentChat.map(row => row.id)).toEqual(viewed)
+    history.mockClear()
+    history.mockResolvedValue(ok(Array.from({ length: 50 }, (_, i) => message(900 - i))))
+    await expect(chat.loadNewerMessages()).rejects.toThrow('beyond this window')
+    expect(history).toHaveBeenCalledTimes(40)
+    expect(chat.messagesForCurrentChat.map(row => row.id)).toEqual(viewed)
+    let finish
+    history.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    const stale = chat.loadNewerMessages()
+    history.mockResolvedValueOnce(ok([message(999)]))
+    await chat.loadLatestMessages()
+    finish(ok([message(400)])); await stale
+    expect(chat.messagesForCurrentChat.map(row => row.id)).toEqual([999])
+    expect(chat.historyRequests[90]).toBeUndefined()
+  })
+
   it('can navigate through all 500 messages using a 200-message window and return newer or latest', async () => {
     const observed = new Set()
     await chat.fetchMessagesForChat(90)

@@ -7,7 +7,7 @@
 /logs/
 /coverage/
 /Vue/coverage/
-
+.mvn/
 # Local IDE/agent state
 .idea/
 .vscode/

@@ -29,6 +29,7 @@ class CapacitySafetyTest(unittest.TestCase):
             'REDIS_HOST': 'external', 'JWT_SECRET': 'ambient-jwt',
             'JAVA_TOOL_OPTIONS': '-Xmx8g -Dspring.datasource.url=jdbc:mysql://external/data',
             'JDK_JAVA_OPTIONS': '-Dspring.profiles.active=external', '_JAVA_OPTIONS': '-Xmx8g',
+            'server.address': '0.0.0.0', 'server_port': '9999',
         }
         database = 'weeb_audit_capacity_' + 'a' * 24
         with patch.dict(probe.os.environ, ambient, clear=True):
@@ -42,6 +43,10 @@ class CapacitySafetyTest(unittest.TestCase):
         self.assertEqual(('127.0.0.1', '16379', '15'),
                          tuple(env[key] for key in ('SPRING_DATA_REDIS_HOST', 'SPRING_DATA_REDIS_PORT', 'SPRING_DATA_REDIS_DATABASE')))
         self.assertEqual('prod', env['SPRING_PROFILES_ACTIVE'])
+        self.assertEqual('127.0.0.1', env['SERVER_ADDRESS'])
+        self.assertEqual('18080', env['SERVER_PORT'])
+        self.assertNotIn('server.address', env)
+        self.assertNotIn('server_port', env)
         self.assertNotEqual('ambient-jwt', env['JWT_SECRET'])
         for key in ('SPRING_APPLICATION_JSON', 'SPRING_CONFIG_LOCATION', 'SPRING_CONFIG_ADDITIONAL_LOCATION',
                     'SPRING_DATA_REDIS_URL', 'spring.datasource.username', 'JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS'):

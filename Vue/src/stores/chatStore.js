@@ -16,6 +16,7 @@ import bugReporter from '@/utils/bugReporter';
 import { captureSession, isCurrentSession } from '@/utils/session';
 import { socketUrl } from '@/utils/serviceUrls';
 import { canonicalMessage, mergeMessage, sameId, isPersistedId, compareIds, highestMessageId } from '@/utils/chatProtocol';
+import { adjacentHistoryPage } from '@/utils/historyWindow';
 
 export const useChatStore = defineStore('chat', {
   persist: {
@@ -800,13 +801,45 @@ export const useChatStore = defineStore('chat', {
       const current = () => isCurrentSession(session) && this.cacheEntries[chatId]?.token === token
         && this.historyRequests[chatId] === request;
       const batchSize = Math.min(limit || this.messageBatchSize, this.maxCachedMessages);
+      const previous = this.chatPagination[chatId];
+      const persisted = (this.chatMessages[chatId] || []).filter(message => isPersistedId(message.id));
+      if (previous && persisted.length && ['older', 'newer'].includes(direction)) {
+        try {
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const revision = this.cacheEntries[chatId]?.revision || 0;
+            const unchanged = () => current() && revision === (this.cacheEntries[chatId]?.revision || 0);
+            const anchor = direction === 'older' ? persisted[0] : persisted.at(-1);
+            const result = await adjacentHistoryPage({ anchorId: anchor.id, direction, size: batchSize,
+              pageHint: direction === 'older' ? previous.page : Math.max(1, previous.firstPage - 1),
+              existingIds: persisted.map(message => message.id), isCurrent: unchanged,
+              readPage: async (page, size) => {
+                const response = await api.chat.getChatMessages(String(chatId), { page, size });
+                if (response.code !== 0 || !response.data) throw new Error('Invalid message history response');
+                return { rows: Array.isArray(response.data) ? response.data : response.data.list || response.data.data || [] };
+              } });
+            if (!current()) return null;
+            if (!result) continue;
+            for (const message of result.rows) this.mergeConfirmedMessage(chatId, message, true);
+            this.trimChatWindow(chatId, direction);
+            const count = this.chatMessages[chatId].filter(message => isPersistedId(message.id)).length;
+            const firstOffset = direction === 'newer' ? result.firstOffset : Math.max(0, result.lastOffset - count + 1);
+            const lastOffset = firstOffset + count - 1;
+            this.chatPagination[chatId] = { firstPage: Math.floor(firstOffset / batchSize) + 1,
+              page: Math.floor(lastOffset / batchSize) + 1,
+              hasNewer: firstOffset > 0 || direction === 'older',
+              hasMore: direction === 'older' ? result.hasMore : previous.hasMore || result.rows.length > 0 };
+            return;
+          }
+          throw new Error('New messages interrupted history navigation; please retry');
+        } catch (error) { if (!current()) return null; throw error; }
+        finally { if (current()) delete this.historyRequests[chatId]; }
+      }
       let response;
       try { response = await api.chat.getChatMessages(String(chatId), { page, size: batchSize }); }
       catch (error) { if (!current()) return null; delete this.historyRequests[chatId]; throw error; }
       if (!current()) return null;
       if (response.code !== 0 || !response.data) return;
       const messages = Array.isArray(response.data) ? response.data : response.data.list || response.data.data || [];
-      const previous = this.chatPagination[chatId];
       const pages = Math.max(1, Math.floor(this.maxCachedMessages / batchSize));
       if (direction === 'latest' && previous?.hasNewer) {
         this.chatMessages[chatId] = this.chatMessages[chatId].filter(message => !isPersistedId(message.id));
@@ -844,6 +877,7 @@ export const useChatStore = defineStore('chat', {
       const seen = (this.recentMessageIds[chatId] ||= []);
       const duplicate = seen.includes(String(incoming.id));
       if (!duplicate) { seen.push(String(incoming.id)); if (seen.length > this.maxCachedMessages) seen.shift(); }
+      if (!forceWindow && !duplicate && !existing) this.cacheEntries[chatId].revision = (this.cacheEntries[chatId].revision || 0) + 1;
       const olderWindow = this.chatPagination[chatId]?.hasNewer;
       if (!forceWindow && olderWindow && !existing) return !duplicate;
       const added = mergeMessage(rows, incoming);

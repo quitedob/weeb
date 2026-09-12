@@ -23,4 +23,6 @@ Outputs are under `.local/release/<run>/`. `public/release-manifest.json` binds 
 
 The deployment topology remains one application instance. MySQL/Redis durability, backup restore and credentials are operating requirements; this work does not add clustered STOMP routing, Elasticsearch validation, a production load target or a universal database downgrade.
 
+The [P2 capacity probe](p2-capacity.md) measures a separate owned 100,000-message fixture against an exact JAR. [History publication](history-publication.md) prepares all current fixes on sanitized history and requires both this clean release gate and the committed local capacity target before publishing only the expected remote main. Public manifests, rather than a prepared preview or stale test count, establish the completion state.
+
 Vite explicitly enables CommonJS `strictRequires` wrapping. The two-directory comparison exposed different SockJS conditional/cyclic module wrappers under automatic detection; [Rollup's CommonJS documentation](https://github.com/rollup/plugins/tree/master/packages/commonjs#strictrequires) describes this source of build races. This setting preserves required-module initialization semantics and is verified with the real browser transport, rather than merely accepting differing output hashes.

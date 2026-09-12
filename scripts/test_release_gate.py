@@ -1,10 +1,28 @@
 import tempfile
 import unittest
 from pathlib import Path
-from release_gate import GateError, junit_summary, validate_runtime
+from release_gate import GateError, junit_summary, validate_runtime, runtime_environment
 
 
 class ReleaseEvidenceGateTest(unittest.TestCase):
+    def test_runtime_cannot_inherit_deployment_overrides_or_jvm_injection(self):
+        source = {'WEEB_TEST_MYSQL_URL': 'jdbc:mysql://127.0.0.1:23306/weeb_audit',
+                  'WEEB_TEST_MYSQL_PASSWORD': 'disposable-fixture', 'WEEB_TEST_REDIS_PORT': '16379',
+                  'PATH': 'retained', 'SPRING_APPLICATION_JSON': '{"spring":{"datasource":{"url":"external"}}}',
+                  'spring.datasource.url': 'external', 'redis_host': 'external',
+                  'MYSQL_URL': 'external', 'JAVA_TOOL_OPTIONS': '-javaagent:external',
+                  'jwt.secret': 'old', 'REDIS_DATABASE': '9', 'server.address': '0.0.0.0', 'server_port': '8080'}
+        actual = runtime_environment(source)
+        for key in ('SPRING_APPLICATION_JSON', 'spring.datasource.url', 'redis_host', 'JAVA_TOOL_OPTIONS', 'jwt.secret', 'server.address', 'server_port'):
+            self.assertNotIn(key, actual)
+        self.assertEqual(actual['MYSQL_URL'], source['WEEB_TEST_MYSQL_URL'])
+        self.assertEqual(actual['REDIS_HOST'], '127.0.0.1')
+        self.assertEqual(actual['REDIS_DATABASE'], '0')
+        self.assertEqual(actual['SERVER_ADDRESS'], '127.0.0.1')
+        self.assertEqual(actual['SERVER_PORT'], '18080')
+        self.assertEqual(actual['PATH'], 'retained')
+        self.assertGreaterEqual(len(actual['JWT_SECRET']), 64)
+
     def report(self, xml, required=()):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'TEST-fixture.xml'
