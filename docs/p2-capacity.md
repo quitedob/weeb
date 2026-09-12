@@ -26,3 +26,13 @@ This is a short closed-loop burst with one actor, no think time and a new HTTP c
 - Notifications retain a 100-item history window; connected unread reconciliation falls from once every 30 seconds to once every five minutes. Hidden/offline polling stops, failures back off, and event bursts coalesce. Request/session generations prevent stale search/page results from replacing active data.
 
 Measured result snapshots and their exact artifact identities are retained under `docs/evidence/p2-2026-09-12/`. Final publication additionally requires a passing capacity manifest for the exact clean release JAR, checked by [history publication](history-publication.md). Earlier failed measurements remain historical evidence rather than being relabeled as passes.
+
+## Same-data measurements, 2026-09-12
+
+| Implementation | P95 at 1 / 5 / 20 concurrent requests | Mean response bytes | Acceptance |
+| --- | --- | --- | --- |
+| [Frozen baseline](evidence/p2-2026-09-12/baseline.json) | 728 / 1,005 / 1,907 ms | 187,266 | FAIL |
+| [Stored text and real group paging](evidence/p2-2026-09-12/stored-search.json) | 562 / 800 / 1,437 ms | 26,160 | FAIL |
+| [Single-scan count/ranking](evidence/p2-2026-09-12/single-scan.json) | 377 / 445 / 797 ms | 26,160 | PASS |
+
+Each run completed 225 measured requests with zero HTTP/business/contract/privacy errors and the same unchanged dataset fingerprint. The final measured burst reached 66.645 requests/second at concurrency 20; this is the recorded mixed-route throughput, not a sustainable production capacity estimate. Normal nonempty search pages compute the exact total with a window count before adding display aliases, then fetch full message/display fields only for the limited page. Empty/out-of-range pages retain the exact authorized fallback count. The MySQL regression proves nonempty pages do not issue the second count query and duplicate legacy group mappings do not inflate unique-message totals.

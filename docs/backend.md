@@ -58,6 +58,8 @@ Message search queries current SQL membership before counting and paginating. Wh
 
 GET `/api/search/messages?q=...` accepts a raw query of 1–100 characters, at most 10 distinct terms, a zero-based page and size 1–100. The requested page end must be at most 10,000; requests beyond these bounds return HTTP 400 and require a narrower query. SQL first derives authorized conversations, searches the V005 stored text and enriches only the selected result page with sender/group display fields. Literal substring matching still scans qualifying message text; the bounds and measured local profile are not a claim of unlimited search capacity.
 
+A window count computes the unique-message total before display aliases; normal nonempty pages avoid a second text scan. Empty/out-of-range pages run the authorized fallback count. See the [same-data query measurements](p2-capacity.md).
+
 ## Chat ownership
 
 Shared conversation IDs and per-user chat-list IDs are different identifiers. A private conversation belongs to its persisted participants. Group access requires an accepted membership that has not been kicked and an active group. Authorization applies before reads, writes, reactions and STOMP room subscriptions. Sender identity comes from the authenticated session.

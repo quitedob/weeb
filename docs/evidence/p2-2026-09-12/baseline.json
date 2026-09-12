@@ -1,0 +1,3286 @@
+{
+  "allLocalTargetsMet": false,
+  "artifact": {
+    "jarBytes": 109120467,
+    "jarSha256": "06e796a8835a3b197bd651abc6afe4cda0aa0b9651bb5b8e5fed05a529cc928f",
+    "schemaManifestSha256": "5c3c455ac9af659c51605d6278f4890b3bc29c049b5c8c280d9f87a8341069d8",
+    "source": {
+      "manifestSha256": "b1493401f6e5fb43bd2598e318f17a485e1c6b2211af9e6abb59ecbf7eac18dd",
+      "sourceCommit": "1167c19695ccdc167e2b9a01e03d9ba0ac2c0d04",
+      "sourceTreeSha256": "f4afc1f4fea9c5db99d3621b2552846dfde163bf7bf6204dfc3d8eb8cdf3e0f8",
+      "status": "MATCHED_RELEASE_MANIFEST",
+      "worktreeClean": false
+    }
+  },
+  "backendJarSha256": "06e796a8835a3b197bd651abc6afe4cda0aa0b9651bb5b8e5fed05a529cc928f",
+  "completedAtUtc": "2026-09-12T05:56:48.555363+00:00",
+  "configuration": {
+    "heapMax": "1g",
+    "heapMin": "256m",
+    "httpPort": 18080,
+    "pageSize": 10,
+    "paging": false,
+    "profile": "prod",
+    "redisLogicalDatabase": 15
+  },
+  "dataset": {
+    "dataFingerprint": [
+      "214396568891966",
+      "2143952616207",
+      "4293896339040"
+    ],
+    "fingerprintMethod": "SQL SUM(CRC32(canonical message/group/member values)); cardinality and ID sum also checked",
+    "fixtureRunId": "b1a6a5a7ea534e9aadc6c3e0",
+    "generatorSha256": "b1b10ebf67247ca0de5e081f92cb0e8ec7a8bb9260c452e55d5b0025efea9b46",
+    "groupCount": 1000,
+    "groupMessageCount": 50000,
+    "joinedOtherGroups": 500,
+    "messageCount": 100000,
+    "messageIdSum": 105000050000,
+    "ownedGroups": 500,
+    "privateMessageCount": 50000
+  },
+  "datasetAfter": {
+    "dataFingerprint": [
+      "214396568891966",
+      "2143952616207",
+      "4293896339040"
+    ],
+    "fingerprintMethod": "SQL SUM(CRC32(canonical message/group/member values)); cardinality and ID sum also checked",
+    "generatorSha256": "b1b10ebf67247ca0de5e081f92cb0e8ec7a8bb9260c452e55d5b0025efea9b46",
+    "groupCount": 1000,
+    "groupMessageCount": 50000,
+    "joinedOtherGroups": 500,
+    "messageCount": 100000,
+    "messageIdSum": 105000050000,
+    "ownedGroups": 500,
+    "privateMessageCount": 50000
+  },
+  "dockerAfter": {
+    "containers": [
+      {
+        "CPUPerc": "0.46%",
+        "MemPerc": "2.46%",
+        "MemUsage": "786.2MiB / 31.17GiB",
+        "Name": "weeb-audit-mysql-20260911",
+        "PIDs": "57"
+      },
+      {
+        "CPUPerc": "0.23%",
+        "MemPerc": "0.03%",
+        "MemUsage": "9.305MiB / 31.17GiB",
+        "Name": "weeb-audit-redis-20260911",
+        "PIDs": "6"
+      }
+    ],
+    "status": "RECORDED"
+  },
+  "dockerBefore": {
+    "containers": [
+      {
+        "CPUPerc": "0.74%",
+        "MemPerc": "1.68%",
+        "MemUsage": "534.7MiB / 31.17GiB",
+        "Name": "weeb-audit-mysql-20260911",
+        "PIDs": "44"
+      },
+      {
+        "CPUPerc": "0.22%",
+        "MemPerc": "0.03%",
+        "MemUsage": "8.777MiB / 31.17GiB",
+        "Name": "weeb-audit-redis-20260911",
+        "PIDs": "6"
+      }
+    ],
+    "status": "RECORDED"
+  },
+  "formatVersion": 1,
+  "host": {
+    "logicalCpuCount": 12,
+    "os": "Windows",
+    "release": "10"
+  },
+  "jvmStopped": true,
+  "localTarget": {
+    "errorRateMaximum": 0,
+    "note": "Local chosen target; not a user SLA or max-user capacity",
+    "p95MsMaximum": 1000
+  },
+  "method": {
+    "concurrencyStages": [
+      1,
+      5,
+      20
+    ],
+    "endpoints": {
+      "history": "/api/chats/101/messages?page=1&size=10",
+      "joined_groups": "/api/groups/my-groups",
+      "owned_groups": "/api/groups/my-created",
+      "search": "/api/search/messages?q=capacity%20alpha&page=0&size=10&sortBy=relevance",
+      "unread": "/api/chats/unread/stats"
+    },
+    "latency": "client elapsed from connect/request through full response-body read; warmup excluded",
+    "load": "closed-loop thread pool, one authenticated actor, equal endpoint mix, no think time, new HTTP connection per request",
+    "measuredRequestsPerStage": 75,
+    "pagingDifference": "legacy my-groups includes owned groups; paged joined route uses excludeOwned=true",
+    "payload": "response body bytes, Accept-Encoding identity; excludes headers",
+    "percentile": "nearest-rank",
+    "rateLimits": "Production per-user/IP/path protections retained; large runs may deliberately measure limiting errors",
+    "timeoutSeconds": 15,
+    "warmupRequestsPerStage": 5
+  },
+  "productionCapacityVerified": false,
+  "responsePrivacyChecks": {
+    "checkedMeasuredResponses": 225,
+    "publicContainsNoFixturePasswordsOrBearerTokens": true,
+    "scope": "Response sensitive-field detection and exact secret exclusion; not a substitute for object-authorization tests",
+    "sensitiveResponseFieldErrors": 0
+  },
+  "retainedOwnedFixture": true,
+  "scope": "LOCAL_SINGLE_JVM_BASELINE",
+  "searchQueryProfile": {
+    "harnessSha256": "9b8778b4fbc3d921696be7fb1e2eced2d7c00c362f5ed89bc55f364f6eda7f55",
+    "method": "Actual selected-JAR MessageSearchService builder; capture-only JDBC subclass; EXPLAIN FORMAT=JSON",
+    "queries": [
+      {
+        "explain": {
+          "query_block": {
+            "cost_info": {
+              "query_cost": "110971.09"
+            },
+            "nested_loop": [
+              {
+                "table": {
+                  "access_type": "index",
+                  "attached_condition": "(((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'PRIVATE') and ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`participant_1_id` = 1763005085674) or (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`participant_2_id` = 1763005085674))) or (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'GROUP'))",
+                  "cost_info": {
+                    "data_read_per_join": "242K",
+                    "eval_cost": "100.10",
+                    "prefix_cost": "101.35",
+                    "read_cost": "1.25"
+                  },
+                  "filtered": "100.00",
+                  "key": "uk_private_chat",
+                  "key_length": "220",
+                  "possible_keys": [
+                    "PRIMARY",
+                    "uk_private_chat",
+                    "idx_participant_1",
+                    "idx_participant_2",
+                    "idx_chat_type"
+                  ],
+                  "rows_examined_per_scan": 1001,
+                  "rows_produced_per_join": 1001,
+                  "table_name": "sc",
+                  "used_columns": [
+                    "id",
+                    "chat_type",
+                    "participant_1_id",
+                    "participant_2_id"
+                  ],
+                  "used_key_parts": [
+                    "participant_1_id",
+                    "participant_2_id",
+                    "chat_type"
+                  ],
+                  "using_index": true
+                }
+              },
+              {
+                "table": {
+                  "access_type": "ref",
+                  "attached_condition": "((coalesce(`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`m`.`is_recalled`,0) = 0) and ((lower(json_unquote(json_extract(`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`m`.`content`,'$.content'))) like '%capacity%' escape '!') or (lower(json_unquote(json_extract(`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`m`.`content`,'$.content'))) like '%alpha%' escape '!')))",
+                  "cost_info": {
+                    "data_read_per_join": "81M",
+                    "eval_cost": "9619.09",
+                    "prefix_cost": "33768.15",
+                    "read_cost": "24047.71"
+                  },
+                  "filtered": "100.00",
+                  "key": "idx_message_chat_time",
+                  "key_length": "9",
+                  "possible_keys": [
+                    "idx_chat_id",
+                    "idx_message_chat_status",
+                    "idx_message_chat_time"
+                  ],
+                  "ref": [
+                    "weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0.sc.id"
+                  ],
+                  "rows_examined_per_scan": 96,
+                  "rows_produced_per_join": 96190,
+                  "table_name": "m",
+                  "used_columns": [
+                    "id",
+                    "sender_id",
+                    "chat_id",
+                    "content",
+                    "is_recalled"
+                  ],
+                  "used_key_parts": [
+                    "chat_id"
+                  ]
+                }
+              },
+              {
+                "table": {
+                  "access_type": "eq_ref",
+                  "cost_info": {
+                    "data_read_per_join": "716M",
+                    "eval_cost": "9619.09",
+                    "prefix_cost": "67434.95",
+                    "read_cost": "24047.71"
+                  },
+                  "filtered": "100.00",
+                  "key": "PRIMARY",
+                  "key_length": "8",
+                  "possible_keys": [
+                    "PRIMARY"
+                  ],
+                  "ref": [
+                    "weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0.m.sender_id"
+                  ],
+                  "rows_examined_per_scan": 1,
+                  "rows_produced_per_join": 96190,
+                  "table_name": "sender",
+                  "used_columns": [
+                    "id"
+                  ],
+                  "used_key_parts": [
+                    "id"
+                  ],
+                  "using_index": true
+                }
+              },
+              {
+                "table": {
+                  "access_type": "ref",
+                  "attached_condition": "(<if>(found_match(g..gm), (((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'PRIVATE') and ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`participant_1_id` = 1763005085674) or (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`participant_2_id` = 1763005085674))) or ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'GROUP') and (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`g`.`id` is not null))), true) and <if>(is_not_null_compl(g..gm), ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`g`.`status` = 1) and (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'GROUP')), true))",
+                  "cost_info": {
+                    "data_read_per_join": "411M",
+                    "eval_cost": "9619.09",
+                    "prefix_cost": "101101.75",
+                    "read_cost": "24047.71"
+                  },
+                  "filtered": "100.00",
+                  "key": "idx_shared_chat_id",
+                  "key_length": "9",
+                  "possible_keys": [
+                    "PRIMARY",
+                    "idx_group_status",
+                    "idx_shared_chat_id"
+                  ],
+                  "ref": [
+                    "weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0.sc.id"
+                  ],
+                  "rows_examined_per_scan": 1,
+                  "rows_produced_per_join": 96190,
+                  "table_name": "g",
+                  "used_columns": [
+                    "id",
+                    "status",
+                    "shared_chat_id"
+                  ],
+                  "used_key_parts": [
+                    "shared_chat_id"
+                  ]
+                }
+              },
+              {
+                "table": {
+                  "access_type": "eq_ref",
+                  "attached_condition": "<if>(is_not_null_compl(g..gm), ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`gm`.`join_status` = 'ACCEPTED') and (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`gm`.`kicked_at` is null)), true)",
+                  "cost_info": {
+                    "data_read_per_join": "380M",
+                    "eval_cost": "9619.09",
+                    "prefix_cost": "110971.09",
+                    "read_cost": "250.25"
+                  },
+                  "filtered": "100.00",
+                  "key": "uk_group_user",
+                  "key_length": "16",
+                  "possible_keys": [
+                    "uk_group_user",
+                    "idx_user_id",
+                    "idx_join_status",
+                    "idx_group_role_status",
+                    "idx_group_member_user_status"
+                  ],
+                  "ref": [
+                    "weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0.g.id",
+                    "const"
+                  ],
+                  "rows_examined_per_scan": 1,
+                  "rows_produced_per_join": 96190,
+                  "table_name": "gm",
+                  "used_columns": [
+                    "group_id",
+                    "user_id",
+                    "join_status",
+                    "kicked_at"
+                  ],
+                  "used_key_parts": [
+                    "group_id",
+                    "user_id"
+                  ]
+                }
+              }
+            ],
+            "select_id": 1
+          }
+        },
+        "parameters": {
+          "actor": 1763005085674,
+          "exactKeyword": "capacity alpha",
+          "keyword": "%capacity alpha%",
+          "offset": 0,
+          "size": 10,
+          "term0": "%capacity%",
+          "term1": "%alpha%"
+        },
+        "sql": "SELECT COUNT(DISTINCT m.id) FROM message m JOIN shared_chat sc ON sc.id = m.chat_id LEFT JOIN `user` sender ON sender.id = m.sender_id LEFT JOIN `group` g ON g.shared_chat_id = sc.id AND sc.chat_type = 'GROUP' AND g.status = 1 AND EXISTS (SELECT 1 FROM group_member gm WHERE gm.group_id = g.id AND gm.user_id = :actor AND gm.join_status = 'ACCEPTED' AND gm.kicked_at IS NULL)  WHERE COALESCE(m.is_recalled, 0) = 0 AND ((sc.chat_type = 'PRIVATE' AND (sc.participant_1_id = :actor OR sc.participant_2_id = :actor)) OR (sc.chat_type = 'GROUP' AND g.id IS NOT NULL))  AND (LOWER(JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content'))) LIKE :term0 ESCAPE '!' OR LOWER(JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content'))) LIKE :term1 ESCAPE '!') "
+      },
+      {
+        "explain": {
+          "query_block": {
+            "cost_info": {
+              "query_cost": "146697.25"
+            },
+            "ordering_operation": {
+              "duplicates_removal": {
+                "nested_loop": [
+                  {
+                    "table": {
+                      "access_type": "ALL",
+                      "attached_condition": "(((coalesce(`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`m`.`is_recalled`,0) = 0) and ((lower(json_unquote(json_extract(`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`m`.`content`,'$.content'))) like '%capacity%' escape '!') or (lower(json_unquote(json_extract(`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`m`.`content`,'$.content'))) like '%alpha%' escape '!'))) and (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`m`.`chat_id` is not null))",
+                      "cost_info": {
+                        "data_read_per_join": "82M",
+                        "eval_cost": "9734.40",
+                        "prefix_cost": "10415.65",
+                        "read_cost": "681.25"
+                      },
+                      "filtered": "100.00",
+                      "possible_keys": [
+                        "idx_chat_id",
+                        "idx_message_chat_status",
+                        "idx_message_chat_time"
+                      ],
+                      "rows_examined_per_scan": 97344,
+                      "rows_produced_per_join": 97344,
+                      "table_name": "m",
+                      "used_columns": [
+                        "id",
+                        "sender_id",
+                        "chat_id",
+                        "content",
+                        "message_type",
+                        "is_recalled",
+                        "created_at"
+                      ]
+                    }
+                  },
+                  {
+                    "table": {
+                      "access_type": "eq_ref",
+                      "cost_info": {
+                        "data_read_per_join": "725M",
+                        "eval_cost": "9734.40",
+                        "prefix_cost": "44486.05",
+                        "read_cost": "24336.00"
+                      },
+                      "filtered": "100.00",
+                      "key": "PRIMARY",
+                      "key_length": "8",
+                      "possible_keys": [
+                        "PRIMARY"
+                      ],
+                      "ref": [
+                        "weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0.m.sender_id"
+                      ],
+                      "rows_examined_per_scan": 1,
+                      "rows_produced_per_join": 97344,
+                      "table_name": "sender",
+                      "used_columns": [
+                        "id",
+                        "username"
+                      ],
+                      "used_key_parts": [
+                        "id"
+                      ]
+                    }
+                  },
+                  {
+                    "table": {
+                      "access_type": "eq_ref",
+                      "attached_condition": "(((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'PRIVATE') and ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`participant_1_id` = 1763005085674) or (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`participant_2_id` = 1763005085674))) or (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'GROUP'))",
+                      "cost_info": {
+                        "data_read_per_join": "23M",
+                        "eval_cost": "9734.40",
+                        "prefix_cost": "78556.45",
+                        "read_cost": "24336.00"
+                      },
+                      "filtered": "100.00",
+                      "key": "PRIMARY",
+                      "key_length": "8",
+                      "possible_keys": [
+                        "PRIMARY",
+                        "uk_private_chat",
+                        "idx_participant_1",
+                        "idx_participant_2",
+                        "idx_chat_type"
+                      ],
+                      "ref": [
+                        "weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0.m.chat_id"
+                      ],
+                      "rows_examined_per_scan": 1,
+                      "rows_produced_per_join": 97344,
+                      "table_name": "sc",
+                      "used_columns": [
+                        "id",
+                        "chat_type",
+                        "participant_1_id",
+                        "participant_2_id"
+                      ],
+                      "used_key_parts": [
+                        "id"
+                      ]
+                    }
+                  },
+                  {
+                    "table": {
+                      "access_type": "ref",
+                      "attached_condition": "(<if>(found_match(g..gm), (((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'PRIVATE') and ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`participant_1_id` = 1763005085674) or (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`participant_2_id` = 1763005085674))) or ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'GROUP') and (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`g`.`id` is not null))), true) and <if>(is_not_null_compl(g..gm), ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`g`.`status` = 1) and (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`sc`.`chat_type` = 'GROUP')), true))",
+                      "cost_info": {
+                        "data_read_per_join": "416M",
+                        "eval_cost": "9734.40",
+                        "prefix_cost": "112626.85",
+                        "read_cost": "24336.00"
+                      },
+                      "filtered": "100.00",
+                      "key": "idx_shared_chat_id",
+                      "key_length": "9",
+                      "possible_keys": [
+                        "PRIMARY",
+                        "idx_group_status",
+                        "idx_shared_chat_id"
+                      ],
+                      "ref": [
+                        "weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0.m.chat_id"
+                      ],
+                      "rows_examined_per_scan": 1,
+                      "rows_produced_per_join": 97344,
+                      "table_name": "g",
+                      "used_columns": [
+                        "id",
+                        "group_name",
+                        "status",
+                        "shared_chat_id"
+                      ],
+                      "used_key_parts": [
+                        "shared_chat_id"
+                      ]
+                    }
+                  },
+                  {
+                    "table": {
+                      "access_type": "eq_ref",
+                      "attached_condition": "<if>(is_not_null_compl(g..gm), ((`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`gm`.`join_status` = 'ACCEPTED') and (`weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0`.`gm`.`kicked_at` is null)), true)",
+                      "cost_info": {
+                        "data_read_per_join": "384M",
+                        "eval_cost": "9734.40",
+                        "prefix_cost": "146697.25",
+                        "read_cost": "24336.00"
+                      },
+                      "distinct": true,
+                      "filtered": "100.00",
+                      "key": "uk_group_user",
+                      "key_length": "16",
+                      "possible_keys": [
+                        "uk_group_user",
+                        "idx_user_id",
+                        "idx_join_status",
+                        "idx_group_role_status",
+                        "idx_group_member_user_status"
+                      ],
+                      "ref": [
+                        "weeb_audit_capacity_b1a6a5a7ea534e9aadc6c3e0.g.id",
+                        "const"
+                      ],
+                      "rows_examined_per_scan": 1,
+                      "rows_produced_per_join": 97344,
+                      "table_name": "gm",
+                      "used_columns": [
+                        "id",
+                        "group_id",
+                        "user_id",
+                        "join_status",
+                        "kicked_at"
+                      ],
+                      "used_key_parts": [
+                        "group_id",
+                        "user_id"
+                      ]
+                    }
+                  }
+                ],
+                "using_filesort": false,
+                "using_temporary_table": true
+              },
+              "using_filesort": true,
+              "using_temporary_table": true
+            },
+            "select_id": 1
+          }
+        },
+        "parameters": {
+          "actor": 1763005085674,
+          "exactKeyword": "capacity alpha",
+          "keyword": "%capacity alpha%",
+          "offset": 0,
+          "size": 10,
+          "term0": "%capacity%",
+          "term1": "%alpha%"
+        },
+        "sql": "SELECT DISTINCT m.id, m.sender_id, sender.username AS sender_name, JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content')) AS message_content, m.created_at, m.message_type, sc.chat_type, sc.id AS shared_chat_id, g.id AS group_id, g.group_name, CASE WHEN LOWER(JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content'))) = LOWER(:exactKeyword) THEN 2 WHEN LOWER(JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content'))) LIKE LOWER(:keyword) ESCAPE '!' THEN 1 ELSE 0 END AS match_quality, (CASE WHEN LOWER(JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content'))) LIKE :term0 ESCAPE '!' THEN 1 ELSE 0 END + CASE WHEN LOWER(JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content'))) LIKE :term1 ESCAPE '!' THEN 1 ELSE 0 END) AS matched_terms  FROM message m JOIN shared_chat sc ON sc.id = m.chat_id LEFT JOIN `user` sender ON sender.id = m.sender_id LEFT JOIN `group` g ON g.shared_chat_id = sc.id AND sc.chat_type = 'GROUP' AND g.status = 1 AND EXISTS (SELECT 1 FROM group_member gm WHERE gm.group_id = g.id AND gm.user_id = :actor AND gm.join_status = 'ACCEPTED' AND gm.kicked_at IS NULL)  WHERE COALESCE(m.is_recalled, 0) = 0 AND ((sc.chat_type = 'PRIVATE' AND (sc.participant_1_id = :actor OR sc.participant_2_id = :actor)) OR (sc.chat_type = 'GROUP' AND g.id IS NOT NULL))  AND (LOWER(JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content'))) LIKE :term0 ESCAPE '!' OR LOWER(JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content'))) LIKE :term1 ESCAPE '!')  ORDER BY match_quality DESC, matched_terms DESC, m.created_at DESC, m.id DESC LIMIT :size OFFSET :offset"
+      }
+    ],
+    "status": "RECORDED"
+  },
+  "serviceImages": {
+    "mysql": {
+      "imageId": "sha256:9272481a67f6ca40b0b29b2e102d29fa86b54c69e969883ce4705ece06bbf3d5",
+      "port": 23306
+    },
+    "redis": {
+      "imageId": "sha256:5509c0097c6064aa8a3b1df58f1d950e67090fffa6678ae8f3f1dc2385f12deb",
+      "port": 16379
+    }
+  },
+  "sourceTreeSha256": "f4afc1f4fea9c5db99d3621b2552846dfde163bf7bf6204dfc3d8eb8cdf3e0f8",
+  "stages": [
+    {
+      "concurrency": 1,
+      "endpoints": {
+        "history": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 47.307,
+          "p95Ms": 58.355,
+          "p99Ms": 58.355,
+          "payloadBytesMean": 8065.0,
+          "payloadBytesTotal": 120975,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 1.111,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 13.4997
+        },
+        "joined_groups": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 42.257,
+          "p95Ms": 66.248,
+          "p99Ms": 66.248,
+          "payloadBytesMean": 544654.87,
+          "payloadBytesTotal": 8169823,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 1.111,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 13.4997
+        },
+        "owned_groups": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 42.963,
+          "p95Ms": 51.8,
+          "p99Ms": 51.8,
+          "payloadBytesMean": 272154.8,
+          "payloadBytesTotal": 4082322,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 1.111,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 13.4997
+        },
+        "search": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 715.282,
+          "p95Ms": 736.158,
+          "p99Ms": 736.158,
+          "payloadBytesMean": 5156.8,
+          "payloadBytesTotal": 77352,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 1.111,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 13.4997
+        },
+        "unread": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 42.223,
+          "p95Ms": 59.959,
+          "p99Ms": 59.959,
+          "payloadBytesMean": 106296.87,
+          "payloadBytesTotal": 1594453,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 1.111,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 13.4997
+        }
+      },
+      "localTargetMet": true,
+      "resources": {
+        "cpuPercentOneCore": 41.55,
+        "cpuSeconds": 5.6094,
+        "note": "Observed process RSS and CPU; CPU100% means one logical core, not whole-machine saturation.",
+        "peakObservedRssBytes": 563326976,
+        "samples": 28,
+        "samplingIntervalMs": 500,
+        "status": "RECORDED"
+      },
+      "samples": [
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 698.3959999924991,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 58.35500000102911,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 59.9592000071425,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 51.80010000185575,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 66.24790000205394,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 715.2818000031402,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 48.38140000356361,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 32.15780000027735,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 49.8749999969732,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 48.11770000378601,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 728.2075000111945,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 57.06230000942014,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 40.19419998803642,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 45.171800011303276,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 35.573299988755025,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 731.5628999931505,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 48.84439999295864,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 27.694100004737265,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 45.006100001046434,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 48.24879999796394,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 736.1582000012277,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 44.6347999968566,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 46.409200003836304,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 39.47620000690222,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 45.635599992237985,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 724.2366999998922,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 30.650800006696954,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 43.35279999941122,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 42.189600004348904,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 31.381900000269525,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 702.4449999880744,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 53.791899990756065,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 42.14539998793043,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 42.951900002663024,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 48.53250000451226,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 691.8229000002611,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 45.7516000024043,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 44.83800000161864,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 25.20659999572672,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 29.267199992318638,
+          "payloadBytes": 544654,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 726.1797000101069,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 45.89080000005197,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 41.618899995228276,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 44.29340000206139,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 33.84549998736475,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 731.5995000099065,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 52.951599995139986,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 42.22309999749996,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 25.484900004812516,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 30.27569998812396,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 725.215999991633,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 28.407400008291006,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 45.35759999998845,
+          "payloadBytes": 106296,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 44.64449999795761,
+          "payloadBytes": 272154,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 28.42360000067856,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 698.5383999999613,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 49.34610000054818,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 40.06510000908747,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 42.96279999834951,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 49.874399992404506,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 706.5756000083638,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 26.674399996409193,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 45.14869999547955,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 44.245100012631156,
+          "payloadBytes": 272154,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 27.76379999704659,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 711.498999997275,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 45.059199997922406,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 43.32379999686964,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 40.72210000595078,
+          "payloadBytes": 272154,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 51.20599998917896,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 710.7054999942193,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 47.307100001489744,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 40.505800003302284,
+          "payloadBytes": 106296,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 21.94190000591334,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 42.257499997504056,
+          "payloadBytes": 544654,
+          "privacyValid": true,
+          "success": true
+        }
+      ],
+      "summary": {
+        "businessCodeCounts": {
+          "0": 75
+        },
+        "contractErrors": 0,
+        "errorRate": 0.0,
+        "errors": 0,
+        "p50Ms": 45.172,
+        "p95Ms": 728.208,
+        "p99Ms": 736.158,
+        "payloadBytesMean": 187265.67,
+        "payloadBytesTotal": 14044925,
+        "privacyErrors": 0,
+        "requests": 75,
+        "requestsPerSecond": 5.556,
+        "statusCounts": {
+          "200": 75
+        },
+        "wallSeconds": 13.4997
+      },
+      "warmup": {
+        "businessCodeCounts": {
+          "0": 5
+        },
+        "contractErrors": 0,
+        "errorRate": 0.0,
+        "errors": 0,
+        "p50Ms": 104.09,
+        "p95Ms": 767.438,
+        "p99Ms": 767.438,
+        "payloadBytesMean": 187265.8,
+        "payloadBytesTotal": 936329,
+        "privacyErrors": 0,
+        "requests": 5,
+        "requestsPerSecond": 4.431,
+        "statusCounts": {
+          "200": 5
+        },
+        "wallSeconds": 1.1285
+      }
+    },
+    {
+      "concurrency": 5,
+      "endpoints": {
+        "history": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 34.868,
+          "p95Ms": 66.036,
+          "p99Ms": 66.036,
+          "payloadBytesMean": 8064.8,
+          "payloadBytesTotal": 120972,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 4.049,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 3.7042
+        },
+        "joined_groups": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 44.439,
+          "p95Ms": 58.64,
+          "p99Ms": 58.64,
+          "payloadBytesMean": 544654.87,
+          "payloadBytesTotal": 8169823,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 4.049,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 3.7042
+        },
+        "owned_groups": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 37.21,
+          "p95Ms": 45.733,
+          "p99Ms": 45.733,
+          "payloadBytesMean": 272155.0,
+          "payloadBytesTotal": 4082325,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 4.049,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 3.7042
+        },
+        "search": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 982.35,
+          "p95Ms": 1032.606,
+          "p99Ms": 1032.606,
+          "payloadBytesMean": 5156.8,
+          "payloadBytesTotal": 77352,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 4.049,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 3.7042
+        },
+        "unread": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 41.711,
+          "p95Ms": 48.214,
+          "p99Ms": 48.214,
+          "payloadBytesMean": 106296.87,
+          "payloadBytesTotal": 1594453,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 4.049,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 3.7042
+        }
+      },
+      "localTargetMet": false,
+      "resources": {
+        "cpuPercentOneCore": 78.48,
+        "cpuSeconds": 2.9062,
+        "note": "Observed process RSS and CPU; CPU100% means one logical core, not whole-machine saturation.",
+        "peakObservedRssBytes": 587161600,
+        "samples": 9,
+        "samplingIntervalMs": 500,
+        "status": "RECORDED"
+      },
+      "samples": [
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1004.9772999918787,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 34.86789998714812,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 26.801300002261996,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 27.76060000178404,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 58.639800001401454,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 975.3731000091648,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 34.30530001060106,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 33.805600003688596,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 27.49469999980647,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 33.94879998813849,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 942.8336999990279,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 30.242199994972907,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 39.770499992300756,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 37.20979999343399,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 27.263399999355897,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1001.6967999981716,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 48.528600003919564,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 42.26610000478104,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 45.73339999478776,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 48.063900001579896,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 979.3232999945758,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 28.15579999878537,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 44.46040000766516,
+          "payloadBytes": 106296,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 34.05059999204241,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 30.333300004713237,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 989.0926999942167,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 50.314400010393,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 30.085800011875108,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 44.619399996008724,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 48.252799999318086,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1019.4196000084048,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 45.1731000066502,
+          "payloadBytes": 8064,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 45.57790000399109,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 43.26619999483228,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 53.13000000023749,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 982.0490999991307,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 28.348699997877702,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 35.78140000172425,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 40.111499998602085,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 44.43850000097882,
+          "payloadBytes": 544654,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1032.606000007945,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 66.03580000228249,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 44.96250000374857,
+          "payloadBytes": 106296,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 39.812800008803606,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 46.89160000998527,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1002.0072000043001,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 50.057600004947744,
+          "payloadBytes": 8064,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 42.09059999266174,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 21.511099999770522,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 43.894099988392554,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1007.7653999906033,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 28.799300009268336,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 41.71119999955408,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 37.190500006545335,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 36.017999998875894,
+          "payloadBytes": 544654,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 982.3498000041582,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 28.792299999622628,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 41.64150000724476,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 22.668700010399334,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 37.60090000287164,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 972.2333000099752,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 37.99850000359584,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 39.56960000505205,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 44.30980001052376,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 53.624399995896965,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 927.5029999989783,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 34.30070000467822,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 43.278600001940504,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 30.547999995178543,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 52.697799997986294,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 867.587699991418,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 35.893200009013526,
+          "payloadBytes": 8064,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 48.21390000870451,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 38.415100003476255,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 26.95769999991171,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        }
+      ],
+      "summary": {
+        "businessCodeCounts": {
+          "0": 75
+        },
+        "contractErrors": 0,
+        "errorRate": 0.0,
+        "errors": 0,
+        "p50Ms": 43.266,
+        "p95Ms": 1004.977,
+        "p99Ms": 1032.606,
+        "payloadBytesMean": 187265.67,
+        "payloadBytesTotal": 14044925,
+        "privacyErrors": 0,
+        "requests": 75,
+        "requestsPerSecond": 20.247,
+        "statusCounts": {
+          "200": 75
+        },
+        "wallSeconds": 3.7042
+      },
+      "warmup": {
+        "businessCodeCounts": {
+          "0": 5
+        },
+        "contractErrors": 0,
+        "errorRate": 0.0,
+        "errors": 0,
+        "p50Ms": 50.634,
+        "p95Ms": 700.028,
+        "p99Ms": 700.028,
+        "payloadBytesMean": 187265.8,
+        "payloadBytesTotal": 936329,
+        "privacyErrors": 0,
+        "requests": 5,
+        "requestsPerSecond": 5.76,
+        "statusCounts": {
+          "200": 5
+        },
+        "wallSeconds": 0.868
+      }
+    },
+    {
+      "concurrency": 20,
+      "endpoints": {
+        "history": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 167.497,
+          "p95Ms": 272.038,
+          "p99Ms": 272.038,
+          "payloadBytesMean": 8064.87,
+          "payloadBytesTotal": 120973,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 6.713,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 2.2345
+        },
+        "joined_groups": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 145.424,
+          "p95Ms": 230.971,
+          "p99Ms": 230.971,
+          "payloadBytesMean": 544654.87,
+          "payloadBytesTotal": 8169823,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 6.713,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 2.2345
+        },
+        "owned_groups": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 109.161,
+          "p95Ms": 237.184,
+          "p99Ms": 237.184,
+          "payloadBytesMean": 272154.93,
+          "payloadBytesTotal": 4082324,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 6.713,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 2.2345
+        },
+        "search": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 1760.838,
+          "p95Ms": 1983.941,
+          "p99Ms": 1983.941,
+          "payloadBytesMean": 5156.73,
+          "payloadBytesTotal": 77351,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 6.713,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 2.2345
+        },
+        "unread": {
+          "businessCodeCounts": {
+            "0": 15
+          },
+          "contractErrors": 0,
+          "errorRate": 0.0,
+          "errors": 0,
+          "p50Ms": 137.699,
+          "p95Ms": 237.282,
+          "p99Ms": 237.282,
+          "payloadBytesMean": 106296.73,
+          "payloadBytesTotal": 1594451,
+          "privacyErrors": 0,
+          "requests": 15,
+          "requestsPerSecond": 6.713,
+          "statusCounts": {
+            "200": 15
+          },
+          "wallSeconds": 2.2345
+        }
+      },
+      "localTargetMet": false,
+      "resources": {
+        "cpuPercentOneCore": 96.48,
+        "cpuSeconds": 2.1562,
+        "note": "Observed process RSS and CPU; CPU100% means one logical core, not whole-machine saturation.",
+        "peakObservedRssBytes": 575303680,
+        "samples": 6,
+        "samplingIntervalMs": 500,
+        "status": "RECORDED"
+      },
+      "samples": [
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1906.828699997277,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 102.04900000826456,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 65.30009998823516,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 44.219100003829226,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 88.26869999757037,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1693.3565999934217,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 80.47599998826627,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 85.89750000101048,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 114.32320000312757,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 50.61730000306852,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1859.8707999917679,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 67.74700000823941,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 107.65619999438059,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 90.9659000026295,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 68.31810000585392,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1747.797600008198,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 92.8012999938801,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 78.92129999527242,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 117.65099999320228,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 117.8107000014279,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1983.941099999356,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 91.39970000251196,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 71.20489999942947,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 86.86630000011064,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 63.84089999482967,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1974.6648000000278,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 92.0893000002252,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 78.11590000346769,
+          "payloadBytes": 106293,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 118.34289999387693,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 101.39899999194313,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1830.8696000021882,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 92.12050000496674,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 99.73869999521412,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 73.17099999636412,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 143.89209999353625,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1584.5842999988236,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 167.49680000066292,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 137.6994000020204,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 101.59109999949578,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 151.3682999939192,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1760.8380000019679,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 185.03639999835286,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 153.87619999819435,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 104.26239999651443,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 145.4236999998102,
+          "payloadBytes": 544654,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1914.9350999941817,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 206.81530000001658,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 183.82360000396147,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 144.74210000480525,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 176.36140000831801,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1820.9941000095569,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 212.26420000311919,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 196.72890000219923,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 207.63769999030046,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 218.87349999451544,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1717.9209000023548,
+          "payloadBytes": 5156,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 245.67259999457747,
+          "payloadBytes": 8064,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 237.28169999958482,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 237.18389999703504,
+          "payloadBytes": 272154,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 209.50929999526124,
+          "payloadBytes": 544654,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1602.2870000015246,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 272.0383999985643,
+          "payloadBytes": 8064,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 188.3419999940088,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 140.713600005256,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 230.9709999972256,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1555.7007000024896,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 208.8108000025386,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 144.33270000154153,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 86.31179999792948,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 188.3073999924818,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "search",
+          "httpStatus": 200,
+          "latencyMs": 1426.580200000899,
+          "payloadBytes": 5157,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "history",
+          "httpStatus": 200,
+          "latencyMs": 243.5043999867048,
+          "payloadBytes": 8065,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "unread",
+          "httpStatus": 200,
+          "latencyMs": 192.06270000722725,
+          "payloadBytes": 106297,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "owned_groups",
+          "httpStatus": 200,
+          "latencyMs": 109.16120000183582,
+          "payloadBytes": 272155,
+          "privacyValid": true,
+          "success": true
+        },
+        {
+          "businessCode": 0,
+          "contractValid": true,
+          "endpoint": "joined_groups",
+          "httpStatus": 200,
+          "latencyMs": 189.18630000553094,
+          "payloadBytes": 544655,
+          "privacyValid": true,
+          "success": true
+        }
+      ],
+      "summary": {
+        "businessCodeCounts": {
+          "0": 75
+        },
+        "contractErrors": 0,
+        "errorRate": 0.0,
+        "errors": 0,
+        "p50Ms": 151.368,
+        "p95Ms": 1906.829,
+        "p99Ms": 1983.941,
+        "payloadBytesMean": 187265.63,
+        "payloadBytesTotal": 14044922,
+        "privacyErrors": 0,
+        "requests": 75,
+        "requestsPerSecond": 33.564,
+        "statusCounts": {
+          "200": 75
+        },
+        "wallSeconds": 2.2345
+      },
+      "warmup": {
+        "businessCodeCounts": {
+          "0": 5
+        },
+        "contractErrors": 0,
+        "errorRate": 0.0,
+        "errors": 0,
+        "p50Ms": 42.89,
+        "p95Ms": 746.543,
+        "p99Ms": 746.543,
+        "payloadBytesMean": 187265.8,
+        "payloadBytesTotal": 936329,
+        "privacyErrors": 0,
+        "requests": 5,
+        "requestsPerSecond": 5.43,
+        "statusCounts": {
+          "200": 5
+        },
+        "wallSeconds": 0.9208
+      }
+    }
+  ],
+  "startedAtUtc": "2026-09-12T05:55:53.414157+00:00",
+  "status": "FAIL",
+  "toolSha256": "a4ff210de617d83001fc83fd11cd9b8248ceca87ab4547c23240ac8c602c31e3"
+}

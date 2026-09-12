@@ -353,6 +353,7 @@ export const useNotificationStore = defineStore('notification', {
 
     pruneNotifications(direction = 'newer') {
       if (this.notifications.length <= this.maxNotifications) return;
+      if (direction !== 'older') this.hasMore = true;
       this.notifications = direction === 'older' ? this.notifications.slice(-this.maxNotifications)
         : this.notifications.slice(0, this.maxNotifications);
     },

@@ -106,6 +106,8 @@ await notifications.deleteReadNotifications();
 
 The HTTP module uses `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all` and `DELETE /api/notifications/read`. The store does not implement a timed 30-day retention policy.
 
+The bell uses an independent latest-ten preview and never resets the notification page's history position. Both chat and notification window navigation locate the viewed boundary by record ID before merging offset pages, including when realtime inserts shift page boundaries. Each lookup reads at most 40 pages and can retry at most three times after a concurrent arrival; failure preserves the current window and leaves latest reload available. Explicit newer/older flags keep partial boundary pages accessible. This is bounded client recovery over existing page APIs, not a new server snapshot/cursor contract.
+
 ## Theme
 
 `themeStore.js` is a setup-style Pinia store. It exports `isDark`, `currentTheme`, `userPreference`, `initTheme()`, `setTheme(theme)` and `toggleTheme()`. `setTheme` accepts `light`, `dark` or `system`; `currentTheme` resolves the actual light/dark appearance. `initTheme()` reads `theme-preference` from localStorage and observes the system color scheme. There is no separate public `watchSystemTheme()` action.

@@ -23,6 +23,26 @@ beforeEach(() => {
 afterEach(() => { store.stopAutoRefresh(); vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('bounded notification payloads and reconciliation', () => {
+  it('reopens older navigation when a realtime prepend evicts the previously loaded final record', async () => {
+    const rows = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, isRead: false }))
+    vi.spyOn(api, 'getNotifications').mockImplementation(async (page, size) => ok({
+      notifications: rows.slice((page - 1) * size, page * size), currentPage: page,
+      pageSize: size, totalCount: rows.length, totalPages: Math.ceil(rows.length / size)
+    }))
+    for (let page = 1; page <= 10; page++) await store.fetchNotifications(page)
+    expect(store.hasMore).toBe(false)
+    expect(store.notifications.at(-1).id).toBe(100)
+    const arrival = { id: 101, isRead: false }
+    rows.unshift(arrival); store.addNotification(arrival)
+    expect(store.notifications).toHaveLength(100)
+    expect(store.notifications.at(-1).id).toBe(99)
+    expect(store.hasMore).toBe(true)
+    await store.fetchNotifications(store.currentPage + 1)
+    expect(store.notifications.map(row => row.id)).toEqual(Array.from({ length: 100 }, (_, i) => i + 1))
+    expect(store.notifications.at(-1).id).toBe(100)
+    expect(store.hasMore).toBe(false)
+  })
+
   it('deduplicates preview deliveries and synchronizes read state without modifying an older history window', async () => {
     store.notifications = [{ id: 40, isRead: false }]
     store.firstPage = 4; store.hasNewer = true

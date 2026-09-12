@@ -243,6 +243,11 @@ def prepare(root, output, filter_python):
     git_env = {'GIT_INDEX_FILE': str(output / 'candidate.index')}
     command(clean, 'read-tree', '--empty', env=git_env)
     command(clean, '--work-tree=' + str(source), '-c', 'core.autocrlf=false', 'add', '--all', '--force', env=git_env)
+    # Windows filesystems cannot convey executable bits through chmod/stat. Preserve
+    # the canonical snapshot modes explicitly in this isolated index.
+    for name, _, mode in inventory:
+        if mode == '0755':
+            command(clean, '--work-tree=' + str(source), 'update-index', '--chmod=+x', '--', name, env=git_env)
     candidate_tree = command(clean, 'write-tree', env=git_env).decode().strip()
     identity = {'GIT_AUTHOR_NAME': 'Weeb release preparation', 'GIT_AUTHOR_EMAIL': 'release-preparation@weeb.invalid',
                 'GIT_COMMITTER_NAME': 'Weeb release preparation', 'GIT_COMMITTER_EMAIL': 'release-preparation@weeb.invalid'}

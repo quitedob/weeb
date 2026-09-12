@@ -40,6 +40,8 @@ The [2026-09-12 frozen-snapshot verification](docs/release-verification.md) pass
 
 The subsequent [P2 capacity work](docs/p2-capacity.md) adds real group pagination, bounded message/notification caches, stale-response protection, reduced polling and measured message-search optimization. [Verified history publication](docs/history-publication.md) binds the complete clean candidate, migration versions, reproducible artifacts and exact-JAR capacity results before updating remote main. Earlier snapshot counts above describe their own verification phase.
 
+The [P2 clean-candidate review](docs/p2-verification.md) passed **324 backend tests, 191 frontend tests and 23 real HTTP/STOMP/browser assertions**, with zero skips and identical two-build artifacts. The local 100,000-message capacity comparison passed at 1/5/20 concurrency, improving overall 20-concurrent P95 from 1,907 to 797 ms. Publication still checks the final candidate's own manifests and exact JAR.
+
 ## Run locally
 
 Start MySQL and Redis and create the intended local database. Export the environment variables documented in [.env.example](.env.example), including a newly generated `JWT_SECRET` of at least 32 bytes and `MYSQL_PASSWORD`. Also set `MYSQL_URL`, `MYSQL_USERNAME`, `REDIS_HOST`, and `REDIS_PORT` when their defaults do not match your local services. The backend does not automatically load `.env.example` or `.env`.

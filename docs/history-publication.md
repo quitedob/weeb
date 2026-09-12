@@ -4,6 +4,8 @@ The original working repository and its uncommitted fixes are preserved. `script
 
 The reviewed remote is `git@github.com:quitedob/weeb.git`; its initial advertised inventory on 2026-09-12 contained only `refs/heads/main` at `1167c19695ccdc167e2b9a01e03d9ba0ac2c0d04`. Preparation and publication independently recheck all advertised refs. A new branch/tag or changed main blocks this single-branch workflow and requires a new inventory; the script cannot overwrite an unseen collaborator update.
 
+The final preparation recheck detected new user commits `10008fa` and `c1e4bf3`, followed by remote commit `d0c3539` deleting `.mvn/wrapper/maven-wrapper.properties`. The original branch was safely fast-forwarded to that exact descendant while retaining the local fixes; the wrapper properties were restored as a reviewable source change because the checked-in Maven wrapper needs them. The new preparation baseline is `d0c35390e5249bc02130f997705333f41899e71a`; the intervening commits remain part of the historical comparison.
+
 ## Prepare and verify
 
 Install pinned `git-filter-repo==2.47.0` in an isolated Python environment, then supply its Python executable. On this workspace the existing interpreter is `.local/verification/history-tools/Scripts/python.exe`.
