@@ -168,7 +168,8 @@ def wait_http(url, processes, timeout=70):
 def runtime_environment(base_env):
     def allowed(key):
         normalized = key.upper().replace('.', '_')
-        return not (normalized.startswith(('SPRING_', 'MYSQL_', 'REDIS_', 'JWT_', 'SERVER_'))
+        return not (normalized.startswith(('SPRING_', 'MYSQL_', 'REDIS_', 'JWT_', 'SERVER_', 'CAMPUS_'))
+                    or normalized == 'AVATAR_DIRECTORY'
                     or normalized in {'JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS'})
     env = {key: value for key, value in base_env.items() if allowed(key)}
     env.update(MYSQL_URL=base_env['WEEB_TEST_MYSQL_URL'],
@@ -177,7 +178,8 @@ def runtime_environment(base_env):
                REDIS_PORT=base_env['WEEB_TEST_REDIS_PORT'], REDIS_DATABASE='0', JWT_SECRET=secrets.token_urlsafe(64),
                SERVER_ADDRESS='127.0.0.1', SERVER_PORT='18080', SPRING_PROFILES_ACTIVE='prod',
                ALLOWED_ORIGINS='http://127.0.0.1:18081,http://127.0.0.1:18080',
-               ELASTICSEARCH_ENABLED='false', PASSWORD_RESET_FRONTEND_URL='http://127.0.0.1:18081/reset-password')
+               ELASTICSEARCH_ENABLED='false', PASSWORD_RESET_FRONTEND_URL='http://127.0.0.1:18081/reset-password',
+               CAMPUS_MEDIA_DIRECTORY='.local/campus-runtime-media', AVATAR_DIRECTORY='.local/runtime-avatars')
     return env
 
 

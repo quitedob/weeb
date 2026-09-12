@@ -11,6 +11,7 @@ The backend is a Java 17 / Spring Boot Maven application. Run commands from the 
 - `model`, `dto`, `vo`, `constant`, `util`: persisted models, payloads and shared helpers.
 - `src/main/resources/sql`: schema, seeds, indexes and reviewed migrations.
 - `src/test/java`: regression and opt-in infrastructure integration tests.
+- `campus`: private school membership/content services, controllers and DTOs; V006 owns its tables. See [campus contracts](campus-api.md) for every endpoint, state transition and permission.
 
 ## Authentication and errors
 

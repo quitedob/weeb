@@ -110,6 +110,59 @@ class SchemaMigrationIntegrationTest {
     }
 
     @Test
+    void campusUpgradeFromV005PreservesPublicDataAndRejectsMissingUniqueness() throws Exception {
+        var oldSteps = SchemaMigrator.loadSteps().stream().filter(step -> step.version().compareTo("006") < 0).toList();
+        new SchemaMigrator(source, oldSteps).migrate(false);
+        jdbc.update("INSERT INTO `user`(id,username,password,user_email,type,status) VALUES (101,'campus_upgrade','fixture-hash','campus@example.invalid','USER',1)");
+        migrator.migrate(false);
+        migrator.validate();
+        jdbc.update("INSERT INTO campus_school(id,name,created_by) VALUES (201,'Upgrade fixture',101)");
+        jdbc.update("INSERT INTO campus_verification_application(school_id,user_id,real_name,student_number,department,enrollment_year) VALUES (201,101,'Private name','S101','Department',2026)");
+        assertThrows(org.springframework.dao.DuplicateKeyException.class, () -> jdbc.update("INSERT INTO campus_verification_application(school_id,user_id,real_name,student_number,department,enrollment_year) VALUES (201,101,'Private name','S101','Department',2026)"));
+        jdbc.update("UPDATE campus_verification_application SET status='REJECTED' WHERE school_id=201 AND user_id=101");
+        jdbc.update("INSERT INTO campus_verification_application(school_id,user_id,real_name,student_number,department,enrollment_year) VALUES (201,101,'Private name','S101','Department',2026)");
+        migrator.migrate(false);
+        assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM campus_verification_application WHERE school_id=201", Integer.class));
+        assertEquals("USER", jdbc.queryForObject("SELECT type FROM `user` WHERE id=101", String.class));
+        jdbc.execute("ALTER TABLE campus_verification_application DROP INDEX uk_campus_application_pending");
+        assertThrows(IllegalStateException.class, () -> migrator.validate());
+    }
+
+    @Test
+    void partialCampusInstallationRequiresReviewedRepairBeforeResume() throws Exception {
+        var oldSteps = SchemaMigrator.loadSteps().stream().filter(step -> step.version().compareTo("006") < 0).toList();
+        new SchemaMigrator(source, oldSteps).migrate(false);
+        jdbc.execute("CREATE TABLE campus_school(id BIGINT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB");
+        assertThrows(IllegalStateException.class, () -> migrator.migrate(false));
+        assertEquals("FAILED", jdbc.queryForObject("SELECT state FROM weeb_schema_history WHERE version='006'", String.class));
+        assertThrows(IllegalStateException.class, () -> migrator.migrate(false));
+        // Repair only this deliberately malformed, empty test-owned table; other committed campus DDL stays intact.
+        jdbc.execute("ALTER TABLE campus_school ADD name VARCHAR(120) NOT NULL, ADD description VARCHAR(2000) NOT NULL DEFAULT '', ADD active BOOLEAN NOT NULL DEFAULT TRUE, ADD pre_moderation BOOLEAN NOT NULL DEFAULT TRUE, ADD version BIGINT NOT NULL DEFAULT 1, ADD created_by BIGINT NOT NULL, ADD created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), ADD updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), ADD UNIQUE KEY uk_campus_school_name(name)");
+        migrator.migrate(true);
+        migrator.validate();
+    }
+
+    @Test
+    void campusColumnDriftFailsValidationAndOnlyReviewedRepairCanResume() throws Exception {
+        var oldSteps = SchemaMigrator.loadSteps().stream().filter(step -> step.version().compareTo("006") < 0).toList();
+        new SchemaMigrator(source, oldSteps).migrate(false);
+        try (Connection connection = source.getConnection()) {
+            ScriptUtils.executeSqlScript(connection, new org.springframework.core.io.support.EncodedResource(
+                    new ClassPathResource("sql/migration/V006__campus_space.sql"), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        jdbc.execute("ALTER TABLE campus_post MODIFY title VARCHAR(10) NOT NULL");
+        assertThrows(IllegalStateException.class, () -> migrator.migrate(false));
+        assertEquals("FAILED", jdbc.queryForObject("SELECT state FROM weeb_schema_history WHERE version='006'", String.class));
+        jdbc.execute("ALTER TABLE campus_post MODIFY title VARCHAR(120) NOT NULL");
+        migrator.migrate(true);
+        jdbc.execute("ALTER TABLE campus_post MODIFY content VARCHAR(100) NOT NULL");
+        assertThrows(IllegalStateException.class, () -> migrator.validate());
+        jdbc.execute("ALTER TABLE campus_post MODIFY content TEXT NOT NULL");
+        jdbc.execute("ALTER TABLE campus_membership MODIFY status VARCHAR(16) NULL");
+        assertThrows(IllegalStateException.class, () -> migrator.validate());
+    }
+
+    @Test
     void wrongSearchColumnFailsWithoutDiscardingDataAndExplicitResumeRequiresCorrectDefinition() throws Exception {
         var oldSteps = SchemaMigrator.loadSteps().stream().filter(step -> step.version().compareTo("005") < 0).toList();
         new SchemaMigrator(source, oldSteps).migrate(false);

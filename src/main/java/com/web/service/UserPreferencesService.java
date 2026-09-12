@@ -61,9 +61,9 @@ public class UserPreferencesService {
         NotificationPreferencesVo preferences = get(userId).getNotifications();
         String normalized = type == null ? "" : type.toUpperCase(Locale.ROOT);
         return switch (normalized) {
-            case "LIKE", "ARTICLE_LIKE" -> preferences.getLikes();
+            case "LIKE", "ARTICLE_LIKE", "CAMPUS_LIKE" -> preferences.getLikes();
             case "FOLLOW", "NEW_FOLLOWER" -> preferences.getFollows();
-            case "COMMENT", "COMMENT_MENTION" -> preferences.getComments();
+            case "COMMENT", "COMMENT_MENTION", "CAMPUS_COMMENT", "CAMPUS_REPLY" -> preferences.getComments();
             case "MESSAGE", "NEW_MESSAGE" -> preferences.getNewMessages();
             case "GROUP_INVITE", "GROUP_INVITATION", "GROUP_APPLICATION",
                     "GROUP_APPLICATION_APPROVED", "GROUP_APPLICATION_REJECTED" -> preferences.getGroupInvites();

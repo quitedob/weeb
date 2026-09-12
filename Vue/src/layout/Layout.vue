@@ -35,7 +35,9 @@
 
       <!-- 页面内容 -->
       <main class="page-content">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <component :is="Component" :key="route.meta.campus ? `${route.fullPath}:${authStore.sessionEpoch}` : undefined" />
+        </router-view>
       </main>
     </div>
   </div>
@@ -73,7 +75,7 @@ const currentPageTitle = computed(() => {
     '/profile': '个人资料',
     '/setting': '设置'
   };
-  return routeTitles[route.path] || 'Weeb IM';
+  return routeTitles[route.path] || route.meta.title || 'Weeb IM';
 });
 
 // 方法

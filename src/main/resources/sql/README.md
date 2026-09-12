@@ -21,7 +21,7 @@ sql/
 - `02_check_table_structure.sql` - 表结构检查
 
 ### 表创建脚本 (create/)
-**基线30张业务表；V003新增2张认证表，V004新增1张outbox表，加迁移记录共34张表。** 当前注册表由 `schema-manifest.json` 定义。
+**基线30张业务表；V003新增2张认证表，V004新增1张outbox表，V006新增10张校园表，加迁移记录共44张表。** 当前注册表由 `schema-manifest.json` 定义。
 
 #### 用户管理模块 (5张)
 - `01_create_user_table.sql` - 用户基础信息表
@@ -66,6 +66,8 @@ sql/
 - `21_create_content_report_table.sql` - 内容举报表
 
 ### 数据插入脚本 (insert/)
+校园空间由 `migration/V006__campus_space.sql` 创建学校、成员、认证申请、动态、点赞、收藏、评论、举报、审计和私有图片表。升级不创建默认学校或认证记录；站点管理员在界面中创建学校。已有校园表的列、索引或生成表达式不符合合同会阻断迁移，不以表已存在跳过校验。
+
 - `01_insert_default_users.sql` - 安全管理员配置说明（不创建默认账号或密码）
 - `02_insert_article_categories.sql` - 文章分类数据
 - `03_insert_article_tags.sql` - 文章标签数据
@@ -87,7 +89,7 @@ sql/
 2. 创建表结构
 3. 插入初始数据；分类使用 `04_insert_article_categories_by_name.sql` 按名称解析父分类，保留旧库非标准ID
 4. 查询数据库元数据，仅创建尚不存在的同名索引
-5. 执行连接和表结构检查脚本，再依次应用V002历史兼容、V003认证持久化、V004消息可靠性迁移
+5. 执行连接和表结构检查脚本，再依次应用V002历史兼容、V003认证持久化、V004消息可靠性、V005搜索列、V006校园空间迁移
 
 ## 注意事项
 
@@ -99,7 +101,7 @@ sql/
 
 ---
 创建时间: 2025-11-10
-建表执行清单以 `src/main/java/com/web/config/DatabaseInitializer.java` 为准；迁移脚本单独部署。
+版本和资源顺序以 `schema-manifest.json` 为准；生产迁移通过独立 `SchemaMigrationCli` 执行。
 ## 安全迁移
 
 `migration/01_secure_user_roles.sql` 规范既有 user.type 并设为 NOT NULL。先备份并审核现有管理员；脚本不会根据用户名授予权限。新账号始终为 USER，管理员需通过授权运维流程按已验证的用户 ID 设置。生产环境不自动运行迁移。

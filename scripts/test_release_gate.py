@@ -11,7 +11,8 @@ class ReleaseEvidenceGateTest(unittest.TestCase):
                   'PATH': 'retained', 'SPRING_APPLICATION_JSON': '{"spring":{"datasource":{"url":"external"}}}',
                   'spring.datasource.url': 'external', 'redis_host': 'external',
                   'MYSQL_URL': 'external', 'JAVA_TOOL_OPTIONS': '-javaagent:external',
-                  'jwt.secret': 'old', 'REDIS_DATABASE': '9', 'server.address': '0.0.0.0', 'server_port': '8080'}
+                  'jwt.secret': 'old', 'REDIS_DATABASE': '9', 'server.address': '0.0.0.0', 'server_port': '8080',
+                  'CAMPUS_MEDIA_DIRECTORY': '/deployed/private', 'AVATAR_DIRECTORY': '/deployed/avatars'}
         actual = runtime_environment(source)
         for key in ('SPRING_APPLICATION_JSON', 'spring.datasource.url', 'redis_host', 'JAVA_TOOL_OPTIONS', 'jwt.secret', 'server.address', 'server_port'):
             self.assertNotIn(key, actual)
@@ -20,6 +21,8 @@ class ReleaseEvidenceGateTest(unittest.TestCase):
         self.assertEqual(actual['REDIS_DATABASE'], '0')
         self.assertEqual(actual['SERVER_ADDRESS'], '127.0.0.1')
         self.assertEqual(actual['SERVER_PORT'], '18080')
+        self.assertEqual(actual['CAMPUS_MEDIA_DIRECTORY'], '.local/campus-runtime-media')
+        self.assertEqual(actual['AVATAR_DIRECTORY'], '.local/runtime-avatars')
         self.assertEqual(actual['PATH'], 'retained')
         self.assertGreaterEqual(len(actual['JWT_SECRET']), 64)
 

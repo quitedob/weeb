@@ -46,6 +46,7 @@ public class SpringWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Autowired private UserOnlineStatusService onlineStatusService;
     @Autowired private ChatAccessService chatAccessService;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private com.web.campus.CampusAccessService campusAccessService;
 
     private final Map<String, AuthenticatedSession> sessions = new ConcurrentHashMap<>();
     private record AuthenticatedSession(Long userId, String username, String token,
@@ -101,6 +102,15 @@ public class SpringWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (!session.userId().equals(user.getId()) || !session.username().equals(user.getUsername())) return null;
                 // Use the captured subscription, since /user queues are rewritten to broker session destinations.
                 authorizeSubscription(user.getId(), destination);
+                if ("/user/queue/notifications".equals(destination)) {
+                    JsonNode body = deliveryBody(message.getPayload());
+                    if (body == null) return null;
+                    if ("campus_post".equalsIgnoreCase(body.path("entityType").asText())) {
+                        JsonNode entity = body.get("entityId");
+                        if (entity == null || !entity.asText().matches("[1-9][0-9]*")
+                                || !campusAccessService.canReadPost(user.getId(), entity.asLong())) return null;
+                    }
+                }
                 if (Set.of("/user/queue/group-info-change", "/user/queue/group-member-change").contains(destination)) {
                     JsonNode body = deliveryBody(message.getPayload());
                     JsonNode group = body == null ? null : body.get("groupId");

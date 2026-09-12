@@ -33,6 +33,7 @@ class WebSocketOutboundAuthorizationTest {
     private final ChatListMapper chats = mock(ChatListMapper.class);
     private final Map<String, Object> attributes = new HashMap<>();
     private final User user = new User();
+    private final com.web.campus.CampusAccessService campus = mock(com.web.campus.CampusAccessService.class);
     private SpringWebSocketConfig.WebSocketAuthInterceptor inbound;
     private SpringWebSocketConfig.WebSocketDeliveryInterceptor outbound;
 
@@ -43,6 +44,7 @@ class WebSocketOutboundAuthorizationTest {
         ReflectionTestUtils.setField(config, "onlineStatusService", mock(UserOnlineStatusService.class));
         ReflectionTestUtils.setField(config, "chatAccessService", new ChatAccessService(chats));
         ReflectionTestUtils.setField(config, "objectMapper", new ObjectMapper());
+        ReflectionTestUtils.setField(config, "campusAccessService", campus);
         user.setId(1L);
         user.setUsername("alice");
         user.setStatus(1);
@@ -82,6 +84,22 @@ class WebSocketOutboundAuthorizationTest {
         when(chats.canUserAccessSharedChat(1L, 5L)).thenReturn(false);
         assertNull(outbound.preSend(event, null));
         assertNull(outbound.preSend(queuedGroupMessage, null));
+    }
+
+    @Test
+    void queuedCampusNotificationRechecksMembershipAfterSubscription() {
+        send(frame(StompCommand.SUBSCRIBE, "/user/queue/notifications", "notices"));
+        var notice = delivery("session-1", "notices", "/queue/notifications-usersession-1",
+                "{\"type\":\"CAMPUS_COMMENT\",\"entityType\":\"campus_post\",\"entityId\":61}");
+        when(campus.canReadPost(1L, 61L)).thenReturn(true);
+        assertSame(notice, outbound.preSend(notice, null));
+        when(campus.canReadPost(1L, 61L)).thenReturn(false);
+        assertNull(outbound.preSend(notice, null));
+        var ordinary = delivery("session-1", "notices", "/queue/notifications-usersession-1",
+                "{\"type\":\"NEW_FOLLOWER\",\"entityType\":\"user\",\"entityId\":2}");
+        assertSame(ordinary, outbound.preSend(ordinary, null));
+        when(campus.canReadPost(1L, 61L)).thenThrow(new IllegalStateException("dependency unavailable"));
+        assertNull(outbound.preSend(notice, null));
     }
 
     @Test

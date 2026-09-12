@@ -30,6 +30,16 @@ import java.util.UUID;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(com.web.campus.CampusException.class)
+    public ResponseEntity<ApiResponse<Object>> handleCampusException(com.web.campus.CampusException e) {
+        return ResponseEntity.status(e.getStatus()).body(ApiResponse.error(e.getStatus(), e.getMessage()));
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Object>> handleUploadTooLarge(org.springframework.web.multipart.MaxUploadSizeExceededException e) {
+        return ResponseEntity.status(413).body(ApiResponse.error(413, "上传文件超过大小限制，单张图片最多5MB"));
+    }
+
     // 异常计数器（用于监控）
     private static final java.util.concurrent.atomic.AtomicLong exceptionCounter = new java.util.concurrent.atomic.AtomicLong(0);
 

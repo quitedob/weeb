@@ -6,6 +6,23 @@
       "code": 0,
       "emptySuccessStatus": 204
     },
+    "campus": {
+      "prefix": "/api/campus",
+      "detailContract": "docs/campus-api.md",
+      "authentication": "current enabled user; school membership and roles checked on every protected operation",
+      "pageBase": 0,
+      "maxSize": 100,
+      "maxResultWindow": 10000,
+      "maxQueryLength": 100,
+      "pageFields": ["list", "total", "page", "size"],
+      "timestamps": "ISO-8601 UTC instant; browser renders local time",
+      "reviewAndEdit": "current version required; stale version returns 409",
+      "postStates": ["DRAFT", "PENDING", "PUBLISHED", "REJECTED", "REMOVED"],
+      "reactions": "PUT adds and DELETE removes likes/bookmarks idempotently",
+      "media": "authenticated image/png at /api/campus/media/{id}; Cache-Control: no-store; max 6 attachments",
+      "verification": "private manual review; not official university identity integration",
+      "notificationDelivery": "transactional persistent inbox; bounded asynchronous post-commit push with current authorization"
+    },
     "auth": {
       "renew": "POST /api/auth/refresh",
       "credential": "unexpired Authorization Bearer token",

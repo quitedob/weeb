@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.web.mapper.NotificationMapper">
+    <!-- Match CampusAccessService.canReadPost using current membership, including list/count paths. -->
+    <sql id="campusVisibility">
+        AND (entity_type IS NULL OR LOWER(entity_type) != 'campus_post' OR EXISTS (
+            SELECT 1 FROM campus_post cp
+            JOIN campus_school cs ON cs.id=cp.school_id AND cs.active=TRUE
+            JOIN `user` cu ON cu.id=#{recipientId} AND cu.status=1
+            LEFT JOIN campus_membership cm ON cm.school_id=cp.school_id AND cm.user_id=cu.id AND cm.status='VERIFIED'
+            WHERE cp.id=notifications.entity_id AND cp.status != 'REMOVED'
+                AND (UPPER(cu.type)='ADMIN' OR cm.user_id IS NOT NULL)
+                AND (cp.status='PUBLISHED' OR cp.author_id=cu.id OR UPPER(cu.type)='ADMIN' OR cm.role='ADMIN')
+        ))
+    </sql>
     
     <!-- 根据接收者ID分页查询通知列表 -->
     <select id="findNotificationsByRecipientId" resultType="com.web.model.Notification">
@@ -15,6 +27,7 @@
             created_at as createdAt
         FROM notifications 
         WHERE recipient_id = #{recipientId} 
+        <include refid="campusVisibility"/>
         ORDER BY created_at DESC 
         LIMIT #{offset}, #{limit}
     </select>
@@ -23,12 +36,14 @@
     <select id="countUnreadNotifications" resultType="int">
         SELECT COUNT(*) FROM notifications 
         WHERE recipient_id = #{recipientId} AND is_read = false
+        <include refid="campusVisibility"/>
     </select>
     
     <!-- 统计用户总通知数量 -->
     <select id="countTotalNotifications" resultType="int">
         SELECT COUNT(*) FROM notifications 
         WHERE recipient_id = #{recipientId}
+        <include refid="campusVisibility"/>
     </select>
     
     <!-- 将指定用户的所有通知标记为已读 -->
@@ -51,4 +66,4 @@
         WHERE recipient_id = #{recipientId} AND is_read = true
     </delete>
     
-</mapper> 
+</mapper>

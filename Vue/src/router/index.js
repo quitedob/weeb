@@ -129,7 +129,20 @@ const routes = [
         props: true,
         meta: { title: '用户详情', requiresAuth: true }
       },
-      // 管理员路由已移除 - RBAC系统已禁用
+      // Campus management uses its own server-derived school capabilities.
+      ...[
+        { path: '/campus', name: 'Campus', view: 'CampusPage', title: '校园空间' },
+        { path: '/campus/schools/:schoolId', name: 'CampusSchool', view: 'CampusPage', title: '校园空间' },
+        { path: '/campus/schools/:schoolId/new', name: 'CampusNewPost', view: 'CampusPostEditor', title: '发布校园动态' },
+        { path: '/campus/posts/:postId/edit', name: 'CampusEditPost', view: 'CampusPostEditor', title: '编辑校园动态' },
+        { path: '/campus/posts/:postId', name: 'CampusPost', view: 'CampusPostPage', title: '校园动态' },
+        { path: '/campus/admin', name: 'CampusAdmin', view: 'CampusAdminPage', title: '学校管理' },
+        { path: '/campus/schools/:schoolId/admin', name: 'CampusSchoolAdmin', view: 'CampusAdminPage', title: '校园管理' },
+      ].map(({ path, name, view, title }) => ({
+        path, name, component: () => import(`../views/campus/${view}.vue`),
+        meta: { title, requiresAuth: true, campus: true },
+      })),
+      // Unrelated legacy administrator routes remain disabled.
     ]
   },
   {

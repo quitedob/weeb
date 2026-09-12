@@ -2,6 +2,8 @@
 
 The maintained application is `Vue/`, built with Vue 3, Vite, Pinia and Vue Router. Install dependencies from `Vue/package-lock.json`; there is no root Node package.
 
+The campus module lives in `src/views/campus`, `src/components/campus` and `src/api/campus.js`. `/campus` provides the directory and school feeds; dedicated editor, post detail and scoped management routes complete the flow. It uses the existing authenticated Axios client, scoped request cancellation, escaped text and authenticated blob images. It does not add a second global socket or place private campus data in public article stores. See [campus contracts](campus-api.md).
+
 ## Commands
 
 - `npm run dev`: development server.

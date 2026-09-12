@@ -197,6 +197,7 @@ public final class SchemaMigrator {
         if (!path.startsWith("sql/index/")) {
             ScriptUtils.executeSqlScript(connection, new EncodedResource(new ClassPathResource(path), StandardCharsets.UTF_8));
             if (messageSearch) validateMessageSearchColumn(connection, false);
+            if (path.endsWith("V006__campus_space.sql")) CampusSchemaValidator.validate(connection);
             return;
         }
         for (String sql : read(path).replaceAll("(?m)^\\s*--.*$", "").split(";")) {
@@ -234,6 +235,7 @@ public final class SchemaMigrator {
     private void validateRequiredTables(Connection connection) throws SQLException {
         for (String table : requiredTables()) if (!tableExists(connection, table)) throw new IllegalStateException("Required schema table is missing: " + table);
         if (steps.stream().anyMatch(step -> step.version().equals("005"))) validateMessageSearchColumn(connection, false);
+        if (steps.stream().anyMatch(step -> step.version().equals("006"))) CampusSchemaValidator.validate(connection);
     }
 
     private static void validateMessageSearchColumn(Connection connection, boolean allowMissing) throws SQLException {

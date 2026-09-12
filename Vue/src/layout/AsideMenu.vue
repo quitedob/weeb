@@ -20,7 +20,7 @@
         :key="item.path"
         :to="item.path"
         class="nav-item"
-        :class="{ active: $route.path === item.path }"
+        :class="{ active: $route.path === item.path || (item.path === '/campus' && $route.meta.campus) }"
       >
         <div class="nav-icon">{{ item.icon }}</div>
         <span class="nav-text">{{ item.title }}</span>
@@ -56,6 +56,12 @@ const unreadCount = computed(() => notificationStore.unreadCount)
 
 // 菜单项配置
 const menuItems = computed(() => [
+  {
+    path: '/campus',
+    title: '校园空间',
+    icon: '🏫',
+    badge: null
+  },
   {
     path: '/chat',
     title: '聊天',

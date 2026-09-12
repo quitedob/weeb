@@ -1,6 +1,6 @@
 # Weeb
 
-Weeb is a chat and community application with a Spring Boot 3 / Java 17 backend and a Vue 3 frontend in `Vue/`. It provides private and group chat, message reactions, articles and comments, contacts/following, notifications, profiles, and account settings.
+Weeb is a chat and community application with a Spring Boot 3 / Java 17 backend and a Vue 3 frontend in `Vue/`. It provides private and group chat, message reactions, articles and comments, campus communities, contacts/following, notifications, profiles, and account settings.
 
 The interface supports light, dark, and system themes with blue and neutral accents. Active CSS and Vue components do not use purple styling.
 
@@ -99,6 +99,20 @@ The large cleanup includes lowercase Java package moves, pages moved into `Vue/s
 
 Thread UI prototypes are preserved under `docs/legacy/thread-prototypes`. Their backend is disabled by default because the maintained schema does not include its required tables; this is not an enabled feature on a fresh installation. Elasticsearch is disabled by default; enable `ELASTICSEARCH_ENABLED=true` only with a configured service. Search behavior and optional-service limits are documented in [backend contracts](docs/backend.md).
 
-**Campus space is not implemented as a dedicated feature.** Generic articles, comments, profiles, following and groups exist, but school affiliation, student verification, a campus-specific feed and school-scoped visibility are absent. The thread prototypes are unrelated to a campus module.
+## Campus space / 校园空间
+
+Open **校园空间** in the navigation or visit `/campus`. The module includes school discovery, manual student verification, private campus posts with up to six images, drafts and publication review, search/category/sort/pagination, likes, bookmarks, paginated comments/replies, reports, member administration and audit records. It uses its own tables and permissions; campus posts do not enter public articles, global article search or article point totals.
+
+1. An operator provisions a site administrator through the existing persisted `user.type` procedure. The administrator opens `/campus/admin`, creates a school and configures pre-moderation (enabled by default).
+2. Students select a school, submit their name, student number, department, enrollment year and statement, then view or withdraw their application. Only the applicant and authorized reviewers can see these details. Rejected applications can be resubmitted; a suspended membership requires administrator restoration.
+3. A campus administrator approves or rejects applications from the school's management page. Verified members can read and publish in that school; users may hold separate verified memberships in multiple schools. This is **site-administered manual review**, not a connection to a university registrar or official student identity provider.
+4. Members save drafts or submit posts. With pre-moderation enabled, another authorized administrator must approve the current version before publication; authors cannot approve themselves. Editing a published post takes it out of the feed and submits the new version for review. Announcements are restricted to administrators.
+5. Management provides review queues, pinning, actual report removal/dismissal, membership suspension/restoration, school settings and audit history. Only a site administrator can appoint or revoke campus administrators. Leaving, suspension, school deactivation and content removal affect subsequent API, image and notification access.
+
+Apply **V006** through the existing [migration process](docs/schema-migrations.md) before production startup. Keep V001–V005 unchanged. Set `CAMPUS_MEDIA_DIRECTORY` to a **private durable directory outside static web mappings**, and back it up together with MySQL. Images require authenticated reads and are re-encoded as PNG; source and encoded size are limited to 5 MB, dimensions to 4096×4096 / 16 million pixels, pending uploads to 12 per user per school and total image storage to 100 MB per user per school. Unused images and images of removed posts are reclaimed after 24 hours by an hourly bounded cleanup.
+
+Campus HTTP endpoints use `/api/campus`, success code 0 and zero-based `{list,total,page,size}` pagination. Optimistic edits/reviews require `version`; conflicts return 409 and the editor preserves input. Notification records commit with the business transaction and push after commit; the durable inbox recovers missed socket delivery. Current post access is checked for notification listing/counting and delivery. Full [API and state contracts](docs/campus-api.md) and [implementation/acceptance scope](docs/campus-space-plan.md) describe the details. The separate Thread prototype remains outside this feature.
+
+The [campus verification record](docs/campus-verification.md) covers real MySQL, HTTP, STOMP and browser journeys, 217 frontend tests, migration recovery and permission changes during requests. The clean release gate requires the campus suites and 58 runtime checks and binds results to the exact candidate. Campus API timestamps are UTC instants displayed in the browser's local timezone. This module supports the existing single-instance deployment; official university identity integration and campus-scale capacity certification are outside the verified scope.
 
 See [backend API documentation](docs/backend.md), [frontend documentation](docs/frontend.md), [store documentation](docs/stores.md), and [credential remediation](docs/operations.md). The original audit is in [docs/report.md](docs/report.md); fixes and evidence are tracked in [docs/remediation-plan.md](docs/remediation-plan.md) and [docs/verification.md](docs/verification.md). Live credential rotation, certificate replacement and actual production migrations still require deployment-side evidence. Repository-history completion is recorded separately in its verified publication manifest.

@@ -4,6 +4,8 @@ import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { campusFixture, finishCampusFixture } from './campus_runtime_probe.mjs';
+import { campusBrowser } from './campus_browser_probe.mjs';
 const require = createRequire(new URL('../Vue/package.json', import.meta.url));
 const WebSocket = require('ws');
 const { Client } = require('@stomp/stompjs');
@@ -13,6 +15,7 @@ const base = 'http://127.0.0.1:18080';
 const front = 'http://127.0.0.1:18081';
 const report = { status: 'FAIL', checks: {}, checkedAt: new Date().toISOString() };
 const clients = [];
+let campus;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 function check(name, value) { report.checks[name] = Boolean(value); if (!value) throw new Error(name); }
 async function until(test, label, timeout = 10000) {
@@ -79,7 +82,13 @@ async function browser(account, shared, marker) {
     });
     const evaluate = async expression => {
       const result = await request('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-      if (result.exceptionDetails) throw new Error('browser_evaluation');
+      if (result.exceptionDetails) {
+        writeFileSync(resolve(output, 'browser-evaluation.json'), JSON.stringify({
+          className: result.exceptionDetails.exception?.className, line: result.exceptionDetails.lineNumber,
+          column: result.exceptionDetails.columnNumber,
+        }));
+        throw new Error('browser_evaluation');
+      }
       return result.result.value;
     };
     await request('Page.enable'); await request('Runtime.enable'); await request('Network.enable');
@@ -108,10 +117,19 @@ async function browser(account, shared, marker) {
     check('browserMessageRendered', true);
     check('browserSameOriginSockJs', network.some(r => r.url.startsWith(front + '/ws/info') && r.status === 200)
       && sockets.some(url => url.startsWith('ws://127.0.0.1:18081/ws/')));
-    check('browserNoUncaughtExceptions', exceptions.length === 0);
-    check('browserNoApiServerErrors', !network.some(r => r.url.startsWith(front + '/api/') && r.status >= 500));
     const screenshot = await request('Page.captureScreenshot', { format: 'png' });
     writeFileSync(resolve(output, 'browser-chat.png'), Buffer.from(screenshot.data, 'base64'));
+    if (campus) await campusBrowser({ fixture: campus, request, evaluate, until, check, api, ok, output });
+    check('browserNoUncaughtExceptions', exceptions.length === 0);
+    check('browserNoApiServerErrors', !network.some(r => r.url.startsWith(front + '/api/') && r.status >= 500));
+  } catch (error) {
+    try {
+      if (request) {
+        const screenshot = await request('Page.captureScreenshot', { format: 'png' });
+        writeFileSync(resolve(output, 'browser-failure.png'), Buffer.from(screenshot.data, 'base64'));
+      }
+    } catch {}
+    throw error;
   } finally {
     try { if (request) await request('Browser.close'); } catch {}
     socket?.close();
@@ -155,7 +173,9 @@ try {
   const receipt = await api(`/api/chats/${shared}/read`, b.token, 'POST', { lastReadMessageId: sent.body.data.id });
   const unread = await api('/api/chats/unread/stats', b.token);
   check('boundedRead', ok(receipt) && ok(unread) && unread.body.data.unreadList.some(row => String(row.chat_id) === String(shared) && row.unread_count === 1));
+  campus = await campusFixture({ account, api, ok, check, until, stomp, a, b, outsider });
   await browser(a, shared, 'browser-' + randomUUID());
+  await finishCampusFixture({ fixture: campus, api, ok, check });
   const logout = await api('/api/auth/logout', b.token, 'POST');
   check('logoutRevokesHttp', ok(logout) && (await api('/api/users/me', b.token)).status === 401);
   const after = await api(`/api/chats/${shared}/messages`, a.token, 'POST', { content: 'revoked-' + randomUUID(), clientMessageId: randomUUID() });
@@ -168,6 +188,7 @@ try {
   report.failure = /^[a-zA-Z0-9_]+$/.test(error.message) ? error.message : 'runtime_probe_failed';
   process.exitCode = 1;
 } finally {
+  if (campus) { try { campus.cleanup(); } catch { report.status = 'FAIL'; report.failure = 'campus_fixture_cleanup'; process.exitCode = 1; } }
   for (const client of clients) await client.deactivate({ force: true }).catch(() => {});
   writeFileSync(resolve(output, 'runtime.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report));

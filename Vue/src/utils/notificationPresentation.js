@@ -7,6 +7,12 @@ export const notificationType = type => {
 }
 
 const labels = {
+  CAMPUS_VERIFICATION: ['校园认证', '校园认证申请状态已更新', '🏫'],
+  CAMPUS_MEMBERSHIP: ['校园成员', '校园成员权限已更新', '🏫'],
+  CAMPUS_REVIEW: ['校园动态审核', '校园动态审核状态已更新', '📝'],
+  CAMPUS_LIKE: ['校园动态点赞', '校园动态收到点赞', '👍'],
+  CAMPUS_COMMENT: ['校园动态评论', '校园动态收到评论', '💬'],
+  CAMPUS_REPLY: ['校园评论回复', '校园评论收到回复', '💬'],
   ARTICLE_LIKE: ['文章点赞', '有人点赞了你的文章', '👍'],
   ARTICLE_COMMENT: ['评论', '有人评论了你的文章', '💬'],
   ARTICLE_FAVORITE: ['文章收藏', '有人收藏了你的文章', '⭐'],
@@ -37,6 +43,14 @@ export function getNotificationRoute(notification) {
   const entityId = notification.entityId
   const actorId = notification.actorId
   switch (type) {
+    case 'CAMPUS_VERIFICATION':
+    case 'CAMPUS_MEMBERSHIP':
+      return entityId ? `/campus/schools/${encodeURIComponent(entityId)}` : '/campus'
+    case 'CAMPUS_REVIEW':
+    case 'CAMPUS_LIKE':
+    case 'CAMPUS_COMMENT':
+    case 'CAMPUS_REPLY':
+      return entityId ? `/campus/posts/${encodeURIComponent(entityId)}` : '/campus'
     case 'ARTICLE_LIKE':
     case 'ARTICLE_COMMENT':
     case 'ARTICLE_FAVORITE':

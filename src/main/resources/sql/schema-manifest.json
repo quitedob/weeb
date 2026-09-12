@@ -71,6 +71,13 @@
       "resources": [
         "sql/migration/V005__message_search_text.sql"
       ]
+    },
+    {
+      "version": "006",
+      "description": "Private campus schools, membership, content, moderation and media",
+      "resources": [
+        "sql/migration/V006__campus_space.sql"
+      ]
     }
   ]
 }
