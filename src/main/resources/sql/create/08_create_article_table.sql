@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `articles` (
     `favorites_count` INT DEFAULT 0 COMMENT '收藏数',
     `sponsors_count` DECIMAL(10,2) DEFAULT 0.00 COMMENT '赞助金额',
     `exposure_count` BIGINT DEFAULT 0 COMMENT '曝光/阅读数',
-    `status` TINYINT(1) DEFAULT 1 COMMENT '文章状态: 0=待审核, 1=审核通过, 2=审核拒绝, 3=已删除',
+    `status` TINYINT(1) DEFAULT 0 COMMENT '文章状态: 0=草稿, 1=待审核, 2=已发布, 3=已拒绝',
     `reviewer_id` BIGINT NULL COMMENT '审核人ID',
     `reviewed_at` TIMESTAMP NULL COMMENT '审核时间',
     `review_note` TEXT NULL COMMENT '审核备注（拒绝原因等）',

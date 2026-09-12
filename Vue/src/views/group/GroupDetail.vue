@@ -20,8 +20,8 @@
             {{ ownerInfo ? ownerInfo.username : group.ownerId }}
             <el-tag v-if="ownerInfo" size="small" style="margin-left: 5px;">{{ group.ownerId }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ formatDate(group.createTime) }}</el-descriptions-item>
-          <el-descriptions-item label="群简介">{{ group.description || '暂无简介' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ formatDate(group.createdAt) }}</el-descriptions-item>
+          <el-descriptions-item label="群简介">{{ group.groupDescription || '暂无简介' }}</el-descriptions-item>
         </el-descriptions>
         <div class="actions-bar top-actions" v-if="isOwner || isAdmin">
              <el-button type="primary" @click="openEditGroupDialog"><el-icon><Edit /></el-icon>编辑群信息</el-button>
@@ -89,7 +89,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane :label="`成员 (${members.length})`" name="members">
+      <el-tab-pane :label="`成员 (${members.length})`" name="members" v-if="isMember">
         <div class="actions-bar">
           <el-button v-if="isOwner || isAdmin" type="success" @click="openInviteDialog"><el-icon><Plus /></el-icon>邀请成员</el-button>
         </div>
@@ -103,7 +103,7 @@
           <el-table-column prop="userId" label="用户ID" />
           <el-table-column label="角色">
             <template #default="scope">
-              <el-tag :type="getRoleTagType(scope.row.userId)">{{ getRoleText(scope.row.userId) }}</el-tag>
+              <el-tag :type="getRoleTagType(scope.row)">{{ getRoleText(scope.row) }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="180" v-if="isOwner || isAdmin">
@@ -112,8 +112,7 @@
                 size="small"
                 type="danger"
                 @click="confirmKickMember(scope.row)"
-                :disabled="scope.row.userId === group.ownerId || scope.row.userId === currentUser?.userId"
-                v-if="isOwner || (isAdmin && scope.row.userId !== group.ownerId)"
+                v-if="canKickMember(scope.row)"
                 plain
               >
                 踢出
@@ -125,8 +124,11 @@
     </el-tabs>
 
     <div class="actions-bar bottom-actions">
-        <el-button type="primary" @click="navigateToGroupChat(group.id, group.groupName)" v-if="group"><el-icon><Search /></el-icon>进入群聊</el-button>
-        <el-button type="warning" @click="confirmLeaveGroup" v-if="!isOwner" plain><el-icon><Remove /></el-icon>退出群组</el-button>
+        <el-button type="primary" @click="navigateToGroupChat(group.id, group.groupName)" v-if="isMember"><el-icon><Search /></el-icon>进入群聊</el-button>
+        <el-button type="warning" @click="confirmLeaveGroup" v-if="isMember && !isOwner" plain><el-icon><Remove /></el-icon>退出群组</el-button>
+        <el-button type="success" @click="handleApplyToJoin" v-if="userRole === 'NON_MEMBER'" :loading="isApplying" :disabled="applicationSubmitted">
+          {{ applicationSubmitted ? '申请已提交' : '申请加入' }}
+        </el-button>
     </div>
 
     <el-dialog v-model="editGroupDialogVisible" title="编辑群信息" width="500px">
@@ -134,8 +136,8 @@
         <el-form-item label="群名称" prop="groupName">
           <el-input v-model="editGroupForm.groupName" />
         </el-form-item>
-        <el-form-item label="群简介" prop="description">
-          <el-input v-model="editGroupForm.description" type="textarea" />
+        <el-form-item label="群简介" prop="groupDescription">
+          <el-input v-model="editGroupForm.groupDescription" type="textarea" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -212,14 +214,17 @@ const currentUser = computed(() => authStore.currentUser);
 
 // ✅ 修复：基于后端返回的currentUserRole判断权限
 const userRole = computed(() => group.value?.currentUserRole || 'NON_MEMBER');
+const isMember = computed(() => ['OWNER', 'ADMIN', 'MEMBER'].includes(userRole.value));
 const isOwner = computed(() => userRole.value === 'OWNER');
 const isAdmin = computed(() => ['OWNER', 'ADMIN'].includes(userRole.value));
 const canManage = computed(() => ['OWNER', 'ADMIN'].includes(userRole.value));
+const isApplying = ref(false);
+const applicationSubmitted = ref(false);
 
 
 const editGroupDialogVisible = ref(false);
 const editGroupFormRef = ref(null);
-const editGroupForm = reactive({ groupName: '', description: '' });
+const editGroupForm = reactive({ groupName: '', groupDescription: '' });
 const isUpdatingGroup = ref(false);
 
 const inviteDialogVisible = ref(false);
@@ -233,13 +238,8 @@ const fetchGroupDetails = async () => {
   try {
     const detailsRes = await api.group.getGroupDetails(groupId.value);
     if (detailsRes.code === 0 && detailsRes.data) {
-      group.value = detailsRes.data; // Assuming data is the group object
-      // Backend sends 'id' for group, but component uses 'groupId' internally sometimes.
-      // Let's ensure group.value.groupId is consistent if used, or stick to group.value.id.
-      // The template uses group.groupId. Let's map it if necessary or ensure backend sends groupId.
-      // For now, assuming detailsRes.data has { id, groupName, ownerId, createTime, description }
-      // And we want to use group.value.groupId, group.value.groupName etc. in template.
-      // If backend sends 'id', let's map it:
+      group.value = detailsRes.data;
+      // GroupDto exposes id; the information panel also uses groupId.
       if (group.value.id && !group.value.groupId) group.value.groupId = group.value.id;
 
 
@@ -250,7 +250,11 @@ const fetchGroupDetails = async () => {
             if(ownerRes.code === 0 && ownerRes.data) ownerInfo.value = ownerRes.data;
           } catch (e) { console.warn("获取群主信息失败", e)}
       }
-      await fetchGroupMembers();
+      if (isMember.value) {
+        await fetchGroupMembers();
+      } else {
+        members.value = [];
+      }
     } else {
       ElMessage.error(detailsRes.message || '获取群组信息失败');
       group.value = null;
@@ -297,6 +301,24 @@ onMounted(() => {
 
 const goBack = () => router.go(-1);
 
+const handleApplyToJoin = async () => {
+  if (!group.value || isMember.value || isApplying.value || applicationSubmitted.value) return;
+  isApplying.value = true;
+  try {
+    const response = await api.group.applyToJoinGroup({ groupId: group.value.id, message: '请允许我加入群组' });
+    if (response.code === 0) {
+      applicationSubmitted.value = true;
+      ElMessage.success('申请已提交，请等待群主或管理员审核');
+    } else {
+      ElMessage.error(response.message || '申请失败');
+    }
+  } catch (error) {
+    ElMessage.error(error.message || '申请失败');
+  } finally {
+    isApplying.value = false;
+  }
+};
+
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   // Assuming dateString is a valid format for Date constructor (e.g., ISO 8601)
@@ -306,7 +328,7 @@ const formatDate = (dateString) => {
 const openEditGroupDialog = () => {
   if (!group.value) return;
   editGroupForm.groupName = group.value.groupName;
-  editGroupForm.description = group.value.description || '';
+  editGroupForm.groupDescription = group.value.groupDescription || '';
   editGroupDialogVisible.value = true;
 };
 
@@ -315,11 +337,9 @@ const handleUpdateGroup = async () => {
   isUpdatingGroup.value = true;
   try {
     const payload = {
-        // Backend GroupUpdateVo might expect 'id' or 'groupId'
-        id: group.value.id, // Assuming backend uses 'id' for update operations
+        id: group.value.id,
         groupName: editGroupForm.groupName,
-        description: editGroupForm.description,
-        // ownerId should not be updatable here typically
+        groupDescription: editGroupForm.groupDescription,
     };
     const response = await api.group.updateGroup(payload); // api.group.updateGroup expects one object
     if (response.code === 0) {
@@ -400,14 +420,8 @@ const handleInviteMembers = async () => {
 };
 
 const confirmKickMember = (memberToKick) => {
-  // Prevent kicking oneself if logic allows (though UI might disable button)
-  if (memberToKick.userId === currentUser.value?.id) { // Corrected: currentUser.value.id to currentUser.value.userId
-      ElMessage.warning("不能将自己踢出群组。");
-      return;
-  }
-  // Prevent kicking owner (UI button should be disabled too)
-  if (memberToKick.userId === group.value?.ownerId) {
-      ElMessage.warning("不能踢出群主。");
+  if (!canKickMember(memberToKick)) {
+      ElMessage.warning('无权移除此成员。');
       return;
   }
 
@@ -491,18 +505,21 @@ const confirmDisbandGroup = () => {
   }).catch(() => { /* User cancelled */ });
 };
 
-const getRoleText = (memberUserId) => { // Renamed parameter for clarity
-  if (group.value && memberUserId === group.value.ownerId) return '群主';
-  // Add logic for ADMIN if members have a role property
-  const member = members.value.find(m => m.userId === memberUserId);
-  if (member && member.role === 'ADMIN') return '管理员'; // Assuming 'ADMIN' string from backend
-  return '成员';
+const sameUserId = (left, right) => left != null && right != null && String(left) === String(right);
+
+const canKickMember = (member) => {
+  if (!canManage.value || !currentUser.value?.id || !member?.userId) return false;
+  if (sameUserId(member.userId, group.value?.ownerId) || sameUserId(member.userId, currentUser.value.id)) return false;
+  const role = Number(member.role);
+  return isOwner.value ? role === 2 || role === 3 : role === 3;
 };
-const getRoleTagType = (memberUserId) => { // Renamed parameter for clarity
-  if (group.value && memberUserId === group.value.ownerId) return 'danger';
-  const member = members.value.find(m => m.userId === memberUserId);
-  if (member && member.role === 'ADMIN') return 'warning';
-  return 'info';
+
+const getRoleText = (member) => {
+  return { 1: '群主', 2: '管理员', 3: '成员' }[Number(member.role)] || '未知';
+};
+
+const getRoleTagType = (member) => {
+  return { 1: 'danger', 2: 'warning', 3: 'info' }[Number(member.role)] || 'info';
 };
 
 const navigateToGroupChat = async (gId, gName) => {
@@ -533,7 +550,11 @@ const navigateToGroupChat = async (gId, gName) => {
         }
         
         // ✅ 使用后端返回的 sharedChatId（如果有）
-        const sharedChatId = groupData.sharedChatId || gId;
+        const sharedChatId = groupData.sharedChatId;
+        if (!sharedChatId) {
+            ElMessage.error('群聊信息不完整，请稍后重试');
+            return;
+        }
         
         console.log('📋 群组信息:', {
             groupId: gId,
@@ -560,9 +581,9 @@ const navigateToGroupChat = async (gId, gName) => {
         router.push({
             path: '/chat',
             query: {
-                chatId: sharedChatId,
+                chatId: String(sharedChatId),
                 type: 'GROUP',
-                groupId: gId
+                groupId: String(gId)
             }
         });
         

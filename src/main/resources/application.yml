@@ -3,16 +3,16 @@ server:
 
 spring:
   profiles:
-    active: dev # Default to dev environment
+    active: ${SPRING_PROFILES_ACTIVE:dev}
     # 可用的配置文件：dev, prod
     # 生产环境启动命令：java -jar app.jar --spring.profiles.active=prod
 
   # MySQL数据库配置（开发环境）
   datasource:
-    url: jdbc:mysql://localhost:3306/weeb?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useServerPrepStmts=true&cachePrepStmts=true
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/weeb?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useServerPrepStmts=true&cachePrepStmts=true}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root  # 开发环境默认用户名
-    password: REDACTED_CREDENTIAL
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD}
     hikari:
       pool-name: WeebDevHikariPool
       minimum-idle: 5  # 最小空闲连接数
@@ -24,39 +24,16 @@ spring:
       leak-detection-threshold: 60000  # 泄露检测阈值（毫秒）
       connection-test-query: SELECT 1  # 连接测试查询
 
-  # MyBatis-Plus配置
-  mybatis-plus:
-    mapper-locations: classpath*:/Mapper/*.xml
-    type-aliases-package: com.web.model
-    configuration:
-      map-underscore-to-camel-case: true
-      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-
-  # 日志配置
-  logging:
-    level:
-      root: INFO
-      com.web: DEBUG
-      org.springframework.security: INFO
-      org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
-      org.springframework.web: DEBUG
-      org.springframework.jdbc: DEBUG
-      org.springframework.transaction: DEBUG
-    pattern:
-      console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-      file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file:
-      name: logs/weeb.log
-      max-size: 10MB
-      max-history: 30
-      total-size-cap: 1GB
-
   # Redis配置（已启用）
   # Redis服务已启动，监听端口：6379
   data:
+    elasticsearch:
+      repositories:
+        enabled: false # Custom conditional repository configuration owns this feature.
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
       timeout: 2000ms
       database: 0
       # 添加客户端配置以避免 INFO 命令解析问题
@@ -72,12 +49,14 @@ spring:
 
   # Elasticsearch配置（HTTP模式，无需认证）
   elasticsearch:
-    uris: http://localhost:9200
+    uris: ${ELASTICSEARCH_URL:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
 
   # Spring AI OpenAI配置 - 添加虚拟API key避免启动失败
   ai:
     openai:
-      api-key: "sk-fake-key-for-startup-only" # 虚拟API key，仅用于避免启动失败
+      api-key: ${OPENAI_API_KEY:unused}
 
   # 可选：临时关闭 Reactive ES 自动装配，纯用阻塞式客户端即可
   autoconfigure:
@@ -89,7 +68,7 @@ spring:
 
 # Elasticsearch功能开关
 elasticsearch:
-  enabled: true
+  enabled: ${ELASTICSEARCH_ENABLED:false}
 
 management:
   # 完全禁用 Redis 健康检查
@@ -104,10 +83,10 @@ management:
   # 健康检查端点配置
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
 
 weeb:
-  password: REDACTED_CREDENTIAL
+  password: ${WEEB_PASSWORD:}
   limit: 100 # 在线人数限制
   name: 233 # 群聊名称
   expires: 7 # 数据过期时间（天）
@@ -120,7 +99,7 @@ weeb:
 
 # JWT配置
 jwt:
-  secret: REDACTED_CREDENTIAL
+  secret: ${JWT_SECRET}
   expiration: 86400000 # JWT令牌有效期，默认为24小时（毫秒）
 
 # WebSocket配置
@@ -139,5 +118,38 @@ ai:
     chat-model: "gemma3:4b" # 默认聊天模型
   deepseek:
     base-url: "https://api.deepseek.com" # DeepSeek API基础URL
-    api-key: REDACTED_CREDENTIAL
+    api-key: ${DEEPSEEK_API_KEY:}
     chat-model: "deepseek-chat" # 默认聊天模型
+# MyBatis-Plus配置
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/*.xml
+  type-aliases-package: com.web.model
+  configuration:
+    map-underscore-to-camel-case: true
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.web: INFO
+    org.springframework.security: INFO
+    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
+    org.springframework.web: INFO
+    org.springframework.jdbc: INFO
+    org.springframework.transaction: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/weeb.log
+    max-size: 10MB
+    max-history: 30
+    total-size-cap: 1GB
+
+
+password-reset:
+  frontend-url: ${PASSWORD_RESET_FRONTEND_URL:http://localhost:5173/reset-password}
+  from: ${PASSWORD_RESET_FROM:}
+
+upload:
+  avatar-directory: ${AVATAR_DIRECTORY:uploads/avatars}

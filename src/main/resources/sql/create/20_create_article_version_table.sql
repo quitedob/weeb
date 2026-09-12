@@ -36,9 +36,7 @@ CREATE TABLE IF NOT EXISTS `article_version` (
     INDEX `idx_content_hash` (`content_hash`),
     UNIQUE KEY `uk_article_version` (`article_id`, `version_number`),
     CONSTRAINT `fk_version_article` FOREIGN KEY (`article_id`) REFERENCES `articles` (`article_id`) ON DELETE CASCADE,
-    CONSTRAINT `fk_version_creator` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE CASCADE
+    CONSTRAINT `fk_version_creator` FOREIGN KEY (`created_by`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `chk_status` CHECK (status IN ('draft', 'published', 'archived', 'deleted')),
+    CONSTRAINT `chk_change_type` CHECK (change_type IN ('create', 'update', 'minor_edit', 'major_edit', 'title_change', 'content_change', 'auto_save'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文章版本表';
-
--- 添加检查约束
-ALTER TABLE `article_version` ADD CONSTRAINT `chk_status` CHECK (status IN ('draft', 'published', 'archived', 'deleted'));
-ALTER TABLE `article_version` ADD CONSTRAINT `chk_change_type` CHECK (change_type IN ('create', 'update', 'minor_edit', 'major_edit', 'title_change', 'content_change', 'auto_save'));

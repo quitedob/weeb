@@ -1,6 +1,6 @@
 package com.web.util;
 
-import com.web.Config.SecurityConstants;
+import com.web.constant.SecurityConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 

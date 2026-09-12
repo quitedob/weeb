@@ -1,6 +1,7 @@
 package com.web.model;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
@@ -18,9 +19,10 @@ public class User implements Serializable {
     // 用户名
     private String username;
     // 密码（存储加密后的密码）
+    @JsonIgnore
     private String password;
     // 性别：0为女，1为男
-    private int sex;
+    private Integer sex;
     // 电话
     private String phoneNumber;
     // 邮箱地址
@@ -44,12 +46,13 @@ public class User implements Serializable {
     private String bio; // 个人简介
     private Integer onlineStatus; // 用户在线状态, stores code from UserOnlineStatus
     private Integer status; // 用户状态：0-禁用，1-启用
-    private Integer userLevel = 1; // 用户等级，默认为1
+    @TableField(exist = false)
+    private Integer userLevel = 1; // Derived from user_level_history, not a user table column.
 
     // 创建时间和更新时间
-    @TableField(fill = FieldFill.INSERT)
+    @TableField(exist = false)
     private Date createdAt; // 创建时间
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+    @TableField(exist = false)
     private Date updatedAt; // 更新时间
 
     // 关联的统计数据（一对一关系）
@@ -59,7 +62,6 @@ public class User implements Serializable {
     // 无参构造函数
     public User() {
         this.bio = null; // Or ""
-        this.onlineStatus = com.web.constant.UserOnlineStatus.OFFLINE.getCode();
     }
 
     // 全参构造函数（包括新增字段）
@@ -112,11 +114,11 @@ public class User implements Serializable {
         this.password = password; // 设置密码
     }
 
-    public int getSex() {
+    public Integer getSex() {
         return sex; // 返回性别
     }
 
-    public void setSex(int sex) {
+    public void setSex(Integer sex) {
         this.sex = sex; // 设置性别
     }
 
@@ -326,7 +328,7 @@ public class User implements Serializable {
         if (this == o) return true; // 对象相同时返回true
         if (o == null || getClass() != o.getClass()) return false; // 类型不同时返回false
         User user = (User) o;
-        return sex == user.sex &&
+        return Objects.equals(sex, user.sex) &&
                 Objects.equals(id, user.id) &&
                 Objects.equals(username, user.username) &&
                 Objects.equals(password, user.password) &&

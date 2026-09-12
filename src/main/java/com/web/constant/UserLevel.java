@@ -41,10 +41,10 @@ public class UserLevel {
         LEVEL_COLORS.put(LEVEL_ADVANCED_USER, "#67C23A");     // 绿色
         LEVEL_COLORS.put(LEVEL_ACTIVE_USER, "#E6A23C");       // 橙色
         LEVEL_COLORS.put(LEVEL_VIP_USER, "#F56C6C");          // 红色
-        LEVEL_COLORS.put(LEVEL_CONTENT_CREATOR, "#9B59B6");  // 紫色
+        LEVEL_COLORS.put(LEVEL_CONTENT_CREATOR, "#007AFF");  // 蓝色
         LEVEL_COLORS.put(LEVEL_COMMUNITY_MODERATOR, "#E67E22"); // 深橙色
         LEVEL_COLORS.put(LEVEL_ADMIN, "#34495E");            // 深灰色
-        LEVEL_COLORS.put(LEVEL_SUPER_ADMIN, "#8E44AD");      // 深紫色
+        LEVEL_COLORS.put(LEVEL_SUPER_ADMIN, "#0056B3");      // 深蓝色
     }
 
     /**
@@ -146,6 +146,7 @@ public class UserLevel {
      */
     public static List<String> getLevelPermissions(int level) {
         List<String> permissions = new ArrayList<>();
+        if (!isValidLevel(level)) return permissions;
 
         // 基础权限：所有用户都有
         permissions.add("READ_OWN");
@@ -155,26 +156,7 @@ public class UserLevel {
         permissions.add("SEND_MESSAGE");
 
         switch (level) {
-            case LEVEL_ADMIN:
-            case LEVEL_SUPER_ADMIN:
-                // 管理员权限
-                permissions.add("ROLE_ADMIN");
-                permissions.add("READ_ANY");
-                permissions.add("UPDATE_ANY");
-                permissions.add("DELETE_ANY");
-                permissions.add("MANAGE_USERS");
-                permissions.add("SYSTEM_CONFIG");
-                permissions.add("VIEW_LOGS");
-                break;
-
-            case LEVEL_COMMUNITY_MODERATOR:
-                // 社区管理员权限
-                permissions.add("MODERATE_CONTENT");
-                permissions.add("DELETE_ANY_ARTICLE");
-                permissions.add("BAN_USERS");
-                permissions.add("VIEW_REPORTS");
-                break;
-
+            // Achievement levels never grant administrative authority.
             case LEVEL_CONTENT_CREATOR:
                 // 内容创作者权限
                 permissions.add("FEATURED_ARTICLE");
@@ -225,75 +207,40 @@ public class UserLevel {
      * @return 是否可以升级
      */
     public static boolean canUpgradeTo(int currentLevel, int targetLevel, Map<String, Object> userStats) {
-        if (targetLevel <= currentLevel) {
-            return false; // 不能降级
+        if (!isValidLevel(currentLevel) || !isValidLevel(targetLevel)
+                || targetLevel <= currentLevel || userStats == null) return false;
+        for (Map.Entry<String, Object> requirement : getLevelRequirements(targetLevel).entrySet()) {
+            Object required = requirement.getValue();
+            if (required instanceof Boolean) {
+                // Approval/payment evidence is supplied only by a trusted server-side source.
+                if (Boolean.TRUE.equals(required) && !Boolean.TRUE.equals(userStats.get(requirement.getKey()))) return false;
+            } else if (required instanceof Number number) {
+                Object actual = "minLevel".equals(requirement.getKey()) ? currentLevel
+                        : userStats.get(statKeyForRequirement(requirement.getKey()));
+                if (!(actual instanceof Number value) || !Double.isFinite(value.doubleValue())
+                        || value.doubleValue() < number.doubleValue()) return false;
+            }
         }
-
-        Map<String, Object> requirements = getLevelRequirements(targetLevel);
-
-        // 检查文章数量
-        if (requirements.containsKey("minArticles")) {
-            int required = (Integer) requirements.get("minArticles");
-            int actual = (Integer) userStats.getOrDefault("articleCount", 0);
-            if (actual < required) return false;
-        }
-
-        // 检查消息数量
-        if (requirements.containsKey("minMessages")) {
-            int required = (Integer) requirements.get("minMessages");
-            int actual = (Integer) userStats.getOrDefault("messageCount", 0);
-            if (actual < required) return false;
-        }
-
-        // 检查登录天数
-        if (requirements.containsKey("minLoginDays")) {
-            int required = (Integer) requirements.get("minLoginDays");
-            int actual = (Integer) userStats.getOrDefault("loginDays", 0);
-            if (actual < required) return false;
-        }
-
-        // 检查点赞数量
-        if (requirements.containsKey("minLikes")) {
-            int required = (Integer) requirements.get("minLikes");
-            int actual = (Integer) userStats.getOrDefault("likeCount", 0);
-            if (actual < required) return false;
-        }
-
-        // 检查关注者数量
-        if (requirements.containsKey("minFollowers")) {
-            int required = (Integer) requirements.get("minFollowers");
-            int actual = (Integer) userStats.getOrDefault("followerCount", 0);
-            if (actual < required) return false;
-        }
-
-        // 检查浏览量
-        if (requirements.containsKey("minViews")) {
-            int required = (Integer) requirements.get("minViews");
-            int actual = (Integer) userStats.getOrDefault("viewCount", 0);
-            if (actual < required) return false;
-        }
-
-        // 检查互动率
-        if (requirements.containsKey("minEngagement")) {
-            double required = (Double) requirements.get("minEngagement");
-            double actual = (Double) userStats.getOrDefault("engagementRate", 0.0);
-            if (actual < required) return false;
-        }
-
-        // 检查声誉值
-        if (requirements.containsKey("minReputation")) {
-            int required = (Integer) requirements.get("minReputation");
-            int actual = (Integer) userStats.getOrDefault("reputation", 0);
-            if (actual < required) return false;
-        }
-
-        // 检查最低等级要求
-        if (requirements.containsKey("minLevel")) {
-            int required = (Integer) requirements.get("minLevel");
-            if (currentLevel < required) return false;
-        }
-
         return true;
+    }
+
+    public static boolean isValidLevel(int level) {
+        return level >= LEVEL_NEW_USER && level <= LEVEL_SUPER_ADMIN;
+    }
+
+    public static String statKeyForRequirement(String requirement) {
+        return switch (requirement) {
+            case "minArticles" -> "articleCount";
+            case "minMessages" -> "messageCount";
+            case "minLoginDays" -> "loginDays";
+            case "minLikes" -> "likeCount";
+            case "minFollowers" -> "followerCount";
+            case "minViews" -> "viewCount";
+            case "minEngagement" -> "engagementRate";
+            case "minReputation" -> "reputation";
+            case "minLevel" -> "currentLevel";
+            default -> requirement;
+        };
     }
 
     /**

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `user` (
     `unique_video_link` VARCHAR(255) COMMENT '唯一标识视频链接',
     `registration_date` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '注册日期',
     `ip_ownership` VARCHAR(100) COMMENT '用户IP归属地',
-    `type` VARCHAR(50) DEFAULT 'USER' COMMENT '用户类型：USER、ADMIN、VIP等',
+    `type` VARCHAR(50) NOT NULL DEFAULT 'USER' COMMENT '用户类型：USER、ADMIN、VIP等',
     `avatar` VARCHAR(500) COMMENT '用户头像URL',
     `nickname` VARCHAR(100) COMMENT '用户昵称',
     `badge` VARCHAR(255) COMMENT '用户徽章信息',

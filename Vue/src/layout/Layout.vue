@@ -24,6 +24,7 @@
         </div>
 
         <div class="header-right">
+          <ThemeToggle compact />
           <!-- 通知铃铛 -->
           <NotificationBell />
 
@@ -41,6 +42,7 @@
 </template>
 
 <script setup>
+import ThemeToggle from '@/components/common/ThemeToggle.vue';
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';

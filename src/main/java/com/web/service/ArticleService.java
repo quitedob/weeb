@@ -142,7 +142,7 @@ public interface ArticleService {
      * @param amount 增加的金币金额
      * @return 如果操作成功返回 true，否则返回 false
      */
-    boolean addCoin(Long id, Double amount);
+    boolean addCoin(Long id, Double amount, Long userId);
 
     /**
      * 增加指定文章的阅读数或曝光数。

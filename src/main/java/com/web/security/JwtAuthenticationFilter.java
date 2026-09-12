@@ -70,6 +70,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 try {
                     UserDetails userDetails = this.customUserDetailsService.loadUserById(userId);
 
+                    if (!userDetails.isEnabled() || !userDetails.isAccountNonLocked()
+                            || !userDetails.isAccountNonExpired() || !userDetails.isCredentialsNonExpired()) {
+                        SecurityContextHolder.clearContext();
+                        handleAuthenticationException(response, "账户不可用", HttpServletResponse.SC_UNAUTHORIZED);
+                        return;
+                    }
+
                     // 验证JWT令牌与用户的匹配性
                     String tokenUsername = jwtUtil.extractUsername(jwt);
                     if (tokenUsername != null && tokenUsername.equals(userDetails.getUsername())) {
@@ -130,7 +137,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
         Map<String, Object> errorResponse = new HashMap<>();
-        errorResponse.put("status", status);
+        errorResponse.put("code", status);
+        errorResponse.put("data", null);
         errorResponse.put("message", message);
         errorResponse.put("timestamp", System.currentTimeMillis());
 

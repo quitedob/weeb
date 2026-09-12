@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.web.mapper.ContactMapper">
+    <update id="acceptPendingRequest">
+        UPDATE contact SET status = 1, update_time = #{now}
+        WHERE id = #{contactId} AND friend_id = #{recipientId} AND status = 0
+          AND ((expire_at IS NOT NULL AND expire_at > #{now})
+            OR (expire_at IS NULL AND create_time > #{legacyCutoff}))
+    </update>
+    <update id="expirePendingRequests">
+        UPDATE contact SET status = 4, update_time = #{now}
+        WHERE status = 0
+          AND ((expire_at IS NOT NULL AND expire_at &lt;= #{now})
+            OR (expire_at IS NULL AND create_time &lt;= #{legacyCutoff}))
+    </update>
+
+    <!-- 检查是否存在联系人关系 -->
+    <select id="isContactExists" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM contact
+        WHERE ((user_id = #{userId} AND friend_id = #{friendId})
+           OR (user_id = #{friendId} AND friend_id = #{userId}))
+          AND status IN (0, 1)  <!-- 0=PENDING, 1=ACCEPTED, 只检查待处理和已接受的关系 -->
+    </select>
+
+    <!-- 创建联系人申请记录 -->
+    <insert id="createContactApply">
+        INSERT INTO contact (user_id, friend_id, status, remarks, create_time, update_time)
+        VALUES (#{fromUserId}, #{toUserId}, 0, #{remarks}, NOW(), NOW())
+    </insert>
+
+    <!-- 检查联系人记录是否属于指定用户 -->
+    <select id="isContactBelongsToUser" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM contact
+        WHERE id = #{contactId}
+          AND (user_id = #{userId} OR friend_id = #{userId})
+    </select>
+
+    <!-- 更新联系人状态 -->
+    <update id="updateContactStatus">
+        UPDATE contact
+        SET status = #{status}, update_time = NOW()
+        WHERE id = #{contactId}
+    </update>
+
+    <!-- 根据用户和状态查询联系人列表，防止重复 -->
+    <select id="selectContactsByUserAndStatus" resultType="com.web.dto.UserDto">
+        SELECT DISTINCT u.id, u.username, u.avatar, c.create_time as contactTime
+        FROM contact c
+        LEFT JOIN user u ON (c.user_id = u.id OR c.friend_id = u.id)
+        WHERE (c.user_id = #{userId} OR c.friend_id = #{userId})
+          AND c.status = #{status}
+          AND u.id != #{userId}
+        ORDER BY c.create_time DESC
+    </select>
+
+    <!-- 根据用户和状态查询联系人ID列表 -->
+    <select id="selectContactUserIdsByUserAndStatus" resultType="java.lang.Long">
+        SELECT DISTINCT
+            CASE
+                WHEN user_id = #{userId} THEN friend_id
+                WHEN friend_id = #{userId} THEN user_id
+            END as contact_user_id
+        FROM contact
+        WHERE (user_id = #{userId} OR friend_id = #{userId})
+          AND status = #{status}
+    </select>
+
+    <!-- 查询发送给指定用户的待处理好友申请列表 -->
+    <select id="selectPendingContactsReceivedByUser" resultType="com.web.dto.ContactRequestDto">
+        SELECT 
+            c.id as contactId,
+            u.id,
+            u.username,
+            u.nickname,
+            u.avatar,
+            c.remarks,
+            c.create_time as createdAt
+        FROM contact c
+        LEFT JOIN user u ON c.user_id = u.id
+        WHERE c.friend_id = #{userId}
+          AND c.status = 0  <!-- PENDING status code (ContactStatus.PENDING.getCode()) -->
+        ORDER BY c.create_time DESC
+    </select>
+
+
+
+    <!-- 删除旧的已拒绝请求 -->
+    <delete id="deleteOldRejectedRequests">
+        DELETE FROM contact
+        WHERE status = 2
+          AND update_time &lt; #{cleanTime}
+    </delete>
+
+    <!-- 统计指定状态的联系人数量 -->
+    <select id="countByStatus" resultType="int">
+        SELECT COUNT(*)
+        FROM contact
+        WHERE status = #{status}
+    </select>
+
+    <!-- 查询联系人详细信息 - 支持双向关系，防止重复 -->
+    <select id="selectContactsWithDetails" resultType="com.web.dto.ContactDto">
+        SELECT 
+            MIN(c.id) as contactId,
+            u.id,
+            u.username,
+            u.nickname,
+            u.avatar,
+            u.bio,
+            MAX(c.create_time) as contactTime
+        FROM contact c
+        JOIN user u ON (
+            (c.user_id = #{userId} AND c.friend_id = u.id) OR
+            (c.friend_id = #{userId} AND c.user_id = u.id)
+        )
+        WHERE (c.user_id = #{userId} OR c.friend_id = #{userId})
+          AND c.status = #{status.code}
+          AND u.id != #{userId}
+        GROUP BY u.id, u.username, u.nickname, u.avatar, u.bio
+        ORDER BY contactTime DESC
+    </select>
+
+    <!-- 查询特定的待处理好友申请 -->
+    <select id="selectPendingRequest" resultType="com.web.model.Contact">
+        SELECT *
+        FROM contact
+        WHERE user_id = #{fromUserId}
+          AND friend_id = #{toUserId}
+          AND status = 0  <!-- PENDING status -->
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 删除过期的请求 -->
+    <delete id="deleteExpiredRequest">
+        DELETE FROM contact
+        WHERE id = #{contactId}
+    </delete>
+
+</mapper>

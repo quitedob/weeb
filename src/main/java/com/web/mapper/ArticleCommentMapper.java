@@ -32,7 +32,7 @@ public interface ArticleCommentMapper {
      * @param userId 用户ID（用于权限验证）
      * @return 影响的行数
      */
-    int deleteComment(@Param("id") Long id, @Param("userId") Long userId);
+    int deleteComment(@Param("articleId") Long articleId, @Param("id") Long id, @Param("userId") Long userId);
 
     /**
      * 获取评论总数

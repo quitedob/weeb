@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.web.mapper.MessageMapper">
+
+    <resultMap id="MessageResultMap" type="com.web.model.Message">
+        <id column="id" property="id" />
+        <result column="client_message_id" property="clientMessageId" />
+        <result column="sender_id" property="senderId" />
+        <result column="receiver_id" property="receiverId" />
+        <result column="group_id" property="groupId" />
+        <result column="status" property="status" />
+        <result column="chat_id" property="chatId" />
+        <result column="content" property="content" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="message_type" property="messageType" />
+        <result column="read_status" property="readStatus" />
+        <result column="is_recalled" property="isRecalled" />
+        <result column="user_ip" property="userIp" />
+        <result column="source" property="source" />
+        <result column="reply_to_message_id" property="replyToMessageId" />
+        <result column="thread_id" property="threadId" />
+        <result column="is_show_time" property="isShowTime" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+    </resultMap>
+
+    <select id="getPreviousShowTimeMsg" parameterType="map" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id, receiver_id, group_id, status,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM `message`
+        WHERE (`sender_id` = #{userId} AND `chat_id` = #{targetId})
+           OR (`sender_id` = #{targetId} AND `chat_id` = #{userId})
+        ORDER BY `created_at` DESC
+        LIMIT 1
+    </select>
+
+    <select id="record" parameterType="map" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id, receiver_id, group_id, status,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM `message`
+        WHERE (`sender_id` = #{userId} AND `chat_id` = #{targetId})
+           OR (`sender_id` = #{targetId} AND `chat_id` = #{userId})
+           OR (`source` = 'Group' AND `chat_id` = #{targetId})
+        ORDER BY `created_at` DESC
+        LIMIT #{index}, #{num}
+    </select>
+
+    <!-- 根据用户ID查询消息（用于selectMessagesByUsers方法） -->
+    <select id="selectMessagesByUsers" parameterType="map" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id, receiver_id, group_id, status,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM `message`
+        WHERE (`sender_id` = #{userId} AND `chat_id` = #{targetId})
+           OR (`sender_id` = #{targetId} AND `chat_id` = #{userId})
+        ORDER BY `created_at` DESC
+        LIMIT #{index}, #{num}
+    </select>
+
+    <!-- 插入消息记录 -->
+    <insert id="insertMessage" parameterType="com.web.model.Message" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO message (
+            client_message_id, sender_id, receiver_id, group_id, chat_id, content, message_type, status, read_status, is_recalled, reply_to_message_id,
+            user_ip, source, is_show_time, created_at, updated_at
+        ) VALUES (
+            #{clientMessageId}, #{senderId}, #{receiverId}, #{groupId}, #{chatId}, #{content, typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler},
+            #{messageType}, COALESCE(#{status}, 1), COALESCE(#{readStatus}, 0), COALESCE(#{isRecalled}, 0), #{replyToMessageId},
+            #{userIp}, #{source}, #{isShowTime}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <!-- 插入群消息记录 -->
+    <insert id="insertGroupMessage" parameterType="com.web.model.Message" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO message (
+            client_message_id, sender_id, receiver_id, group_id, chat_id, content, message_type, status, read_status, is_recalled, reply_to_message_id,
+            user_ip, source, is_show_time, created_at, updated_at
+        ) VALUES (
+            #{clientMessageId}, #{senderId}, #{receiverId}, #{groupId}, #{chatId}, #{content, typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler},
+            #{messageType}, COALESCE(#{status}, 1), COALESCE(#{readStatus}, 0), COALESCE(#{isRecalled}, 0), #{replyToMessageId},
+            #{userIp}, #{source}, #{isShowTime}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <!-- 根据消息ID查询消息 -->
+    <select id="selectMessageById" parameterType="java.lang.Long" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id, receiver_id, group_id, status,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM message WHERE id = #{msgId}
+    </select>
+
+    <!-- 标记消息为已撤回 -->
+    <update id="markMessageAsRecalled">
+        UPDATE message SET is_recalled = 1, updated_at = NOW() WHERE id = #{msgId}
+    </update>
+
+    <!-- 删除过期消息 -->
+    <delete id="deleteExpiredMessages">
+        <![CDATA[
+        DELETE FROM message WHERE created_at < #{expirationDate}
+        ]]>
+    </delete>
+
+    <!-- 处理消息反应 -->
+    <update id="handleReaction">
+        UPDATE message SET
+            content = JSON_SET(
+                content,
+                '$.reactions',
+                JSON_ARRAY_APPEND(
+                    COALESCE(JSON_EXTRACT(content, '$.reactions'), JSON_ARRAY()),
+                    '$',
+                    #{reactionVo.reactionType}
+                )
+            ),
+            updated_at = NOW()
+        WHERE id = #{reactionVo.messageId}
+    </update>
+
+    <!-- 根据聊天ID查询最后一条消息 -->
+    <select id="selectLastMessageByChatId" parameterType="map" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id, receiver_id, group_id, status,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM message
+        WHERE chat_id = #{chatId}
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <!-- 根据聊天ID分页查询消息 -->
+    <select id="selectMessagesByChatId" parameterType="map" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id, receiver_id, group_id, status,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM message
+        WHERE chat_id = #{chatId}
+        ORDER BY created_at ASC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <!-- ==================== 消息线程相关查询 ==================== -->
+
+    <!-- 查询线程消息列表 -->
+    <select id="selectThreadMessages" parameterType="map" resultMap="MessageResultMap">
+        SELECT
+            id,
+            client_message_id,
+            sender_id, receiver_id, group_id, status,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            thread_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM message
+        WHERE thread_id = #{parentMessageId}
+        ORDER BY created_at ASC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 统计线程消息数量 -->
+    <select id="countThreadMessages" parameterType="long" resultType="int">
+        SELECT COUNT(*)
+        FROM message
+        WHERE thread_id = #{parentMessageId}
+    </select>
+
+    <!-- 查询线程摘要信息 -->
+    <select id="selectThreadSummary" parameterType="long" resultType="map">
+        SELECT
+            COUNT(*) as messageCount,
+            COUNT(DISTINCT sender_id) as participantCount,
+            MAX(created_at) as lastReplyTime,
+            (SELECT sender_id FROM message
+             WHERE thread_id = #{parentMessageId}
+             ORDER BY created_at DESC LIMIT 1) as lastReplyUserId,
+            (SELECT u.username FROM user u
+             INNER JOIN message m ON u.id = m.sender_id
+             WHERE m.thread_id = #{parentMessageId}
+             ORDER BY m.created_at DESC LIMIT 1) as lastReplyUser
+        FROM message
+        WHERE thread_id = #{parentMessageId}
+    </select>
+
+    <!-- 查询用户参与的线程 -->
+    <select id="selectUserThreads" parameterType="map" resultType="map">
+        SELECT DISTINCT
+            m.thread_id as threadId,
+            (SELECT content FROM message WHERE id = m.thread_id) as parentMessageContent,
+            (SELECT sender_id FROM message WHERE id = m.thread_id) as threadCreatorId,
+            (SELECT u.username FROM user u WHERE u.id = (SELECT sender_id FROM message WHERE id = m.thread_id)) as threadCreator,
+            MAX(m.created_at) as lastReplyTime,
+            COUNT(*) as replyCount,
+            COUNT(DISTINCT m.sender_id) as participantCount
+        FROM message m
+        WHERE m.sender_id = #{userId}
+          AND m.thread_id IS NOT NULL
+        GROUP BY m.thread_id
+        ORDER BY lastReplyTime DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 统计用户参与的线程数量 -->
+    <select id="countUserThreads" parameterType="long" resultType="int">
+        SELECT COUNT(DISTINCT thread_id)
+        FROM message
+        WHERE sender_id = #{userId}
+          AND thread_id IS NOT NULL
+    </select>
+
+    <!-- 根据两个聊天ID查询消息（用于私聊双向消息查询）- 已废弃 -->
+    <select id="selectMessagesByTwoChatIds" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id, receiver_id, group_id, status,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM `message`
+        WHERE chat_id IN (#{chatId1}, #{chatId2})
+        ORDER BY `created_at` DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <!-- 根据共享聊天ID查询消息（新架构） -->
+    <select id="selectMessagesBySharedChatId" resultMap="MessageResultMap">
+        SELECT 
+            id,
+            client_message_id,
+            sender_id, receiver_id, group_id, status,
+            chat_id,
+            content,
+            message_type,
+            read_status,
+            is_recalled,
+            user_ip,
+            source,
+            reply_to_message_id,
+            is_show_time,
+            created_at,
+            updated_at
+        FROM `message`
+        WHERE chat_id = #{sharedChatId}
+        ORDER BY `created_at` DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+</mapper>

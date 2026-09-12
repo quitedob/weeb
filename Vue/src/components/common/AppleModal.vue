@@ -1,9 +1,10 @@
 <template>
   <teleport to="body">
     <transition name="apple-modal">
-      <div v-if="modelValue" class="apple-modal-overlay" @click="handleOverlayClick">
+      <div v-if="modelValue" class="apple-modal-overlay" :style="{ zIndex }" @click="handleOverlayClick">
         <div
           ref="modalRef"
+          role="dialog" aria-modal="true" :aria-label="title || '对话框'" tabindex="-1"
           :class="modalClass"
           :style="modalStyle"
           @click.stop
@@ -13,7 +14,7 @@
             <slot name="header">
               <h3 class="apple-modal-title">{{ title }}</h3>
               <button
-                v-if="showCloseButton"
+                v-if="showCloseButton && closable"
                 class="apple-modal-close"
                 @click="handleClose"
                 aria-label="关闭"
@@ -57,6 +58,8 @@
 <script>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import AppleButton from './AppleButton.vue'
+
+const openDialogs = []
 
 export default {
   name: 'AppleModal',
@@ -199,10 +202,46 @@ export default {
       emit('confirm')
     }
 
+    const getFocusable = () => Array.from(modalRef.value?.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+    ) || []).filter(element => !element.hidden && !element.closest('[hidden], [inert]') &&
+      getComputedStyle(element).display !== 'none' && getComputedStyle(element).visibility !== 'hidden')
+
+    const isTopDialog = () => openDialogs[openDialogs.length - 1] === modalRef
+
     const handleKeydown = (event) => {
-      if (event.key === 'Escape' && props.modelValue && props.closable) {
+      if (!props.modelValue || !isTopDialog()) return
+      if (event.key === 'Escape' && props.closable) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
         handleClose()
+      } else if (event.key === 'Tab') {
+        const items = getFocusable()
+        const first = items[0]
+        const last = items[items.length - 1]
+        const active = document.activeElement
+        if (!first) {
+          event.preventDefault()
+          modalRef.value?.focus()
+        } else if (event.shiftKey && (active === first || active === modalRef.value || !modalRef.value?.contains(active))) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && (active === last || active === modalRef.value || !modalRef.value?.contains(active))) {
+          event.preventDefault()
+          first.focus()
+        }
       }
+    }
+
+    const handleFocusIn = (event) => {
+      if (props.modelValue && isTopDialog() && modalRef.value && !modalRef.value.contains(event.target)) {
+        modalRef.value.focus()
+      }
+    }
+
+    const removeDialog = () => {
+      const index = openDialogs.indexOf(modalRef)
+      if (index !== -1) openDialogs.splice(index, 1)
     }
 
     const focusModal = () => {
@@ -218,7 +257,7 @@ export default {
     }
 
     const restorePreviousActiveElement = () => {
-      if (previousActiveElement.value && typeof previousActiveElement.value.focus === 'function') {
+      if (previousActiveElement.value?.isConnected && typeof previousActiveElement.value.focus === 'function') {
         previousActiveElement.value.focus()
       }
     }
@@ -227,25 +266,32 @@ export default {
     watch(() => props.modelValue, (newVal) => {
       if (newVal) {
         savePreviousActiveElement()
+        removeDialog()
+        openDialogs.push(modalRef)
         nextTick(() => {
           emit('opened')
           focusModal()
         })
       } else {
+        removeDialog()
         emit('closed')
         nextTick(() => {
           restorePreviousActiveElement()
         })
       }
-    })
+    }, { immediate: true })
 
     onMounted(() => {
       document.addEventListener('keydown', handleKeydown)
+      document.addEventListener('focusin', handleFocusIn)
     })
 
     onUnmounted(() => {
       document.removeEventListener('keydown', handleKeydown)
-      restorePreviousActiveElement()
+      document.removeEventListener('focusin', handleFocusIn)
+      const wasTop = isTopDialog()
+      removeDialog()
+      if (wasTop) restorePreviousActiveElement()
     })
 
     return {

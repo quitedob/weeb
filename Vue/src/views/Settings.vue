@@ -52,23 +52,23 @@
               <h4>在线状态可见性</h4>
               <p>控制其他用户是否能看到你的在线状态</p>
             </div>
-            <AppleSwitch v-model="privacySettings.onlineVisible" />
+            <AppleSwitch v-model="privacySettings.onlineVisible" aria-label="在线状态可见性" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>接收私信</h4>
               <p>允许其他用户向你发送私信</p>
             </div>
-            <AppleSwitch v-model="privacySettings.allowMessages" />
+            <AppleSwitch v-model="privacySettings.allowMessages" aria-label="接收私信" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>显示关注列表</h4>
               <p>让其他用户查看你关注的人</p>
             </div>
-            <AppleSwitch v-model="privacySettings.showFollows" />
+            <AppleSwitch v-model="privacySettings.showFollows" aria-label="显示关注列表" />
           </div>
-          <AppleButton type="primary" @click="updatePrivacySettings" :loading="loading">
+          <AppleButton type="primary" @click="updatePrivacySettings" :loading="loading" :disabled="!settingsLoaded">
             保存隐私设置
           </AppleButton>
         </div>
@@ -82,37 +82,37 @@
               <h4>新消息通知</h4>
               <p>收到新消息时通知我</p>
             </div>
-            <AppleSwitch v-model="notificationSettings.newMessages" />
+            <AppleSwitch v-model="notificationSettings.newMessages" aria-label="新消息通知" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>关注通知</h4>
               <p>有人关注我时通知我</p>
             </div>
-            <AppleSwitch v-model="notificationSettings.follows" />
+            <AppleSwitch v-model="notificationSettings.follows" aria-label="关注通知" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>点赞通知</h4>
               <p>有人点赞我的内容时通知我</p>
             </div>
-            <AppleSwitch v-model="notificationSettings.likes" />
+            <AppleSwitch v-model="notificationSettings.likes" aria-label="点赞通知" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>评论通知</h4>
               <p>有人评论我的内容时通知我</p>
             </div>
-            <AppleSwitch v-model="notificationSettings.comments" />
+            <AppleSwitch v-model="notificationSettings.comments" aria-label="评论通知" />
           </div>
           <div class="setting-item">
             <div class="setting-info">
               <h4>群组邀请</h4>
               <p>收到群组邀请时通知我</p>
             </div>
-            <AppleSwitch v-model="notificationSettings.groupInvites" />
+            <AppleSwitch v-model="notificationSettings.groupInvites" aria-label="群组邀请" />
           </div>
-          <AppleButton type="primary" @click="updateNotificationSettings" :loading="loading">
+          <AppleButton type="primary" @click="updateNotificationSettings" :loading="loading" :disabled="!settingsLoaded">
             保存通知设置
           </AppleButton>
         </div>
@@ -166,7 +166,7 @@
             </template>
             <div class="form-item">
               <label>当前邮箱:</label>
-              <span class="current-email">{{ user?.user_email || '未设置' }}</span>
+              <span class="current-email">{{ user?.email || '未设置' }}</span>
             </div>
             <div class="form-item">
               <label>新邮箱:</label>
@@ -187,8 +187,11 @@
 </template>
 
 <script setup>
+import appleMessage from '@/utils/appleMessage';
 import { ref, onMounted } from 'vue';
 import api from '@/api';
+import axiosInstance from '@/api/axiosInstance';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import AppleButton from '@/components/common/AppleButton.vue';
 import AppleInput from '@/components/common/AppleInput.vue';
@@ -197,9 +200,11 @@ import SimpleTabs from '@/components/common/SimpleTabs.vue';
 import AppleCard from '@/components/common/AppleCard.vue';
 
 const authStore = useAuthStore();
+const router = useRouter();
 
 const user = ref(null);
 const loading = ref(false);
+const settingsLoaded = ref(false);
 const activeTab = ref('profile');
 const message = ref('');
 const messageType = ref('success');
@@ -243,6 +248,16 @@ const emailForm = ref({
 
 onMounted(async () => {
   await loadUserInfo();
+  try {
+    const settings = await authStore.loadPreferences();
+    if (settings) {
+      privacySettings.value = { ...settings.privacy };
+      notificationSettings.value = { ...settings.notifications };
+      settingsLoaded.value = true;
+    }
+  } catch (error) {
+    showMessage('读取设置失败: ' + error.message, 'error');
+  }
 });
 
 const loadUserInfo = async () => {
@@ -251,8 +266,8 @@ const loadUserInfo = async () => {
     if (authStore.currentUser) {
       userInfo = authStore.currentUser;
     } else {
-      const response = await api.user.getUserInfo();
-      if (response.code === 200 && response.data) {
+      const response = await api.user.getCurrentUser();
+      if (response.code === 0 && response.data) {
         userInfo = response.data;
         authStore.setCurrentUser(userInfo);
       } else {
@@ -276,8 +291,7 @@ const loadUserInfo = async () => {
 const showMessage = (msg, type = 'success') => {
   message.value = msg;
   messageType.value = type;
-  // 使用原生 alert 替代 ElMessage
-  alert(msg);
+  appleMessage[type](msg);
   setTimeout(() => (message.value = ''), 3000);
 };
 
@@ -291,8 +305,8 @@ const updateProfile = async () => {
       bio: form.value.bio,
       avatar: form.value.avatar,
     };
-    const response = await api.user.updateUserInfo(payload);
-    if (response.code === 200 && response.data) {
+    const response = await api.user.updateCurrentUser(payload);
+    if (response.code === 0 && response.data) {
       authStore.setCurrentUser(response.data);
       user.value = { ...response.data };
       showMessage('更新成功！', 'success');
@@ -309,8 +323,9 @@ const updateProfile = async () => {
 const updatePrivacySettings = async () => {
   loading.value = true;
   try {
-    // 这里需要调用相应的API，暂时模拟
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const privacy = await authStore.savePrivacyPreferences(privacySettings.value);
+    if (!privacy) return;
+    privacySettings.value = { ...privacy };
     showMessage('隐私设置已保存', 'success');
   } catch (error) {
     showMessage('保存失败: ' + error.message, 'error');
@@ -322,8 +337,9 @@ const updatePrivacySettings = async () => {
 const updateNotificationSettings = async () => {
   loading.value = true;
   try {
-    // 这里需要调用相应的API，暂时模拟
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const notifications = await authStore.saveNotificationPreferences(notificationSettings.value);
+    if (!notifications) return;
+    notificationSettings.value = { ...notifications };
     showMessage('通知设置已保存', 'success');
   } catch (error) {
     showMessage('保存失败: ' + error.message, 'error');
@@ -350,9 +366,11 @@ const changePassword = async () => {
 
   loading.value = true;
   try {
-    // 这里需要调用相应的API，暂时模拟
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    showMessage('密码修改成功', 'success');
+    const response = await axiosInstance.post('/api/auth/change-password', passwordForm.value);
+    if (response.code !== 0) throw new Error(response.message || '修改密码失败');
+    showMessage('密码修改成功，请重新登录', 'success');
+    authStore.logoutCleanup();
+    router.push('/login');
     // 清空表单
     passwordForm.value = {
       currentPassword: '',
@@ -380,8 +398,10 @@ const changeEmail = async () => {
 
   loading.value = true;
   try {
-    // 这里需要调用相应的API，暂时模拟
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const response = await api.user.updateProfile({ email: emailForm.value.newEmail.trim() });
+    if (response.code !== 0) throw new Error(response.message || '修改邮箱失败');
+    authStore.setCurrentUser(response.data);
+    user.value = response.data;
     showMessage('邮箱修改成功', 'success');
     emailForm.value.newEmail = '';
     await loadUserInfo(); // 重新加载用户信息

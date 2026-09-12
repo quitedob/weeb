@@ -10,6 +10,7 @@
             @click="showNewChatDialog = true" 
             class="icon-btn new-chat-btn" 
             title="新建聊天"
+            aria-label="新建聊天"
             v-if="!sidebarCollapsed"
           >
             <span>➕</span>
@@ -270,19 +271,7 @@
             </button>
           </div>
 
-          <!-- 表情选择器 -->
-          <div v-if="showEmojiPicker" class="emoji-picker">
-            <div class="emoji-grid">
-              <span
-                v-for="emoji in commonEmojis"
-                :key="emoji"
-                class="emoji-item"
-                @click="insertEmoji(emoji)"
-              >
-                {{ emoji }}
-              </span>
-            </div>
-          </div>
+          <PaginatedEmojiPicker v-if="showEmojiPicker" @select="insertEmoji" @close="showEmojiPicker = false" />
         </div>
       </template>
     </div>
@@ -345,46 +334,38 @@
     </div>
 
     <!-- 新建聊天对话框 -->
-    <div v-if="showNewChatDialog" class="modal-overlay" @click="showNewChatDialog = false">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>新建聊天</h3>
-          <button @click="showNewChatDialog = false" class="close-btn">✕</button>
-        </div>
-        
-        <div class="modal-body">
-          <div class="search-contacts">
-            <input v-model="contactSearchQuery" type="text" placeholder="搜索联系人..." />
-          </div>
-
-          <div v-if="isLoadingContacts" class="loading">加载中...</div>
-          
-          <div v-else-if="filteredContacts.length === 0" class="empty-contacts">
-            <p>暂无联系人</p>
-            <button @click="goToAddFriend" class="primary-btn">添加好友</button>
-          </div>
-
-          <div v-else class="contact-list">
-            <div
-              v-for="contact in filteredContacts"
-              :key="contact.id"
-              class="contact-item"
-              @click="createNewChat(contact.id)"
-              :class="{ disabled: !contact.id || isNaN(Number(contact.id)) }"
-            >
-              <img :src="contact.avatar || defaultAvatar" :alt="contact.username" />
-              <div class="contact-info">
-                <div class="contact-name">{{ contact.username }}</div>
-                <div class="contact-status">{{ contact.bio || '这个人很懒，什么都没写' }}</div>
-                <div v-if="!contact.id || isNaN(Number(contact.id))" class="contact-warning">
-                  ⚠️ 数据异常，无法创建聊天
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <AppleModal v-model="showNewChatDialog" title="新建聊天" width="90%" :max-width="500">
+      <div class="search-contacts">
+        <input v-model="contactSearchQuery" type="text" placeholder="搜索联系人..." aria-label="搜索联系人" />
       </div>
-    </div>
+
+      <div v-if="isLoadingContacts" class="loading">加载中...</div>
+
+      <div v-else-if="filteredContacts.length === 0" class="empty-contacts">
+        <p>暂无联系人</p>
+        <button @click="goToAddFriend" class="primary-btn">添加好友</button>
+      </div>
+
+      <div v-else class="contact-list">
+        <button
+          v-for="contact in filteredContacts"
+          :key="contact.id"
+          type="button"
+          class="contact-item"
+          @click="createNewChat(contact.id)"
+          :disabled="!contact.id || isNaN(Number(contact.id))"
+        >
+          <img :src="contact.avatar || defaultAvatar" :alt="contact.username" />
+          <span class="contact-info">
+            <span class="contact-name">{{ contact.username }}</span>
+            <span class="contact-status">{{ contact.bio || '这个人很懒，什么都没写' }}</span>
+            <span v-if="!contact.id || isNaN(Number(contact.id))" class="contact-warning">
+              ⚠️ 数据异常，无法创建聊天
+            </span>
+          </span>
+        </button>
+      </div>
+    </AppleModal>
 
     <!-- 反应选择器 -->
     <div v-if="showReactionPickerDialog" class="reaction-picker-overlay" @click="showReactionPickerDialog = false">
@@ -416,6 +397,10 @@
 </template>
 
 <script setup>
+import AppleModal from '@/components/common/AppleModal.vue';
+import PaginatedEmojiPicker from '@/components/message/PaginatedEmojiPicker.vue';
+import appleMessage from '@/utils/appleMessage';
+import appleConfirm from '@/utils/appleConfirm';
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useChatStore } from '@/stores/chatStore';
@@ -475,7 +460,6 @@ const onlineGroupMembers = computed(() => {
 });
 
 // 常用表情
-const commonEmojis = ['😊', '😂', '❤️', '👍', '👎', '🎉', '😢', '😡', '🤔', '👏', '🙏', '💪', '🔥', '✨', '🎈'];
 const reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '😡', '🎉', '🔥'];
 
 // 计算属性
@@ -881,14 +865,14 @@ const sendMessage = async () => {
     scrollToBottom();
   } catch (error) {
     console.error('❌ 发送消息失败:', error);
-    alert('发送消息失败: ' + (error.message || '未知错误'));
+    appleMessage.error('发送消息失败: ' + (error.message || '未知错误'));
     messageInput.value = content;
     selectedFile.value = file;
   }
 };
 
 const recallMessage = async (message) => {
-  if (!confirm('确定要撤回这条消息吗？')) return;
+  if (!await appleConfirm.confirm('撤回消息', '确定要撤回这条消息吗？')) return;
 
   try {
     const response = await api.chat.recallMessage(message.id);
@@ -897,7 +881,7 @@ const recallMessage = async (message) => {
     }
   } catch (error) {
     console.error('撤回消息失败:', error);
-    alert('撤回消息失败');
+    appleMessage.error('撤回消息失败');
   }
 };
 
@@ -922,16 +906,7 @@ const addReaction = async (message, emoji) => {
   try {
     await api.chat.addReaction(message.id, emoji);
     
-    if (!message.reactions) {
-      message.reactions = [];
-    }
-    
-    const existingReaction = message.reactions.find(r => r.emoji === emoji);
-    if (existingReaction) {
-      existingReaction.count++;
-    } else {
-      message.reactions.push({ emoji, count: 1 });
-    }
+    // The endpoint toggles this user's reaction; the broadcast supplies authoritative counts.
   } catch (error) {
     console.error('添加反应失败:', error);
   }
@@ -975,7 +950,7 @@ const handleFileSelect = (event) => {
   if (!file) return;
   
   if (file.size > 10 * 1024 * 1024) {
-    alert('文件大小不能超过10MB');
+    appleMessage.error('文件大小不能超过10MB');
     return;
   }
   
@@ -1095,7 +1070,7 @@ const getChatName = (chat) => {
 };
 
 const confirmDeleteChat = async () => {
-  if (!confirm('确定要删除这个聊天吗？')) return;
+  if (!await appleConfirm.confirm('删除聊天', '确定要删除这个聊天吗？')) return;
   
   try {
     await api.chat.deleteChat(activeChatId.value);
@@ -1104,7 +1079,7 @@ const confirmDeleteChat = async () => {
     showChatInfo.value = false;
   } catch (error) {
     console.error('删除聊天失败:', error);
-    alert('删除聊天失败');
+    appleMessage.error('删除聊天失败');
   }
 };
 
@@ -1219,8 +1194,6 @@ onMounted(async () => {
     router.push('/login');
     return;
   }
-
-  chatStore.connectWebSocket();
 
   // 等待聊天列表加载
   console.log('📥 开始加载聊天列表...');
@@ -1410,7 +1383,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  chatStore.disconnectWebSocket();
   chatStore.clearActiveChat();
   
   if (typingTimeout.value) {
@@ -1517,7 +1489,7 @@ watch(() => route.params, async (newParams) => {
 }, { deep: true });
 
 // ✅ 将调试方法暴露到全局，便于在控制台中测试
-if (typeof window !== 'undefined') {
+if (import.meta.env.DEV && typeof window !== 'undefined') {
   window.debugChat = {
     checkStatus: checkPageStatus,
     testSwitch: testChatSwitch,
@@ -1544,7 +1516,7 @@ if (typeof window !== 'undefined') {
 .chat-page {
   display: flex;
   height: 100vh;
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
   position: relative;
   overflow: hidden;
 }
@@ -1553,8 +1525,8 @@ if (typeof window !== 'undefined') {
 .chat-sidebar {
   width: 320px;
   min-width: 320px;
-  background: var(--apple-bg-secondary, #f5f5f7);
-  border-right: 1px solid var(--apple-border, #e0e0e0);
+  background: var(--apple-bg-secondary, var(--apple-bg-secondary));
+  border-right: 1px solid var(--apple-border, var(--apple-border-primary));
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
@@ -1579,7 +1551,7 @@ if (typeof window !== 'undefined') {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--apple-border, #e0e0e0);
+  border-bottom: 1px solid var(--apple-border, var(--apple-border-primary));
 }
 
 .sidebar-header h2 {
@@ -1609,27 +1581,27 @@ if (typeof window !== 'undefined') {
 }
 
 .icon-btn:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
   transform: scale(1.05);
 }
 
 /* ✅ 新建聊天按钮 - 主要操作，使用蓝色 */
 .icon-btn.new-chat-btn {
-  background: var(--apple-blue, #007aff);
-  color: white;
+  background: var(--apple-blue, var(--apple-blue));
+  color: var(--apple-text-on-accent);
 }
 
 .icon-btn.new-chat-btn:hover {
-  background: var(--apple-blue-hover, #0051d5);
+  background: var(--apple-blue-hover, var(--apple-blue-dark));
 }
 
 /* ✅ 折叠按钮 - 次要操作，灰色 */
 .icon-btn.toggle-btn {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 
 .icon-btn.toggle-btn:hover {
-  background: var(--apple-border, #d0d0d0);
+  background: var(--apple-border, var(--apple-border-primary));
 }
 
 .search-box {
@@ -1639,10 +1611,10 @@ if (typeof window !== 'undefined') {
 .search-box input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--apple-border, #e0e0e0);
+  border: 1px solid var(--apple-border, var(--apple-border-primary));
   border-radius: 8px;
   font-size: 14px;
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
 }
 
 .chat-list {
@@ -1656,14 +1628,14 @@ if (typeof window !== 'undefined') {
 }
 
 .empty-list p {
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
   margin-bottom: 16px;
 }
 
 .primary-btn {
   padding: 8px 16px;
-  background: var(--apple-blue, #007aff);
-  color: white;
+  background: var(--apple-blue, var(--apple-blue));
+  color: var(--apple-text-on-accent);
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -1671,7 +1643,7 @@ if (typeof window !== 'undefined') {
 }
 
 .primary-btn:hover {
-  background: var(--apple-blue-hover, #0051d5);
+  background: var(--apple-blue-hover, var(--apple-blue-dark));
 }
 
 .chat-item {
@@ -1683,11 +1655,11 @@ if (typeof window !== 'undefined') {
 }
 
 .chat-item:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 
 .chat-item.active {
-  background: var(--apple-blue-light, #e3f2fd);
+  background: var(--apple-blue-light, var(--apple-accent-bg));
 }
 
 .chat-avatar {
@@ -1712,7 +1684,7 @@ if (typeof window !== 'undefined') {
   right: 2px;
   width: 12px;
   height: 12px;
-  background: #34c759;
+  background: var(--apple-green);
   border: 2px solid white;
   border-radius: 50%;
 }
@@ -1739,7 +1711,7 @@ if (typeof window !== 'undefined') {
 
 .chat-time {
   font-size: 12px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 .chat-preview-row {
@@ -1750,7 +1722,7 @@ if (typeof window !== 'undefined') {
 
 .chat-last-msg {
   font-size: 13px;
-  color: var(--apple-text-secondary, #666);
+  color: var(--apple-text-secondary, var(--apple-text-secondary));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1758,8 +1730,8 @@ if (typeof window !== 'undefined') {
 }
 
 .unread-badge {
-  background: var(--apple-red, #ff3b30);
-  color: white;
+  background: var(--apple-red, var(--apple-red));
+  color: var(--apple-text-on-accent);
   border-radius: 10px;
   padding: 2px 8px;
   font-size: 12px;
@@ -1773,7 +1745,7 @@ if (typeof window !== 'undefined') {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
 }
 
 .empty-chat {
@@ -1782,7 +1754,7 @@ if (typeof window !== 'undefined') {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 .empty-icon {
@@ -1793,16 +1765,16 @@ if (typeof window !== 'undefined') {
 .empty-chat h3 {
   margin: 0 0 8px 0;
   font-size: 20px;
-  color: var(--apple-text-primary, #000);
+  color: var(--apple-text-primary, var(--apple-text-primary));
 }
 
 .chat-header {
   padding: 16px 24px;
-  border-bottom: 1px solid var(--apple-border, #e0e0e0);
+  border-bottom: 1px solid var(--apple-border, var(--apple-border-primary));
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--apple-bg-secondary, #f5f5f7);
+  background: var(--apple-bg-secondary, var(--apple-bg-secondary));
 }
 
 .header-left {
@@ -1837,7 +1809,7 @@ if (typeof window !== 'undefined') {
 
 .chat-status {
   font-size: 12px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 .header-right {
@@ -1850,13 +1822,13 @@ if (typeof window !== 'undefined') {
   flex: 1;
   overflow-y: auto;
   padding: 16px 24px;
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
 }
 
 .loading-indicator {
   text-align: center;
   padding: 16px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 .message-list {
@@ -1868,7 +1840,7 @@ if (typeof window !== 'undefined') {
 .time-divider {
   text-align: center;
   font-size: 12px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
   margin: 8px 0;
 }
 
@@ -1922,7 +1894,7 @@ if (typeof window !== 'undefined') {
 
 .message-sender {
   font-size: 12px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 .message-bubble-container {
@@ -1936,7 +1908,7 @@ if (typeof window !== 'undefined') {
 }
 
 .message-bubble {
-  background: var(--apple-bg-secondary, #f5f5f7);
+  background: var(--apple-bg-secondary, var(--apple-bg-secondary));
   padding: 10px 14px;
   border-radius: 18px;
   word-break: break-word;
@@ -1944,14 +1916,14 @@ if (typeof window !== 'undefined') {
 }
 
 .message-item.is-me .message-bubble {
-  background: var(--apple-blue, #007aff);
-  color: white;
+  background: var(--apple-blue, var(--apple-blue));
+  color: var(--apple-text-on-accent);
 }
 
 .message-bubble.recalled {
   background: transparent;
-  border: 1px dashed var(--apple-border, #e0e0e0);
-  color: var(--apple-text-tertiary, #999);
+  border: 1px dashed var(--apple-border, var(--apple-border-primary));
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
   font-style: italic;
 }
 
@@ -2015,7 +1987,7 @@ if (typeof window !== 'undefined') {
   width: 28px;
   height: 28px;
   border: none;
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
   border-radius: 50%;
   cursor: pointer;
   display: flex;
@@ -2025,7 +1997,7 @@ if (typeof window !== 'undefined') {
 }
 
 .action-btn:hover {
-  background: var(--apple-bg-quaternary, #d1d1d6);
+  background: var(--apple-bg-quaternary, var(--apple-bg-quaternary));
 }
 
 .message-reactions {
@@ -2040,24 +2012,24 @@ if (typeof window !== 'undefined') {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: var(--apple-bg-secondary, #f5f5f7);
+  background: var(--apple-bg-secondary, var(--apple-bg-secondary));
   border-radius: 12px;
   cursor: pointer;
   font-size: 14px;
 }
 
 .reaction-item:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 
 .reaction-count {
   font-size: 12px;
-  color: var(--apple-text-secondary, #666);
+  color: var(--apple-text-secondary, var(--apple-text-secondary));
 }
 
 .message-time {
   font-size: 11px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 .typing-indicator {
@@ -2075,7 +2047,7 @@ if (typeof window !== 'undefined') {
 .typing-dots span {
   width: 8px;
   height: 8px;
-  background: var(--apple-text-tertiary, #999);
+  background: var(--apple-text-tertiary, var(--apple-text-tertiary));
   border-radius: 50%;
   animation: typing 1.4s infinite;
 }
@@ -2099,13 +2071,13 @@ if (typeof window !== 'undefined') {
 
 .typing-text {
   font-size: 13px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 /* 输入区域 */
 .input-area {
-  border-top: 1px solid var(--apple-border, #e0e0e0);
-  background: var(--apple-bg-secondary, #f5f5f7);
+  border-top: 1px solid var(--apple-border, var(--apple-border-primary));
+  background: var(--apple-bg-secondary, var(--apple-bg-secondary));
   padding: 12px 24px;
 }
 
@@ -2130,7 +2102,7 @@ if (typeof window !== 'undefined') {
 }
 
 .toolbar-btn:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 
 .file-preview {
@@ -2138,7 +2110,7 @@ if (typeof window !== 'undefined') {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
   border-radius: 8px;
   margin-bottom: 8px;
 }
@@ -2155,7 +2127,7 @@ if (typeof window !== 'undefined') {
 }
 
 .file-size {
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
   font-size: 12px;
 }
 
@@ -2172,7 +2144,7 @@ if (typeof window !== 'undefined') {
 }
 
 .remove-file-btn:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 
 .input-box {
@@ -2184,19 +2156,19 @@ if (typeof window !== 'undefined') {
 .input-box textarea {
   flex: 1;
   padding: 10px 14px;
-  border: 1px solid var(--apple-border, #e0e0e0);
+  border: 1px solid var(--apple-border, var(--apple-border-primary));
   border-radius: 18px;
   font-size: 14px;
   font-family: inherit;
   resize: none;
   max-height: 120px;
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
 }
 
 .send-btn {
   padding: 10px 20px;
-  background: var(--apple-blue, #007aff);
-  color: white;
+  background: var(--apple-blue, var(--apple-blue));
+  color: var(--apple-text-on-accent);
   border: none;
   border-radius: 18px;
   cursor: pointer;
@@ -2206,18 +2178,18 @@ if (typeof window !== 'undefined') {
 }
 
 .send-btn:hover:not(:disabled) {
-  background: var(--apple-blue-hover, #0051d5);
+  background: var(--apple-blue-hover, var(--apple-blue-dark));
 }
 
 .send-btn:disabled {
-  background: var(--apple-bg-quaternary, #d1d1d6);
+  background: var(--apple-bg-quaternary, var(--apple-bg-quaternary));
   cursor: not-allowed;
 }
 
 .emoji-picker {
   margin-top: 8px;
   padding: 12px;
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -2238,21 +2210,21 @@ if (typeof window !== 'undefined') {
 }
 
 .emoji-item:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 
 /* 聊天信息侧边栏 */
 .chat-info-sidebar {
   width: 300px;
-  background: var(--apple-bg-secondary, #f5f5f7);
-  border-left: 1px solid var(--apple-border, #e0e0e0);
+  background: var(--apple-bg-secondary, var(--apple-bg-secondary));
+  border-left: 1px solid var(--apple-border, var(--apple-border-primary));
   display: flex;
   flex-direction: column;
 }
 
 .info-header {
   padding: 16px;
-  border-bottom: 1px solid var(--apple-border, #e0e0e0);
+  border-bottom: 1px solid var(--apple-border, var(--apple-border-primary));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2274,7 +2246,7 @@ if (typeof window !== 'undefined') {
 }
 
 .close-btn:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 
 .info-content {
@@ -2310,8 +2282,8 @@ if (typeof window !== 'undefined') {
 
 .info-btn {
   padding: 10px 16px;
-  border: 1px solid var(--apple-border, #e0e0e0);
-  background: var(--apple-bg-primary, #fff);
+  border: 1px solid var(--apple-border, var(--apple-border-primary));
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
   border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
@@ -2319,58 +2291,16 @@ if (typeof window !== 'undefined') {
 }
 
 .info-btn:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 
 .info-btn.danger {
-  color: var(--apple-red, #ff3b30);
-  border-color: var(--apple-red, #ff3b30);
+  color: var(--apple-red, var(--apple-red));
+  border-color: var(--apple-red, var(--apple-red));
 }
 
 .info-btn.danger:hover {
   background: rgba(255, 59, 48, 0.1);
-}
-
-/* 模态框 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: var(--apple-bg-primary, #fff);
-  border-radius: 12px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--apple-border, #e0e0e0);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.modal-body {
-  padding: 20px;
-  overflow-y: auto;
 }
 
 .search-contacts {
@@ -2380,7 +2310,7 @@ if (typeof window !== 'undefined') {
 .search-contacts input {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid var(--apple-border, #e0e0e0);
+  border: 1px solid var(--apple-border, var(--apple-border-primary));
   border-radius: 8px;
   font-size: 14px;
 }
@@ -2389,7 +2319,7 @@ if (typeof window !== 'undefined') {
 .empty-contacts {
   text-align: center;
   padding: 40px 20px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 .contact-list {
@@ -2402,14 +2332,25 @@ if (typeof window !== 'undefined') {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
   padding: 12px;
+  border: none;
   border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .contact-item:hover {
-  background: var(--apple-bg-secondary, #f5f5f7);
+  background: var(--apple-bg-secondary, var(--apple-bg-secondary));
+}
+
+.contact-item:focus-visible {
+  outline: 2px solid var(--apple-blue);
+  outline-offset: 2px;
 }
 
 .contact-item img {
@@ -2423,6 +2364,13 @@ if (typeof window !== 'undefined') {
   flex: 1;
 }
 
+.contact-info,
+.contact-name,
+.contact-status,
+.contact-warning {
+  display: block;
+}
+
 .contact-name {
   font-weight: 500;
   margin-bottom: 2px;
@@ -2430,21 +2378,21 @@ if (typeof window !== 'undefined') {
 
 .contact-status {
   font-size: 13px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 .contact-warning {
   font-size: 12px;
-  color: var(--apple-red, #ff3b30);
+  color: var(--apple-red, var(--apple-red));
   margin-top: 4px;
 }
 
-.contact-item.disabled {
+.contact-item:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.contact-item.disabled:hover {
+.contact-item:disabled:hover {
   background: transparent;
 }
 
@@ -2463,7 +2411,7 @@ if (typeof window !== 'undefined') {
 }
 
 .reaction-picker {
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
   border-radius: 24px;
   padding: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
@@ -2480,7 +2428,7 @@ if (typeof window !== 'undefined') {
 }
 
 .reaction-emoji-item:hover {
-  background: var(--apple-bg-secondary, #f5f5f7);
+  background: var(--apple-bg-secondary, var(--apple-bg-secondary));
   transform: scale(1.2);
 }
 
@@ -2490,7 +2438,7 @@ if (typeof window !== 'undefined') {
   top: 16px;
   right: 16px;
   padding: 8px 16px;
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
   border-radius: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   font-size: 13px;
@@ -2502,8 +2450,8 @@ if (typeof window !== 'undefined') {
 
 .reconnect-btn {
   padding: 4px 12px;
-  background: var(--apple-blue, #007aff);
-  color: white;
+  background: var(--apple-blue, var(--apple-blue));
+  color: var(--apple-text-on-accent);
   border: none;
   border-radius: 12px;
   cursor: pointer;
@@ -2512,7 +2460,7 @@ if (typeof window !== 'undefined') {
 }
 
 .reconnect-btn:hover {
-  background: var(--apple-blue-hover, #0051d5);
+  background: var(--apple-blue-hover, var(--apple-blue-dark));
 }
 
 /* 响应式 */
@@ -2553,13 +2501,13 @@ if (typeof window !== 'undefined') {
 
 .chat-list::-webkit-scrollbar-thumb,
 .message-container::-webkit-scrollbar-thumb {
-  background: var(--apple-bg-quaternary, #d1d1d6);
+  background: var(--apple-bg-quaternary, var(--apple-bg-quaternary));
   border-radius: 3px;
 }
 
 .chat-list::-webkit-scrollbar-thumb:hover,
 .message-container::-webkit-scrollbar-thumb:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 </style>
 
@@ -2571,7 +2519,7 @@ if (typeof window !== 'undefined') {
   right: -2px;
   width: 18px;
   height: 18px;
-  background: var(--apple-blue, #007aff);
+  background: var(--apple-blue, var(--apple-blue));
   border: 2px solid white;
   border-radius: 50%;
   display: flex;
@@ -2590,8 +2538,8 @@ if (typeof window !== 'undefined') {
 .chat-type-badge {
   display: inline-block;
   padding: 2px 6px;
-  background: var(--apple-blue-light, #e3f2fd);
-  color: var(--apple-blue, #007aff);
+  background: var(--apple-blue-light, var(--apple-accent-bg));
+  color: var(--apple-blue, var(--apple-blue));
   border-radius: 4px;
   font-size: 10px;
   margin-left: 6px;
@@ -2600,7 +2548,7 @@ if (typeof window !== 'undefined') {
 
 .member-count {
   font-size: 12px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
   font-weight: normal;
   margin-left: 4px;
 }
@@ -2608,8 +2556,8 @@ if (typeof window !== 'undefined') {
 /* 群成员侧边栏 */
 .group-members-sidebar {
   width: 300px;
-  background: var(--apple-bg-secondary, #f5f5f7);
-  border-left: 1px solid var(--apple-border, #e0e0e0);
+  background: var(--apple-bg-secondary, var(--apple-bg-secondary));
+  border-left: 1px solid var(--apple-border, var(--apple-border-primary));
   display: flex;
   flex-direction: column;
   max-height: 100vh;
@@ -2625,7 +2573,7 @@ if (typeof window !== 'undefined') {
 .empty-members {
   text-align: center;
   padding: 40px 20px;
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 .member-list {
@@ -2639,13 +2587,13 @@ if (typeof window !== 'undefined') {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--apple-bg-primary, #fff);
+  background: var(--apple-bg-primary, var(--apple-bg-primary));
   border-radius: 8px;
   transition: background 0.2s;
 }
 
 .member-item:hover {
-  background: var(--apple-bg-tertiary, #e8e8ed);
+  background: var(--apple-bg-tertiary, var(--apple-bg-tertiary));
 }
 
 .member-avatar {
@@ -2685,13 +2633,13 @@ if (typeof window !== 'undefined') {
 }
 
 .role-badge.owner {
-  background: var(--apple-red-light, #ffebee);
-  color: var(--apple-red, #ff3b30);
+  background: var(--apple-red-light, var(--apple-danger-bg));
+  color: var(--apple-red, var(--apple-red));
 }
 
 .role-badge.admin {
-  background: var(--apple-blue-light, #e3f2fd);
-  color: var(--apple-blue, #007aff);
+  background: var(--apple-blue-light, var(--apple-accent-bg));
+  color: var(--apple-blue, var(--apple-blue));
 }
 
 .member-status {
@@ -2699,11 +2647,11 @@ if (typeof window !== 'undefined') {
 }
 
 .status-online {
-  color: #34c759;
+  color: var(--apple-green);
 }
 
 .status-offline {
-  color: var(--apple-text-tertiary, #999);
+  color: var(--apple-text-tertiary, var(--apple-text-tertiary));
 }
 
 /* 响应式调整 */

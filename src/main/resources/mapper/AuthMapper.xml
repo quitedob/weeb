@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.web.mapper.AuthMapper">
+
+    <!-- 根据用户名查询用户信息 -->
+    <select id="findByUsername" parameterType="string" resultType="com.web.model.User">
+        SELECT id, username, password, sex, phone_number, user_email,
+               unique_article_link, unique_video_link, registration_date,
+               ip_ownership, type, avatar, nickname, badge, login_time, bio, online_status, status
+        FROM user
+        WHERE username = #{username}
+    </select>
+
+    <!-- 根据邮箱查询用户信息 -->
+    <select id="findByEmail" parameterType="string" resultType="com.web.model.User">
+        SELECT id, username, password, sex, phone_number, user_email,
+               unique_article_link, unique_video_link, registration_date,
+               ip_ownership, type, avatar, nickname, badge, login_time, bio, online_status, status
+        FROM user
+        WHERE user_email = #{email}
+    </select>
+
+    <!-- 统计邮箱数量 -->
+    <select id="countByEmail" parameterType="string" resultType="long">
+        SELECT COUNT(*) FROM user WHERE user_email = #{userEmail}
+    </select>
+
+    <insert id="insertUser" parameterType="com.web.model.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user (
+            username,
+            password,
+            sex,
+            phone_number,
+            user_email,
+            unique_article_link,
+            unique_video_link,
+            registration_date,
+            ip_ownership,
+            type,
+            avatar,
+            nickname,
+            badge,
+            login_time,
+            bio,
+            online_status,
+            status
+        )
+        VALUES (
+            #{username},
+            #{password},
+            #{sex},
+            #{phoneNumber},
+            #{userEmail},
+            #{uniqueArticleLink},
+            #{uniqueVideoLink},
+            #{registrationDate},
+            #{ipOwnership},
+            #{type},
+            #{avatar},
+            #{nickname},
+            #{badge},
+            #{loginTime},
+            #{bio},
+            #{onlineStatus},
+            #{status}
+        )
+    </insert>
+
+
+    <!-- 根据用户名只返回用户ID -->
+    <select id="findUserIdByUsername" parameterType="string" resultType="long">
+        SELECT id
+        FROM user
+        WHERE username = #{username}
+    </select>
+
+    <!-- 根据用户ID查询用户信息 -->
+    <select id="findByUserID" parameterType="long" resultType="com.web.model.User">
+        SELECT id, username, password, sex, phone_number, user_email,
+               unique_article_link, unique_video_link, registration_date,
+               ip_ownership, type, avatar, nickname, badge, login_time, bio, online_status, status
+        FROM user
+        WHERE id = #{userID}
+    </select>
+
+    <!-- 根据用户名查询用户信息，同时查询 registration_date -->
+    <select id="findDateByUsername" parameterType="string" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            password,
+            sex,
+            phone_number,
+            user_email,
+            unique_article_link,
+            unique_video_link,
+            registration_date,
+            ip_ownership,
+            type,
+            avatar,
+            nickname,
+            badge,
+            login_time,
+            bio,
+            online_status,
+            status
+        FROM user
+        WHERE username = #{username}
+    </select>
+
+    <!-- 获取所有用户的列表，按类型降序排序 -->
+    <select id="listUser" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            password,
+            sex,
+            phone_number,
+            user_email,
+            unique_article_link,
+            unique_video_link,
+            registration_date,
+            ip_ownership,
+            type,
+            avatar,
+            nickname,
+            badge,
+            login_time,
+            bio,
+            online_status,
+            status
+        FROM user
+        ORDER BY type DESC
+    </select>
+
+    <!-- 获取所有用户的映射，按类型降序排序 -->
+    <select id="listMapUser" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            password,
+            sex,
+            phone_number,
+            user_email,
+            unique_article_link,
+            unique_video_link,
+            registration_date,
+            ip_ownership,
+            type,
+            avatar,
+            nickname,
+            badge,
+            login_time,
+            bio,
+            online_status,
+            status
+        FROM user
+        ORDER BY type DESC
+    </select>
+
+    <!-- 根据用户id查询用户信息，用于聊天时展示 -->
+    <select id="getUserByIdForTalk" parameterType="long" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            password,
+            sex,
+            phone_number,
+            user_email,
+            unique_article_link,
+            unique_video_link,
+            registration_date,
+            ip_ownership,
+            type,
+            avatar,
+            nickname,
+            badge,
+            login_time,
+            bio,
+            online_status,
+            status
+        FROM user
+        WHERE id = #{userID}
+    </select>
+
+    <!-- 更新用户信息，只更新允许的字段 -->
+    <update id="updateLoginTime">
+        UPDATE `user` SET login_time = #{loginTime} WHERE id = #{userId}
+    </update>
+
+    <update id="updateUser" parameterType="com.web.model.User">
+        UPDATE user
+        <set>
+            <!-- 只更新允许的字段 -->
+            <if test="username != null">
+                username = #{username},
+            </if>
+            <if test="avatar != null">
+                avatar = #{avatar},
+            </if>
+            <if test="nickname != null">
+                nickname = #{nickname},
+            </if>
+            <if test="bio != null">
+                bio = #{bio},
+            </if>
+            <if test="phoneNumber != null">
+                phone_number = #{phoneNumber},
+            </if>
+            <if test="userEmail != null">
+                user_email = #{userEmail},
+            </if>
+            <if test="sex != null">
+                sex = #{sex},
+            </if>
+            <if test="uniqueArticleLink != null">
+                unique_article_link = #{uniqueArticleLink},
+            </if>
+            <if test="uniqueVideoLink != null">
+                unique_video_link = #{uniqueVideoLink},
+            </if>
+            <if test="ipOwnership != null">
+                ip_ownership = #{ipOwnership},
+            </if>
+            <if test="badge != null">
+                badge = #{badge},
+            </if>
+            <if test="loginTime != null">
+                login_time = #{loginTime},
+            </if>
+            <if test="onlineStatus != null">
+                online_status = #{onlineStatus},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 根据用户ID获取用户基本信息 -->
+    <select id="selectAuthById" parameterType="long" resultType="com.web.model.User">
+        SELECT
+            id,
+            username,
+            COALESCE(phone_number, '') AS phoneNumber,
+            COALESCE(user_email, '') AS userEmail,
+            sex,
+            unique_article_link,
+            unique_video_link,
+            registration_date,
+            ip_ownership,
+            type,
+            avatar,
+            nickname,
+            badge,
+            login_time,
+            bio,
+            online_status,
+            status
+        FROM user
+        WHERE id = #{id}
+    </select>
+
+
+    <!-- 更新用户的基本信息 -->
+    <update id="updateAuth" parameterType="com.web.model.User">
+        UPDATE user
+        SET
+            username = #{username},
+            user_email = #{userEmail},
+            phone_number = #{phoneNumber},
+            sex = #{sex}
+        WHERE id = #{id}
+    </update>
+</mapper>

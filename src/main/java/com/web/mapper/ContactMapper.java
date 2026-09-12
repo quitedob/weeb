@@ -14,6 +14,13 @@ import java.util.List;
 @Mapper
 public interface ContactMapper extends BaseMapper<Contact> {
 
+    int expirePendingRequests(@Param("now") java.time.LocalDateTime now,
+                             @Param("legacyCutoff") java.time.LocalDateTime legacyCutoff);
+
+    int acceptPendingRequest(@Param("contactId") Long contactId, @Param("recipientId") Long recipientId,
+                             @Param("now") java.time.LocalDateTime now,
+                             @Param("legacyCutoff") java.time.LocalDateTime legacyCutoff);
+
     /**
      * 检查是否存在联系人关系
      * @param userId 用户ID
@@ -70,12 +77,6 @@ public interface ContactMapper extends BaseMapper<Contact> {
      */
     List<com.web.dto.ContactRequestDto> selectPendingContactsReceivedByUser(@Param("userId") Long userId);
 
-    /**
-     * 查找过期的PENDING状态请求
-     * @param expireTime 过期时间点
-     * @return 过期的联系人请求列表
-     */
-    List<Contact> findExpiredPendingRequests(@Param("expireTime") java.time.LocalDateTime expireTime);
 
     /**
      * 删除旧的已拒绝请求

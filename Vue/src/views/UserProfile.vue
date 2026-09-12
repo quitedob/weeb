@@ -213,6 +213,7 @@
 </template>
 
 <script setup>
+import appleMessage from '@/utils/appleMessage';
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
@@ -278,7 +279,7 @@ const loadUserData = async () => {
 
       // 获取最近活动
       try {
-        const activityResponse = await api.user.getRecentActivities(currentUser.value.id);
+        const activityResponse = await api.user.getUserActivities(currentUser.value.id);
         if (activityResponse.code === 0) {
           recentActivities.value = activityResponse.data || [];
         }
@@ -386,12 +387,12 @@ const handleAvatarChange = () => {
     if (file) {
       // 验证文件类型和大小
       if (!file.type.startsWith('image/')) {
-        notificationStore.addNotification('请选择图片文件', 'error');
+        appleMessage.error('请选择图片文件');
         return;
       }
 
       if (file.size > 5 * 1024 * 1024) { // 5MB限制
-        notificationStore.addNotification('图片大小不能超过5MB', 'error');
+        appleMessage.error('图片大小不能超过5MB');
         return;
       }
 
@@ -399,7 +400,7 @@ const handleAvatarChange = () => {
         await uploadAvatar(file);
       } catch (error) {
         console.error('头像上传失败:', error);
-        notificationStore.addNotification('头像上传失败: ' + error.message, 'error');
+        appleMessage.error('头像上传失败: ' + error.message);
       }
     }
   };
@@ -408,7 +409,7 @@ const handleAvatarChange = () => {
 
 const uploadAvatar = async (file) => {
   const formData = new FormData();
-  formData.append('avatar', file);
+  formData.append('file', file);
 
   const response = await api.user.uploadAvatar(formData);
 
@@ -416,11 +417,11 @@ const uploadAvatar = async (file) => {
     // 更新用户头像URL
     const updatedUser = {
       ...currentUser.value,
-      avatar: response.data.avatarUrl
+      avatar: response.data.avatar
     };
     authStore.setCurrentUser(updatedUser);
 
-    notificationStore.addNotification('头像更新成功', 'success');
+    appleMessage.success('头像更新成功');
   } else {
     throw new Error(response.message || '头像上传失败');
   }
@@ -430,7 +431,7 @@ const saveProfile = async () => {
   try {
     // 验证表单
     if (!validateForm()) {
-      notificationStore.addNotification('请修正表单错误后再提交', 'error');
+      appleMessage.error('请修正表单错误后再提交');
       return;
     }
 
@@ -453,7 +454,7 @@ const saveProfile = async () => {
       authStore.setCurrentUser(updatedUser);
 
       editMode.value = false;
-      notificationStore.addNotification('个人资料更新成功', 'success');
+      appleMessage.success('个人资料更新成功');
 
       // 重新加载用户数据以获取最新信息
       await loadUserData();
@@ -462,7 +463,7 @@ const saveProfile = async () => {
     }
   } catch (err) {
     console.error('保存个人资料失败:', err);
-    notificationStore.addNotification('保存失败: ' + err.message, 'error');
+    appleMessage.error('保存失败: ' + err.message);
   } finally {
     saving.value = false;
   }

@@ -71,7 +71,7 @@
             >
               {{ isFollowing ? '取消关注' : '关注' }}
             </AppleButton>
-            <AppleButton @click="sendMessage">发消息</AppleButton>
+            <AppleButton @click="sendMessage" :loading="chatLoading">发消息</AppleButton>
           </div>
         </div>
       </AppleCard>
@@ -160,12 +160,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import appleMessage from '@/utils/appleMessage';
+import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import AppleButton from '@/components/common/AppleButton.vue';
 import AppleCard from '@/components/common/AppleCard.vue';
 import userApi from '@/api/modules/user';
+import chatApi from '@/api/modules/chat';
 import { getArticlesByUserId } from '@/api/modules/article';
 
 const route = useRoute();
@@ -178,6 +180,7 @@ const userProfile = ref(null);
 const articles = ref([]);
 const articlesLoading = ref(false);
 const followLoading = ref(false);
+const chatLoading = ref(false);
 const isFollowing = ref(false);
 
 // 获取路由参数中的用户ID
@@ -203,8 +206,8 @@ const loadUserData = async () => {
 
   try {
     // 获取用户完整信息（包含统计数据）
-    const response = await userApi.getUserInfoById(userId.value);
-    if (response.code === 200 && response.data) {
+    const response = await userApi.getUserById(userId.value);
+    if (response.code === 0 && response.data) {
       userProfile.value = response.data;
       // 如果返回的是User对象而不是UserWithStats，需要适配
       if (!userProfile.value.user && userProfile.value.username) {
@@ -226,6 +229,14 @@ const loadUserData = async () => {
   // 加载用户文章
   if (!error.value) {
     loadUserArticles();
+    if (!isCurrentUser.value && authStore.isLoggedIn) {
+      try {
+        const status = await userApi.checkFollowStatus(userId.value);
+        isFollowing.value = status.data === true;
+      } catch (err) {
+        appleMessage.error('获取关注状态失败，请刷新重试');
+      }
+    }
   }
 };
 
@@ -234,7 +245,7 @@ const loadUserArticles = async () => {
   articlesLoading.value = true;
   try {
     const response = await getArticlesByUserId(userId.value);
-    if (response.code === 200 && response.data) {
+    if (response.code === 0 && response.data) {
       articles.value = Array.isArray(response.data) ? response.data : [];
     } else {
       console.warn('获取用户文章失败:', response.message);
@@ -262,53 +273,53 @@ const viewArticle = (articleId) => {
 const toggleFollow = async () => {
   if (!authStore.currentUser) {
     // 使用原生 alert 替代 ElMessage
-    alert('请先登录');
+    appleMessage.warning('请先登录');
     router.push('/login');
     return;
   }
 
   followLoading.value = true;
   try {
-    // 使用用户API模块而不是原生fetch
-    const endpoint = isFollowing.value ? 'unfollow' : 'follow';
-    // TODO: 需要在user.js中添加关注/取消关注的API方法
-    // const response = await userApi[endpoint](userId.value);
-
-    // 临时解决方案：使用axiosInstance
-    const { instance } = await import('@/api/axiosInstance');
-    const response = await instance.post(`/api/user/${userId.value}/${endpoint}`);
-
-    if (response.data.code === 200) {
+    const response = await (isFollowing.value
+      ? userApi.unfollowUser(userId.value)
+      : userApi.followUser(userId.value));
+    if (response.code === 0) {
       isFollowing.value = !isFollowing.value;
-      alert(response.data.message || (isFollowing.value ? '关注成功' : '取消关注成功'));
-      // 更新粉丝数
+      appleMessage.success(isFollowing.value ? '关注成功' : '取消关注成功');
       if (userProfile.value.userStats) {
-        userProfile.value.userStats.fansCount += isFollowing.value ? 1 : -1;
+        userProfile.value.userStats.fansCount = Math.max(0,
+          (userProfile.value.userStats.fansCount || 0) + (isFollowing.value ? 1 : -1));
       }
     } else {
-      alert(response.data.message || '操作失败');
+      appleMessage.error(response.message || '操作失败');
     }
   } catch (err) {
     console.error('关注操作失败:', err);
-    alert('操作失败，请稍后重试');
+    appleMessage.error('操作失败，请稍后重试');
   } finally {
     followLoading.value = false;
   }
 };
 
 // 发送消息
-const sendMessage = () => {
+const sendMessage = async () => {
   if (!authStore.currentUser) {
-    alert('请先登录');
+    appleMessage.warning('请先登录');
     router.push('/login');
     return;
   }
 
-  // 跳转到聊天页面
-  router.push({
-    name: 'ChatPage',
-    query: { userId: userId.value }
-  });
+  if (chatLoading.value) return;
+  chatLoading.value = true;
+  try {
+    const response = await chatApi.createChat({ targetId: String(userId.value) });
+    if (response.code !== 0 || !response.data?.sharedChatId) throw new Error(response.message || '创建聊天失败');
+    router.push({ name: 'SpecificChat', params: { type: 'private', id: String(response.data.sharedChatId) } });
+  } catch (error) {
+    appleMessage.error(error.message || '创建聊天失败，请稍后重试');
+  } finally {
+    chatLoading.value = false;
+  }
 };
 
 // 获取用户类型标签样式
@@ -342,9 +353,7 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('zh-CN');
 };
 
-onMounted(() => {
-  loadUserData();
-});
+watch(userId, loadUserData, { immediate: true });
 </script>
 
 <style scoped>

@@ -12,6 +12,9 @@ import java.util.Map;
  */
 @Mapper
 public interface ArticleMapper {
+    @org.apache.ibatis.annotations.Update("UPDATE articles SET status=#{status}, reviewer_id=#{reviewerId}, reviewed_at=NOW(), review_note=#{reason}, updated_at=NOW() WHERE article_id=#{articleId} AND status=1")
+    int reviewArticle(@Param("articleId") Long articleId, @Param("status") int status,
+                      @Param("reviewerId") Long reviewerId, @Param("reason") String reason);
 
     /**
      * 根据文章 ID 查询文章信息
@@ -173,14 +176,14 @@ public interface ArticleMapper {
      * @param pageSize 每页大小
      * @return 收藏的文章列表
      */
-    List<Article> getUserFavoriteArticles(@Param("userId") Long userId, @Param("offset") int offset, @Param("pageSize") int pageSize);
+    List<Article> getUserFavoriteArticles(@Param("userId") Long userId, @Param("offset") int offset, @Param("pageSize") int pageSize, @Param("canViewAll") boolean canViewAll);
 
     /**
      * 统计用户收藏的文章数量
      * @param userId 用户ID
      * @return 收藏的文章数量
      */
-    int countUserFavoriteArticles(@Param("userId") Long userId);
+    int countUserFavoriteArticles(@Param("userId") Long userId, @Param("canViewAll") boolean canViewAll);
 
     /**
      * 增加文章收藏数

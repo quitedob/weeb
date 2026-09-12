@@ -18,20 +18,27 @@ public class UserStats implements Serializable {
     private Long userId;
     
     // 用户等级信息（与User表中的userLevel字段同步）
+    @TableField(exist = false)
     private Integer userLevel = 1;           // 用户等级，默认为1（基础用户）
 
     // 统计数据字段
     private Long fansCount = 0L;             // 粉丝数量
+    @TableField(exist = false)
     private Long followerCount = 0L;         // 关注者数量
+    @TableField(exist = false)
     private Long followingCount = 0L;        // 关注数量
+    @TableField(exist = false)
     private Long articleCount = 0L;          // 文章数量
+    @TableField(exist = false)
     private Long totalViews = 0L;            // 总浏览量
+    @TableField(exist = false)
     private Long loginCount = 0L;            // 登录次数
     private Long totalLikes = 0L;            // 总点赞数
     private Long totalFavorites = 0L;        // 总收藏数
     private Long totalSponsorship = 0L;      // 总赞助数
     private Long totalArticleExposure = 0L;  // 文章总曝光数
     private Long websiteCoins = 0L;          // 网站金币
+    @TableField(exist = false)
     private java.time.LocalDateTime lastLoginTime; // 最后登录时间
     
     // 时间戳字段

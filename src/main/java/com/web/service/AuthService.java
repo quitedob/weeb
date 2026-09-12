@@ -28,6 +28,8 @@ public interface AuthService {
      */
     boolean updateUser(User user);
 
+    boolean changePassword(Long userId, String encodedPassword, String verifiedPreviousPassword);
+
     /**
      * 用户注册
      * @param user 用户信息

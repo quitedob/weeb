@@ -50,7 +50,7 @@ export const createArticle = (articleData) => {
         articleContent: articleData.articleContent,
         articleLink: articleData.articleLink || null,
         tags: articleData.tags || null,
-        status: articleData.status || 1 // 默认为发布状态
+        status: articleData.status ?? 1 // 保留草稿0；未指定时提交审核
     };
     return axiosInstance.post('/api/articles/new', createVo);
 };

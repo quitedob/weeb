@@ -1,0 +1,55 @@
+# Backend contracts
+
+The backend is a Java 17 / Spring Boot Maven application. Run commands from the repository root using `mvnw.cmd` on Windows or `./mvnw` on Unix. Configuration and deployment steps are in [operations.md](operations.md); do not put credentials in YAML or SQL seed files.
+
+## Source layout
+
+- `src/main/java/com/web/controller`: HTTP/STOMP entry points.
+- `config` and `security`: Spring configuration, JWT authentication and authorization.
+- `service` / `service/impl`: business operations and transactional boundaries.
+- `mapper` plus `src/main/resources/mapper`: MyBatis interfaces and XML statements.
+- `model`, `dto`, `vo`, `constant`, `util`: persisted models, payloads and shared helpers.
+- `src/main/resources/sql`: schema, seeds, indexes and reviewed migrations.
+- `src/test/java`: regression and opt-in infrastructure integration tests.
+
+## Authentication and errors
+
+JSON responses use `ApiResponse`: `{code, message, data, timestamp, path}`. Success is **code 0**. HTTP 401 / code1002 means authentication failed; HTTP403 / code1003 means permission denied. A business or server failure must not cause automatic logout or retry of a mutation.
+
+`/api/auth/login`, `/register`, `/forgot-password`, `/reset-password` and `/verify-reset-token` support authentication recovery. Logout and password changes revoke access tokens. An access token is purpose-bound, tied to the persisted account/password, and checked against Redis revocation state. Redis failure does not authorize a token. Reset uses a separate short-lived, single-use random credential delivered by configured SMTP; it is never an access token.
+
+Administrative authority comes from persisted `user.type` (`ADMIN`, `USER`, `BOT`). Registration always creates USER accounts, regardless of username. A numerical achievement level is not an administrator role. User JSON never includes password hashes.
+
+## Implemented frontend contracts
+
+| Operation | Contract |
+| --- | --- |
+| Current profile | GET/PUT `/api/users/me`; PUT `/api/users/profile` for supported profile fields |
+| Avatar | POST `/api/users/avatar`, multipart field `file`; returns an application upload URL |
+| Follow/unfollow | POST/DELETE `/api/follow/{followeeId}` |
+| Follow state/counts | GET `/api/follow/check/{followeeId}`, `/api/follow/stats/{targetUserId}` |
+| Public following/followers | GET `/api/users/{userId}/following` and `/followers`; following visibility is enforced |
+| Settings | GET `/api/users/me/settings` returns `{privacy, notifications}` |
+| Save a settings section | PUT `/api/users/me/settings/privacy` or `/notifications`; all booleans in that section required; response data is the saved section |
+| Level history/progress | GET `/api/user-level-history/user/{userId}` and `/api/users/me/level/upgrade-progress`; history and persisted activity supply the values |
+| Chat history/read | GET `/api/chats/{sharedChatId}/messages`; POST `/api/chats/{sharedChatId}/read` |
+| Message reaction | POST `/api/chats/messages/{messageId}/react?reactionType=...` |
+| Message recall | DELETE `/api/chats/messages/{messageId}` |
+
+Controllers and DTO validation are authoritative for all remaining parameters. Group application approval is a PUT operation with the action/reason body defined by the active group API module. Article sponsorship validates finite integer amounts, the published article, actor identity and available balance in one transaction.
+
+## Chat ownership
+
+Shared conversation IDs and per-user chat-list IDs are different identifiers. A private conversation belongs to its persisted participants. Group access requires an accepted membership that has not been kicked and an active group. Authorization applies before reads, writes, reactions and STOMP room subscriptions. Sender identity comes from the authenticated session.
+
+SockJS/STOMP connects at `/ws`. Clients send chat messages to `/app/chat.sendMessage` and subscribe to their own standard `/user/queue/...` destinations. Application authentication owns the socket lifetime; leaving the chat page does not disconnect it. Logout disconnects it. Notification delivery uses the authenticated username for Spring user destinations.
+
+Preferences are enforced on private-message acceptance, following visibility, presence output and notification creation. Suppressing a new-message alert does not suppress delivery or unread counts.
+
+The former thread UI is archived under `docs/legacy/thread-prototypes`. The retained backend thread prototype is disabled by default: the maintained schema does not define its thread tables. It is not an enabled or runtime-verified feature.
+
+## Database lifecycle and verification
+
+Development startup initializes the database named by `MYSQL_URL`, creates tables before checks, and skips only indexes confirmed to exist. Schema errors fail startup. Production profiles skip automatic creation; apply reviewed schema migrations before deployment. No default administrator/password is seeded.
+
+`mvnw.cmd test` runs ordinary regressions. The opt-in MySQL suite requires an explicitly named disposable `weeb_audit` database; Redis integration requires its dedicated loopback port. See [operations.md](operations.md) for the isolated verification setup. Passing compilation or mock-based tests alone does not prove database or WebSocket behavior; final evidence is recorded in [remediation-plan.md](remediation-plan.md).

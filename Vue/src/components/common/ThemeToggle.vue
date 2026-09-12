@@ -9,7 +9,7 @@
         <el-button 
           :type="themeStore.userPreference === 'light' ? 'primary' : ''"
           @click="themeStore.setTheme('light')"
-          :title="'浅色模式'"
+          :title="'浅色模式'" aria-label="浅色模式" :aria-pressed="themeStore.userPreference === 'light'"
         >
           <el-icon><Sunny /></el-icon>
           <span v-if="!compact">浅色</span>
@@ -17,7 +17,7 @@
         <el-button 
           :type="themeStore.userPreference === 'system' ? 'primary' : ''"
           @click="themeStore.setTheme('system')"
-          :title="'跟随系统'"
+          :title="'跟随系统'" aria-label="跟随系统" :aria-pressed="themeStore.userPreference === 'system'"
         >
           <el-icon><Monitor /></el-icon>
           <span v-if="!compact">系统</span>
@@ -25,7 +25,7 @@
         <el-button 
           :type="themeStore.userPreference === 'dark' ? 'primary' : ''"
           @click="themeStore.setTheme('dark')"
-          :title="'深色模式'"
+          :title="'深色模式'" aria-label="深色模式" :aria-pressed="themeStore.userPreference === 'dark'"
         >
           <el-icon><Moon /></el-icon>
           <span v-if="!compact">深色</span>

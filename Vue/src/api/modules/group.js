@@ -84,7 +84,7 @@ export default {
 
   /**
    * 更新群组信息
-   * @param {Object} data - { id, groupName, description }
+   * @param {Object} data - { id, groupName, groupDescription }
    * @returns {Promise}
    */
   updateGroup(data) {
@@ -132,7 +132,7 @@ export default {
    * @returns {Promise}
    */
   searchGroups(keyword) {
-    return axiosInstance.get('/api/groups/search', { params: { keyword } });
+    return axiosInstance.get('/api/groups/search', { params: { q: keyword } });
   },
 
   /**
@@ -172,8 +172,8 @@ export default {
    * @returns {Promise}
    */
   approveApplication(groupId, applicationId, message) {
-    return axiosInstance.post(`/api/groups/${groupId}/applications/${applicationId}/approve`, {
-      message
+    return axiosInstance.put(`/api/groups/${groupId}/applications/${applicationId}`, {
+      action: 'approve', reason: message || ''
     });
   },
 
@@ -185,8 +185,8 @@ export default {
    * @returns {Promise}
    */
   rejectApplication(groupId, applicationId, message) {
-    return axiosInstance.post(`/api/groups/${groupId}/applications/${applicationId}/reject`, {
-      message
+    return axiosInstance.put(`/api/groups/${groupId}/applications/${applicationId}`, {
+      action: 'reject', reason: message || ''
     });
   }
 };

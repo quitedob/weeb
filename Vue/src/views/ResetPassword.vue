@@ -169,19 +169,13 @@ const validateResetToken = async () => {
   }
 
   try {
-    // 调用后端API验证令牌有效性
-    const response = await axiosInstance.get('/api/validate-reset-token', {
-      params: { token }
-    })
-    if (!response.data.success) {
-      errorMessage.value = '重置令牌已过期或无效'
-      return false
-    }
-    return true
+    const response = await axiosInstance.get('/api/auth/verify-reset-token', { params: { token } })
+    if (response.code === 0 && response.data === true) return true
+    errorMessage.value = '重置令牌已过期或无效'
   } catch (error) {
-    errorMessage.value = '令牌验证失败，请稍后重试'
-    return false
+    errorMessage.value = error.message || '令牌验证失败，请稍后重试'
   }
+  return false
 }
 
 // 提交重置密码请求
@@ -203,18 +197,19 @@ const handleSubmit = async () => {
     const token = route.query.token
 
     // 调用后端API执行密码重置
-    const response = await axiosInstance.post('/api/password/execute-reset', {
-      token,
-      newPassword: form.password
+    const response = await axiosInstance.post('/api/auth/reset-password', {
+      resetToken: token,
+      newPassword: form.password,
+      confirmPassword: form.confirmPassword
     })
 
-    if (response.data.success) {
+    if (response.code === 0) {
       successMessage.value = '密码重置成功，正在跳转到登录页面...'
       setTimeout(() => {
         router.push('/login')
       }, 2000)
     } else {
-      errorMessage.value = response.data.message || '密码重置失败'
+      errorMessage.value = response.message || '密码重置失败'
     }
   } catch (error) {
     if (error.response?.data?.message) {
@@ -245,7 +240,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--apple-accent-gradient);
   padding: 20px;
 }
 

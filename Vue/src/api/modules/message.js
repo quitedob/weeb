@@ -33,8 +33,8 @@ export function recallMessage(messageId) {
 
 // 对消息添加反应 - 使用新的统一API路径
 export function handleReaction(messageId, reactionType) {
-  return axiosInstance.post(`/api/chats/messages/${messageId}/react`, {
-    reactionType
+  return axiosInstance.post(`/api/chats/messages/${messageId}/react`, null, {
+    params: { reactionType }
   });
 }
 
@@ -57,8 +57,8 @@ export function deleteChat(chatId) {
 
 // 对消息添加反应 - 使用新的统一API路径
 export function addReaction(messageId, reactionType) {
-  return axiosInstance.post(`/api/chats/messages/${messageId}/react`, {
-    reactionType
+  return axiosInstance.post(`/api/chats/messages/${messageId}/react`, null, {
+    params: { reactionType }
   });
 }
 

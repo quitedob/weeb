@@ -86,7 +86,7 @@ public interface GroupService extends IService<Group> {
      * @param groupId 群组ID
      * @return 群组成员列表（包含用户详细信息）
      */
-    List<Map<String, Object>> getGroupMembers(Long groupId);
+    List<Map<String, Object>> getGroupMembers(Long groupId, Long userId);
 
     /**
      * 更新群组信息

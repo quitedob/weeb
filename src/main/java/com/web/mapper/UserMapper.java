@@ -17,6 +17,19 @@ import java.util.List;
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
+    @Update("UPDATE `user` SET password = #{password} WHERE id = #{userId}")
+    int updatePassword(@Param("userId") Long userId, @Param("password") String password);
+
+    @Update("UPDATE `user` SET password = #{password} WHERE id = #{userId} AND password = #{previousPassword}")
+    int compareAndSetPassword(@Param("userId") Long userId, @Param("password") String password,
+                              @Param("previousPassword") String previousPassword);
+
+    @Update("UPDATE `user` SET status = #{status} WHERE id = #{userId}")
+    int updateStatus(@Param("userId") Long userId, @Param("status") Integer status);
+
+    @Update("UPDATE user_stats SET fans_count = (SELECT COUNT(*) FROM user_follow WHERE followee_id = #{userId}) WHERE user_id = #{userId}")
+    int syncFollowCounts(@Param("userId") Long userId);
+
     /**
      * 更新用户的在线状态
      * @param userId 用户ID
@@ -404,6 +417,17 @@ public interface UserMapper extends BaseMapper<User> {
      */
     long countUserComments(@Param("userId") Long userId);
 
+    long countUserLoginDays(@Param("userId") Long userId);
+
+    int recordSuccessfulLoginDay(@Param("userId") Long userId);
+
+    @Select("SELECT id FROM `user` WHERE id = #{userId} FOR UPDATE")
+    Long lockUserForLevelChange(@Param("userId") Long userId);
+
+    @Select("SELECT new_level FROM user_level_history WHERE user_id = #{userId} AND status = 1 "
+            + "AND new_level BETWEEN 0 AND 8 ORDER BY change_time DESC, id DESC LIMIT 1 FOR UPDATE")
+    Integer selectCurrentLevelForUpdate(@Param("userId") Long userId);
+
     /**
      * 统计指定等级的用户数量
      * @param level 用户等级
@@ -411,19 +435,4 @@ public interface UserMapper extends BaseMapper<User> {
      */
     int countUsersByLevel(@Param("level") int level);
 
-    /**
-     * 查询所有用户的基本信息（仅包含ID和userLevel字段）
-     * 用于批量同步用户等级信息
-     * @return 用户列表（仅包含ID和userLevel）
-     */
-    @Select("SELECT id, user_level as userLevel FROM user WHERE id IS NOT NULL")
-    List<User> selectAllUserLevels();
-
-    /**
-     * 仅更新用户等级信息
-     * @param user 用户对象（仅包含ID和userLevel字段）
-     * @return 受影响行数
-     */
-    @Update("UPDATE user SET user_level = #{userLevel} WHERE id = #{id}")
-    int updateUserLevel(User user);
 }

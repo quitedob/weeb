@@ -86,6 +86,7 @@ public class MessageBroadcastService {
                     response.setIsFromMe(false);
                     
                     // 检查成员是否在线
+                    chatUnreadCountService.incrementUnreadCount(memberId, message.getChatId(), 1);
                     boolean isOnline = onlineStatusService.isUserOnline(memberId);
                     
                     if (isOnline) {
@@ -104,8 +105,6 @@ public class MessageBroadcastService {
                         // 离线：标记存储并增加未读计数
                         response.setStatus(1); // SENT
                         storeOfflineMessage(memberId, response);
-                        // ✅ 增加未读计数
-                        chatUnreadCountService.incrementUnreadCount(memberId, groupId, 1);
                         failCount++;
                     }
                 } catch (Exception e) {
@@ -131,7 +130,7 @@ public class MessageBroadcastService {
     private List<Long> getGroupMemberIds(Long groupId) {
         try {
             // 使用JdbcTemplate查询群成员
-            String sql = "SELECT user_id FROM group_member WHERE group_id = ? AND join_status = 'ACCEPTED'";
+            String sql = "SELECT user_id FROM group_member WHERE group_id = ? AND join_status = 'ACCEPTED' AND kicked_at IS NULL";
             return jdbcTemplate.queryForList(sql, Long.class, groupId);
         } catch (Exception e) {
             log.error("获取群组成员列表失败: groupId={}", groupId, e);
@@ -200,8 +199,6 @@ public class MessageBroadcastService {
                 // 可选：存储到离线消息队列（Redis）以便快速推送
                 storeOfflineMessage(receiverId, response);
                 
-                // ✅ 增加未读计数
-                chatUnreadCountService.incrementUnreadCount(receiverId, message.getChatId(), 1);
             }
 
         } catch (Exception e) {
@@ -494,7 +491,8 @@ public class MessageBroadcastService {
             List<Long> recipientIds = new java.util.ArrayList<>();
             
             // 检查是否是群聊
-            String sql = "SELECT user_id FROM chat_list WHERE shared_chat_id = ? AND type = 'GROUP'";
+            String sql = "SELECT gm.user_id FROM `group` g JOIN group_member gm ON gm.group_id = g.id "
+                    + "WHERE g.shared_chat_id = ? AND g.status = 1 AND gm.join_status = 'ACCEPTED' AND gm.kicked_at IS NULL";
             List<Long> groupMembers = jdbcTemplate.queryForList(sql, Long.class, chatId);
             
             if (!groupMembers.isEmpty()) {
@@ -503,8 +501,9 @@ public class MessageBroadcastService {
                 log.debug("群聊反应变更，接收者数量: {}", recipientIds.size());
             } else {
                 // 私聊：发送给聊天的两个参与者
-                String privateSql = "SELECT user_id FROM chat_list WHERE shared_chat_id = ? AND type = 'PRIVATE'";
-                recipientIds.addAll(jdbcTemplate.queryForList(privateSql, Long.class, chatId));
+                String privateSql = "SELECT participant_1_id FROM shared_chat WHERE id = ? AND chat_type = 'PRIVATE' "
+                        + "UNION SELECT participant_2_id FROM shared_chat WHERE id = ? AND chat_type = 'PRIVATE'";
+                recipientIds.addAll(jdbcTemplate.queryForList(privateSql, Long.class, chatId, chatId));
                 log.debug("私聊反应变更，接收者数量: {}", recipientIds.size());
             }
 

@@ -1,7 +1,8 @@
 package com.web.listener;
 
 import com.web.service.WebSocketConnectionService;
-import com.web.security.SecurityUtils;
+import com.web.service.AuthService;
+import com.web.model.User;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
@@ -25,6 +26,9 @@ public class WebSocketEventListener {
     @Autowired
     private WebSocketConnectionService connectionService;
 
+    @Autowired
+    private AuthService authService;
+
     /**
      * 处理WebSocket连接事件
      */
@@ -33,11 +37,18 @@ public class WebSocketEventListener {
         try {
             StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
             String sessionId = headerAccessor.getSessionId();
-            Principal principal = headerAccessor.getUser();
+            Principal principal = event.getUser() != null ? event.getUser() : headerAccessor.getUser();
 
-            if (principal != null && sessionId != null) {
+            if (principal != null && sessionId != null && !sessionId.isBlank()) {
                 String username = principal.getName();
-                Long userId = extractUserIdFromPrincipal(principal);
+                if (username == null || username.isBlank()) return;
+                User user = authService.findByUsername(username);
+                if (user == null || user.getId() == null || user.getId() <= 0
+                        || !Integer.valueOf(1).equals(user.getStatus()) || !username.equals(user.getUsername())) {
+                    log.warn("Ignoring WebSocket connection with an unavailable account: sessionId={}", sessionId);
+                    return;
+                }
+                Long userId = user.getId();
 
                 // 注册连接
                 connectionService.registerConnection(sessionId, userId, username);
@@ -112,23 +123,4 @@ public class WebSocketEventListener {
         }
     }
 
-    /**
-     * 从Principal中提取用户ID
-     * @param principal Principal对象
-     * @return 用户ID
-     */
-    private Long extractUserIdFromPrincipal(Principal principal) {
-        try {
-            // 尝试从SecurityUtils获取当前用户ID
-            return SecurityUtils.getCurrentUserId();
-        } catch (Exception e) {
-            // 如果失败，尝试从principal名称解析
-            try {
-                return Long.parseLong(principal.getName());
-            } catch (NumberFormatException ex) {
-                log.warn("无法从Principal提取用户ID: {}", principal.getName());
-                return 0L; // 返回默认值
-            }
-        }
-    }
 }

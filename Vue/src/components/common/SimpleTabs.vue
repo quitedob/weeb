@@ -73,7 +73,7 @@ onMounted(() => {
 
 .tab-nav {
   display: flex;
-  border-bottom: 1px solid #e5e5e7;
+  border-bottom: 1px solid #e5e5e5;
   margin-bottom: 20px;
 }
 

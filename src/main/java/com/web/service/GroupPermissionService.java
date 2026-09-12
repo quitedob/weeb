@@ -3,7 +3,7 @@ package com.web.service;
 import com.web.mapper.GroupMemberMapper;
 import com.web.model.GroupMember;
 import com.web.model.User;
-import com.web.constants.GroupRoleConstants;
+import com.web.constant.GroupRoleConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

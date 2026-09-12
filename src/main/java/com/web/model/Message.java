@@ -67,7 +67,12 @@ public class Message implements Serializable {
 
     private Long replyToMessageId; // 回复的消息ID
 
-    private Long threadId; // 话题ID，用于消息线程
+    @TableField(exist = false)
+    private Long threadId; // Reserved for the disabled thread prototype; absent from the live schema.
+
+    @TableField(exist = false)
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private java.util.List<java.util.Map<String, Object>> reactions = java.util.List.of();
     
     // 消息类型常量
     public static final String TYPE_PRIVATE = "PRIVATE";

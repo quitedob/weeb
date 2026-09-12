@@ -13,6 +13,10 @@ import java.util.List; // Added
  */
 @Mapper
 public interface GroupMapper extends BaseMapper<Group> {
+    int incrementMemberCountIfCapacity(@Param("groupId") Long groupId);
+
+    int decrementMemberCount(@Param("groupId") Long groupId);
+
     // Custom methods can be added here if needed later.
     // For now, BaseMapper provides common CRUD operations.
 

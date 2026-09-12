@@ -1,0 +1,268 @@
+package com.web.controller;
+
+import com.web.annotation.Userid;
+import com.web.common.ApiResponse;
+import com.web.model.MessageThread;
+import com.web.model.Message;
+import com.web.model.User;
+import com.web.service.MessageThreadService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import java.util.Map;
+
+/**
+ * 消息线索控制器
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/threads")
+@RequiredArgsConstructor
+@ConditionalOnProperty(name = "features.message-threads.enabled", havingValue = "true", matchIfMissing = false)
+public class MessageThreadController {
+
+    private final MessageThreadService messageThreadService;
+
+    /**
+     * 创建消息线索
+     */
+    @PostMapping
+    public ResponseEntity<ApiResponse<MessageThread>> createThread(
+            @Valid @RequestBody CreateThreadRequest request,
+            @Userid Long userId) {
+
+        MessageThread thread = messageThreadService.createThread(
+            request.getRootMessageId(),
+            request.getTitle(),
+            userId
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(thread));
+    }
+
+    /**
+     * 获取线索详情
+     */
+    @GetMapping("/{threadId}")
+    public ResponseEntity<ApiResponse<MessageThread>> getThread(@PathVariable Long threadId, @Userid Long userId) {
+        MessageThread thread = messageThreadService.getThreadById(threadId, userId);
+        return ResponseEntity.ok(ApiResponse.success(thread));
+    }
+
+    /**
+     * 获取线索中的消息列表
+     */
+    @GetMapping("/{threadId}/messages")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getThreadMessages(
+            @PathVariable Long threadId,
+            @Userid Long userId,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) int pageSize) {
+
+        Map<String, Object> result = messageThreadService.getThreadMessages(threadId, userId, page, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * 回复消息到线索
+     */
+    @PostMapping("/{threadId}/replies")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> replyToThread(
+            @PathVariable Long threadId,
+            @Valid @RequestBody ReplyRequest request,
+            @Userid Long userId) {
+
+        Map<String, Object> result = messageThreadService.replyToThread(
+            threadId,
+            request.getContent(),
+            userId
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * 加入线索
+     */
+    @PostMapping("/{threadId}/join")
+    public ResponseEntity<ApiResponse<Boolean>> joinThread(
+            @PathVariable Long threadId,
+            @Userid Long userId) {
+        boolean success = messageThreadService.joinThread(threadId, userId);
+
+        return ResponseEntity.ok(ApiResponse.success(success));
+    }
+
+    /**
+     * 离开线索
+     */
+    @DeleteMapping("/{threadId}/leave")
+    public ResponseEntity<ApiResponse<Boolean>> leaveThread(
+            @PathVariable Long threadId,
+            @Userid Long userId) {
+        boolean success = messageThreadService.leaveThread(threadId, userId);
+
+        return ResponseEntity.ok(ApiResponse.success(success));
+    }
+
+    /**
+     * 归档线索
+     */
+    @PostMapping("/{threadId}/archive")
+    public ResponseEntity<ApiResponse<Boolean>> archiveThread(
+            @PathVariable Long threadId,
+            @Userid Long userId) {
+        boolean success = messageThreadService.archiveThread(threadId, userId);
+
+        return ResponseEntity.ok(ApiResponse.success(success));
+    }
+
+    /**
+     * 关闭线索
+     */
+    @PostMapping("/{threadId}/close")
+    public ResponseEntity<ApiResponse<Boolean>> closeThread(
+            @PathVariable Long threadId,
+            @Userid Long userId) {
+        boolean success = messageThreadService.closeThread(threadId, userId);
+
+        return ResponseEntity.ok(ApiResponse.success(success));
+    }
+
+    /**
+     * 置顶/取消置顶线索
+     */
+    @PostMapping("/{threadId}/pin")
+    public ResponseEntity<ApiResponse<Boolean>> pinThread(
+            @PathVariable Long threadId,
+            @RequestParam @NotNull Boolean isPinned,
+            @Userid Long userId) {
+        boolean success = messageThreadService.pinThread(threadId, userId, isPinned);
+
+        return ResponseEntity.ok(ApiResponse.success(success));
+    }
+
+    /**
+     * 锁定/解锁线索
+     */
+    @PostMapping("/{threadId}/lock")
+    public ResponseEntity<ApiResponse<Boolean>> lockThread(
+            @PathVariable Long threadId,
+            @RequestParam @NotNull Boolean isLocked,
+            @Userid Long userId) {
+        boolean success = messageThreadService.lockThread(threadId, userId, isLocked);
+
+        return ResponseEntity.ok(ApiResponse.success(success));
+    }
+
+    /**
+     * 获取用户参与的线索列表
+     */
+    @GetMapping("/my-threads")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserThreads(
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) int pageSize,
+            @Userid Long userId) {
+        Map<String, Object> result = messageThreadService.getUserThreads(userId, page, pageSize);
+
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * 获取活跃线索列表
+     */
+    @GetMapping("/active")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getActiveThreads(
+            @Userid Long userId,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) int pageSize) {
+
+        Map<String, Object> result = messageThreadService.getActiveThreads(userId, page, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * 获取用户创建的线索列表
+     */
+    @GetMapping("/created")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUserCreatedThreads(
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) int pageSize,
+            @Userid Long userId) {
+        Map<String, Object> result = messageThreadService.getUserCreatedThreads(userId, page, pageSize);
+
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * 搜索线索
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchThreads(
+            @Userid Long userId,
+            @RequestParam @NotBlank String keyword,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) int pageSize) {
+
+        Map<String, Object> result = messageThreadService.searchThreads(userId, keyword, page, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * 获取线索统计信息
+     */
+    @GetMapping("/{threadId}/statistics")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getThreadStatistics(@PathVariable Long threadId, @Userid Long userId) {
+        Map<String, Object> statistics = messageThreadService.getThreadStatistics(threadId, userId);
+        return ResponseEntity.ok(ApiResponse.success(statistics));
+    }
+
+    /**
+     * 获取消息的线索上下文
+     */
+    @GetMapping("/context/{messageId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getThreadContext(
+            @PathVariable Long messageId,
+            @Userid Long userId) {
+        Map<String, Object> context = messageThreadService.getThreadContext(messageId, userId);
+
+        return ResponseEntity.ok(ApiResponse.success(context));
+    }
+
+    // 内部类定义
+
+    /**
+     * 创建线索请求
+     */
+    public static class CreateThreadRequest {
+        @NotNull(message = "根消息ID不能为空")
+        private Long rootMessageId;
+
+        @NotBlank(message = "线索标题不能为空")
+        private String title;
+
+        // Getters and Setters
+        public Long getRootMessageId() { return rootMessageId; }
+        public void setRootMessageId(Long rootMessageId) { this.rootMessageId = rootMessageId; }
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+    }
+
+    /**
+     * 回复请求
+     */
+    public static class ReplyRequest {
+        @NotBlank(message = "回复内容不能为空")
+        private String content;
+
+        // Getters and Setters
+        public String getContent() { return content; }
+        public void setContent(String content) { this.content = content; }
+    }
+}

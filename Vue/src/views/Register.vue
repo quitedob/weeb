@@ -216,7 +216,7 @@ const handleRegister = async () => {
       gender: registerForm.gender
     })
 
-    if (response.success) {
+    if (response.code === 0) {
       appleMessage.success('注册成功，请登录')
       router.push('/login')
     } else {
@@ -237,7 +237,7 @@ const handleRegister = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--apple-purple) 0%, var(--apple-pink) 100%);
+  background: var(--apple-accent-gradient);
   padding: var(--apple-spacing-md);
 }
 
@@ -423,7 +423,7 @@ const handleRegister = async () => {
 /* 暗色主题适配 */
 @media (prefers-color-scheme: dark) {
   .register-card {
-    background: rgba(28, 28, 30, 0.95);
+    background: rgba(28, 28, 28, 0.95);
   }
 }
-</style> 
+</style>

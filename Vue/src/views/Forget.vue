@@ -309,7 +309,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--apple-blue) 0%, var(--apple-purple) 100%);
+  background: var(--apple-accent-gradient);
   padding: var(--apple-spacing-md);
 }
 

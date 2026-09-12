@@ -1,336 +1,171 @@
 package com.web.util;
 
-import io.jsonwebtoken.*; // JWT相关库
-import io.jsonwebtoken.security.Keys; // 用于生成密钥
+import com.web.mapper.AuthMapper;
+import com.web.model.User;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.Duration;
 import java.util.Date;
+import java.util.UUID;
+import java.util.Base64;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
-/**
- * JwtUtil 工具类，负责生成、验证和解析JWT令牌
- */
+/** Access tokens are scoped, individually revocable and tied to a user's session generation. */
 @Component
 public class JwtUtil {
+    private static final String SESSION_PREFIX = "auth:session-generation:";
+    private static final String REVOKED_PREFIX = "auth:revoked:";
+    private final StringRedisTemplate redis;
+    private final AuthMapper authMapper;
+
     @Value("${jwt.expiration}")
-    private long expiration; // 令牌有效期（毫秒）
-
-    @Value("${jwt.secret}") // 从配置文件注入密钥
+    private long expiration;
+    @Value("${jwt.secret}")
     private String secret;
+    private Key key;
 
-    private Key key; // 用于签名的密钥对象
+    public JwtUtil(StringRedisTemplate redis, AuthMapper authMapper) {
+        this.redis = redis;
+        this.authMapper = authMapper;
+    }
 
     @PostConstruct
     public void init() {
-        // 验证JWT secret安全性
-        validateJwtSecret();
-
-        // 初始化密钥对象
-        this.key = Keys.hmacShaKeyFor(this.secret.getBytes());
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32 || expiration <= 0) {
+            throw new IllegalStateException("Configure a JWT key of at least 32 bytes and a positive expiration");
+        }
+        key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * 验证JWT secret的安全性
-     */
-    private void validateJwtSecret() {
-        // 检查是否为空或使用默认值
-        if (secret == null || secret.trim().isEmpty()) {
-            throw new IllegalStateException("JWT secret不能为空，请在配置文件中设置jwt.secret");
-        }
-
-        // 检查是否使用默认值（开发环境警告，生产环境报错）
-        String defaultSecret = "mySecretKey123456789012345678901234567890";
-        if (defaultSecret.equals(secret)) {
-            String errorMsg = "检测到使用默认JWT secret，这是不安全的！请在配置文件中设置强密钥";
-            if (isProductionEnvironment()) {
-                throw new IllegalStateException(errorMsg);
-            } else {
-                System.err.println("警告: " + errorMsg);
-            }
-        }
-
-        // 验证密钥长度（至少32字节）
-        if (secret.length() < 32) {
-            throw new IllegalStateException("JWT secret长度不足，至少需要32个字符");
-        }
-
-        // 验证密钥复杂度
-        boolean hasUpper = secret.chars().anyMatch(Character::isUpperCase);
-        boolean hasLower = secret.chars().anyMatch(Character::isLowerCase);
-        boolean hasDigit = secret.chars().anyMatch(Character::isDigit);
-        boolean hasSpecial = secret.chars().anyMatch(ch -> !Character.isLetterOrDigit(ch));
-
-        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
-            String warningMsg = "建议使用包含大小写字母、数字和特殊字符的强密钥";
-            if (isProductionEnvironment()) {
-                System.err.println("警告: " + warningMsg);
-            } else {
-                System.out.println("提示: " + warningMsg);
-            }
-        }
-    }
-
-    /**
-     * 检查是否为生产环境
-     */
-    private boolean isProductionEnvironment() {
-        String activeProfile = System.getProperty("spring.profiles.active", "");
-        String envProfile = System.getenv("SPRING_PROFILES_ACTIVE");
-        return "prod".equals(activeProfile) || "production".equals(activeProfile) ||
-               "prod".equals(envProfile) || "production".equals(envProfile);
-    }
-
-    /**
-     * 生成JWT令牌，subject为userId（Long类型，转为字符串）
-     * 同时写入自定义声明 username，便于过滤器按用户名加载用户
-     * @param userId 用户唯一ID
-     * @param username 用户名
-     * @return JWT令牌字符串
-     */
     public String generateToken(Long userId, String username) {
-        return Jwts.builder()
-                .setSubject(String.valueOf(userId)) // 以userId为主体
-                .claim("username", username) // 附带用户名，供下游解析
-                .setIssuedAt(new Date()) // 签发时间
-                .setExpiration(new Date(System.currentTimeMillis() + expiration)) // 过期时间
-                .signWith(this.key) // 使用密钥签名
-                .compact();
+        if (userId == null || userId <= 0 || username == null || username.isBlank()) {
+            throw new IllegalArgumentException("User identity is required");
+        }
+        User user = authMapper.findByUserID(userId);
+        if (user == null || !username.equals(user.getUsername()) || !Integer.valueOf(1).equals(user.getStatus())) {
+            throw new IllegalArgumentException("User account is unavailable");
+        }
+        String sessionKey = SESSION_PREFIX + userId;
+        redis.opsForValue().setIfAbsent(sessionKey, UUID.randomUUID().toString());
+        String generation = redis.opsForValue().get(sessionKey);
+        if (generation == null) throw new IllegalStateException("Session storage is unavailable");
+        return Jwts.builder().setSubject(userId.toString()).setId(UUID.randomUUID().toString())
+                .claim("username", username).claim("purpose", "access").claim("generation", generation)
+                .claim("credentialVersion", credentialVersion(user))
+                .setIssuedAt(new Date()).setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(key).compact();
     }
 
-    /**
-     * 兼容旧签名：仅传入用户ID时生成token（不推荐，仅为兼容）
-     */
     public String generateToken(Long userId) {
-        return Jwts.builder()
-                .setSubject(String.valueOf(userId))
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(this.key)
-                .compact();
+        User user = authMapper.findByUserID(userId);
+        if (user == null) throw new IllegalArgumentException("User does not exist");
+        return generateToken(userId, user.getUsername());
     }
 
-    /**
-     * 验证JWT令牌有效性
-     * @param token JWT令牌
-     * @return 是否有效
-     */
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(this.key)
-                    .build()
-                    .parseClaimsJws(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
+            Claims claims = parseToken(token);
+            User user = authMapper.findByUserID(Long.valueOf(claims.getSubject()));
+            return "access".equals(claims.get("purpose", String.class))
+                    && claims.getId() != null && claims.getExpiration() != null
+                    && claims.get("username", String.class) != null
+                    && user != null && Integer.valueOf(1).equals(user.getStatus())
+                    && user.getUsername().equals(claims.get("username", String.class))
+                    && credentialVersion(user).equals(claims.get("credentialVersion", String.class))
+                    && Long.parseLong(claims.getSubject()) > 0 && !isRevoked(claims);
+        } catch (RuntimeException e) {
+            // A Redis failure must never restore a revoked session.
             return false;
         }
     }
 
-    /**
-     * 解析JWT令牌，获取Claims
-     * @param token JWT令牌
-     * @return Claims对象
-     */
     public Claims parseToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(this.key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
     }
 
-    /**
-     * 从JWT令牌中获取userId（Long类型）
-     * @param token JWT令牌
-     * @return 用户ID（Long）
-     */
-    public Long getUserIdFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(this.key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        return Long.valueOf(claims.getSubject()); // subject为userId
-    }
+    public Long getUserIdFromToken(String token) { return Long.valueOf(parseToken(token).getSubject()); }
+    public long getExpiration() { return expiration; }
 
-    /**
-     * 获取令牌有效期
-     * @return 有效期（毫秒）
-     */
-    public long getExpiration() {
-        return expiration;
-    }
-
-    /**
-     * 从JWT令牌中提取用户名
-     * @param token JWT令牌
-     * @return 用户名
-     */
     public String extractUsername(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(this.key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            // 优先读取自定义username声明；若不存在，回退为subject（兼容旧token）
-            String username = claims.get("username", String.class);
-            return (username != null && !username.isEmpty()) ? username : claims.getSubject();
-        } catch (JwtException | IllegalArgumentException e) {
-            return null;
-        }
+        try { return parseToken(token).get("username", String.class); }
+        catch (JwtException | IllegalArgumentException e) { return null; }
     }
 
-    /**
-     * 获取令牌过期时间
-     * @param token JWT令牌 (可选参数，如果不提供则返回默认过期时间)
-     * @return 过期时间（毫秒）
-     */
     public long getExpirationTime(String... token) {
-        try {
-            // 如果没有提供token参数，返回默认过期时间
-            if (token == null || token.length == 0) {
-                return System.currentTimeMillis() + expiration;
-            }
-            String tokenString = token[0];
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(this.key)
-                    .build()
-                    .parseClaimsJws(tokenString)
-                    .getBody();
-            return claims.getExpiration().getTime();
-        } catch (JwtException | IllegalArgumentException e) {
-            return 0;
-        }
+        return token == null || token.length == 0 ? System.currentTimeMillis() + expiration
+                : getExpirationTimeSingle(token[0]);
     }
 
-    /**
-     * 获取令牌过期时间（重载方法）
-     * @param token JWT令牌
-     * @return 过期时间（毫秒）
-     */
     public long getExpirationTimeSingle(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(this.key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            return claims.getExpiration().getTime();
-        } catch (JwtException | IllegalArgumentException e) {
-            return 0;
-        }
+        Date expires = getExpirationDate(token);
+        return expires == null ? 0 : expires.getTime();
     }
 
-    /**
-     * 获取令牌过期日期
-     * @param token JWT令牌
-     * @return 过期日期
-     */
     public Date getExpirationDate(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(this.key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            return claims.getExpiration();
-        } catch (JwtException | IllegalArgumentException e) {
-            return null;
-        }
+        try { return parseToken(token).getExpiration(); }
+        catch (JwtException | IllegalArgumentException e) { return null; }
     }
 
-    /**
-     * 检查令牌是否过期
-     * @param token JWT令牌
-     * @return 是否过期
-     */
     public boolean isTokenExpired(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(this.key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            return claims.getExpiration().before(new Date());
-        } catch (JwtException | IllegalArgumentException e) {
-            return true;
-        }
+        Date expires = getExpirationDate(token);
+        return expires == null || !expires.after(new Date());
     }
 
-    /**
-     * 检查令牌是否在黑名单中
-     * @param token JWT令牌
-     * @return 是否在黑名单中
-     */
+    private boolean isRevoked(Claims claims) {
+        String generation = claims.get("generation", String.class);
+        return generation == null
+                || !generation.equals(redis.opsForValue().get(SESSION_PREFIX + claims.getSubject()))
+                || Boolean.TRUE.equals(redis.hasKey(REVOKED_PREFIX + claims.getId()));
+    }
+
     public boolean isTokenBlacklisted(String token) {
-        // 简单实现，实际项目中应该使用Redis或数据库存储黑名单
-        // 这里返回false，表示没有黑名单功能
-        return false;
+        try { return isRevoked(parseToken(token)); }
+        catch (RuntimeException e) { return true; }
     }
 
-    /**
-     * 将令牌加入黑名单
-     * @param token JWT令牌
-     */
     public void blacklistToken(String token) {
-        // 实际项目中应该将token加入Redis或数据库黑名单
-        // 这里为空实现，因为当前没有黑名单存储
+        Claims claims;
+        try { claims = parseToken(token); }
+        catch (JwtException | IllegalArgumentException e) { return; }
+        if (claims.getId() == null || claims.getExpiration() == null) return;
+        long ttl = claims.getExpiration().getTime() - System.currentTimeMillis();
+        if (ttl > 0) redis.opsForValue().set(REVOKED_PREFIX + claims.getId(), "1", Duration.ofMillis(ttl));
     }
 
-    /**
-     * 将用户所有令牌加入黑名单
-     * @param username 用户名
-     */
     public void blacklistAllUserTokens(String username) {
-        // 实际项目中应该根据用户名将所有相关token加入黑名单
-        // 这里为空实现，因为当前没有黑名单存储
+        User user = authMapper.findByUsername(username);
+        if (user == null) throw new IllegalArgumentException("User does not exist");
+        blacklistAllUserTokens(user.getId());
     }
 
-    /**
-     * 发送密码重置邮件
-     * @param email 邮箱地址
-     */
-    public void sendPasswordResetEmail(String email) {
-        // 实际项目中应该调用邮件服务发送重置邮件
-        // 这里为空实现，因为当前没有邮件服务集成
+    public void blacklistAllUserTokens(Long userId) {
+        redis.opsForValue().set(SESSION_PREFIX + userId, UUID.randomUUID().toString());
     }
 
-    /**
-     * 重置密码
-     * @param token 重置令牌
-     * @param newPassword 新密码
-     */
-    public void resetPassword(String token, String newPassword) {
-        // 实际项目中应该验证token并更新用户密码
-        // 这里为空实现，因为当前没有密码重置服务集成
-    }
-
-    /**
-     * 验证重置令牌
-     * @param token 重置令牌
-     * @return 是否有效
-     */
-    public boolean verifyResetToken(String token) {
-        // 实际项目中应该验证重置令牌的有效性
-        // 这里返回false，表示没有重置令牌功能
-        return false;
-    }
-
-    /**
-     * 验证令牌是否有效（带用户名验证）
-     * @param token JWT令牌
-     * @param username 用户名
-     * @return 是否有效
-     */
     public boolean isTokenValid(String token, String username) {
+        return validateToken(token) && username != null && username.equals(extractUsername(token));
+    }
+
+    private String credentialVersion(User user) {
+        // A password change also invalidates a login racing with the Redis revocation write.
+        // HMAC hides the stored password hash while changing whenever that hash changes.
         try {
-            String tokenUsername = extractUsername(token);
-            return tokenUsername != null && tokenUsername.equals(username) && !isTokenExpired(token) && !isTokenBlacklisted(token);
-        } catch (Exception e) {
-            return false;
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key.getEncoded(), "HmacSHA256"));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    mac.doFinal(user.getPassword().getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException("HMAC-SHA256 is required", e);
         }
     }
 }

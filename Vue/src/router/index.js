@@ -29,39 +29,39 @@ const routes = [
       {
         path: '/contact',
         name: 'Contact',
-        component: () => import(/* webpackChunkName: "contact" */ '../contact/ContactPage.vue'),
+        component: () => import(/* webpackChunkName: "contact" */ '@/views/contact/ContactPage.vue'),
         meta: { title: '联系人', requiresAuth: true }
       },
       // Article Routes
       {
         path: '/article',
         name: 'ArticleMain',
-        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleMain.vue'),
+        component: () => import(/* webpackChunkName: "article" */ '@/views/article/ArticleMain.vue'),
         meta: { title: '文章中心', requiresAuth: true }
       },
       {
         path: '/article/read/:articleId',
         name: 'ArticleRead',
-        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleRead.vue'),
+        component: () => import(/* webpackChunkName: "article" */ '@/views/article/ArticleRead.vue'),
         props: true,
         meta: { title: '文章详情', requiresAuth: true }
       },
       {
         path: '/article/write',
         name: 'ArticleWrite',
-        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleWrite.vue'),
+        component: () => import(/* webpackChunkName: "article" */ '@/views/article/ArticleWrite.vue'),
         meta: { title: '发布文章', requiresAuth: true }
       },
       {
         path: '/article/manage',
         name: 'ArticleManage',
-        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleManage.vue'),
+        component: () => import(/* webpackChunkName: "article" */ '@/views/article/ArticleManage.vue'),
         meta: { title: '管理文章', requiresAuth: true }
       },
       {
         path: '/article/edit/:articleId',
         name: 'ArticleEdit',
-        component: () => import(/* webpackChunkName: "article" */ '../article/ArticleEdit.vue'),
+        component: () => import(/* webpackChunkName: "article" */ '@/views/article/ArticleEdit.vue'),
         props: true,
         meta: { title: '编辑文章', requiresAuth: true }
       },
@@ -69,13 +69,13 @@ const routes = [
       {
         path: '/groups',
         name: 'Groups',
-        component: () => import(/* webpackChunkName: "group" */ '../views/Groups.vue'),
+        component: () => import(/* webpackChunkName: "group" */ '@/views/group/Groups.vue'),
         meta: { title: '群组', requiresAuth: true }
       },
       {
         path: '/groups/manage',
         name: 'GroupManage',
-        component: () => import(/* webpackChunkName: "group" */ '../group/GroupPage.vue'),
+        component: () => import(/* webpackChunkName: "group" */ '@/views/group/GroupPage.vue'),
         meta: { title: '群组管理', requiresAuth: true }
       },
       {
@@ -106,7 +106,7 @@ const routes = [
       {
         path: '/search',
         name: 'Search',
-        component: () => import(/* webpackChunkName: "search" */ '../search/SearchPage.vue'),
+        component: () => import(/* webpackChunkName: "search" */ '@/views/search/SearchPage.vue'),
         meta: { title: '搜索', requiresAuth: true }
       },
       {
@@ -148,6 +148,12 @@ const routes = [
     name: 'Forget',
     component: () => import(/* webpackChunkName: "auth" */ '../views/Forget.vue'),
     meta: { title: '忘记密码' }
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: () => import('../views/ResetPassword.vue'),
+    meta: { title: '重置密码' }
   },
   {
     path: '/:pathMatch(.*)*',

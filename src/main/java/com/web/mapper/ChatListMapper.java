@@ -12,6 +12,10 @@ import java.util.List;  // 导入 List 集合
 @Mapper  // 标识此接口为 MyBatis Mapper 接口
 public interface ChatListMapper extends BaseMapper<ChatList> {
 
+    boolean canUserAccessSharedChat(@Param("userId") Long userId, @Param("sharedChatId") Long sharedChatId);
+
+    int updateLastMessage(@Param("chatId") String chatId, @Param("lastMessage") String lastMessage);
+
     /**
      * 根据用户ID和会话类型查询聊天记录集合
      * @param userId 用户ID
@@ -139,9 +143,13 @@ public interface ChatListMapper extends BaseMapper<ChatList> {
      * @param chatType 聊天类型
      * @return 新创建的共享聊天ID
      */
-    Long createSharedChat(@Param("participant1Id") Long participant1Id, 
+    int createSharedChat(@Param("participant1Id") Long participant1Id,
                          @Param("participant2Id") Long participant2Id, 
                          @Param("chatType") String chatType);
+
+    int createGroupSharedChat(@Param("groupId") Long groupId);
+
+    Long findGroupSharedChatId(@Param("groupId") Long groupId);
 
     /**
      * ✅ 新增：根据用户ID和共享聊天ID查询聊天记录

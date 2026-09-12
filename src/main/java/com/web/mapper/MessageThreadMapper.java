@@ -14,6 +14,19 @@ import java.util.Map;
 @Mapper
 public interface MessageThreadMapper {
 
+    // Applied before LIMIT and COUNT so metadata cannot reveal other users' conversations.
+    String VISIBLE_THREAD = " EXISTS (SELECT 1 FROM message root JOIN shared_chat sc ON sc.id = root.chat_id "
+            + "WHERE root.id = t.root_message_id AND ((sc.chat_type = 'PRIVATE' "
+            + "AND (sc.participant_1_id = #{userId} OR sc.participant_2_id = #{userId})) "
+            + "OR (sc.chat_type = 'GROUP' AND EXISTS (SELECT 1 FROM `group` g "
+            + "JOIN group_member gm ON gm.group_id = g.id WHERE g.shared_chat_id = sc.id "
+            + "AND g.status = 1 AND gm.user_id = #{userId} AND gm.join_status = 'ACCEPTED' "
+            + "AND gm.kicked_at IS NULL)))) ";
+
+    String ROOT_CHAT = " (SELECT root.chat_id FROM message root JOIN message_threads t "
+            + "ON t.root_message_id = root.id WHERE t.id = #{threadId}) ";
+
+
     /**
      * 插入消息线索
      */
@@ -44,8 +57,8 @@ public interface MessageThreadMapper {
     /**
      * 获取线索中的消息列表
      */
-    @Select("SELECT m.* FROM messages m " +
-            "WHERE m.thread_id = #{threadId} " +
+    @Select("SELECT m.* FROM message m " +
+            "WHERE m.thread_id = #{threadId} AND m.chat_id = " + ROOT_CHAT +
             "ORDER BY m.created_at ASC " +
             "LIMIT #{pageSize} OFFSET #{offset}")
     List<Message> getThreadMessages(@Param("threadId") Long threadId,
@@ -55,7 +68,7 @@ public interface MessageThreadMapper {
     /**
      * 获取线索消息总数
      */
-    @Select("SELECT COUNT(*) FROM messages WHERE thread_id = #{threadId}")
+    @Select("SELECT COUNT(*) FROM message WHERE thread_id = #{threadId} AND chat_id = " + ROOT_CHAT)
     int getThreadMessageCount(Long threadId);
 
     /**
@@ -82,7 +95,7 @@ public interface MessageThreadMapper {
      */
     @Select("SELECT t.* FROM message_threads t " +
             "INNER JOIN thread_participants tp ON t.id = tp.thread_id " +
-            "WHERE tp.user_id = #{userId} " +
+            "WHERE tp.user_id = #{userId} AND " + VISIBLE_THREAD +
             "ORDER BY t.last_reply_at DESC, t.created_at DESC " +
             "LIMIT #{pageSize} OFFSET #{offset}")
     List<MessageThread> getUserThreads(@Param("userId") Long userId,
@@ -92,29 +105,30 @@ public interface MessageThreadMapper {
     /**
      * 获取用户参与的线索总数
      */
-    @Select("SELECT COUNT(*) FROM thread_participants WHERE user_id = #{userId}")
-    int getUserThreadCount(Long userId);
+    @Select("SELECT COUNT(*) FROM thread_participants tp JOIN message_threads t ON t.id = tp.thread_id "
+            + "WHERE tp.user_id = #{userId} AND " + VISIBLE_THREAD)
+    int getUserThreadCount(@Param("userId") Long userId);
 
     /**
      * 获取活跃线索列表
      */
-    @Select("SELECT * FROM message_threads " +
-            "WHERE status = 'active' " +
-            "ORDER BY is_pinned DESC, last_reply_at DESC, created_at DESC " +
+    @Select("SELECT t.* FROM message_threads t " +
+            "WHERE t.status = 'active' AND " + VISIBLE_THREAD +
+            "ORDER BY t.is_pinned DESC, last_reply_at DESC, created_at DESC " +
             "LIMIT #{pageSize} OFFSET #{offset}")
-    List<MessageThread> getActiveThreads(@Param("offset") int offset, @Param("pageSize") int pageSize);
+    List<MessageThread> getActiveThreads(@Param("userId") Long userId, @Param("offset") int offset, @Param("pageSize") int pageSize);
 
     /**
      * 获取活跃线索总数
      */
-    @Select("SELECT COUNT(*) FROM message_threads WHERE status = 'active'")
-    int getActiveThreadCount();
+    @Select("SELECT COUNT(*) FROM message_threads t WHERE t.status = 'active' AND " + VISIBLE_THREAD)
+    int getActiveThreadCount(@Param("userId") Long userId);
 
     /**
      * 获取用户创建的线索列表
      */
-    @Select("SELECT * FROM message_threads " +
-            "WHERE created_by = #{userId} " +
+    @Select("SELECT t.* FROM message_threads t " +
+            "WHERE t.created_by = #{userId} AND " + VISIBLE_THREAD +
             "ORDER BY created_at DESC " +
             "LIMIT #{pageSize} OFFSET #{offset}")
     List<MessageThread> getUserCreatedThreads(@Param("userId") Long userId,
@@ -124,32 +138,32 @@ public interface MessageThreadMapper {
     /**
      * 获取用户创建的线索总数
      */
-    @Select("SELECT COUNT(*) FROM message_threads WHERE created_by = #{userId}")
-    int getUserCreatedThreadCount(Long userId);
+    @Select("SELECT COUNT(*) FROM message_threads t WHERE t.created_by = #{userId} AND " + VISIBLE_THREAD)
+    int getUserCreatedThreadCount(@Param("userId") Long userId);
 
     /**
      * 搜索线索
      */
-    @Select("SELECT * FROM message_threads " +
-            "WHERE (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%')) " +
+    @Select("SELECT t.* FROM message_threads t " +
+            "WHERE (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.description LIKE CONCAT('%', #{keyword}, '%')) AND " + VISIBLE_THREAD +
             "ORDER BY is_pinned DESC, last_reply_at DESC, created_at DESC " +
             "LIMIT #{pageSize} OFFSET #{offset}")
-    List<MessageThread> searchThreads(@Param("keyword") String keyword,
+    List<MessageThread> searchThreads(@Param("userId") Long userId, @Param("keyword") String keyword,
                                     @Param("offset") int offset,
                                     @Param("pageSize") int pageSize);
 
     /**
      * 搜索线索总数
      */
-    @Select("SELECT COUNT(*) FROM message_threads " +
-            "WHERE title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%')")
-    int searchThreadCount(String keyword);
+    @Select("SELECT COUNT(*) FROM message_threads t " +
+            "WHERE (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.description LIKE CONCAT('%', #{keyword}, '%')) AND " + VISIBLE_THREAD)
+    int searchThreadCount(@Param("userId") Long userId, @Param("keyword") String keyword);
 
     /**
      * 获取线索中的最后一条消息
      */
-    @Select("SELECT * FROM messages " +
-            "WHERE thread_id = #{threadId} " +
+    @Select("SELECT * FROM message " +
+            "WHERE thread_id = #{threadId} AND chat_id = " + ROOT_CHAT +
             "ORDER BY created_at DESC " +
             "LIMIT 1")
     Message getLastThreadMessage(Long threadId);
@@ -163,7 +177,7 @@ public interface MessageThreadMapper {
     /**
      * 获取线索的参与者列表
      */
-    @Select("SELECT u.* FROM users u " +
+    @Select("SELECT u.* FROM `user` u " +
             "INNER JOIN thread_participants tp ON u.id = tp.user_id " +
             "WHERE tp.thread_id = #{threadId} " +
             "ORDER BY tp.joined_at ASC")
@@ -189,7 +203,7 @@ public interface MessageThreadMapper {
             "COUNT(CASE WHEN DATE(created_at) = CURDATE() THEN 1 END) as today_replies, " +
             "COUNT(CASE WHEN DATE(created_at) = CURDATE() - INTERVAL 1 DAY THEN 1 END) as yesterday_replies, " +
             "COUNT(CASE WHEN DATE(created_at) >= CURDATE() - INTERVAL 7 DAY THEN 1 END) as week_replies " +
-            "FROM messages WHERE thread_id = #{threadId}")
+            "FROM message WHERE thread_id = #{threadId} AND chat_id = " + ROOT_CHAT)
     Map<String, Object> getThreadReplyStats(Long threadId);
 
     /**
@@ -197,7 +211,7 @@ public interface MessageThreadMapper {
      */
     @Select("SELECT t.*, COUNT(m.id) as reply_count " +
             "FROM message_threads t " +
-            "LEFT JOIN messages m ON t.id = m.thread_id " +
+            "LEFT JOIN message m ON t.id = m.thread_id " +
             "WHERE t.status = 'active' " +
             "GROUP BY t.id " +
             "ORDER BY reply_count DESC, t.last_reply_at DESC " +
@@ -209,7 +223,7 @@ public interface MessageThreadMapper {
      */
     @Select("SELECT t.*, COUNT(m.id) as user_reply_count " +
             "FROM message_threads t " +
-            "INNER JOIN messages m ON t.id = m.thread_id " +
+            "INNER JOIN message m ON t.id = m.thread_id " +
             "WHERE m.user_id = #{userId} " +
             "AND m.created_at BETWEEN #{startDate} AND #{endDate} " +
             "GROUP BY t.id " +

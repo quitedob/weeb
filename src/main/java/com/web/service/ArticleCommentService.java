@@ -31,7 +31,7 @@ public interface ArticleCommentService {
      * @param userId 用户ID
      * @return 是否删除成功
      */
-    boolean deleteComment(Long commentId, Long userId);
+    boolean deleteComment(Long articleId, Long commentId, Long userId);
 
     /**
      * 获取评论总数

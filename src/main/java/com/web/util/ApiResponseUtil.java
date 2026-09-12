@@ -663,7 +663,7 @@ public class ApiResponseUtil {
     /**
      * 处理服务层异常并返回MigrationStatus类型的错误响应
      */
-    public static ResponseEntity<ApiResponse<com.web.Controller.MigrationController.MigrationStatus>> handleServiceExceptionMigrationStatus(
+    public static ResponseEntity<ApiResponse<com.web.controller.MigrationController.MigrationStatus>> handleServiceExceptionMigrationStatus(
             Exception e, String operation, Object... params) {
         String eventId = UUID.randomUUID().toString();
         String logMessage = String.format("%s 操作失败 eventId=%s", operation, eventId);

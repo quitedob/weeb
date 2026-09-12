@@ -1,4 +1,4 @@
-    package com.web.security;
+package com.web.security;
 
 import com.web.service.UserService;
 import com.web.service.UserTypeSecurityService;
@@ -74,17 +74,15 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
                 // 公开访问的端点
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/register",
+                    "/api/auth/forgot-password", "/api/auth/reset-password",
+                    "/api/auth/verify-reset-token").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/error").permitAll()
                 // 静态资源
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/static/**").permitAll()
-                // WebSocket端点
-                .requestMatchers("/app/**").permitAll()
-                .requestMatchers("/topic/**").permitAll()
-                .requestMatchers("/user/**").permitAll()
                 // 管理员端点 - 基于用户类型检查
                 .requestMatchers("/api/admin/**").access((authentication, context) -> {
                     if (authentication.get().isAuthenticated()) {
@@ -101,6 +99,11 @@ public class SecurityConfig {
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, exception) -> {
+                    response.setStatus(401);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"code\":1002,\"message\":\"请先登录\",\"data\":null}");
+                })
                 .accessDeniedHandler(customAccessDeniedHandler)
             );
 

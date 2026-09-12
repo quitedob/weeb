@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.web.mapper.MessageReactionMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="MessageReactionResultMap" type="com.web.model.MessageReaction">
+        <id property="id" column="id"/>
+        <result property="messageId" column="message_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="reactionType" column="reaction_type"/>
+        <result property="createdAt" column="create_time"/>
+    </resultMap>
+
+    <!-- 根据消息ID查询所有反应 -->
+    <select id="selectByMessageId" resultMap="MessageReactionResultMap">
+        SELECT * FROM message_reaction
+        WHERE message_id = #{messageId}
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <!-- 根据消息ID和用户ID查询反应 -->
+    <select id="selectByMessageIdAndUserId" resultMap="MessageReactionResultMap">
+        SELECT * FROM message_reaction
+        WHERE message_id = #{messageId} AND user_id = #{userId}
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="selectByMessageIds" resultMap="MessageReactionResultMap">
+        SELECT id, message_id, user_id, reaction_type, create_time
+        FROM message_reaction
+        WHERE message_id IN
+        <foreach collection="messageIds" item="messageId" open="(" separator="," close=")">
+            #{messageId}
+        </foreach>
+        ORDER BY message_id, reaction_type, user_id
+    </select>
+
+    
+    <!-- 删除特定的反应记录 -->
+    <delete id="deleteByMessageIdAndUserId">
+        DELETE FROM message_reaction
+        WHERE message_id = #{messageId}
+          AND user_id = #{userId}
+    </delete>
+
+    
+    <!-- 删除消息的所有反应 -->
+    <delete id="deleteByMessageId">
+        DELETE FROM message_reaction
+        WHERE message_id = #{messageId}
+    </delete>
+
+    <!-- 统计消息的反应数量 -->
+    <select id="countByMessageId" resultType="int">
+        SELECT COUNT(*) FROM message_reaction
+        WHERE message_id = #{messageId}
+    </select>
+
+    
+</mapper>

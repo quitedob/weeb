@@ -82,6 +82,7 @@ export const useChatStore = defineStore('chat', {
 
       // authStore使用accessToken，不是token
       const token = authStore.accessToken;
+      if (this.stompClient?.active && ['connected', 'connecting'].includes(this.connectionStatus)) return;
 
       console.log('🔌 尝试连接WebSocket...');
       console.log('Token存在:', !!token);
@@ -96,12 +97,10 @@ export const useChatStore = defineStore('chat', {
       }
 
       // Clean up existing connection
+      this.stopHeartbeat();
       if (this.stompClient) {
         try {
-          if (this.stompClient.connected) {
-            console.log('🔄 断开现有WebSocket连接...');
-            this.stompClient.deactivate();
-          }
+          this.stompClient.deactivate();
         } catch (error) {
           console.warn('清理现有连接时出错:', error);
         }
@@ -122,7 +121,6 @@ export const useChatStore = defineStore('chat', {
             console.log('🏭 创建SockJS连接...');
             console.log('🔗 连接URL:', wsUrl);
             console.log('🔑 Token长度:', token ? token.length : 0);
-            console.log('🔑 Token前缀:', token ? token.substring(0, 20) + '...' : 'N/A');
 
             const sockJS = new SockJS(wsUrl);
 
@@ -165,25 +163,26 @@ export const useChatStore = defineStore('chat', {
             'X-Client-Type': 'web',
             'X-Client-Version': '1.0.0'
           },
-          debug: (str) => {
-            // ✅ 修复2：更详细的调试日志
-            if (str.includes('ERROR') || str.includes('RECEIPT')) {
-              console.error('📡 STOMP错误:', str);
-            } else if (str.includes('CONNECTED')) {
-              console.log('📡 STOMP已连接:', str);
-            } else {
-              console.log('📡 STOMP:', str);
-            }
-            log.debug('STOMP Debug:', str);
-          },
+          // STOMP frames may contain Authorization headers and private messages.
+          debug: () => {},
           reconnectDelay: 3000,
           heartbeatIncoming: 4000,
           heartbeatOutgoing: 4000,
           connectionTimeout: 15000,
         });
+        const client = this.stompClient;
+
+        this.stompClient.beforeConnect = async () => {
+          if (!authStore.accessToken) {
+            this.disconnectWebSocket();
+            return;
+          }
+          this.stompClient.connectHeaders.Authorization = `Bearer ${authStore.accessToken}`;
+        };
 
         // Connection successful
         this.stompClient.onConnect = (frame) => {
+          if (this.stompClient !== client) return;
           console.log('✅ WebSocket连接成功!');
           console.log('Frame:', frame);
           log.info('STOMP connected:', frame);
@@ -209,6 +208,8 @@ export const useChatStore = defineStore('chat', {
 
         // Connection error
         this.stompClient.onStompError = (frame) => {
+          if (this.stompClient !== client) return;
+          this.stopHeartbeat();
           console.error('❌ WebSocket STOMP错误:', frame);
           console.error('错误详情:', frame.headers);
           console.error('错误消息:', frame.body);
@@ -233,6 +234,7 @@ export const useChatStore = defineStore('chat', {
 
         // Connection lost
         this.stompClient.onDisconnect = () => {
+          if (this.stompClient !== client) return;
           console.log('⚠️ WebSocket断开连接');
           this.connectionStatus = 'disconnected';
           this.stopHeartbeat();
@@ -240,8 +242,16 @@ export const useChatStore = defineStore('chat', {
 
         // Web Socket error
         this.stompClient.onWebSocketError = (error) => {
+          if (this.stompClient !== client) return;
+          this.stopHeartbeat();
           console.error('❌ WebSocket底层错误:', error);
           this.connectionStatus = 'error';
+        };
+
+        this.stompClient.onWebSocketClose = () => {
+          if (this.stompClient !== client) return;
+          this.stopHeartbeat();
+          this.connectionStatus = 'disconnected';
         };
 
         // Connect to STOMP server
@@ -263,6 +273,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     disconnectWebSocket() {
+      this.stopHeartbeat();
       try {
         if (this.stompClient) {
           console.log('🔌 断开WebSocket连接...');
@@ -288,19 +299,9 @@ export const useChatStore = defineStore('chat', {
         return;
       }
 
-      const authStore = useAuthStore();
-      const username = authStore.currentUser?.username;
-
-      if (!username) {
-        console.warn('⚠️ 用户名为空，无法订阅队列');
-        return;
-      }
-
-      console.log('📡 订阅WebSocket队列: username=', username);
-
       try {
         // ✅ 订阅私聊消息
-        this.stompClient.subscribe(`/user/${username}/queue/private`, (message) => {
+        this.stompClient.subscribe(`/user/queue/private`, (message) => {
           try {
             const parsedMessage = JSON.parse(message.body);
             console.log('📨 收到私聊消息:', parsedMessage);
@@ -311,7 +312,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅聊天列表更新
-        this.stompClient.subscribe(`/user/${username}/queue/chat-list-update`, (message) => {
+        this.stompClient.subscribe(`/user/queue/chat-list-update`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('📋 聊天列表已更新:', data);
@@ -322,7 +323,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅消息状态更新
-        this.stompClient.subscribe(`/user/${username}/queue/message-status`, (message) => {
+        this.stompClient.subscribe(`/user/queue/message-status`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('✓ 消息状态更新:', data);
@@ -333,7 +334,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅已读回执
-        this.stompClient.subscribe(`/user/${username}/queue/read-receipt`, (message) => {
+        this.stompClient.subscribe(`/user/queue/read-receipt`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('👁️ 收到已读回执:', data);
@@ -344,7 +345,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅群组成员变更事件
-        this.stompClient.subscribe(`/user/${username}/queue/group-member-change`, (message) => {
+        this.stompClient.subscribe(`/user/queue/group-member-change`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('👥 收到群组成员变更事件:', data);
@@ -355,7 +356,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅群组信息变更事件
-        this.stompClient.subscribe(`/user/${username}/queue/group-info-change`, (message) => {
+        this.stompClient.subscribe(`/user/queue/group-info-change`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('ℹ️ 收到群组信息变更事件:', data);
@@ -366,7 +367,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅消息反应变更事件
-        this.stompClient.subscribe(`/user/${username}/queue/reaction-change`, (message) => {
+        this.stompClient.subscribe(`/user/queue/reaction-change`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('😊 收到消息反应变更事件:', data);
@@ -377,7 +378,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // Subscribe to error messages
-        this.stompClient.subscribe(`/user/${username}/queue/errors`, (message) => {
+        this.stompClient.subscribe(`/user/queue/errors`, (message) => {
           try {
             const errorMessage = JSON.parse(message.body);
             console.error('❌ STOMP错误消息:', errorMessage);
@@ -391,16 +392,20 @@ export const useChatStore = defineStore('chat', {
           }
         });
 
-        // Subscribe to general chat topics (optional)
-        this.stompClient.subscribe('/topic/chat/*', (message) => {
+        this.stompClient.subscribe('/user/queue/notifications', message => {
           try {
-            const parsedMessage = JSON.parse(message.body);
-            if (parsedMessage.type === 'join' || parsedMessage.type === 'leave') {
-              console.log('Chat room status:', parsedMessage);
-            }
-          } catch (error) {
-            console.error('❌ 处理聊天主题消息失败:', error, message.body);
-          }
+            const notification = JSON.parse(message.body);
+            import('./notificationStore').then(({ useNotificationStore }) => {
+              const store = useNotificationStore();
+              store.addNotification(notification);
+              store.fetchUnreadCount();
+            });
+          } catch (error) { console.error('处理通知失败:', error); }
+        });
+        this.stompClient.subscribe('/user/queue/contacts', message => {
+          try {
+            window.dispatchEvent(new CustomEvent('contact-notification', { detail: JSON.parse(message.body) }));
+          } catch (error) { console.error('处理联系人通知失败:', error); }
         });
 
         console.log('✅ 已订阅所有WebSocket队列');
@@ -424,10 +429,6 @@ export const useChatStore = defineStore('chat', {
               if (!payload.targetUser && payload.targetId) {
                 // 后端会根据targetId查找用户
                 payload.targetId = String(payload.targetId);
-              }
-              // 确保chatId正确设置
-              if (!payload.chatId && payload.targetId) {
-                payload.chatId = String(payload.targetId);
               }
             } else {
               // 群聊消息 - 使用正确的STOMP端点
@@ -518,6 +519,8 @@ export const useChatStore = defineStore('chat', {
         isFromMe: isFromMe,
         msgType: message.messageType || message.type || message.data?.messageType || 1,
         fileData: fileData,
+        reactions: Array.isArray(message.reactions) ? message.reactions
+          : (Array.isArray(message.data?.reactions) ? message.data.reactions : []),
         // ✅ 使用后端返回的状态
         status: message.status !== undefined ? message.status : MESSAGE_STATUS.SENT
       };
@@ -709,13 +712,26 @@ export const useChatStore = defineStore('chat', {
     },
 
     startHeartbeat() {
-      // STOMP handles heartbeat automatically with the configured settings
-      // No need for manual heartbeat with STOMP client
-      console.log('STOMP heartbeat enabled automatically');
+      this.stopHeartbeat();
+      const client = this.stompClient;
+      if (!client?.connected || !useAuthStore().accessToken) return;
+      // The Redis session lease is refreshed by the authenticated application endpoint.
+      // STOMP transport heartbeats do not invoke that endpoint.
+      this.heartbeatInterval = setInterval(() => {
+        if (this.stompClient !== client || !client.connected || !useAuthStore().accessToken) {
+          this.stopHeartbeat();
+          return;
+        }
+        try {
+          client.publish({ destination: '/app/chat/heartbeat', body: '{}' });
+        } catch (error) {
+          log.warn('Unable to send the application heartbeat');
+        }
+      }, 30000);
     },
 
     stopHeartbeat() {
-      if (this.heartbeatInterval) {
+      if (this.heartbeatInterval !== null) {
         clearInterval(this.heartbeatInterval);
         this.heartbeatInterval = null;
       }
@@ -891,6 +907,7 @@ export const useChatStore = defineStore('chat', {
           // 为每条消息添加isFromMe字段并标准化状态
           const messagesWithFlag = messages.map(msg => ({
             ...msg,
+            reactions: Array.isArray(msg.reactions) ? msg.reactions : [],
             isFromMe: msg.senderId === currentUserId,
             msgContent: typeof msg.content === 'object' ? msg.content.content : msg.content,
             sharedChatId: msg.chatId // 保存sharedChatId
@@ -1371,9 +1388,10 @@ export const useChatStore = defineStore('chat', {
     handleReactionChange(data) {
       console.log('😊 处理消息反应变更:', data);
 
-      const { messageId, chatId, reactions } = data;
+      const { messageId, reactions } = data || {};
+      const chatId = data?.sharedChatId ?? data?.chatId;
 
-      if (!messageId || !chatId) {
+      if (messageId == null || chatId == null || !Array.isArray(reactions)) {
         console.warn('⚠️ 反应变更数据不完整:', data);
         return;
       }
@@ -1381,11 +1399,13 @@ export const useChatStore = defineStore('chat', {
       // 查找对应的消息并更新反应
       const messages = this.chatMessages[chatId];
       if (messages && Array.isArray(messages)) {
-        const messageIndex = messages.findIndex(msg => msg.id === messageId || msg.messageId === messageId);
+        const messageIndex = messages.findIndex(msg =>
+          (msg.id != null && String(msg.id) === String(messageId))
+          || (msg.messageId != null && String(msg.messageId) === String(messageId)));
 
         if (messageIndex !== -1) {
           // 更新消息的反应列表
-          messages[messageIndex].reactions = reactions || [];
+          messages[messageIndex].reactions = reactions;
 
           console.log('✅ 消息反应已更新:', {
             messageId,

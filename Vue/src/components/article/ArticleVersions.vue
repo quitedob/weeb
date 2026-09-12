@@ -111,7 +111,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, View, DocumentCopy, RefreshLeft } from '@element-plus/icons-vue'
-import { marked } from 'marked'
+import { renderMarkdown as safeMarkdown } from '@/utils/safeHtml'
 
 const props = defineProps({
   articleId: {
@@ -225,7 +225,7 @@ const restoreVersion = async (version) => {
 
 const renderMarkdown = (content) => {
   if (!content) return ''
-  return marked(content)
+  return safeMarkdown(content)
 }
 
 const formatDate = (date) => {

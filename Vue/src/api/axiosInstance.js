@@ -7,6 +7,7 @@ import appleMessage from '@/utils/appleMessage';
 // 不再需要从这里导入 router
 import { useAuthStore } from '@/stores/authStore';
 import { log } from '@/utils/logger';
+import { resolveAvatarUrls } from '@/utils/assetUrl';
 
 // 区分开发环境和生产环境的 baseURL
 // 1. 开发环境 (import.meta.env.DEV) 时，使用相对路径 '/'
@@ -65,6 +66,9 @@ instance.interceptors.request.use(
 */
 instance.interceptors.response.use(
   (response) => {
+    if (response.status === 204) {
+      return { code: 0, message: '', data: null };
+    }
     const res = response.data;
     
     // 检查是否为标准 ApiResponse 格式
@@ -77,64 +81,34 @@ instance.interceptors.response.use(
     if (res.code !== 0) {
       appleMessage.error(res.message || '请求失败', 5000);
 
-      // 处理认证失败（系统错误 code === -1 或未授权 code === 1002）
-      if (res.code === -1 || res.code === 1002) {
+      // ApiResponse.ErrorCode.UNAUTHORIZED = 1002; system errors retain the session.
+      if (res.code === 1002) {
         // **核心修改点**：只清理状态，不跳转页面
-        useAuthStore().logout();
+        useAuthStore().logoutCleanup();
       }
       
       return Promise.reject(new Error(res.message || '请求失败'));
     }
 
     // 成功响应，返回 ApiResponse 对象（包含 data 字段）
-    return res;
+    return { ...res, data: resolveAvatarUrls(res.data) };
   },
   async (error) => {
-    log.error('Response Error Interceptor:', error);
+    log.error('Response Error Interceptor:', { status: error.response?.status, message: error.message });
     let message = error.message;
     let shouldRetry = false;
 
     if (error.response) {
-      // HTTP 状态码处理
       const status = error.response.status;
-      if (error.response.data && error.response.data.message) {
-        message = error.response.data.message;
-      } else {
-        switch (status) {
-          case 401:
-            message = '认证失败，请重新登录';
-            useAuthStore().logout();
-            break;
-          case 403:
-            message = '禁止访问';
-            if (!error.config.url?.includes('/logout')) {
-              useAuthStore().logout();
-            }
-            break;
-          case 404:
-            message = '请求资源未找到';
-            break;
-          case 408:
-            message = '请求超时';
-            shouldRetry = true;
-            break;
-          case 429:
-            message = '请求过于频繁，请稍后再试';
-            break;
-          case 500:
-            message = '服务器内部错误';
-            shouldRetry = true;
-            break;
-          case 502:
-          case 503:
-          case 504:
-            message = '服务器暂时不可用，请稍后再试';
-            shouldRetry = true;
-            break;
-          default:
-            message = `网络或请求错误 ${status}`;
-        }
-      }
+      if (status === 401) useAuthStore().logoutCleanup();
+      const messages = {
+        401: '认证失败，请重新登录', 403: '禁止访问', 404: '请求资源未找到',
+        408: '请求超时', 429: '请求过于频繁，请稍后再试',
+        500: '服务器内部错误', 502: '服务器暂时不可用，请稍后再试',
+        503: '服务器暂时不可用，请稍后再试', 504: '服务器暂时不可用，请稍后再试'
+      };
+      message = error.response.data?.message || messages[status] || `网络或请求错误 ${status}`;
+      shouldRetry = [408, 500, 502, 503, 504].includes(status);
     } else if (error.request) {
       // 网络错误
       if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
@@ -148,15 +122,16 @@ instance.interceptors.response.use(
 
     // 检查是否应该重试
     const config = error.config;
-    if (shouldRetry && config && (!config.retry || config.retry > 0)) {
-      config.retry = config.retry || instance.defaults.retry;
+    const safeToRetry = ['get', 'head', 'options'].includes(config?.method?.toLowerCase());
+    if (shouldRetry && safeToRetry && config && (config.retry ?? instance.defaults.retry) > 0) {
+      config.retry = config.retry ?? instance.defaults.retry;
       config.retryCount = config.retryCount || 0;
 
       if (config.retryCount < config.retry) {
         config.retryCount++;
 
         // 创建新的Promise来重试请求
-        const retryDelay = config.retryDelay || instance.defaults.retryDelay;
+        const retryDelay = config.retryDelay ?? instance.defaults.retryDelay;
 
         return new Promise(resolve => {
           setTimeout(() => {
@@ -167,10 +142,8 @@ instance.interceptors.response.use(
       }
     }
 
-    // 显示错误消息（对于非重试或重试失败的情况）
-    if (!shouldRetry || (config && config.retryCount >= config.retry)) {
-      appleMessage.error(message, 5000);
-    }
+    appleMessage.error(message, 5000);
+    error.message = message;
 
     return Promise.reject(error);
   }

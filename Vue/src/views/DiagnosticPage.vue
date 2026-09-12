@@ -44,6 +44,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import appleMessage from '@/utils/appleMessage'
 import axios from 'axios'
 
 const router = useRouter()
@@ -66,7 +67,7 @@ const testApi = async () => {
 const clearStorage = () => {
   localStorage.clear()
   sessionStorage.clear()
-  alert('存储已清除，请刷新页面')
+  appleMessage.success('存储已清除，请刷新页面')
 }
 
 const goToLogin = () => {

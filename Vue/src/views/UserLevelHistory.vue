@@ -37,7 +37,7 @@
             <el-icon><TrendCharts /></el-icon>
           </div>
           <div class="stat-info">
-            <h3>{{ upgradeProgress }}%</h3>
+            <h3>{{ progressMessage || `${upgradeProgress}%` }}</h3>
             <p>下一等级进度</p>
           </div>
         </div>
@@ -206,7 +206,8 @@ import { ElMessage } from 'element-plus'
 import {
   Trophy, Refresh, TrendCharts, Right
 } from '@element-plus/icons-vue'
-import * as userLevelApi from '@/api/modules/userLevel'
+import { getUpgradeProgress } from '@/api/modules/userLevel'
+import { getUserLevelHistory, getCurrentLevel, getUserLevelHistoryCount } from '@/api/modules/userLevelHistory'
 import { useAuthStore } from '@/stores/authStore'
 
 const authStore = useAuthStore()
@@ -224,6 +225,8 @@ const currentLevelName = ref('新用户')
 const totalChanges = ref(0)
 const upgradeProgress = ref(0)
 const upgradeRequirements = ref(null)
+const progressDetails = ref({})
+const progressMessage = ref('')
 
 // 详情对话框
 const detailDialogVisible = ref(false)
@@ -231,12 +234,9 @@ const selectedRecord = ref(null)
 
 // 等级颜色映射
 const levelColors = {
-  1: '#909399', // 新用户 - 灰色
-  2: '#409EFF', // 普通用户 - 蓝色
-  3: '#67C23A', // 活跃用户 - 绿色
-  4: '#E6A23C', // 资深用户 - 橙色
-  5: '#F56C6C', // 版主 - 红色
-  6: '#B37FEB'  // 管理员 - 紫色
+  0: 'var(--apple-text-tertiary)', 1: 'var(--apple-blue)', 2: 'var(--apple-green)',
+  3: 'var(--apple-orange)', 4: 'var(--apple-red)', 5: 'var(--apple-blue)',
+  6: 'var(--apple-orange)', 7: 'var(--apple-text-secondary)', 8: 'var(--apple-text-secondary)'
 }
 
 // 计算属性
@@ -246,27 +246,23 @@ const nextLevelName = computed(() => {
 })
 
 const progressColor = computed(() => {
-  if (upgradeProgress.value >= 80) return '#67C23A'
-  if (upgradeProgress.value >= 50) return '#E6A23C'
-  return '#409EFF'
+  if (upgradeProgress.value >= 80) return 'var(--apple-green)'
+  if (upgradeProgress.value >= 50) return 'var(--apple-orange)'
+  return 'var(--apple-blue)'
 })
 
 // 等级名称映射
 const getLevelName = (level) => {
   const levelNames = {
-    1: '新用户',
-    2: '普通用户',
-    3: '活跃用户',
-    4: '资深用户',
-    5: '版主',
-    6: '管理员'
+    0: '新用户', 1: '普通用户', 2: '高级用户', 3: '活跃用户', 4: 'VIP用户',
+    5: '内容创作者', 6: '社区管理员', 7: '管理员', 8: '超级管理员'
   }
   return levelNames[level] || '未知等级'
 }
 
 // 获取等级颜色
 const getLevelColor = (level) => {
-  return levelColors[level] || '#909399'
+  return levelColors[level] || 'var(--apple-text-tertiary)'
 }
 
 // 变更类型名称
@@ -310,23 +306,22 @@ const formatRequirementName = (key) => {
 }
 
 // 获取要求进度
-const getRequirementProgress = (key, required) => {
-  // 这里应该从用户统计数据中获取实际值
-  // 暂时返回模拟数据
-  return Math.random() * 100
+const getRequirementProgress = (key) => {
+  const progressKeys = { minArticles: 'articles', minMessages: 'messages', minLoginDays: 'loginDays', minLikes: 'likes', minFollowers: 'followers' }
+  return Math.min(100, Math.max(0, Number(progressDetails.value[progressKeys[key]]) || 0))
 }
 
 // 加载等级历史
 const loadLevelHistory = async () => {
   try {
     loading.value = true
-    const response = await userLevelApi.getLevelHistory({
+    const response = await getUserLevelHistory(authStore.currentUser.id, {
       page: currentPage.value,
       pageSize: pageSize.value
     })
 
-    if (response.success) {
-      levelHistory.value = response.data.records || []
+    if (response.code === 0) {
+      levelHistory.value = response.data.list || []
       total.value = response.data.total || 0
     } else {
       ElMessage.error(response.message || '加载等级历史失败')
@@ -342,22 +337,27 @@ const loadLevelHistory = async () => {
 // 加载用户等级信息
 const loadUserLevelInfo = async () => {
   try {
-    const response = await userLevelApi.getUserLevelInfo()
-
-    if (response.success) {
-      currentLevel.value = response.data.currentLevel
+    const [levelResponse, countResponse, progressResponse] = await Promise.all([
+      getCurrentLevel(authStore.currentUser.id),
+      getUserLevelHistoryCount(authStore.currentUser.id),
+      getUpgradeProgress()
+    ])
+    if (levelResponse.code === 0) {
+      currentLevel.value = levelResponse.data
       currentLevelName.value = getLevelName(currentLevel.value)
-      totalChanges.value = response.data.totalChanges || 0
-
-      // 加载升级进度
-      const progressResponse = await userLevelApi.getUpgradeProgress()
-      if (progressResponse.success) {
-        upgradeProgress.value = Math.round(progressResponse.data.overallProgress || 0)
-        upgradeRequirements.value = progressResponse.data.requirements || null
-      }
+    }
+    if (countResponse.code === 0) totalChanges.value = countResponse.data || 0
+    if (progressResponse.code === 0 && progressResponse.data) {
+      const progress = progressResponse.data
+      if (progress.error) throw new Error(progress.error)
+      upgradeProgress.value = Math.round(progress.overallProgress || 0)
+      upgradeRequirements.value = Object.fromEntries(Object.entries(progress.requirements || {}).filter(([key]) => key.startsWith('min')))
+      progressDetails.value = progress.progressDetails || {}
+      progressMessage.value = progress.message || ''
     }
   } catch (error) {
     console.error('加载用户等级信息失败:', error)
+    ElMessage.error('加载等级信息失败，请稍后重试')
   }
 }
 
@@ -405,12 +405,12 @@ onMounted(() => {
 
 .page-header h1 {
   font-size: 2.5em;
-  color: #303133;
+  color: var(--apple-text-primary);
   margin-bottom: 10px;
 }
 
 .page-header p {
-  color: #606266;
+  color: var(--apple-text-secondary);
   font-size: 1.1em;
 }
 
@@ -441,29 +441,29 @@ onMounted(() => {
   justify-content: center;
   margin-right: 15px;
   font-size: 24px;
-  color: white;
+  color: var(--apple-text-on-accent);
 }
 
 .stat-icon.current-level {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--apple-accent-gradient);
 }
 
 .stat-icon.total-changes {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: var(--apple-accent-gradient);
 }
 
 .stat-icon.upgrade-progress {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: linear-gradient(135deg, var(--apple-blue) 0%, var(--apple-green) 100%);
 }
 
 .stat-info h3 {
   font-size: 1.8em;
-  color: #303133;
+  color: var(--apple-text-primary);
   margin: 0 0 5px 0;
 }
 
 .stat-info p {
-  color: #909399;
+  color: var(--apple-text-tertiary);
   margin: 0;
 }
 
@@ -475,24 +475,24 @@ onMounted(() => {
 
 .progress-card h3 {
   margin-bottom: 15px;
-  color: #303133;
+  color: var(--apple-text-primary);
 }
 
 .progress-info {
   display: flex;
   justify-content: space-between;
   margin-bottom: 10px;
-  color: #606266;
+  color: var(--apple-text-secondary);
 }
 
 .progress-requirements {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--apple-border-secondary);
 }
 
 .progress-requirements p {
-  color: #303133;
+  color: var(--apple-text-primary);
   margin-bottom: 15px;
   font-weight: 500;
 }
@@ -504,7 +504,7 @@ onMounted(() => {
 .requirement-item span {
   display: block;
   margin-bottom: 5px;
-  color: #606266;
+  color: var(--apple-text-secondary);
   font-size: 0.9em;
 }
 
@@ -521,7 +521,7 @@ onMounted(() => {
 }
 
 .card-header h3 {
-  color: #303133;
+  color: var(--apple-text-primary);
   margin: 0;
 }
 
@@ -536,7 +536,7 @@ onMounted(() => {
 }
 
 .change-icon {
-  color: #909399;
+  color: var(--apple-text-tertiary);
   font-size: 16px;
 }
 

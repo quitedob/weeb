@@ -5,7 +5,7 @@ import path from 'path';
 
 export default defineConfig(async ({ mode }) => {
   // 加载环境变量
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
 
   // 动态导入插件以支持条件加载
   const plugins = [vue()];
@@ -24,19 +24,11 @@ export default defineConfig(async ({ mode }) => {
   }
 
   return {
-    css: {
-      preprocessorOptions: {
-        less: {
-          // 配置 less 的全局变量或自定义配置
-          javascriptEnabled: true,
-        },
-      },
-    },
     plugins,
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'), // 使用 path.resolve 确保路径正确
-        '@constant': path.resolve(__dirname, 'Constant'), // 新增别名，指向 src 同级的 Constant 目录
+        '@constant': path.resolve(__dirname, 'src/constant'),
       },
     },
     server: {
@@ -44,6 +36,11 @@ export default defineConfig(async ({ mode }) => {
       port: 5173, // 确保端口号正确
       proxy: {
         '/api': { // 代理所有/api开头的请求
+          target: env.VITE_API_BASE_URL || 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/uploads': {
           target: env.VITE_API_BASE_URL || 'http://localhost:8080',
           changeOrigin: true,
           secure: false,
@@ -58,8 +55,7 @@ export default defineConfig(async ({ mode }) => {
     },
     // 确保环境变量在客户端代码中可用
     define: {
-      __VITE_ENV__: JSON.stringify(env),
-      global: {}, // 解决 sockjs-client 的 'global is not defined' 问题
+      global: 'globalThis', // SockJS needs the browser's XMLHttpRequest and WebSocket globals.
     },
     // 构建优化配置
     build: {

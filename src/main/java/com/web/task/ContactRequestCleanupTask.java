@@ -2,14 +2,12 @@ package com.web.task;
 
 import com.web.constant.ContactStatus;
 import com.web.mapper.ContactMapper;
-import com.web.model.Contact;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 联系人请求清理任务
@@ -31,41 +29,25 @@ public class ContactRequestCleanupTask {
      */
     @Scheduled(cron = "0 0 2 * * ?")
     public void cleanExpiredContactRequests() {
-        try {
-            log.info("开始清理过期的好友请求...");
-
-            // 计算过期时间点
-            LocalDateTime expireTime = LocalDateTime.now().minusDays(EXPIRE_DAYS);
-
-            // 查询所有过期的PENDING状态请求
-            List<Contact> expiredRequests = contactMapper.findExpiredPendingRequests(expireTime);
-
-            if (expiredRequests == null || expiredRequests.isEmpty()) {
-                log.info("没有过期的好友请求需要清理");
+        LocalDateTime now = LocalDateTime.now();
+        // No enclosing transaction: each mapper call starts a fresh transaction after a deadlock rollback.
+        for (int attempt = 1; ; attempt++) {
+            try {
+                int expired = contactMapper.expirePendingRequests(now, now.minusDays(EXPIRE_DAYS));
+                log.info("Expired {} pending contact requests", expired);
                 return;
+            } catch (RuntimeException failure) {
+                if (attempt >= 3 || !isMysqlDeadlock(failure)) throw failure;
+                log.warn("Retrying contact expiry after a database deadlock, attempt {}", attempt + 1);
             }
-
-            int cleanedCount = 0;
-            for (Contact contact : expiredRequests) {
-                try {
-                    // 更新状态为EXPIRED
-                    contact.setStatus(ContactStatus.EXPIRED.getCode());
-                    contactMapper.updateById(contact);
-
-                    // TODO: 发送过期通知给申请人
-                    // notificationService.sendFriendRequestExpiredNotification(contact);
-
-                    cleanedCount++;
-                } catch (Exception e) {
-                    log.error("清理过期请求失败: contactId={}", contact.getId(), e);
-                }
-            }
-
-            log.info("清理过期好友请求完成: 总数={}, 成功={}", expiredRequests.size(), cleanedCount);
-
-        } catch (Exception e) {
-            log.error("清理过期好友请求任务执行失败", e);
         }
+    }
+
+    private boolean isMysqlDeadlock(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.sql.SQLException sql && sql.getErrorCode() == 1213) return true;
+        }
+        return false;
     }
 
     /**

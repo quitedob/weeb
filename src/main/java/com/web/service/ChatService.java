@@ -32,7 +32,7 @@ public interface ChatService {
      * @param size 每页大小
      * @return 消息列表
      */
-    List<Message> getChatMessages(String chatId, Integer page, Integer size);
+    List<Message> getChatMessages(Long userId, String chatId, Integer page, Integer size);
 
     /**
      * 发送聊天消息
@@ -92,7 +92,7 @@ public interface ChatService {
      * @param size 每页大小
      * @return 消息列表
      */
-    List<Message> getChatMessagesBySharedChatId(Long sharedChatId, Integer page, Integer size);
+    List<Message> getChatMessagesBySharedChatId(Long userId, Long sharedChatId, Integer page, Integer size);
 
     /**
      * 发送聊天消息（使用sharedChatId）

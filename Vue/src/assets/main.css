@@ -502,3 +502,13 @@
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
     background: var(--apple-text-tertiary) !important;
 }
+:root {
+  --apple-accent-bg: #e3f2fd;
+  --apple-danger-bg: #ffebee;
+  --apple-text-on-accent: #fff;
+  --apple-bg-elevated: var(--apple-bg-primary);
+}
+[data-theme="dark"] {
+  --apple-accent-bg: #15334c;
+  --apple-danger-bg: #421f25;
+}

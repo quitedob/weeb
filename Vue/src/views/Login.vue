@@ -135,7 +135,7 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--apple-blue) 0%, var(--apple-purple) 100%);
+  background: var(--apple-accent-gradient);
   padding: var(--apple-spacing-md);
 }
 
@@ -290,7 +290,7 @@ const handleLogin = async () => {
 /* 暗色主题适配 */
 @media (prefers-color-scheme: dark) {
   .login-card {
-    background: rgba(28, 28, 30, 0.95);
+    background: rgba(28, 28, 28, 0.95);
   }
 }
-</style> 
+</style>

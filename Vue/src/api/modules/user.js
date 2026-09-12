@@ -62,12 +62,12 @@ export function unfollowUser(userId) {
 
 // 获取用户关注列表
 export function getUserFollowing(userId, params = {}) {
-  return axiosInstance.get(`/api/users/${userId}/following`, { params });
+  return axiosInstance.get(`/api/users/${userId}/following`, { params: { ...params, pageSize: params.pageSize ?? params.size } });
 }
 
 // 获取用户粉丝列表
 export function getUserFollowers(userId, params = {}) {
-  return axiosInstance.get(`/api/users/${userId}/followers`, { params });
+  return axiosInstance.get(`/api/users/${userId}/followers`, { params: { ...params, pageSize: params.pageSize ?? params.size } });
 }
 
 // 检查关注状态
@@ -77,12 +77,12 @@ export function checkFollowStatus(userId) {
 
 // 获取关注统计
 export function getFollowStats() {
-  return axiosInstance.get('/api/user-follows/count/me');
+  return axiosInstance.get('/api/follow/stats');
 }
 
 // 获取指定用户的关注统计
 export function getUserFollowStats(userId) {
-  return axiosInstance.get(`/api/user-follows/count/${userId}`);
+  return axiosInstance.get(`/api/follow/stats/${userId}`);
 }
 
 // 获取用户统计信息
@@ -122,7 +122,14 @@ export function resetUserPassword(userId) {
   return axiosInstance.post(`/api/users/${userId}/reset-password`);
 }
 
+export const getSettings = () => axiosInstance.get('/api/users/me/settings');
+export const savePrivacySettings = (settings) => axiosInstance.put('/api/users/me/settings/privacy', settings);
+export const saveNotificationSettings = (settings) => axiosInstance.put('/api/users/me/settings/notifications', settings);
+
 export default {
+  getSettings,
+  savePrivacySettings,
+  saveNotificationSettings,
   getCurrentUser,
   getCurrentUserProfile,
   getCurrentUserInfo,

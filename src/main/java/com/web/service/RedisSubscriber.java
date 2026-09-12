@@ -23,6 +23,9 @@ public class RedisSubscriber {
     @Autowired
     private SimpMessageSendingOperations messagingTemplate;
 
+    @Autowired
+    private UserService userService;
+
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -34,9 +37,13 @@ public class RedisSubscriber {
         try {
             RedisBroadcastMsg broadcastMsg = objectMapper.readValue(message, RedisBroadcastMsg.class);
             if (broadcastMsg != null && broadcastMsg.getTargetUserId() != null && broadcastMsg.getMessageBody() != null) {
+                com.web.model.User recipient = userService.getUserBasicInfo(broadcastMsg.getTargetUserId());
+                if (recipient == null) {
+                    return;
+                }
                 // Send message to specific user using Spring's messaging system
                 messagingTemplate.convertAndSendToUser(
-                    broadcastMsg.getTargetUserId().toString(),
+                    recipient.getUsername(),
                     "/queue/redis",
                     broadcastMsg.getMessageBody()
                 );

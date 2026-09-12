@@ -21,12 +21,14 @@ sql/
 - `02_check_table_structure.sql` - 表结构检查
 
 ### 表创建脚本 (create/)
-**总计: 28张表**
+**总计: 30张表**（包含编号 `06_5`、`28` 和 `29` 的脚本）
 
-#### 用户管理模块 (3张)
+#### 用户管理模块 (5张)
 - `01_create_user_table.sql` - 用户基础信息表
 - `02_create_user_stats_table.sql` - 用户统计数据表
 - `19_create_user_level_history_table.sql` - 用户等级历史表
+- `28_create_user_preferences_table.sql` - 用户隐私与通知偏好；各项默认开启，分区更新互不覆盖
+- `29_create_user_login_day_table.sql` - 每个用户每天最多记录一次成功登录，用于累计登录天数
 
 #### 聊天系统模块 (6张)
 - `04_create_shared_chat_table.sql` - 共享聊天表
@@ -42,7 +44,7 @@ sql/
 - `23_create_group_transfer_history_table.sql` - 群组转让历史表
 - `24_create_group_application_table.sql` - 群组申请表
 
-#### 文章内容模块 (8张)
+#### 文章内容模块 (9张)
 - `08_create_article_table.sql` - 文章内容表
 - `11_create_article_comment_table.sql` - 文章评论表
 - `12_create_article_like_table.sql` - 文章点赞表
@@ -58,13 +60,13 @@ sql/
 - `17_create_user_follow_table.sql` - 用户关注表
 - `22_create_contact_group_table.sql` - 联系人分组表
 
-#### 系统管理模块 (4张)
+#### 系统管理模块 (3张)
 - `09_create_notification_table.sql` - 通知表
 - `18_create_system_log_table.sql` - 系统日志表
 - `21_create_content_report_table.sql` - 内容举报表
 
 ### 数据插入脚本 (insert/)
-- `01_insert_default_users.sql` - 默认用户数据
+- `01_insert_default_users.sql` - 安全管理员配置说明（不创建默认账号或密码）
 - `02_insert_article_categories.sql` - 文章分类数据
 - `03_insert_article_tags.sql` - 文章标签数据
 
@@ -75,23 +77,29 @@ sql/
 
 ## 使用说明
 
-1. **开发环境**: DatabaseInitializer.java 会自动按顺序执行所有 SQL 文件
+1. **开发环境**: DatabaseInitializer.java 按显式清单执行建表、初始分类/标签、索引和检查脚本；迁移脚本需单独执行
 2. **生产环境**: 需要手动执行 SQL 文件或使用数据库迁移工具
-3. **修改规范**: 所有数据库结构变更都应该通过修改对应的 SQL 文件实现
+3. **修改规范**: 新库结构修改对应 create/ 文件；既有数据库的结构变更另提供 migration/ 脚本
 
 ## 执行顺序
 
-1. 检查数据库连接
+1. 从配置的 MySQL URL 确定数据库，确保数据库存在并检查连接
 2. 创建表结构
 3. 插入初始数据
-4. 优化数据库索引
+4. 查询数据库元数据，仅创建尚不存在的同名索引
+5. 执行连接和表结构检查脚本
 
 ## 注意事项
 
-- 所有 SQL 文件都使用 `IF NOT EXISTS` 语法，避免重复创建
-- 索引优化脚本使用 `IF NOT EXISTS` 语法，避免重复创建索引
-- 创建脚本已包含所有必要的字段和索引，无需额外的迁移步骤
+- 建表脚本使用 `CREATE TABLE IF NOT EXISTS`；检查、初始数据和迁移脚本应按各自语义执行
+- 手工执行索引脚本前应检查已有索引，避免同名索引重复创建
+- 初始化器通过数据库元数据跳过已存在的索引；其余 SQL 执行失败会中止初始化
+- 现有数据库不会因 CREATE TABLE IF NOT EXISTS 自动更新列；部署前需执行对应 migration/ 脚本
+- 消息线索后端引用的 `message_threads` 和 `thread_participants` 不在上述 30 张表内，当前没有对应建表脚本；全新部署不支持线索功能
 
 ---
 创建时间: 2025-11-10
-更新说明: 从 DatabaseInitializer.java 提取并重构 SQL 文件，集成迁移逻辑到创建脚本
+建表执行清单以 `src/main/java/com/web/config/DatabaseInitializer.java` 为准；迁移脚本单独部署。
+## 安全迁移
+
+`migration/01_secure_user_roles.sql` 规范既有 user.type 并设为 NOT NULL。先备份并审核现有管理员；脚本不会根据用户名授予权限。新账号始终为 USER，管理员需通过授权运维流程按已验证的用户 ID 设置。生产环境不自动运行迁移。

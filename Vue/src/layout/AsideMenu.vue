@@ -125,7 +125,7 @@ const goToSettings = () => {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--apple-blue), var(--apple-purple));
+  background: var(--apple-accent-gradient);
   display: flex;
   align-items: center;
   justify-content: center;

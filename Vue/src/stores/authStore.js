@@ -15,6 +15,9 @@ export const useAuthStore = defineStore('auth', {
     currentUser: JSON.parse(localStorage.getItem('currentUser')) || null,
     isRefreshing: false,
     refreshPromise: null,
+    preferences: null,
+    preferencesRevision: 0,
+    preferenceRequests: { load: 0, privacy: 0, notifications: 0 },
   }),
   getters: {
     isLoggedIn: (state) => !!state.accessToken,
@@ -33,6 +36,51 @@ export const useAuthStore = defineStore('auth', {
     },
   },
   actions: {
+    async loadPreferences() {
+      const token = this.accessToken;
+      if (!token) return null;
+      const revision = this.preferencesRevision;
+      const request = ++this.preferenceRequests.load;
+      const isCurrent = () => this.accessToken === token && this.preferencesRevision === revision
+        && this.preferenceRequests.load === request;
+      try {
+        const response = await api.user.getSettings();
+        if (!isCurrent()) return null;
+        if (response.code !== 0 || !response.data) throw new Error(response.message || '无法读取设置');
+        this.preferences = response.data;
+        return this.preferences;
+      } catch (error) {
+        if (!isCurrent()) return null;
+        throw error;
+      }
+    },
+    savePrivacyPreferences(privacy) {
+      return this.savePreferencesSection('privacy', privacy);
+    },
+    saveNotificationPreferences(notifications) {
+      return this.savePreferencesSection('notifications', notifications);
+    },
+    async savePreferencesSection(section, settings) {
+      const token = this.accessToken;
+      if (!token) throw new Error('请先登录');
+      const save = section === 'privacy' ? api.user.savePrivacySettings
+        : section === 'notifications' ? api.user.saveNotificationSettings : null;
+      if (!save) throw new Error('未知设置类型');
+      const request = ++this.preferenceRequests[section];
+      ++this.preferencesRevision; // Reads started before this save must not restore older settings.
+      const isCurrent = () => this.accessToken === token && this.preferenceRequests[section] === request;
+      try {
+        const response = await save({ ...settings });
+        if (!isCurrent()) return null;
+        if (response.code !== 0 || !response.data) throw new Error(response.message || '保存失败');
+        ++this.preferencesRevision; // Also invalidate reads that started while the save was pending.
+        this.preferences = { ...this.preferences, [section]: response.data };
+        return response.data;
+      } catch (error) {
+        if (!isCurrent()) return null;
+        throw error;
+      }
+    },
     async login(credentials) {
       try {
         const response = await api.auth.login(credentials);
@@ -138,10 +186,13 @@ export const useAuthStore = defineStore('auth', {
     },
 
     logoutCleanup() {
+      ++this.preferencesRevision;
+      for (const section of Object.keys(this.preferenceRequests)) ++this.preferenceRequests[section];
       this.accessToken = null;
       this.refreshToken = null;
       this.tokenExpiry = null;
       this.currentUser = null;
+      this.preferences = null;
       this.isRefreshing = false;
       this.refreshPromise = null;
       
@@ -167,6 +218,7 @@ export const useAuthStore = defineStore('auth', {
         const chatStore = useChatStore();
         const notificationStore = useNotificationStore();
         
+        chatStore.disconnectWebSocket();
         chatStore.$reset();
         notificationStore.resetState();
       }

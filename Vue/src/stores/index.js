@@ -89,6 +89,7 @@ function setupStoreWatchers() {
         
         // 连接WebSocket
         chatStore.connectWebSocket();
+        authStore.loadPreferences().catch(error => console.error('读取设置失败:', error));
         
         // 开始自动刷新通知
         notificationStore.startAutoRefresh();
@@ -113,7 +114,7 @@ function setupStoreWatchers() {
         notificationStore.resetState();
       }
     },
-    { immediate: false }
+    { immediate: true, flush: 'sync' }
   );
 
   // 监听Token即将过期
@@ -137,9 +138,6 @@ function setupStoreWatchers() {
 
       if (status === 'connected' && oldStatus !== 'connected') {
         console.log('✅ WebSocket已连接');
-        
-        // 连接成功后，拉取离线消息
-        chatStore.fetchOfflineMessages();
       } else if (status === 'error') {
         console.error('❌ WebSocket连接错误');
       }
@@ -157,7 +155,9 @@ function setupStoreWatchers() {
         updatePageTitle(newCount);
         
         // 发送浏览器通知
-        sendBrowserNotification('新消息', `您有 ${newCount} 条未读消息`);
+        if (authStore.preferences?.notifications?.newMessages === true) {
+          sendBrowserNotification('新消息', `您有 ${newCount} 条未读消息`);
+        }
       }
     }
   );

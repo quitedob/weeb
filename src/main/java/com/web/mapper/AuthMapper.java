@@ -88,6 +88,8 @@ public interface AuthMapper {
      */
     int updateUser(User user);
 
+    int updateLoginTime(@Param("userId") Long userId, @Param("loginTime") java.util.Date loginTime);
+
     // 根据用户ID获取用户基本信息
     User selectAuthById(@Param("id") Long id);
 

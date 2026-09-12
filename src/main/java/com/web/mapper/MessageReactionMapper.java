@@ -16,7 +16,7 @@ public interface MessageReactionMapper extends BaseMapper<MessageReaction> {
     /**
      * 查找用户对消息的特定反应
      */
-    @Select("SELECT * FROM message_reaction WHERE message_id = #{messageId} AND user_id = #{userId} AND reaction_type = #{reactionType}")
+    @Select("SELECT id, message_id, user_id, reaction_type, create_time AS created_at FROM message_reaction WHERE message_id = #{messageId} AND user_id = #{userId} AND reaction_type = #{reactionType}")
     MessageReaction findByMessageUserAndType(@Param("messageId") Long messageId, 
                                             @Param("userId") Long userId, 
                                             @Param("reactionType") String reactionType);
@@ -47,8 +47,10 @@ public interface MessageReactionMapper extends BaseMapper<MessageReaction> {
     /**
      * 获取消息的所有反应
      */
-    @Select("SELECT * FROM message_reaction WHERE message_id = #{messageId}")
+    @Select("SELECT id, message_id, user_id, reaction_type, create_time AS created_at FROM message_reaction WHERE message_id = #{messageId} ORDER BY create_time DESC, id DESC")
     List<MessageReaction> findByMessageId(@Param("messageId") Long messageId);
+
+    List<MessageReaction> selectByMessageIds(@Param("messageIds") List<Long> messageIds);
 
     /**
      * 根据消息ID和用户ID查询反应

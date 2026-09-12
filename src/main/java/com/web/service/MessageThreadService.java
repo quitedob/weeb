@@ -23,7 +23,7 @@ public interface MessageThreadService {
      * @param threadId 线索ID
      * @return 线索详情
      */
-    MessageThread getThreadById(Long threadId);
+    MessageThread getThreadById(Long threadId, Long userId);
 
     /**
      * 获取线索中的消息列表
@@ -32,7 +32,7 @@ public interface MessageThreadService {
      * @param pageSize 每页大小
      * @return 消息列表和分页信息
      */
-    Map<String, Object> getThreadMessages(Long threadId, int page, int pageSize);
+    Map<String, Object> getThreadMessages(Long threadId, Long userId, int page, int pageSize);
 
     /**
      * 回复消息到线索
@@ -108,7 +108,7 @@ public interface MessageThreadService {
      * @param pageSize 每页大小
      * @return 线索列表和分页信息
      */
-    Map<String, Object> getActiveThreads(int page, int pageSize);
+    Map<String, Object> getActiveThreads(Long userId, int page, int pageSize);
 
     /**
      * 获取用户创建的线索列表
@@ -126,14 +126,14 @@ public interface MessageThreadService {
      * @param pageSize 每页大小
      * @return 搜索结果
      */
-    Map<String, Object> searchThreads(String keyword, int page, int pageSize);
+    Map<String, Object> searchThreads(Long userId, String keyword, int page, int pageSize);
 
     /**
      * 获取线索统计信息
      * @param threadId 线索ID
      * @return 统计信息
      */
-    Map<String, Object> getThreadStatistics(Long threadId);
+    Map<String, Object> getThreadStatistics(Long threadId, Long userId);
 
     /**
      * 获取用户在指定消息中的线索上下文

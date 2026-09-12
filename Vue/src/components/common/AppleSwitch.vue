@@ -1,5 +1,8 @@
 <template>
-  <div class="apple-switch" :class="switchClass" @click="toggle">
+  <div class="apple-switch" :class="switchClass" role="switch"
+    :aria-checked="modelValue" :aria-disabled="disabled || loading"
+    :aria-busy="loading" :tabindex="disabled || loading ? -1 : 0"
+    @keydown.space.prevent="toggle" @keydown.enter.prevent="toggle" @click="toggle">
     <div class="apple-switch-track">
       <div class="apple-switch-thumb"></div>
     </div>
@@ -94,6 +97,11 @@ export default {
   cursor: pointer;
   user-select: none;
   transition: all 0.2s ease;
+}
+
+.apple-switch:focus-visible {
+  outline: 2px solid var(--apple-blue);
+  outline-offset: 4px;
 }
 
 .apple-switch:active {
