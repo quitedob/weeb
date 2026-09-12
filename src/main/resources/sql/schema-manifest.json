@@ -1,0 +1,69 @@
+{
+  "formatVersion": 1,
+  "migrations": [
+    {
+      "version": "001",
+      "description": "Repository baseline schema and reference data",
+      "resources": [
+        "sql/create/01_create_user_table.sql",
+        "sql/create/02_create_user_stats_table.sql",
+        "sql/create/03_create_group_table.sql",
+        "sql/create/04_create_shared_chat_table.sql",
+        "sql/create/05_create_chat_list_table.sql",
+        "sql/create/06_create_message_table.sql",
+        "sql/create/06_5_create_chat_unread_count_table.sql",
+        "sql/create/07_create_group_member_table.sql",
+        "sql/create/14_create_article_category_table.sql",
+        "sql/create/15_create_article_tag_table.sql",
+        "sql/create/08_create_article_table.sql",
+        "sql/create/09_create_notification_table.sql",
+        "sql/create/10_create_contact_table.sql",
+        "sql/create/11_create_article_comment_table.sql",
+        "sql/create/12_create_article_like_table.sql",
+        "sql/create/13_create_article_favorite_table.sql",
+        "sql/create/16_create_article_tag_relation_table.sql",
+        "sql/create/20_create_article_version_table.sql",
+        "sql/create/25_create_article_moderation_history_table.sql",
+        "sql/create/17_create_user_follow_table.sql",
+        "sql/create/18_create_system_log_table.sql",
+        "sql/create/19_create_user_level_history_table.sql",
+        "sql/create/21_create_content_report_table.sql",
+        "sql/create/22_create_contact_group_table.sql",
+        "sql/create/23_create_group_transfer_history_table.sql",
+        "sql/create/24_create_group_application_table.sql",
+        "sql/create/26_create_message_retry_table.sql",
+        "sql/create/27_create_message_reaction_table.sql",
+        "sql/create/28_create_user_preferences_table.sql",
+        "sql/create/29_create_user_login_day_table.sql",
+        "sql/insert/01_insert_default_users.sql",
+        "sql/insert/04_insert_article_categories_by_name.sql",
+        "sql/insert/03_insert_article_tags.sql",
+        "sql/index/01_optimize_core_indexes.sql",
+        "sql/index/02_optimize_content_indexes.sql",
+        "sql/check/01_check_database_connection.sql",
+        "sql/check/02_check_table_structure.sql"
+      ]
+    },
+    {
+      "version": "002",
+      "description": "Legacy role and reaction timestamp compatibility",
+      "resources": [
+        "sql/migration/V002__legacy_compatibility.sql"
+      ]
+    },
+    {
+      "version": "003",
+      "description": "Durable authentication generations and revocations",
+      "resources": [
+        "sql/migration/V003__auth_token_revocation.sql"
+      ]
+    },
+    {
+      "version": "004",
+      "description": "Sender idempotency, reaction versions and message outbox",
+      "resources": [
+        "sql/migration/V004__message_reliability.sql"
+      ]
+    }
+  ]
+}

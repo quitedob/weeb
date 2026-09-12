@@ -3,6 +3,8 @@ package com.web.security;
 import com.web.mapper.AuthMapper;
 import com.web.model.User;
 import com.web.util.JwtUtil;
+import com.web.exception.AuthStateUnavailableException;
+import com.web.support.InMemoryAuthTokenState;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +49,7 @@ class JwtRevocationTest {
         doAnswer(call -> { values.put(call.getArgument(0), call.getArgument(1)); return null; })
                 .when(operations).set(anyString(), anyString(), any(Duration.class));
         when(redis.hasKey(anyString())).thenAnswer(call -> values.containsKey(call.getArgument(0)));
-        jwt = new JwtUtil(redis, users);
+        jwt = new JwtUtil(redis, users, InMemoryAuthTokenState.create(users));
         ReflectionTestUtils.setField(jwt, "secret", SECRET);
         ReflectionTestUtils.setField(jwt, "expiration", 3600000L);
         jwt.init();
@@ -85,8 +87,8 @@ class JwtRevocationTest {
         String token = jwt.generateToken(1L, user.getUsername());
         values.clear();
         assertFalse(jwt.validateToken(token));
-        when(operations.get(anyString())).thenThrow(new IllegalStateException("offline"));
-        assertFalse(jwt.validateToken(token));
+        when(operations.get(anyString())).thenThrow(new org.springframework.data.redis.RedisConnectionFailureException("offline"));
+        assertThrows(AuthStateUnavailableException.class, () -> jwt.validateToken(token));
     }
 
     @Test void signedResetAndLegacyTokensCannotAuthenticate() {

@@ -14,6 +14,30 @@ import java.util.List;
 @Mapper
 public interface MessageMapper extends BaseMapper<Message> {
 
+    @org.apache.ibatis.annotations.Select("SELECT id FROM shared_chat WHERE id = #{chatId} FOR UPDATE")
+    Long lockSharedChat(@Param("chatId") Long chatId);
+
+    @org.apache.ibatis.annotations.Select("SELECT MAX(id) FROM message WHERE chat_id=#{chatId}")
+    Long selectLatestMessageId(@Param("chatId") Long chatId);
+
+    Message selectBySenderAndClientIdForUpdate(@Param("senderId") Long senderId,
+                                              @Param("clientMessageId") String clientMessageId);
+
+    Message selectMessageForUpdate(@Param("msgId") Long messageId);
+
+    List<Message> selectMessagesAfter(@Param("chatId") Long chatId, @Param("afterId") Long afterId,
+                                     @Param("size") int size);
+
+    @org.apache.ibatis.annotations.Select("SELECT participant_1_id FROM shared_chat WHERE id=#{chatId} AND chat_type='PRIVATE' "
+            + "UNION SELECT participant_2_id FROM shared_chat WHERE id=#{chatId} AND chat_type='PRIVATE' "
+            + "UNION SELECT gm.user_id FROM shared_chat sc JOIN `group` g ON g.shared_chat_id=sc.id "
+            + "JOIN group_member gm ON gm.group_id=g.id WHERE sc.id=#{chatId} AND sc.chat_type='GROUP' "
+            + "AND g.status=1 AND gm.join_status='ACCEPTED' AND gm.kicked_at IS NULL")
+    List<Long> selectCurrentRecipients(@Param("chatId") Long chatId);
+
+    @org.apache.ibatis.annotations.Update("UPDATE message SET reaction_version=reaction_version+1 WHERE id=#{messageId}")
+    int incrementReactionVersion(@Param("messageId") Long messageId);
+
     /**
      * 获取上一条需要显示时间的消息
      *
@@ -174,4 +198,6 @@ public interface MessageMapper extends BaseMapper<Message> {
     List<Message> selectMessagesBySharedChatId(@Param("sharedChatId") Long sharedChatId, 
                                               @Param("offset") int offset, 
                                               @Param("size") int size);
+
+    List<Message> selectMessageStates(@Param("chatId") Long chatId, @Param("messageIds") List<Long> messageIds);
 }

@@ -23,7 +23,7 @@ Page navigation does not own the shared WebSocket lifetime. Contacts and notific
 | Load saved account settings | `authStore.loadPreferences()` |
 | Save privacy or notification preferences for the current session | `authStore.savePrivacyPreferences(section)`, `authStore.saveNotificationPreferences(section)` |
 
-`needsRefresh` becomes true during the final five minutes before token expiry. A timer checks it every minute; simultaneous refresh calls share a promise. The current backend refresh contract uses the existing token in the Authorization header.
+`needsRefresh` becomes true during the final five minutes before token expiry. A timer checks it every minute; simultaneous refresh calls share a promise. The current backend renewal uses a still-valid token in the Authorization header; it has no independent refresh credential. The retained refreshToken compatibility field is not an authorization source. Expired sessions require login. expiresAt is epoch milliseconds; expiresIn is remaining seconds (the previous absolute-ms shape is accepted during transition).
 
 Registration and profile writes use API modules directly: `api.auth.register(data)` and `api.user.updateCurrentUser(data)`. Avatar upload uses `api.user.uploadAvatar(formData)` with multipart field `file`; the response data contains `avatar`. These are not auth-store actions. The backend token validation endpoint is `POST /api/auth/validate`.
 
@@ -51,7 +51,7 @@ Settings uses the guarded store save actions. Session and section versions preve
 | Select a conversation | `setActiveChat(session)` |
 | Fetch message history | `fetchMessagesForChat(chatId, page = 1, limit = null)` |
 | Fetch the next history page | `loadMoreMessages()` |
-| Send through the active conversation | `sendMessage(content, targetId, chatType = 'PRIVATE', messageType = 1)` |
+| Send through the active conversation | `sendMessage(content, targetId, chatType = 'PRIVATE', messageType = 1, options)` |
 | Refresh unread counts | `fetchUnreadStats()` |
 | Persist a read marker | `markChatAsRead(chatId)` |
 | Persist several read markers | `batchMarkAsRead(chatIds)` |
@@ -117,3 +117,11 @@ API modules return `{code, message, data}` through `axiosInstance.js`; success i
 Run `npm run test:run` from `Vue/`. The store lifecycle and API-contract suites cover restored-session startup, connection reuse, subscription destinations and error handling. See [the remediation record](remediation-plan.md) for completed verification and remaining integration work.
 
 There is no exported `newChatStore` in the maintained store registry. Unrouted thread UI prototypes are archived under `docs/legacy/thread-prototypes`. `Vue/src/api/modules/messageThread.js` and backend `/api/threads` handlers remain, but the SQL create scripts do not provide `message_threads` or `thread_participants`; this is not a supported feature of a fresh deployment.
+
+## Late responses and durable recovery
+
+Session epochs, captured credential versions and socket instances guard HTTP and STOMP continuations against cross-account writes and stale401 logout. Cross-tab adoption does not publish another logout. Browser sleep past token expiry requires sign-in; this remains localStorage Bearer authentication, with no new cookie or absolute-session-lifetime mechanism.
+
+Renewal is serialized across tabs by an origin-wide [Web Lock](https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API), held through applying the returned token. Waiting tabs adopt the persisted winner. HTTP failures arriving during that rotation wait before judging the old credential. Browsers/contexts without Web Locks skip automatic renewal and keep the current token until normal expiry/sign-in; no racy localStorage lease substitutes for mutual exclusion. Use HTTPS in deployment (loopback development is also supported).
+
+Stable clientMessageId values survive retry; sender acknowledgements merge before duplicate suppression. READ events cannot roll back a cursor or erase known newer incoming unread messages. Reconnect uses bounded SQL `/sync` plus `/messages/state` refresh of loaded IDs, since old reaction/read/recall changes are not new message IDs. Reaction updates use explicit PUT/DELETE and ignore older reactionVersion responses. No browser-level exactly-once receipt is inferred from broker dispatch. See [contracts](contracts.json).

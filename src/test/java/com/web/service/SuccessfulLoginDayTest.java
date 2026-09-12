@@ -31,7 +31,7 @@ class SuccessfulLoginDayTest {
         user.setStatus(1);
         when(auth.findByUsername("leveluser")).thenReturn(user);
         when(encoder.matches("correct-password", "fixture-hash")).thenReturn(true);
-        when(jwt.generateToken(123L, "leveluser")).thenReturn("local-fixture-token");
+        when(jwt.generateToken(123L, "leveluser", "fixture-hash")).thenReturn("local-fixture-token");
 
         assertThrows(WeebException.class, () -> service.login("leveluser", "wrong-password"));
         verify(users, never()).recordSuccessfulLoginDay(anyLong());

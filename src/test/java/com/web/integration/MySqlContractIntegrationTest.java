@@ -37,13 +37,12 @@ class MySqlContractIntegrationTest {
         org.springframework.test.util.ReflectionTestUtils.setField(initializer, "dataSource", dataSource);
         org.springframework.test.util.ReflectionTestUtils.setField(initializer, "jdbcTemplate", new org.springframework.jdbc.core.JdbcTemplate(dataSource));
         org.springframework.test.util.ReflectionTestUtils.setField(initializer, "environment", new org.springframework.mock.env.MockEnvironment());
-        org.springframework.test.util.ReflectionTestUtils.setField(initializer, "sqlFileLoader", new com.web.util.SqlFileLoader());
         org.springframework.test.util.ReflectionTestUtils.setField(initializer, "databaseUrl", System.getenv("WEEB_TEST_MYSQL_URL"));
         org.springframework.test.util.ReflectionTestUtils.setField(initializer, "dbUsername", dataSource.getUsername());
         org.springframework.test.util.ReflectionTestUtils.setField(initializer, "dbPassword", System.getenv("WEEB_TEST_MYSQL_PASSWORD"));
         initializer.run();
         initializer.run(); // Repeated development startup must preserve the schema and seed data.
-        assertEquals(30, new org.springframework.jdbc.core.JdbcTemplate(dataSource).queryForObject(
+        assertEquals(new com.web.migration.SchemaMigrator(dataSource).requiredTables().size(), new org.springframework.jdbc.core.JdbcTemplate(dataSource).queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()", Integer.class));
         var bean = new MybatisSqlSessionFactoryBean();
         bean.setDataSource(dataSource);

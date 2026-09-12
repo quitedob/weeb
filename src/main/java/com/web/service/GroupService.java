@@ -196,6 +196,12 @@ public interface GroupService extends IService<Group> {
      */
     List<GroupDto> getUserCreatedGroupsWithDetails(Long userId);
 
+    Map<String, Object> getUserGroupsPage(Long userId, int page, int size, boolean excludeOwned);
+
+    Map<String, Object> getUserCreatedGroupsPage(Long userId, int page, int size);
+
+    List<Group> withCurrentUserRoles(Long userId, List<Group> groups);
+
     /**
      * 获取群组详细信息
      * @param groupId 群组ID

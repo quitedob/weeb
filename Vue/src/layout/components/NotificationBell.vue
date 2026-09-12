@@ -39,7 +39,7 @@
               {{ getNotificationIcon(notification.type) }}
             </div>
             <div class="notification-content">
-              <div class="notification-text">{{ notification.content }}</div>
+              <div class="notification-text">{{ getNotificationText(notification) }}</div>
               <div class="notification-time">{{ formatTime(notification.createdAt) }}</div>
             </div>
             <div v-if="!notification.isRead" class="unread-dot"></div>
@@ -67,6 +67,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { ElMessage } from 'element-plus'
+import { getNotificationRoute, getNotificationIcon, getNotificationText } from '@/utils/notificationPresentation'
+import { createRequestScope } from '@/utils/requestScope'
+import { captureSession, isCurrentSession } from '@/utils/session'
 
 const router = useRouter()
 const notificationStore = useNotificationStore()
@@ -75,9 +78,10 @@ const notificationStore = useNotificationStore()
 const showPopover = ref(false)
 const loading = ref(false)
 const bellButton = ref(null)
+const loadScope = createRequestScope()
 
 // 计算属性
-const notifications = computed(() => notificationStore.notifications)
+const notifications = computed(() => notificationStore.notifications.slice(0, 10))
 const unreadCount = computed(() => notificationStore.unreadCount)
 
 // 切换弹窗显示
@@ -91,25 +95,27 @@ const togglePopover = () => {
 // 关闭弹窗
 const closePopover = () => {
   showPopover.value = false
+  loadScope.cancel()
 }
 
 // 加载通知
 const loadNotifications = async () => {
-  if (notifications.value.length === 0) {
+  const request = loadScope.begin()
     loading.value = true
     try {
-      await notificationStore.fetchNotifications()
+      await notificationStore.loadLatestNotifications()
     } catch (error) {
+      if (!request.isCurrent()) return
       console.error('加载通知失败:', error)
       ElMessage.error('加载通知失败')
     } finally {
-      loading.value = false
+      if (request.isCurrent()) loading.value = false
     }
-  }
 }
 
 // 处理通知点击
 const handleNotificationClick = async (notification) => {
+  const session = captureSession()
   if (!notification.isRead) {
     try {
       await notificationStore.markAsRead(notification.id)
@@ -119,116 +125,24 @@ const handleNotificationClick = async (notification) => {
   }
   
   // 根据通知类型跳转到相应页面
-  switch (notification.type) {
-    // 文章相关
-    case 'ARTICLE_LIKE':
-    case 'ARTICLE_COMMENT':
-    case 'ARTICLE_FAVORITE':
-    case 'COMMENT_MENTION':
-      if (notification.entityId) {
-        router.push(`/article/read/${notification.entityId}`)
-      }
-      break
-    
-    // 用户关系
-    case 'NEW_FOLLOWER':
-    case 'FRIEND_ACCEPTED':
-      if (notification.actorId) {
-        router.push(`/user/${notification.actorId}`)
-      }
-      break
-    
-    // 好友申请
-    case 'FRIEND_REQUEST':
-      router.push('/contact?tab=requests')
-      break
-    
-    // 聊天消息
-    case 'CHAT_MESSAGE':
-    case 'PRIVATE_MESSAGE':
-      if (notification.entityId) {
-        router.push(`/chat/private/${notification.entityId}`)
-      } else {
-        router.push('/chat')
-      }
-      break
-    
-    // 群组消息
-    case 'GROUP_MESSAGE':
-      if (notification.entityId) {
-        router.push(`/chat/group/${notification.entityId}`)
-      } else {
-        router.push('/chat')
-      }
-      break
-    
-    // 群组相关
-    case 'GROUP_INVITE':
-    case 'GROUP_JOIN':
-      if (notification.entityId) {
-        router.push(`/group/${notification.entityId}`)
-      } else {
-        router.push('/groups')
-      }
-      break
-    
-    // 联系人更新
-    case 'CONTACT_UPDATED':
-      router.push('/contact')
-      break
-    
-    // 默认跳转到通知列表
-    default:
-      router.push('/notifications')
-  }
-  
+  if (!isCurrentSession(session)) return
+  router.push(getNotificationRoute(notification))
+
   closePopover()
 }
 
 // 全部标记为已读
 const markAllAsRead = async () => {
+  const session = captureSession()
   try {
     await notificationStore.markAllAsRead()
+    if (!isCurrentSession(session)) return
     ElMessage.success('已全部标记为已读')
   } catch (error) {
+    if (!isCurrentSession(session)) return
     console.error('标记全部已读失败:', error)
     ElMessage.error('操作失败')
   }
-}
-
-// 获取通知图标
-const getNotificationIcon = (type) => {
-  const icons = {
-    // 文章相关
-    'ARTICLE_LIKE': '👍',
-    'ARTICLE_COMMENT': '💬',
-    'ARTICLE_FAVORITE': '⭐',
-    
-    // 用户关系
-    'NEW_FOLLOWER': '👤',
-    'FRIEND_REQUEST': '🤝',
-    'FRIEND_ACCEPTED': '✅',
-    'FRIEND_REJECTED': '❌',
-    
-    // 聊天消息
-    'CHAT_MESSAGE': '💬',
-    'GROUP_MESSAGE': '👥',
-    'PRIVATE_MESSAGE': '✉️',
-    
-    // 群组相关
-    'GROUP_INVITE': '📨',
-    'GROUP_JOIN': '🎉',
-    'GROUP_LEAVE': '👋',
-    
-    // 系统通知
-    'SYSTEM': '🔔',
-    'CONTACT_UPDATED': '🔄',
-    
-    // 其他
-    'COMMENT_MENTION': '💬',
-    'default': '📢'
-  }
-  return icons[type] || icons.default
 }
 
 // 格式化时间
@@ -262,6 +176,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  loadScope.cancel()
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
@@ -546,4 +461,4 @@ onUnmounted(() => {
 .empty-text {
   color: var(--apple-text-tertiary);
 }
-</style> 
+</style>

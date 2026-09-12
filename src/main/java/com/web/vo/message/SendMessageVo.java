@@ -9,6 +9,12 @@ import lombok.Data;
 @Data
 public class SendMessageVo {
 
+    @jakarta.validation.constraints.Size(min = 1, max = 100)
+    private String clientMessageId;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private boolean retryAttempt;
+
     @NotNull(message = "目标类型不能为空")
     private String targetType;
 

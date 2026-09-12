@@ -2,6 +2,7 @@ package com.web.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.web.util.JwtUtil;
+import com.web.exception.AuthStateUnavailableException;
 import com.web.util.SecurityAuditUtils;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
@@ -98,12 +99,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         SecurityAuditUtils.logAuthenticationFailure(userDetails.getUsername(), request.getRemoteAddr(), "Username mismatch");
                     }
                 } catch (UsernameNotFoundException e) {
+                    for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+                        if (cause instanceof AuthStateUnavailableException || cause instanceof org.springframework.dao.DataAccessException) {
+                            SecurityContextHolder.clearContext();
+                            handleAuthenticationException(response, "认证服务暂时不可用，请稍后重试", HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                            return;
+                        }
+                    }
                     log.warn("User not found for token userId: {}", userId);
                     SecurityAuditUtils.logAuthenticationFailure("unknown", request.getRemoteAddr(), "User not found");
                     // 不抛出异常，继续处理请求，让后续的认证过滤器处理
                 }
             }
 
+        } catch (AuthStateUnavailableException e) {
+            SecurityContextHolder.clearContext();
+            handleAuthenticationException(response, "认证服务暂时不可用，请稍后重试", HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            return;
         } catch (ExpiredJwtException e) {
             log.warn("JWT token expired: {}", e.getMessage());
             handleAuthenticationException(response, "令牌已过期，请重新登录", HttpServletResponse.SC_UNAUTHORIZED);

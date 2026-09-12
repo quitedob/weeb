@@ -41,6 +41,10 @@ public class Group implements Serializable {
     private Date createTime; // 创建时间
     private Date updateTime; // 更新时间
 
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private String currentUserRole;
+
     // 默认构造函数
     public Group() {
         Date now = new Date();

@@ -1,6 +1,7 @@
 // File path: /Vue/src/stores/authStore.js
 import { defineStore } from 'pinia';
 import api from '@/api';
+import { normalizeTokenExpiry, tokenExpiresAt, withRenewalLock } from '@/utils/session';
 
 export const useAuthStore = defineStore('auth', {
   persist: {
@@ -15,6 +16,9 @@ export const useAuthStore = defineStore('auth', {
     currentUser: JSON.parse(localStorage.getItem('currentUser')) || null,
     isRefreshing: false,
     refreshPromise: null,
+    sessionEpoch: 0,
+    _fetchingUserInfo: null,
+    refreshTimer: null,
     preferences: null,
     preferencesRevision: 0,
     preferenceRequests: { load: 0, privacy: 0, notifications: 0 },
@@ -81,111 +85,95 @@ export const useAuthStore = defineStore('auth', {
         throw error;
       }
     },
+    applyToken(data) {
+      this.tokenExpiry = normalizeTokenExpiry(data);
+      this.refreshToken = data.token;
+      localStorage.setItem('jwt_token', data.token);
+      localStorage.setItem('refresh_token', data.token);
+      if (this.tokenExpiry) localStorage.setItem('token_expiry', this.tokenExpiry);
+      else localStorage.removeItem('token_expiry');
+      this.accessToken = data.token;
+    },
     async login(credentials) {
+      this.logoutCleanup();
+      const epoch = this.sessionEpoch;
       try {
         const response = await api.auth.login(credentials);
-        if (response.code === 0 && response.data) {
-          const { token, user, expiresIn } = response.data;
-          
-          this.accessToken = token;
-          this.refreshToken = token; // 使用同一个token作为refreshToken
-          
-          // 计算token过期时间（当前时间 + expiresIn秒）
-          if (expiresIn) {
-            this.tokenExpiry = (Date.now() + expiresIn * 1000).toString();
-            localStorage.setItem('token_expiry', this.tokenExpiry);
-          }
-          
-          localStorage.setItem('jwt_token', this.accessToken);
-          localStorage.setItem('refresh_token', this.accessToken);
-          
-          // 直接使用登录返回的用户信息
-          if (user) {
-            this.currentUser = user;
-            localStorage.setItem('currentUser', JSON.stringify(user));
-          }
-
-          return true;
-        } else {
-          throw new Error(response.message || '登录失败');
-        }
+        if (epoch !== this.sessionEpoch) return false;
+        if (response.code !== 0 || !response.data?.token) throw new Error(response.message || 'Login failed');
+        this.setCurrentUser(response.data.user);
+        this.applyToken(response.data);
+        return true;
       } catch (error) {
-        this.logoutCleanup();
+        if (epoch !== this.sessionEpoch) return false;
         throw error;
       }
     },
     async fetchUserInfo() {
       if (!this.accessToken) return null;
-      
-      // 防止重复请求：如果正在请求中，返回同一个Promise
-      if (this._fetchingUserInfo) {
-        return this._fetchingUserInfo;
-      }
-      
-      try {
-        this._fetchingUserInfo = api.auth.getUserInfo();
-        const response = await this._fetchingUserInfo;
-        
-        if (response.code === 0 && response.data) { // 后端返回的是 ApiResponse 格式
-          this.currentUser = response.data;
-          localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-          return this.currentUser;
-        }
-        return null;
-      } catch (error) {
-        console.error('fetchUserInfo failed:', error);
-        // 抛出错误，让调用者（如路由守卫）知道验证失败
-        throw error;
-      } finally {
-        this._fetchingUserInfo = null;
-      }
-    },
-    async refreshAccessToken() {
-      if (this.isRefreshing) {
-        return this.refreshPromise;
-      }
-
-      if (!this.accessToken) {
-        throw new Error('No access token available');
-      }
-
-      this.isRefreshing = true;
-      this.refreshPromise = (async () => {
+      if (this._fetchingUserInfo) return this._fetchingUserInfo;
+      const epoch = this.sessionEpoch;
+      const request = (async () => {
         try {
-          const response = await api.auth.refreshToken(this.accessToken);
-          
+          const response = await api.auth.getUserInfo();
+          if (epoch !== this.sessionEpoch) return null;
           if (response.code === 0 && response.data) {
-            const { token, expiresIn } = response.data;
-            
-            this.accessToken = token;
-            this.refreshToken = token;
-            
-            if (expiresIn) {
-              this.tokenExpiry = (Date.now() + expiresIn * 1000).toString();
-              localStorage.setItem('token_expiry', this.tokenExpiry);
-            }
-            
-            localStorage.setItem('jwt_token', this.accessToken);
-            localStorage.setItem('refresh_token', this.accessToken);
-            
-            return token;
-          } else {
-            throw new Error(response.message || 'Token refresh failed');
+            this.setCurrentUser(response.data);
+            return this.currentUser;
           }
+          return null;
         } catch (error) {
-          console.error('Token refresh failed:', error);
-          this.logoutCleanup();
+          if (epoch !== this.sessionEpoch) return null;
           throw error;
         } finally {
-          this.isRefreshing = false;
-          this.refreshPromise = null;
+          if (this._fetchingUserInfo === request) this._fetchingUserInfo = null;
         }
       })();
-
-      return this.refreshPromise;
+      this._fetchingUserInfo = request;
+      return request;
+    },
+    async refreshAccessToken() {
+      if (this.isRefreshing) return this.refreshPromise;
+      if (!this.accessToken) throw new Error('No access token available');
+      const epoch = this.sessionEpoch;
+      const token = this.accessToken;
+      const isCurrent = () => epoch === this.sessionEpoch && token === this.accessToken;
+      this.isRefreshing = true;
+      const request = (async () => {
+        try {
+          return await withRenewalLock(async () => {
+            if (!isCurrent()) return null;
+            // The previous lock holder writes the replacement before releasing it.
+            // A queued tab adopts that credential without consuming it a second time.
+            if (localStorage.getItem('jwt_token') !== token) {
+              this.syncAuthStatus();
+              return this.accessToken;
+            }
+            const response = await api.auth.refreshToken(token);
+            if (!isCurrent()) return null;
+            if (response.code !== 0 || !response.data?.token) throw new Error(response.message || 'Token refresh failed');
+            this.applyToken(response.data);
+            return response.data.token;
+          });
+        } catch (error) {
+          if (!isCurrent()) return null;
+          // The HTTP interceptor clears only a current, invalid credential.
+          // Temporary service failures leave a still-valid token available for retry.
+          throw error;
+        } finally {
+          if (this.refreshPromise === request) {
+            this.isRefreshing = false;
+            this.refreshPromise = null;
+          }
+        }
+      })();
+      this.refreshPromise = request;
+      return request;
     },
 
-    logoutCleanup() {
+    logoutCleanup(clearStorage = true) {
+      ++this.sessionEpoch;
+      this._fetchingUserInfo = null;
       ++this.preferencesRevision;
       for (const section of Object.keys(this.preferenceRequests)) ++this.preferenceRequests[section];
       this.accessToken = null;
@@ -196,66 +184,69 @@ export const useAuthStore = defineStore('auth', {
       this.isRefreshing = false;
       this.refreshPromise = null;
       
-      localStorage.removeItem('jwt_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('token_expiry');
-      localStorage.removeItem('currentUser');
+      if (clearStorage) {
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('token_expiry');
+        localStorage.removeItem('currentUser');
+      }
       
       console.log('AuthStore: State and localStorage cleared for logout.');
     },
     async logout() {
+      const epoch = this.sessionEpoch;
       try {
         await api.auth.logout();
       } catch (error) {
-        console.warn("API logout call failed:", error.message);
+        if (epoch === this.sessionEpoch) console.warn('API logout call failed:', error.message);
       } finally {
+        if (epoch !== this.sessionEpoch) return;
         this.logoutCleanup();
-        
-        // 清理其他Store
-        const { useChatStore } = await import('./chatStore');
-        const { useNotificationStore } = await import('./notificationStore');
-        
+        const clearedEpoch = this.sessionEpoch;
+        const [{ useChatStore }, { useNotificationStore }] = await Promise.all([
+          import('./chatStore'), import('./notificationStore')
+        ]);
+        if (clearedEpoch !== this.sessionEpoch || this.accessToken) return;
         const chatStore = useChatStore();
-        const notificationStore = useNotificationStore();
-        
         chatStore.disconnectWebSocket();
         chatStore.$reset();
-        notificationStore.resetState();
+        useNotificationStore().resetState();
       }
     },
     syncAuthStatus() {
       const token = localStorage.getItem('jwt_token');
-      const refreshToken = localStorage.getItem('refresh_token');
-      const tokenExpiry = localStorage.getItem('token_expiry');
-      
-      if (token) {
-        this.accessToken = token;
-        this.refreshToken = refreshToken;
-        this.tokenExpiry = tokenExpiry;
-        
-        // 检查token是否过期
-        if (this.isTokenExpired) {
-          console.log('Token已过期，尝试刷新');
-          if (this.refreshToken) {
-            this.refreshAccessToken().catch(() => {
-              this.logoutCleanup();
-            });
-          } else {
-            this.logoutCleanup();
-          }
-        } else if (!this.currentUser) {
-          this.fetchUserInfo().catch(() => {
-            this.logoutCleanup();
-          });
-        }
-      } else {
+      const storedExpiry = localStorage.getItem('token_expiry');
+      let storedUser = null;
+      try { storedUser = JSON.parse(localStorage.getItem('currentUser')); } catch { /* Ignore invalid cache. */ }
+      if (!token) {
         this.logoutCleanup();
+        return;
+      }
+      if (token !== this.accessToken) {
+        // Cross-tab account changes must pass through logout so shared stores reset.
+        // Do not echo a logout into shared storage while adopting another tab's session.
+        this.logoutCleanup(false);
+        this.currentUser = storedUser?.user || storedUser;
+      } else if (this.currentUser?.user) {
+        this.currentUser = this.currentUser.user;
+      }
+      const expiresAt = tokenExpiresAt(token) ?? Number(storedExpiry);
+      this.tokenExpiry = normalizeTokenExpiry({ token, expiresAt });
+      this.refreshToken = token;
+      this.accessToken = token;
+      if (this.isTokenExpired) {
+        // The backend renews only a still-valid Bearer token.
+        this.logoutCleanup();
+      } else if (!this.currentUser) {
+        const epoch = this.sessionEpoch;
+        this.fetchUserInfo().catch(() => {});
       }
     },
-    
+
     startTokenRefreshTimer() {
       // 每分钟检查一次token是否需要刷新
-      setInterval(() => {
+      if (this.refreshTimer) return;
+      this.refreshTimer = setInterval(() => {
         if (this.needsRefresh && !this.isRefreshing) {
           console.log('Token即将过期，自动刷新');
           this.refreshAccessToken().catch(error => {
@@ -266,14 +257,15 @@ export const useAuthStore = defineStore('auth', {
     },
     // Utility to update current user info if changed elsewhere (e.g. settings page)
     setCurrentUser(userData) {
-        this.currentUser = userData;
-        localStorage.setItem('currentUser', JSON.stringify(userData));
+        this.currentUser = userData?.user || userData || null;
+        if (this.currentUser) localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+        else localStorage.removeItem('currentUser');
     },
     
     // 添加缺失的 setToken 方法
     setToken(token) {
-        this.accessToken = token;
-        localStorage.setItem('jwt_token', token);
+        if (token !== this.accessToken) this.logoutCleanup();
+        if (token) this.applyToken({ token });
     }
   },
 });

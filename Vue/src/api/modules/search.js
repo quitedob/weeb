@@ -10,9 +10,9 @@ export default {
    * @param {Object} filters - Additional filter parameters
    * @returns {Promise} Axios promise
    */
-  searchGroups(keyword, page = 0, size = 10, filters = {}) {
+  searchGroups(keyword, page = 0, size = 10, filters = {}, options = {}) {
     return axiosInstance.get('/api/search/group', {
-      params: { keyword, page, size, ...filters }
+      ...options, params: { keyword, page, size, ...filters }
     });
   },
 
@@ -24,9 +24,9 @@ export default {
    * @param {Object} filters - Additional filter parameters
    * @returns {Promise} Axios promise
    */
-  searchUsers(keyword, page = 0, size = 10, filters = {}) {
+  searchUsers(keyword, page = 0, size = 10, filters = {}, options = {}) {
     return axiosInstance.get('/api/search/users', {
-      params: { keyword, page, size, ...filters }
+      ...options, params: { keyword, page, size, ...filters }
     });
   },
 
@@ -38,9 +38,9 @@ export default {
    * @param {Object} filters - Additional filter parameters
    * @returns {Promise} Axios promise
    */
-  searchMessages(q, page = 0, size = 10, filters = {}) {
+  searchMessages(q, page = 0, size = 10, filters = {}, options = {}) {
     return axiosInstance.get('/api/search/messages', {
-      params: { q, page, size, ...filters }
+      ...options, params: { q, page, size, ...filters }
     });
   },
 
@@ -52,9 +52,9 @@ export default {
    * @param {Object} filters - Additional filter parameters
    * @returns {Promise} Axios promise
    */
-  searchArticles(query, page = 1, pageSize = 10, filters = {}) {
+  searchArticles(query, page = 1, pageSize = 10, filters = {}, options = {}) {
     return axiosInstance.get('/api/search/articles', {
-      params: { query, page, pageSize, ...filters }
+      ...options, params: { query, page, pageSize, ...filters }
     });
   },
 

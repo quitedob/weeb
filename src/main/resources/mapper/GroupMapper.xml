@@ -190,6 +190,59 @@
         ORDER BY g.create_time DESC
     </select>
 
+    <sql id="pagedGroupColumns">
+        g.id, g.shared_chat_id AS sharedChatId, g.group_name AS groupName,
+        g.group_description AS groupDescription, g.owner_id AS ownerId, u.username AS ownerUsername,
+        g.group_avatar_url AS groupAvatarUrl, g.status, g.max_members AS maxMembers,
+        g.member_count AS memberCount, g.create_time AS createdAt,
+        g.last_transfer_at AS lastTransferAt, g.transfer_count AS transferCount
+    </sql>
+
+    <sql id="joinedGroupPageFilter">
+        FROM `group` g JOIN group_member gm ON gm.group_id = g.id
+        WHERE gm.user_id = #{userId} AND g.status = 1
+          AND gm.join_status = 'ACCEPTED' AND gm.kicked_at IS NULL
+          AND (gm.role IN (2, 3) OR (gm.role = 1 AND gm.user_id = g.owner_id))
+        <if test="excludeOwned">AND g.owner_id != #{userId}</if>
+    </sql>
+
+    <select id="countUserGroups" resultType="long">
+        SELECT COUNT(*) <include refid="joinedGroupPageFilter"/>
+    </select>
+
+    <select id="selectUserGroupsPage" resultType="com.web.dto.GroupDto">
+        SELECT <include refid="pagedGroupColumns"/>, gm.role,
+            CASE gm.role WHEN 1 THEN 'OWNER' WHEN 2 THEN 'ADMIN' WHEN 3 THEN 'MEMBER' END AS currentUserRole
+        FROM `group` g JOIN group_member gm ON gm.group_id = g.id
+        LEFT JOIN `user` u ON u.id = g.owner_id
+        WHERE gm.user_id = #{userId} AND g.status = 1
+          AND gm.join_status = 'ACCEPTED' AND gm.kicked_at IS NULL
+          AND (gm.role IN (2, 3) OR (gm.role = 1 AND gm.user_id = g.owner_id))
+        <if test="excludeOwned">AND g.owner_id != #{userId}</if>
+        ORDER BY g.create_time DESC, g.id DESC LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countUserCreatedGroups" resultType="long">
+        SELECT COUNT(*) FROM `group` WHERE owner_id = #{userId} AND status = 1
+    </select>
+
+    <select id="selectUserCreatedGroupsPage" resultType="com.web.dto.GroupDto">
+        SELECT <include refid="pagedGroupColumns"/>, 1 AS role, 'OWNER' AS currentUserRole
+        FROM `group` g LEFT JOIN `user` u ON u.id = g.owner_id
+        WHERE g.owner_id = #{userId} AND g.status = 1
+        ORDER BY g.create_time DESC, g.id DESC LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="selectCurrentUserRoles" resultType="com.web.dto.GroupDto">
+        SELECT g.id, CASE gm.role WHEN 1 THEN 'OWNER' WHEN 2 THEN 'ADMIN'
+            WHEN 3 THEN 'MEMBER' ELSE 'NON_MEMBER' END AS currentUserRole
+        FROM `group` g LEFT JOIN group_member gm ON gm.group_id = g.id AND gm.user_id = #{userId}
+            AND gm.join_status = 'ACCEPTED' AND gm.kicked_at IS NULL
+            AND (gm.role IN (2, 3) OR (gm.role = 1 AND gm.user_id = g.owner_id))
+        WHERE g.status = 1 AND g.id IN
+        <foreach collection="groupIds" item="groupId" open="(" separator="," close=")">#{groupId}</foreach>
+    </select>
+
     <!-- 查询单个群组详细信息（包含用户角色） -->
     <select id="selectGroupWithDetails" resultType="com.web.dto.GroupDto">
         SELECT 

@@ -25,7 +25,7 @@ No commits, publication, production migration, credential-provider changes, or r
 | 2.7 | Reset credential is short-lived, single-use, delivered privately, never an access token or log entry | PASS: reset security, Redis GETDEL/expiry and loopback SMTP delivery tests; deployed SMTP configuration remains operational work |
 | 2.8 | All retained HTML rendering sanitizes attacker-controlled content; malicious fixtures tested | PASS: safeHtml fixtures, feedback tests and rendering-source inspection |
 | 3.1 | Registration, article actions, profile/settings/follow handle code 0 correctly | PASS: frontend API/user-flow tests and source scan; no code-200 checks remain |
-| 3.2 | Follow lists/counts/status, avatar, group application handling and reactions use implemented contracts | PASS: API/page contract tests, actual follow/avatar HTTP flows, 59 group HTTP checks, role/approval regressions, real MySQL capacity races and approval rollback |
+| 3.2 | Follow lists/counts/status, avatar, group application handling and reactions use implemented contracts | PASS: API/page tests and HTTP flows; 59 group checks plus 45 private-group/reaction checks, nested group profile rendering, notification pagination/routes, real MySQL capacity/rollback and comment/reaction regressions |
 | 3.3 | Login/reload connects; route navigation preserves connection; logout disconnects; notifications arrive | PASS: lifecycle/realtime tests; browser login, reload and chat/settings navigation; 19 final packaged WebSocket assertions verify persisted identity, disconnect cleanup, delivery and passive logout revocation. Vite preserves browser globals for SockJS |
 | 3.4 | Exactly one contact-expiration owner; expired rows retained and acceptance races cannot overwrite accepted rows | PASS: five real two-connection MySQL races plus expiry/acceptance guards; deadlock-only bounded scheduler retry |
 | 4.2-4.4 | Verified unused source removed; lowercase package/resource names; references and builds remain valid | PASS: compile/test/build and old-package reference scan; unused helpers and duplicate jobs removed |
@@ -48,3 +48,15 @@ No commits, publication, production migration, credential-provider changes, or r
 ## Final gates
 
 Focused backend/frontend regressions, clean backend build/tests, frontend build/tests, current-tree diff review, independent security/contract review, and browser/runtime checks where dependencies can be provisioned safely. Use PASS/FAIL/BLOCKED/SKIPPED/OUT_OF_SCOPE with concrete evidence; do not equate a build with runtime verification.
+
+## Follow-up functionality review
+
+The user's deletion and frontend/backend compatibility recheck is recorded in [functionality-recheck.md](functionality-recheck.md). Package/page moves and unused modules were traced against their earlier callers. Missing common emoji choices and meaningful message relevance were restored. Additional fixes align password recovery, group profiles, notification metadata/navigation, article sorting and per-resource search sort parameters. No active page route was removed by the reviewed cleanup; the thread prototype's default-off backend and the SQL search semantics are disclosed.
+
+That functionality phase passed **256 backend tests, zero skips; 101 frontend tests across 22 suites; both production builds passed**. Actual MySQL/Redis, HTTP/STOMP and isolated Chrome evidence is in [verification.md](verification.md). That JAR also passed 28 further search/notification HTTP checks. README covers setup, maintained paths, API distinctions, retained features and optional-service limits. External operational tasks in the acceptance register remain separate.
+
+## Release-hardening follow-up
+
+The [subsequent implementation plan](release-hardening-plan.md) adds sender-scoped idempotency and transactional outbox, bounded reads and reconnect state recovery, durable authentication generations/revocation, session and cross-tab renewal protection, versioned schema/recovery tools, executable contracts and a reproducible release gate. No active source file was deleted in this phase.
+
+The frozen final review snapshot passed **307 backend tests, 159 frontend tests and 23 real HTTP/STOMP/browser checks** with zero skips. Both isolated builds produced identical backend/frontend hashes. The [controlled verification report](release-verification.md) records exact source identity and limitations. External credential/certificate work, production migration and publication remain unverified; P2 capacity and the wider business-boundary review are not marked complete by these local results.

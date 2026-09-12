@@ -44,7 +44,8 @@ class UserPreferencesEnforcementTest {
 
         verify(fixture.preferenceMapper).findByUserId(2L);
         verify(fixture.preferenceMapper, never()).findByUserId(999L);
-        verifyNoInteractions(fixture.messages, fixture.broadcast, fixture.unread);
+        verify(fixture.messages, never()).insertMessage(any());
+        verifyNoInteractions(fixture.outbox, fixture.broadcast, fixture.unread);
         verify(fixture.chats, never()).insertChatList(any());
         verify(fixture.chats, never()).updateLastMessage(anyString(), anyString());
     }
@@ -62,7 +63,8 @@ class UserPreferencesEnforcementTest {
         assertEquals(1L, saved.getSenderId());
         assertEquals(2L, saved.getReceiverId());
         verify(fixture.messages).insertMessage(saved);
-        verify(fixture.broadcast).broadcastMessageToReceiver(saved, 2L);
+        verify(fixture.outbox).enqueueMessage(saved, List.of(1L, 2L));
+        verifyNoInteractions(fixture.broadcast);
         verify(fixture.unread).incrementUnreadCount(2L, 42L, 1);
     }
 
@@ -166,12 +168,14 @@ class UserPreferencesEnforcementTest {
         final ChatListMapper chats = mock(ChatListMapper.class);
         final MessageMapper messages = mock(MessageMapper.class);
         final MessageBroadcastService broadcast = mock(MessageBroadcastService.class);
+        final MessageOutboxService outbox = mock(MessageOutboxService.class);
         final ChatUnreadCountService unread = mock(ChatUnreadCountService.class);
         final UserPreferencesMapper preferenceMapper = mock(UserPreferencesMapper.class);
         final UserPreferences recipientPreferences = new UserPreferences();
         final ChatServiceImpl service = new ChatServiceImpl();
 
         ChatFixture() {
+            when(messages.selectCurrentRecipients(42L)).thenReturn(List.of(1L, 2L));
             when(preferenceMapper.findByUserId(2L)).thenReturn(recipientPreferences);
             ChatList sender = chat("42_1", 1L, 2L);
             when(chats.selectChatListByIdString("42_1")).thenReturn(sender);
@@ -181,6 +185,7 @@ class UserPreferencesEnforcementTest {
             ReflectionTestUtils.setField(service, "chatListMapper", chats);
             ReflectionTestUtils.setField(service, "messageMapper", messages);
             ReflectionTestUtils.setField(service, "messageBroadcastService", broadcast);
+            ReflectionTestUtils.setField(service, "messageOutboxService", outbox);
             ReflectionTestUtils.setField(service, "chatUnreadCountService", unread);
             ReflectionTestUtils.setField(service, "chatAccessService", new ChatAccessService(chats));
             ReflectionTestUtils.setField(service, "preferencesService", new UserPreferencesService(preferenceMapper));

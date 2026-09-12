@@ -21,6 +21,8 @@ A separate local [history-cleanup preview](history-cleanup-preview.md) now verif
 
 ## Local verification services
 
+The current release gate uses the pinned images and fresh-host Compose recipe in [release instructions](release.md). Its test bootstrap migrates only `127.0.0.1`/`localhost:23306/weeb_audit`; migration tests own separate random `weeb_audit_migration_*` databases. Production uses the standalone [schema CLI](schema-migrations.md) and read-only startup validation. Credential usage and issuer-side rejection evidence remain tracked in [credential closure](credential-closure.md).
+
 During remediation, isolated Docker containers named `weeb-audit-mysql-20260911` and `weeb-audit-redis-20260911` provide MySQL on loopback port 23306 and Redis on loopback port 16379. Their temporary database and generated credentials are separate from the application deployment. Credentials are stored only in ignored `.local/verification/mysql.env`.
 
 The opt-in `MySqlContractIntegrationTest` reads `WEEB_TEST_MYSQL_URL`, `WEEB_TEST_MYSQL_USERNAME`, and `WEEB_TEST_MYSQL_PASSWORD`, requires a database name containing `weeb_audit`, loads the relevant production schema/mappers, and rolls back each test's data. Ordinary test runs skip that integration class unless explicitly configured.

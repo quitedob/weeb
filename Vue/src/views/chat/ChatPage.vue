@@ -128,6 +128,8 @@
             <button @click="loadMoreMessages" :disabled="!canLoadMore" class="icon-btn" title="加载更多">
               <span>⬆️</span>
             </button>
+            <button v-if="chatStore.currentChatPagination?.hasNewer" @click="navigateHistory('newer')" :disabled="isLoadingMessages" class="icon-btn" title="较新消息">⬇️</button>
+            <button v-if="chatStore.currentChatPagination?.hasNewer" @click="navigateHistory('latest')" :disabled="isLoadingMessages" class="icon-btn" title="返回最新">返回最新</button>
             <button @click="showChatInfo = !showChatInfo" class="icon-btn" title="聊天信息">
               <span>ℹ️</span>
             </button>
@@ -144,6 +146,7 @@
             <div
               v-for="(msg, index) in messages"
               :key="msg.id || msg.tempId"
+              :data-message-id="msg.id || msg.tempId"
               :class="['message-item', { 'is-me': msg.isFromMe }]"
             >
               <!-- 时间分隔符 -->
@@ -177,16 +180,17 @@
                       </div>
 
                       <!-- 消息状态 -->
-                      <div v-if="msg.isFromMe && !msg.isRecalled" class="message-status">
-                        <span v-if="msg.status === 'sending'">⏳</span>
-                        <span v-else-if="msg.status === 'sent'">✓</span>
-                        <span v-else-if="msg.status === 'delivered'">✓✓</span>
-                        <span v-else-if="msg.status === 'read'">✓✓</span>
+                      <div v-if="msg.isFromMe && !msg.isRecalled" class="message-status" :title="getStatusText(msg.status)">
+                        <span v-if="msg.status === MESSAGE_STATUS.SENDING">⏳</span>
+                        <span v-else-if="msg.status === MESSAGE_STATUS.SENT">✓</span>
+                        <span v-else-if="msg.status === MESSAGE_STATUS.DELIVERED">✓✓</span>
+                        <span v-else-if="msg.status === MESSAGE_STATUS.READ">✓✓</span>
+                        <button v-if="msg.status === MESSAGE_STATUS.FAILED" class="action-btn" @click="retryMessage(msg)">重试</button>
                       </div>
                     </div>
 
                     <!-- 消息操作按钮 -->
-                    <div v-if="!msg.isRecalled" class="message-actions">
+                    <div v-if="!msg.isRecalled && isPersistedId(msg.id)" class="message-actions">
                       <button @click="showReactionPicker(msg)" class="action-btn" title="添加反应">
                         <span>😊</span>
                       </button>
@@ -407,6 +411,9 @@ import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { ElMessage } from 'element-plus';
 import api from '@/api';
+import { captureSession, isCurrentSession } from '@/utils/session';
+import { MESSAGE_STATUS, getStatusText } from '@/utils/messageStatus';
+import { highestMessageId, isPersistedId, sameId } from '@/utils/chatProtocol';
 
 const router = useRouter();
 const route = useRoute();
@@ -672,6 +679,7 @@ const loadContacts = async () => {
 };
 
 const selectChat = async (chat) => {
+  const session = captureSession();
   console.log('🎯 选择聊天:', chat);
 
   if (!chat) {
@@ -736,6 +744,7 @@ const selectChat = async (chat) => {
   try {
     console.log('📥 开始加载消息: sharedChatId=', normalizedChatId);
     await chatStore.fetchMessagesForChat(normalizedChatId);
+    if (!isCurrentSession(session) || !sameId(activeChatId.value, normalizedChatId)) return;
     console.log('✅ 消息加载完成，消息数量:', messages.value.length);
 
     // ✅ 如果是群聊，加载群成员
@@ -743,13 +752,15 @@ const selectChat = async (chat) => {
       const groupId = chat.groupId || chat.group_id || normalizedChatId;
       console.log('👥 加载群成员: groupId=', groupId);
       await loadGroupMembers(groupId);
+      if (!isCurrentSession(session) || !sameId(activeChatId.value, normalizedChatId)) return;
     }
 
-    await nextTick();
-    scrollToBottom();
+    await acknowledgeRenderedMessages();
+    if (!isCurrentSession(session) || !sameId(activeChatId.value, normalizedChatId)) return;
     console.log('✅ 聊天切换完成');
     ElMessage.success('聊天切换成功');
   } catch (error) {
+    if (!isCurrentSession(session) || !sameId(activeChatId.value, normalizedChatId)) return;
     console.error('❌ 加载消息失败:', error);
     console.error('🐛 BUG REPORT: fetchMessagesForChat failed', {
       error: error.message,
@@ -763,7 +774,7 @@ const selectChat = async (chat) => {
     activeChatId.value = null;
     chatStore.clearActiveChat();
   } finally {
-    isLoadingMessages.value = false;
+    if (isCurrentSession(session) && sameId(activeChatId.value, normalizedChatId)) isLoadingMessages.value = false;
   }
 };
 
@@ -811,64 +822,30 @@ const createNewChat = async (targetId) => {
 
 const sendMessage = async () => {
   if (!canSendMessage.value) return;
-
+  const session = captureSession();
+  const chatId = activeChatId.value;
   const content = messageInput.value.trim();
   const file = selectedFile.value;
-
   messageInput.value = '';
   selectedFile.value = null;
-
   try {
-    // 构造符合后端TextMessageContent结构的消息内容
-    const textMessageContent = {
-      content: content || '[文件]',
-      contentType: 1, // TextContentType.TEXT.getCode()
-      url: file ? file.name : null,
-      atUidList: []
-    };
-
-    const messageData = {
-      content: textMessageContent,
-      messageType: file ? 2 : 1
-    };
-
-    if (chatStore.isConnected) {
-      console.log('📤 通过WebSocket发送消息...');
-      // 通过WebSocket发送
-      // 获取当前聊天的类型
-      const currentChatType = chatStore.activeChatSession?.type || 'PRIVATE';
-
-      await chatStore.sendMessage(
-        content || '[文件]',
-        activeChatId.value,
-        currentChatType,
-        file ? 2 : 1
-      );
-    } else {
-      console.log('📤 WebSocket未连接，使用HTTP发送消息...');
-      // 降级到HTTP - 使用正确的消息结构
-      const response = await api.chat.sendMessage(activeChatId.value, messageData);
-      console.log('📨 HTTP发送响应:', response);
-
-      if (response.code === 0) {
-        console.log('✅ 消息发送成功（HTTP）');
-        console.log('📥 重新加载消息列表...');
-        // 重新加载消息列表以显示新消息
-        await chatStore.fetchMessagesForChat(activeChatId.value);
-        console.log('📋 当前消息数量:', messages.value.length);
-      } else {
-        throw new Error(response.message || '发送失败');
-      }
-    }
-
+    await chatStore.sendMessage({ content: content || '[文件]', contentType: 1,
+      url: file ? file.name : null, atUidList: [] }, chatId,
+      chatStore.activeChatSession?.type || 'PRIVATE', file ? 2 : 1);
+    if (!isCurrentSession(session) || !sameId(chatId, activeChatId.value)) return;
     await nextTick();
-    scrollToBottom();
+    if (isCurrentSession(session)) scrollToBottom();
   } catch (error) {
-    console.error('❌ 发送消息失败:', error);
-    appleMessage.error('发送消息失败: ' + (error.message || '未知错误'));
-    messageInput.value = content;
-    selectedFile.value = file;
+    if (!isCurrentSession(session)) return;
+    // Keep the failed message and its stable client ID available through Retry.
+    appleMessage.error(error.message || 'Message send failed');
   }
+};
+
+const retryMessage = async message => {
+  const session = captureSession();
+  try { await chatStore.retryMessage(message); }
+  catch (error) { if (isCurrentSession(session)) appleMessage.error(error.message || 'Message send failed'); }
 };
 
 const recallMessage = async (message) => {
@@ -887,12 +864,38 @@ const recallMessage = async (message) => {
 
 const loadMoreMessages = async () => {
   if (!canLoadMore.value) return;
-  
+  await navigateHistory('older');
+};
+
+const navigatingHistory = ref(false);
+const navigateHistory = async (direction) => {
+  if (isLoadingMessages.value || navigatingHistory.value) return;
+  const session = captureSession();
+  const chatId = activeChatId.value;
+  const container = messageContainerRef.value;
+  const anchor = [...(container?.querySelectorAll('[data-message-id]') || [])]
+    .find(element => element.getBoundingClientRect().bottom >= container.getBoundingClientRect().top);
+  const anchorId = anchor?.dataset.messageId;
+  const offset = anchor?.getBoundingClientRect().top;
+  navigatingHistory.value = true;
   try {
-    await chatStore.loadMoreMessages();
+    if (direction === 'older') await chatStore.loadMoreMessages();
+    else if (direction === 'newer') await chatStore.loadNewerMessages();
+    else await chatStore.loadLatestMessages();
+    await nextTick();
+    if (!isCurrentSession(session) || !sameId(chatId, activeChatId.value)) return;
+    if (direction === 'latest') scrollToBottom();
+    else {
+      const replacement = [...(container?.querySelectorAll('[data-message-id]') || [])]
+        .find(element => element.dataset.messageId === anchorId);
+      if (replacement) container.scrollTop += replacement.getBoundingClientRect().top - offset;
+    }
   } catch (error) {
-    console.error('加载更多消息失败:', error);
+    if (isCurrentSession(session)) ElMessage.error('加载消息失败，请重试');
+  } finally {
+    if (isCurrentSession(session)) navigatingHistory.value = false;
   }
+  if (!chatStore.currentChatPagination?.hasNewer) await acknowledgeRenderedMessages();
 };
 
 const showReactionPicker = (message) => {
@@ -900,24 +903,30 @@ const showReactionPicker = (message) => {
   showReactionPickerDialog.value = true;
 };
 
+const reactionRequests = new Set();
+const setReaction = async (message, emoji, present) => {
+  const session = captureSession();
+  const key = `${message.id}:${emoji}`;
+  if (reactionRequests.has(key)) return;
+  reactionRequests.add(key);
+  try {
+    const response = await api.chat.setReaction(message.id, emoji, present);
+    if (!isCurrentSession(session)) return;
+    if (response.code === 0 && response.data) chatStore.handleReactionChange(response.data);
+  } catch (error) {
+    if (isCurrentSession(session)) console.error('Reaction update failed:', error);
+  } finally { reactionRequests.delete(key); }
+};
+
 const addReaction = async (message, emoji) => {
   showReactionPickerDialog.value = false;
-  
-  try {
-    await api.chat.addReaction(message.id, emoji);
-    
-    // The endpoint toggles this user's reaction; the broadcast supplies authoritative counts.
-  } catch (error) {
-    console.error('添加反应失败:', error);
-  }
+  await setReaction(message, emoji, true);
 };
 
 const toggleReaction = async (message, emoji) => {
-  try {
-    await api.chat.addReaction(message.id, emoji);
-  } catch (error) {
-    console.error('切换反应失败:', error);
-  }
+  const reaction = message.reactions?.find(item => item.emoji === emoji);
+  const alreadyPresent = reaction?.userIds?.some(id => sameId(id, authStore.currentUser?.id));
+  await setReaction(message, emoji, !alreadyPresent);
 };
 
 const handleKeyDown = (event) => {
@@ -1391,9 +1400,17 @@ onUnmounted(() => {
 });
 
 // 监听消息更新
-watch(() => chatStore.messagesForCurrentChat, () => {
-  nextTick(() => scrollToBottom());
-}, { deep: true });
+const acknowledgeRenderedMessages = async () => {
+  const session = captureSession();
+  const chatId = activeChatId.value;
+  await nextTick();
+  if (!isCurrentSession(session) || !sameId(chatId, activeChatId.value) || !messageContainerRef.value) return;
+  if (navigatingHistory.value || chatStore.currentChatPagination?.hasNewer) return;
+  scrollToBottom();
+  const cursor = highestMessageId(messages.value);
+  if (isPersistedId(cursor)) await chatStore.markChatAsRead?.(chatId, cursor);
+};
+watch(() => chatStore.messagesForCurrentChat, acknowledgeRenderedMessages, { deep: true });
 
 // 监听打字状态
 watch(() => chatStore.isTypingInCurrentChat, (newVal) => {

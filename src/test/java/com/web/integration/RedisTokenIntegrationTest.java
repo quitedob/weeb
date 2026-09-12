@@ -2,6 +2,8 @@ package com.web.integration;
 
 import com.web.exception.WeebException;
 import com.web.mapper.AuthMapper;
+import com.web.mapper.AuthTokenStateMapper;
+import com.web.support.InMemoryAuthTokenState;
 import com.web.mapper.UserMapper;
 import com.web.model.User;
 import com.web.service.PasswordResetDeliveryService;
@@ -46,6 +48,7 @@ class RedisTokenIntegrationTest {
     private LettuceConnectionFactory connectionFactory;
     private StringRedisTemplate redis;
     private AuthMapper auth;
+    private AuthTokenStateMapper tokenState;
     private UserMapper users;
     private JwtUtil jwt;
     private PasswordResetServiceImpl reset;
@@ -81,6 +84,7 @@ class RedisTokenIntegrationTest {
         when(auth.findByEmail(email)).thenAnswer(call -> userSnapshot());
         when(users.compareAndSetPassword(eq(userId), anyString(), anyString())).thenAnswer(call ->
                 passwordHash.compareAndSet(call.getArgument(2), call.getArgument(1)) ? 1 : 0);
+        tokenState = InMemoryAuthTokenState.create(auth);
         jwt = createJwt(30_000L);
 
         PasswordResetDeliveryService delivery = mock(PasswordResetDeliveryService.class);
@@ -195,7 +199,7 @@ class RedisTokenIntegrationTest {
     }
 
     private JwtUtil createJwt(long expiration) {
-        JwtUtil instance = new JwtUtil(redis, auth);
+        JwtUtil instance = new JwtUtil(redis, auth, tokenState);
         ReflectionTestUtils.setField(instance, "secret", TEST_SECRET);
         ReflectionTestUtils.setField(instance, "expiration", expiration);
         instance.init();

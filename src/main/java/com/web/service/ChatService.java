@@ -67,6 +67,8 @@ public interface ChatService {
      */
     void addReaction(Long userId, Long messageId, String reactionType);
 
+    java.util.Map<String, Object> setReaction(Long userId, Long messageId, String reactionType, boolean present);
+
     /**
      * 撤回消息
      * @param userId 用户ID
@@ -110,6 +112,12 @@ public interface ChatService {
      * @return 操作结果
      */
     boolean markAsReadBySharedChatId(Long userId, Long sharedChatId);
+
+    java.util.Map<String, Object> markAsReadBySharedChatId(Long userId, Long sharedChatId, Long lastReadMessageId);
+
+    java.util.Map<String, Object> syncMessages(Long userId, Long sharedChatId, Long afterMessageId, int size);
+
+    List<Message> getMessageStates(Long userId, Long sharedChatId, List<Long> messageIds);
 
     /**
      * 删除聊天会话（使用sharedChatId）

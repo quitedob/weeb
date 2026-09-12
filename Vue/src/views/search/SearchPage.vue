@@ -112,8 +112,8 @@
                   <el-option label="相关度" value="relevance" />
                   <el-option label="时间（最新）" value="time_desc" />
                   <el-option label="时间（最早）" value="time_asc" />
-                  <el-option label="用户名（A-Z）" value="username_asc" />
-                  <el-option label="用户名（Z-A）" value="username_desc" />
+                  <el-option label="名称/标题（A-Z）" value="username_asc" />
+                  <el-option label="名称/标题（Z-A）" value="username_desc" />
                 </el-select>
               </div>
 
@@ -215,8 +215,8 @@
             <template #footer>
               <div class="card-footer">
                 <el-button type="primary" text @click="viewGroupDetail(group.id)">查看详情</el-button>
-                <el-button type="success" text @click="joinGroup(group.id)" :disabled="isMemberOf(group.id)">
-                  {{ isMemberOf(group.id) ? '已加入' : '申请加入' }}
+                <el-button type="success" text @click="joinGroup(group.id)" :disabled="isMemberOf(group)">
+                  {{ isMemberOf(group) ? '已加入' : '申请加入' }}
                 </el-button>
               </div>
             </template>
@@ -348,7 +348,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onUnmounted } from 'vue';
+import { createRequestScope } from '@/utils/requestScope';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -358,6 +359,9 @@ import searchApi from '@/api/modules/search';
 import groupApi from '@/api/modules/group';
 import contactApi from '@/api/modules/contact';
 import articleApi from '@/api/modules/article';
+
+const requestScopes = Object.fromEntries(['all', 'users', 'groups', 'articles', 'messages', 'userFilter', 'groupFilter'].map(key => [key, createRequestScope()]));
+onUnmounted(() => Object.values(requestScopes).forEach(scope => scope.cancel()));
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -418,10 +422,11 @@ const articlePagination = reactive({
 });
 
 // 用户加入的群组列表（用于判断是否已加入）
-const userGroups = ref([]);
+
 
 // 执行搜索
 const performSearch = async () => {
+  const request = requestScopes.all.begin();
   if (!searchQuery.value.trim()) {
     ElMessage.warning('请输入搜索关键词');
     return;
@@ -439,15 +444,16 @@ const performSearch = async () => {
       searchMessages()
     ]);
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('搜索失败:', error);
     ElMessage.error('搜索失败');
   } finally {
-    searching.value = false;
+    if (request.isCurrent()) searching.value = false;
   }
 };
 
 // 构建搜索参数
-const buildSearchParams = () => {
+const buildSearchParams = (resource) => {
   const params = {};
 
   // 日期范围
@@ -471,55 +477,72 @@ const buildSearchParams = () => {
     params.groupIds = selectedGroups.value.join(',');
   }
 
-  // 排序方式
-  params.sortBy = sortBy.value;
+  // 各资源接口使用各自的排序字段，保留同一个筛选器的排序方向。
+  const selection = sortBy.value;
+  if (resource === 'articles') {
+    params.sortBy = selection.startsWith('time_') ? 'created_at'
+      : selection.startsWith('username_') ? 'title' : 'relevance';
+    params.sortOrder = selection.endsWith('_asc') ? 'asc' : 'desc';
+  } else if (resource === 'users' || resource === 'groups') {
+    params.sortBy = selection.replace(/^username_/, 'name_');
+  } else {
+    params.sortBy = selection;
+  }
 
   return params;
 };
 
 // 搜索过滤器中的用户
 const searchUsersForFilter = async (query) => {
+  const request = requestScopes.userFilter.begin();
   if (!query) {
     userFilterOptions.value = [];
+    if (request.isCurrent()) loadingUsersForFilter.value = false;
     return;
   }
 
   loadingUsersForFilter.value = true;
   try {
-    const response = await searchApi.searchUsers(query, 0, 20);
+    const response = await searchApi.searchUsers(query, 0, 20, {}, { signal: request.signal });
+    if (!request.isCurrent()) return;
     if (response.code === 0 && response.data) {
       userFilterOptions.value = response.data.list || [];
     } else {
       userFilterOptions.value = [];
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('搜索过滤器用户失败:', error);
     userFilterOptions.value = [];
   } finally {
-    loadingUsersForFilter.value = false;
+    if (request.isCurrent()) loadingUsersForFilter.value = false;
   }
 };
 
 // 搜索过滤器中的群组
 const searchGroupsForFilter = async (query) => {
+  const request = requestScopes.groupFilter.begin();
   if (!query) {
     groupFilterOptions.value = [];
+    if (request.isCurrent()) loadingGroupsForFilter.value = false;
     return;
   }
 
   loadingGroupsForFilter.value = true;
   try {
-    const response = await searchApi.searchGroups(query, 0, 20);
+    const response = await searchApi.searchGroups(query, 0, 20, {}, { signal: request.signal });
+    if (!request.isCurrent()) return;
     if (response.code === 0 && response.data) {
       groupFilterOptions.value = response.data.list || [];
     } else {
       groupFilterOptions.value = [];
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('搜索过滤器群组失败:', error);
     groupFilterOptions.value = [];
   } finally {
-    loadingGroupsForFilter.value = false;
+    if (request.isCurrent()) loadingGroupsForFilter.value = false;
   }
 };
 
@@ -536,10 +559,12 @@ const resetFilters = () => {
 
 // 搜索用户
 const searchUsers = async (page = 1, pageSize = 10) => {
+  const request = requestScopes.users.begin();
   loadingUsers.value = true;
   try {
-    const filterParams = buildSearchParams();
-    const response = await searchApi.searchUsers(searchQuery.value, page - 1, pageSize, filterParams);
+    const filterParams = buildSearchParams('users');
+    const response = await searchApi.searchUsers(searchQuery.value, page - 1, pageSize, filterParams, { signal: request.signal });
+    if (!request.isCurrent()) return;
     if (response.code === 0 && response.data) {
       userResults.value = response.data.list || [];
       userPagination.total = response.data.total || 0;
@@ -550,20 +575,23 @@ const searchUsers = async (page = 1, pageSize = 10) => {
       userPagination.total = 0;
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('搜索用户失败:', error);
     userResults.value = [];
     userPagination.total = 0;
   } finally {
-    loadingUsers.value = false;
+    if (request.isCurrent()) loadingUsers.value = false;
   }
 };
 
 // 搜索群组
 const searchGroups = async (page = 1, pageSize = 10) => {
+  const request = requestScopes.groups.begin();
   loadingGroups.value = true;
   try {
-    const filterParams = buildSearchParams();
-    const response = await searchApi.searchGroups(searchQuery.value, page - 1, pageSize, filterParams);
+    const filterParams = buildSearchParams('groups');
+    const response = await searchApi.searchGroups(searchQuery.value, page - 1, pageSize, filterParams, { signal: request.signal });
+    if (!request.isCurrent()) return;
     if (response.code === 0 && response.data) {
       groupResults.value = response.data.list || [];
       groupPagination.total = response.data.total || 0;
@@ -574,20 +602,23 @@ const searchGroups = async (page = 1, pageSize = 10) => {
       groupPagination.total = 0;
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('搜索群组失败:', error);
     groupResults.value = [];
     groupPagination.total = 0;
   } finally {
-    loadingGroups.value = false;
+    if (request.isCurrent()) loadingGroups.value = false;
   }
 };
 
 // 搜索文章
 const searchArticles = async (page = 1, pageSize = 10) => {
+  const request = requestScopes.articles.begin();
   loadingArticles.value = true;
   try {
-    const filterParams = buildSearchParams();
-    const response = await searchApi.searchArticles(searchQuery.value, page, pageSize, filterParams);
+    const filterParams = buildSearchParams('articles');
+    const response = await searchApi.searchArticles(searchQuery.value, page, pageSize, filterParams, { signal: request.signal });
+    if (!request.isCurrent()) return;
     if (response.code === 0 && response.data) {
       articleResults.value = response.data.list || [];
       articlePagination.total = response.data.total || 0;
@@ -598,20 +629,23 @@ const searchArticles = async (page = 1, pageSize = 10) => {
       articlePagination.total = 0;
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('搜索文章失败:', error);
     articleResults.value = [];
     articlePagination.total = 0;
   } finally {
-    loadingArticles.value = false;
+    if (request.isCurrent()) loadingArticles.value = false;
   }
 };
 
 // 搜索消息
 const searchMessages = async (page = 1, pageSize = 10) => {
+  const request = requestScopes.messages.begin();
   loadingMessages.value = true;
   try {
-    const filterParams = buildSearchParams();
-    const response = await searchApi.searchMessages(searchQuery.value, page - 1, pageSize, filterParams);
+    const filterParams = buildSearchParams('messages');
+    const response = await searchApi.searchMessages(searchQuery.value, page - 1, pageSize, filterParams, { signal: request.signal });
+    if (!request.isCurrent()) return;
     if (response.code === 0 && response.data) {
       messageResults.value = response.data.list || [];
       messagePagination.total = response.data.total || 0;
@@ -622,11 +656,12 @@ const searchMessages = async (page = 1, pageSize = 10) => {
       messagePagination.total = 0;
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('搜索消息失败:', error);
     messageResults.value = [];
     messagePagination.total = 0;
   } finally {
-    loadingMessages.value = false;
+    if (request.isCurrent()) loadingMessages.value = false;
   }
 };
 
@@ -702,7 +737,7 @@ const joinGroup = async (groupId) => {
       if (response.code === 0) {
         ElMessage.success('申请加入成功');
         // 刷新用户群组列表
-        fetchUserGroups();
+
       } else {
         ElMessage.error(response.message || '申请失败');
       }
@@ -718,22 +753,9 @@ const joinGroup = async (groupId) => {
 };
 
 // 获取用户群组列表
-const fetchUserGroups = async () => {
-  try {
-    const response = await groupApi.getUserJoinedGroups();
-    if (response.code === 0 && response.data) {
-      userGroups.value = response.data;
-    }
-  } catch (error) {
-    console.error('获取用户群组失败:', error);
-  }
-};
 
 // 检查是否已经是群成员
-const isMemberOf = (groupId) => {
-  return userGroups.value.some(group => group.id === groupId);
-};
-
+const isMemberOf = group => ['OWNER', 'ADMIN', 'MEMBER'].includes(group.currentUserRole);
 // 跳转到消息
 const goToMessage = (message) => {
   const sharedChatId = message.sharedChatId ?? message.chatId;
@@ -802,12 +824,6 @@ const formatDate = (dateString) => {
 };
 
 // 组件挂载时获取用户群组列表
-import { onMounted } from 'vue';
-onMounted(() => {
-  if (authStore.currentUser) {
-    fetchUserGroups();
-  }
-});
 </script>
 
 <style scoped>

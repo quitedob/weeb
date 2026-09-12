@@ -49,7 +49,7 @@ class ConcurrentAccountMutationTest {
             return 1;
         });
         when(users.updateStatus(1L, 0)).thenAnswer(call -> { persistedStatus.set(0); return 1; });
-        when(jwt.generateToken(1L, "account")).thenReturn("fixture-token");
+        when(jwt.generateToken(1L, "account", "old-hash")).thenReturn("fixture-token");
         var executor = Executors.newSingleThreadExecutor();
         try {
             Future<String> login = executor.submit(() -> service.login("account", "password"));

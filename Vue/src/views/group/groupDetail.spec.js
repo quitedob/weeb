@@ -5,7 +5,7 @@ import GroupDetail from './GroupDetail.vue'
 
 const { api, auth } = vi.hoisted(() => ({
   api: {
-    group: { getGroupDetails: vi.fn(), getMembers: vi.fn(), kickMember: vi.fn(), updateGroup: vi.fn() },
+    group: { getGroupDetails: vi.fn(), getMembers: vi.fn(), kickMember: vi.fn(), updateGroup: vi.fn(), getGroupApplications: vi.fn() },
     user: { getUserById: vi.fn() }
   },
   auth: { currentUser: { id: '2' } }
@@ -35,7 +35,8 @@ beforeEach(() => {
   vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
   vi.spyOn(ElLoading, 'service').mockReturnValue({ close: vi.fn() })
   api.group.getMembers.mockResolvedValue({ code: 0, data: members })
-  api.user.getUserById.mockResolvedValue({ code: 0, data: { id: 1, username: 'Owner' } })
+  api.user.getUserById.mockResolvedValue({ code: 0, data: { user: { id: 1, username: 'Owner' }, stats: {} } })
+  api.group.getGroupApplications.mockResolvedValue({ code: 0, data: [] })
   api.group.kickMember.mockResolvedValue({ code: 0 })
   api.group.updateGroup.mockResolvedValue({ code: 0 })
 })
@@ -62,6 +63,23 @@ const memberRow = username => wrapper.findAll('.members-table .el-table__row').f
 const removeButtons = username => memberRow(username).findAll('button').filter(button => button.text() === '踢出')
 
 describe('group detail API contracts', () => {
+  it('reads owner and applicant profiles from the backend UserWithStats envelope', async () => {
+    api.user.getUserById.mockImplementation(async id => ({ code: 0, data: {
+      user: { id: Number(id), username: Number(id) === 1 ? 'ProfileOwner' : 'ProfileApplicant', avatar: '/uploads/avatars/profile.png' },
+      stats: { followersCount: 7 }
+    } }))
+    api.group.getGroupApplications.mockResolvedValue({ code: 0, data: [
+      { id: 19, userId: 9, status: 'PENDING', message: 'Please accept' }
+    ] })
+    await render('OWNER', '1')
+    expect(wrapper.get('.group-info-desc').text()).toContain('ProfileOwner')
+    await wrapper.findAll('[role="tab"]').find(tab => tab.text() === '申请管理').trigger('click')
+    await wrapper.findAll('button').find(button => button.text() === '刷新待审批').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.applications-table').text()).toContain('ProfileApplicant')
+    expect(wrapper.get('.applications-table img').attributes('src')).toBe('/uploads/avatars/profile.png')
+  })
+
   it('renders numeric roles and lets an administrator remove only ordinary members', async () => {
     await render('ADMIN', '2')
     await showMembers()

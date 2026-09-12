@@ -54,13 +54,19 @@ public class WebSocketMessageController {
     @MessageMapping("/chat.sendMessage")
     public void sendMessage(@Payload Map<String, Object> payload, Principal principal) {
         User user = requireUser(principal);
-        Long sharedChatId = chatAccessService.resolveRoom(user.getId(), stringValue(payload.get("roomId")));
+        Long sharedChatId = chatAccessService.resolveRoom(user.getId(), stringValue(
+                payload.get("sharedChatId") != null ? payload.get("sharedChatId") : payload.get("roomId")));
         saveAndConfirm(user, sharedChatId, null, payload);
     }
 
     @MessageMapping("/chat/private")
     public void sendPrivateMessage(@Payload Map<String, Object> payload, Principal principal) {
         User user = requireUser(principal);
+        if (payload.get("sharedChatId") != null) {
+            Long sharedChatId = chatAccessService.resolveRoom(user.getId(), "private_" + payload.get("sharedChatId"));
+            saveAndConfirm(user, sharedChatId, null, payload);
+            return;
+        }
         ChatList chat;
         if (payload.get("chatId") != null) {
             chat = chatAccessService.requireOwnedChat(user.getId(), payload.get("chatId").toString());
@@ -84,25 +90,11 @@ public class WebSocketMessageController {
 
     private void saveAndConfirm(User user, Long sharedChatId, String chatId, Map<String, Object> payload) {
         String clientId = stringValue(payload.get("clientMessageId"));
-        // A client-generated identifier is scoped to its authenticated sender.
-        String deduplicationKey = clientId == null ? null : user.getId() + ":" + clientId;
-        if (deduplicationKey != null && deduplicationService.isDuplicate(deduplicationKey)) {
-            Long id = deduplicationService.getMessageId(deduplicationKey);
-            Message existing = id == null ? null : messageMapper.selectMessageById(id);
-            if (existing != null && user.getId().equals(existing.getSenderId())
-                    && sharedChatId.equals(existing.getChatId())) {
-                messageBroadcastService.confirmMessageToSender(existing, user.getId(), clientId);
-                return;
-            }
-            throw new IllegalArgumentException("Client message ID already used");
-        }
+        // The shared database transaction owns idempotency for both HTTP and STOMP.
         Message message = toMessage(payload, user.getId());
         Message saved = chatId == null
                 ? chatService.sendMessageBySharedChatId(user.getId(), sharedChatId, message)
                 : chatService.sendMessage(user.getId(), chatId, message);
-        if (deduplicationKey != null) {
-            deduplicationService.markAsProcessed(deduplicationKey, saved.getId());
-        }
         messageBroadcastService.confirmMessageToSender(saved, user.getId(), clientId);
     }
 
@@ -114,6 +106,9 @@ public class WebSocketMessageController {
             content.setUrl(stringValue(values.get("url")));
             content.setContentType(values.get("contentType") == null ? 1
                     : Integer.valueOf(values.get("contentType").toString()));
+            if (values.get("atUidList") instanceof java.util.List<?> mentions) {
+                content.setAtUidList(mentions.stream().map(value -> Integer.valueOf(value.toString())).toList());
+            }
         } else {
             content.setContent(stringValue(rawContent));
             content.setUrl(stringValue(payload.get("url")));
@@ -121,6 +116,7 @@ public class WebSocketMessageController {
             content.setContentType("image".equals(type) ? 2 : "file".equals(type) ? 3 : 1);
         }
         Message message = new Message();
+        message.setClientMessageId(stringValue(payload.get("clientMessageId")));
         message.setSenderId(userId);
         message.setContent(content);
         message.setMessageType(payload.get("messageType") == null ? 1
@@ -180,30 +176,34 @@ public class WebSocketMessageController {
     @MessageMapping("/chat/read-receipt")
     public void handleReadReceipt(@Payload Map<String, Object> receipt, Principal principal) {
         User user = requireUser(principal);
-        ChatList chat = chatAccessService.requireOwnedChat(user.getId(), stringValue(receipt.get("chatId")));
-        Long messageId = longValue(receipt.get("messageId"));
-        Message message = messageId == null ? null : messageMapper.selectMessageById(messageId);
-        if (message == null || !chat.getSharedChatId().equals(message.getChatId())) {
-            throw new AccessDeniedException("Message is not in this conversation");
-        }
-        chatService.markAsReadBySharedChatId(user.getId(), chat.getSharedChatId());
-        User sender = userService.getUserBasicInfo(message.getSenderId());
-        if (sender != null && !user.getId().equals(sender.getId())) {
-            Map<String, Object> event = new HashMap<>();
-            event.put("chatId", chat.getSharedChatId());
-            event.put("messageId", messageId);
-            event.put("status", Message.STATUS_READ);
-            event.put("timestamp", LocalDateTime.now());
-            messagingTemplate.convertAndSendToUser(sender.getUsername(), "/queue/read-receipt", event);
-        }
+        Long chatId = chatAccessService.resolveRoom(user.getId(), stringValue(receipt.get("chatId")));
+        Long boundary = longValue(receipt.get("lastReadMessageId") != null
+                ? receipt.get("lastReadMessageId") : receipt.get("messageId"));
+        if (boundary == null) throw new IllegalArgumentException("Read boundary required");
+        chatService.markAsReadBySharedChatId(user.getId(), chatId, boundary);
+    }
+
+    public void handleException(Exception exception, Principal principal) {
+        handleException(exception, principal, null);
     }
 
     @MessageExceptionHandler
-    public void handleException(Exception exception, Principal principal) {
+    public void handleException(Exception exception, Principal principal, org.springframework.messaging.Message<?> failedMessage) {
         log.warn("WebSocket request rejected: {}", exception.getClass().getSimpleName());
         if (principal != null) {
-            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors",
-                    Map.of("type", "error", "message", "Message request rejected"));
+            Map<String, Object> error = new HashMap<>(Map.of("type", "error", "message", "Message request rejected"));
+            if (failedMessage != null) {
+                try {
+                    Object payload = failedMessage.getPayload();
+                    com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+                    Map<?, ?> values = payload instanceof Map<?, ?> map ? map
+                            : payload instanceof byte[] bytes ? json.readValue(bytes, Map.class)
+                            : json.readValue(payload.toString(), Map.class);
+                    String clientId = stringValue(values.get("clientMessageId"));
+                    if (clientId != null && !clientId.isBlank() && clientId.length() <= 100) error.put("clientMessageId", clientId);
+                } catch (Exception ignored) { /* Do not expose the rejected payload. */ }
+            }
+            messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/errors", error);
         }
     }
 

@@ -14,7 +14,7 @@ describe('uploaded avatar URLs', () => {
   it('supports the production default and relative API bases', () => {
     vi.stubEnv('DEV', false)
     vi.stubEnv('VITE_API_BASE_URL', '')
-    expect(resolveAssetUrl(path)).toBe('http://localhost:8080' + path)
+    expect(resolveAssetUrl(path)).toBe(window.location.origin + path)
     vi.stubEnv('VITE_API_BASE_URL', '/')
     expect(resolveAssetUrl(path)).toBe(window.location.origin + path)
   })

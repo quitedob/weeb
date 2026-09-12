@@ -130,6 +130,18 @@ public interface GroupMapper extends BaseMapper<Group> {
      */
     List<GroupDto> selectUserCreatedGroupsWithDetails(@Param("userId") Long userId);
 
+    List<GroupDto> selectUserGroupsPage(@Param("userId") Long userId, @Param("offset") long offset,
+                                      @Param("size") int size, @Param("excludeOwned") boolean excludeOwned);
+
+    long countUserGroups(@Param("userId") Long userId, @Param("excludeOwned") boolean excludeOwned);
+
+    List<GroupDto> selectUserCreatedGroupsPage(@Param("userId") Long userId, @Param("offset") long offset,
+                                             @Param("size") int size);
+
+    long countUserCreatedGroups(@Param("userId") Long userId);
+
+    List<GroupDto> selectCurrentUserRoles(@Param("userId") Long userId, @Param("groupIds") List<Long> groupIds);
+
     /**
      * 查询单个群组详细信息（包含用户角色）
      * @param groupId 群组ID

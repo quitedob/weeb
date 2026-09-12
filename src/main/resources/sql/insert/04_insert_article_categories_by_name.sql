@@ -1,0 +1,26 @@
+-- Resolve parents by their unique name; preserve existing catalogs and nonstandard IDs.
+INSERT IGNORE INTO article_category(category_name,parent_id) VALUES ('技术',NULL);
+INSERT IGNORE INTO article_category(category_name,parent_id) VALUES ('生活',NULL);
+INSERT IGNORE INTO article_category(category_name,parent_id) VALUES ('娱乐',NULL);
+INSERT IGNORE INTO article_category(category_name,parent_id) VALUES ('体育',NULL);
+INSERT IGNORE INTO article_category(category_name,parent_id) VALUES ('新闻',NULL);
+INSERT IGNORE INTO article_category(category_name,parent_id) VALUES ('教育',NULL);
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '前端开发',id FROM article_category WHERE category_name='技术';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '后端开发',id FROM article_category WHERE category_name='技术';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '移动开发',id FROM article_category WHERE category_name='技术';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '数据库',id FROM article_category WHERE category_name='技术';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '美食',id FROM article_category WHERE category_name='生活';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '旅游',id FROM article_category WHERE category_name='生活';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '健康',id FROM article_category WHERE category_name='生活';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '电影',id FROM article_category WHERE category_name='娱乐';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '音乐',id FROM article_category WHERE category_name='娱乐';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '游戏',id FROM article_category WHERE category_name='娱乐';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '足球',id FROM article_category WHERE category_name='体育';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '篮球',id FROM article_category WHERE category_name='体育';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '网球',id FROM article_category WHERE category_name='体育';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '国内新闻',id FROM article_category WHERE category_name='新闻';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '国际新闻',id FROM article_category WHERE category_name='新闻';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '科技新闻',id FROM article_category WHERE category_name='新闻';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '编程教程',id FROM article_category WHERE category_name='教育';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '语言学习',id FROM article_category WHERE category_name='教育';
+INSERT IGNORE INTO article_category(category_name,parent_id) SELECT '职业发展',id FROM article_category WHERE category_name='教育';

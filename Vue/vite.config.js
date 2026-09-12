@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import path from 'path';
+import { proxyOrigin } from './src/utils/serviceUrls.js';
 
 export default defineConfig(async ({ mode }) => {
   // 加载环境变量
@@ -36,17 +37,17 @@ export default defineConfig(async ({ mode }) => {
       port: 5173, // 确保端口号正确
       proxy: {
         '/api': { // 代理所有/api开头的请求
-          target: env.VITE_API_BASE_URL || 'http://localhost:8080',
+          target: proxyOrigin(env.VITE_API_BASE_URL),
           changeOrigin: true,
           secure: false,
         },
         '/uploads': {
-          target: env.VITE_API_BASE_URL || 'http://localhost:8080',
+          target: proxyOrigin(env.VITE_API_BASE_URL),
           changeOrigin: true,
           secure: false,
         },
         '/ws': { // 代理WebSocket连接
-          target: env.VITE_WS_URL || 'http://localhost:8080',
+          target: proxyOrigin(env.VITE_WS_URL, proxyOrigin(env.VITE_API_BASE_URL)),
           changeOrigin: true,
           secure: false,
           ws: true, // 启用WebSocket代理
@@ -60,6 +61,9 @@ export default defineConfig(async ({ mode }) => {
     // 构建优化配置
     build: {
       target: 'es2015',
+      // SockJS has conditional/cyclic CommonJS imports. Explicit wrapping avoids
+      // plugin auto-detection races producing different bundles from identical sources.
+      commonjsOptions: { strictRequires: true },
       minify: 'terser',
       terserOptions: {
         compress: {

@@ -8,15 +8,19 @@ import appleMessage from '@/utils/appleMessage';
 import { useAuthStore } from '@/stores/authStore';
 import { log } from '@/utils/logger';
 import { resolveAvatarUrls } from '@/utils/assetUrl';
+import { captureSession, isCurrentSession, isCurrentCredential, waitForCredentialRenewal } from '@/utils/session';
+import { apiBaseUrl } from '@/utils/serviceUrls';
+
+const staleRequest = config => new axios.CanceledError('Request belongs to an inactive session', config);
+// A renewal request already owns the lock; waiting on itself would deadlock.
+const isRenewalRequest = config => config?.url?.split('?')[0].endsWith('/api/auth/refresh');
 
 // 区分开发环境和生产环境的 baseURL
 // 1. 开发环境 (import.meta.env.DEV) 时，使用相对路径 '/'
 //    这样所有请求（如 /api/auth/login）都会发往 http://localhost:5173
 //    然后被 vite.config.js 中的 proxy 拦截并转发到 http://localhost:8080，完美避开CORS。
 // 2. 生产环境 (import.meta.env.PROD) 时，才使用 .env 文件中配置的 VITE_API_BASE_URL。
-const API_BASE_URL = import.meta.env.DEV
-  ? '/'
-  : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'); // 生产环境的回退地址
+const API_BASE_URL = apiBaseUrl();
 
 export const instance = axios.create({
   baseURL: API_BASE_URL,
@@ -39,7 +43,12 @@ instance.interceptors.request.use(
       // 尝试从 Pinia store 获取 token（在请求时调用，确保 Pinia 已初始化）
       const authStore = useAuthStore();
       token = authStore.accessToken;
+      if (config.authSession && !isCurrentSession(config.authSession)) throw staleRequest(config);
+      const previousToken = config.headers?.Authorization?.replace(/^Bearer /, '');
+      if (!config.authSession && previousToken && previousToken !== token) throw staleRequest(config);
+      config.authSession = { ...captureSession(), token: token ?? null };
     } catch (error) {
+      if (axios.isCancel(error)) throw error;
       // 如果 Pinia 还未初始化或出现其他错误，回退到 localStorage
       log.warn('Pinia store not available, falling back to localStorage:', error);
       token = localStorage.getItem('jwt_token');
@@ -49,14 +58,17 @@ instance.interceptors.request.use(
     if (token) {
       config.headers = config.headers || {};
       config.headers['Authorization'] = `Bearer ${token}`;
+    } else if (config.authSession) {
+      delete config.headers.Authorization;
     }
 
     return config;
   },
   (error) => {
     log.error('Request Error Interceptor:', error);
-    return Promise.reject(error);
-  }
+    throw error;
+  },
+  { synchronous: true }
 );
 
 /* ----- 响应拦截器 -----
@@ -65,7 +77,9 @@ instance.interceptors.request.use(
    2. 处理 token 失效（code === -1 或 HTTP 401）时清理 localStorage & Pinia 并跳转到 /login
 */
 instance.interceptors.response.use(
-  (response) => {
+  async (response) => {
+    const session = response.config?.authSession;
+    if (session && !isCurrentSession(session)) throw staleRequest(response.config);
     if (response.status === 204) {
       return { code: 0, message: '', data: null };
     }
@@ -79,10 +93,12 @@ instance.interceptors.response.use(
 
     // 处理业务错误（code !== 0）
     if (res.code !== 0) {
+      if (res.code === 1002 && !isRenewalRequest(response.config)) await waitForCredentialRenewal(session);
+      if (res.code === 1002 && session && !isCurrentCredential(session)) throw staleRequest(response.config);
       appleMessage.error(res.message || '请求失败', 5000);
 
       // ApiResponse.ErrorCode.UNAUTHORIZED = 1002; system errors retain the session.
-      if (res.code === 1002) {
+      if (res.code === 1002 && useAuthStore().accessToken) {
         // **核心修改点**：只清理状态，不跳转页面
         useAuthStore().logoutCleanup();
       }
@@ -94,13 +110,19 @@ instance.interceptors.response.use(
     return { ...res, data: resolveAvatarUrls(res.data) };
   },
   async (error) => {
+    if (axios.isCancel(error)) return Promise.reject(error);
+    const session = error.config?.authSession;
+    if (error.response?.status === 401 && !isRenewalRequest(error.config)) await waitForCredentialRenewal(session);
+    if (session && (!isCurrentSession(session) || (error.response?.status === 401 && !isCurrentCredential(session)))) {
+      return Promise.reject(staleRequest(error.config));
+    }
     log.error('Response Error Interceptor:', { status: error.response?.status, message: error.message });
     let message = error.message;
     let shouldRetry = false;
 
     if (error.response) {
       const status = error.response.status;
-      if (status === 401) useAuthStore().logoutCleanup();
+      if (status === 401 && useAuthStore().accessToken) useAuthStore().logoutCleanup();
       const messages = {
         401: '认证失败，请重新登录', 403: '禁止访问', 404: '请求资源未找到',
         408: '请求超时', 429: '请求过于频繁，请稍后再试',

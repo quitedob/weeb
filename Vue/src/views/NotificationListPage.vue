@@ -26,6 +26,10 @@
 
       <!-- 通知列表 -->
       <div class="notification-container">
+        <div v-if="notificationStore.firstPage > 1" class="load-more">
+          <el-button :disabled="isLoading" @click="navigateWindow('newer')">较新通知</el-button>
+          <el-button :disabled="isLoading" @click="navigateWindow('latest')">返回最新</el-button>
+        </div>
         <div v-if="isLoading && notifications.length === 0" class="loading-state">
           <el-skeleton :rows="5" animated />
         </div>
@@ -91,6 +95,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { getNotificationRoute, getNotificationTypeText, getNotificationText } from '@/utils/notificationPresentation';
+import { captureSession, isCurrentSession } from '@/utils/session';
 
 const router = useRouter();
 const notificationStore = useNotificationStore();
@@ -109,18 +115,22 @@ const hasMoreNotifications = computed(() => {
 
 // 方法
 const markAllAsRead = async () => {
+  const session = captureSession();
   try {
     isMarkingAllAsRead.value = true;
     await notificationStore.markAllAsRead();
+    if (!isCurrentSession(session)) return;
     ElMessage.success('已标记所有通知为已读');
   } catch (error) {
+    if (!isCurrentSession(session)) return;
     ElMessage.error('操作失败，请重试');
   } finally {
-    isMarkingAllAsRead.value = false;
+    if (isCurrentSession(session)) isMarkingAllAsRead.value = false;
   }
 };
 
 const deleteReadNotifications = async () => {
+  const session = captureSession();
   try {
     await ElMessageBox.confirm(
       '确定要删除所有已读通知吗？此操作不可恢复。',
@@ -132,15 +142,18 @@ const deleteReadNotifications = async () => {
       }
     );
 
+    if (!isCurrentSession(session)) return;
     isDeleting.value = true;
     await notificationStore.deleteReadNotifications();
+    if (!isCurrentSession(session)) return;
     ElMessage.success('已删除所有已读通知');
   } catch (error) {
+    if (!isCurrentSession(session)) return;
     if (error !== 'cancel') {
       ElMessage.error('删除失败，请重试');
     }
   } finally {
-    isDeleting.value = false;
+    if (isCurrentSession(session)) isDeleting.value = false;
   }
 };
 
@@ -153,6 +166,7 @@ const markAsRead = async (notificationId) => {
 };
 
 const handleNotificationClick = async (notification) => {
+  const session = captureSession();
   // 如果通知未读，标记为已读
   if (!notification.isRead) {
     try {
@@ -163,20 +177,8 @@ const handleNotificationClick = async (notification) => {
   }
   
   // 根据通知类型跳转到相应页面
-  switch (notification.type) {
-    case 'ARTICLE_LIKE':
-      router.push(`/article/${notification.entityId}`);
-      break;
-    case 'NEW_FOLLOWER':
-      router.push(`/user/${notification.actorId}`);
-      break;
-    case 'COMMENT':
-      router.push(`/article/${notification.entityId}`);
-      break;
-    default:
-      // 默认跳转到通知页面
-      router.push('/notifications');
-  }
+  if (!isCurrentSession(session)) return;
+  router.push(getNotificationRoute(notification));
 };
 
 const loadMoreNotifications = async () => {
@@ -187,29 +189,13 @@ const loadMoreNotifications = async () => {
   }
 };
 
-const getNotificationTypeText = (type) => {
-  switch (type) {
-    case 'ARTICLE_LIKE':
-      return '文章点赞';
-    case 'NEW_FOLLOWER':
-      return '新关注者';
-    case 'COMMENT':
-      return '评论';
-    default:
-      return '通知';
-  }
-};
-
-const getNotificationText = (notification) => {
-  switch (notification.type) {
-    case 'ARTICLE_LIKE':
-      return '有人点赞了你的文章';
-    case 'NEW_FOLLOWER':
-      return '有人关注了你';
-    case 'COMMENT':
-      return '有人评论了你的文章';
-    default:
-      return '你有一条新通知';
+const navigateWindow = async (direction) => {
+  const session = captureSession();
+  try {
+    if (direction === 'latest') await notificationStore.loadLatestNotifications();
+    else await notificationStore.loadNewerNotifications();
+  } catch (error) {
+    if (isCurrentSession(session)) ElMessage.error('加载通知失败，请重试');
   }
 };
 
@@ -396,4 +382,4 @@ onMounted(async () => {
     margin-right: 12px;
   }
 }
-</style> 
+</style>

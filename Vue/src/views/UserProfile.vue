@@ -214,6 +214,7 @@
 
 <script setup>
 import appleMessage from '@/utils/appleMessage';
+import { captureSession, isCurrentSession } from '@/utils/session';
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
@@ -255,6 +256,7 @@ const currentUser = computed(() => authStore.currentUser);
 
 // 方法
 const loadUserData = async () => {
+  const requestSession = captureSession();
   try {
     loading.value = true;
     error.value = null;
@@ -264,10 +266,12 @@ const loadUserData = async () => {
       // 获取用户统计信息
       try {
         const statsResponse = await api.user.getUserStats(currentUser.value.id);
+        if (!isCurrentSession(requestSession)) return;
         if (statsResponse.code === 0) {
           userStats.value = statsResponse.data || {};
         }
       } catch (err) {
+        if (!isCurrentSession(requestSession)) return;
         console.warn('获取用户统计失败:', err);
         userStats.value = {
           articleCount: 0,
@@ -280,10 +284,12 @@ const loadUserData = async () => {
       // 获取最近活动
       try {
         const activityResponse = await api.user.getUserActivities(currentUser.value.id);
+        if (!isCurrentSession(requestSession)) return;
         if (activityResponse.code === 0) {
           recentActivities.value = activityResponse.data || [];
         }
       } catch (err) {
+        if (!isCurrentSession(requestSession)) return;
         console.warn('获取最近活动失败:', err);
         recentActivities.value = [];
       }
@@ -292,10 +298,11 @@ const loadUserData = async () => {
       resetEditForm();
     }
   } catch (err) {
+    if (!isCurrentSession(requestSession)) return;
     console.error('加载用户数据失败:', err);
     error.value = '加载用户数据失败，请稍后重试';
   } finally {
-    loading.value = false;
+    if (isCurrentSession(requestSession)) loading.value = false;
   }
 };
 
@@ -379,10 +386,12 @@ const isValidEmail = (email) => {
 };
 
 const handleAvatarChange = () => {
+  const requestSession = captureSession();
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
   input.onchange = async (event) => {
+    if (!isCurrentSession(requestSession)) return;
     const file = event.target.files[0];
     if (file) {
       // 验证文件类型和大小
@@ -399,6 +408,7 @@ const handleAvatarChange = () => {
       try {
         await uploadAvatar(file);
       } catch (error) {
+        if (!isCurrentSession(requestSession)) return;
         console.error('头像上传失败:', error);
         appleMessage.error('头像上传失败: ' + error.message);
       }
@@ -408,10 +418,12 @@ const handleAvatarChange = () => {
 };
 
 const uploadAvatar = async (file) => {
+  const requestSession = captureSession();
   const formData = new FormData();
   formData.append('file', file);
 
   const response = await api.user.uploadAvatar(formData);
+  if (!isCurrentSession(requestSession)) return;
 
   if (response.code === 0 && response.data) {
     // 更新用户头像URL
@@ -428,6 +440,7 @@ const uploadAvatar = async (file) => {
 };
 
 const saveProfile = async () => {
+  const requestSession = captureSession();
   try {
     // 验证表单
     if (!validateForm()) {
@@ -442,6 +455,7 @@ const saveProfile = async () => {
       bio: editForm.value.bio?.trim() || null,
       email: editForm.value.email?.trim() || null
     });
+    if (!isCurrentSession(requestSession)) return;
 
     if (response.code === 0) {
       // 更新本地用户信息
@@ -458,14 +472,16 @@ const saveProfile = async () => {
 
       // 重新加载用户数据以获取最新信息
       await loadUserData();
+      if (!isCurrentSession(requestSession)) return;
     } else {
       throw new Error(response.message || '更新失败');
     }
   } catch (err) {
+    if (!isCurrentSession(requestSession)) return;
     console.error('保存个人资料失败:', err);
     appleMessage.error('保存失败: ' + err.message);
   } finally {
-    saving.value = false;
+    if (isCurrentSession(requestSession)) saving.value = false;
   }
 };
 

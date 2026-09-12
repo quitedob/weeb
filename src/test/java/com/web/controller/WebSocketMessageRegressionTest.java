@@ -87,22 +87,22 @@ class WebSocketMessageRegressionTest {
     }
 
     @Test
-    void readReceiptChecksMessageConversationAndRoutesToActualSender() {
+    void readReceiptPassesObservedBoundaryToTransactionalServiceAndDoesNotPushBeforeCommit() {
         when(chatMapper.selectChatListByIdString("5_1")).thenReturn(chat());
         when(chatMapper.canUserAccessSharedChat(1L, 5L)).thenReturn(true);
         Message message = new Message();
         message.setId(8L);
         message.setSenderId(2L);
         message.setChatId(6L);
-        when(messageMapper.selectMessageById(8L)).thenReturn(message);
+        when(chatService.markAsReadBySharedChatId(1L, 5L, 8L)).thenThrow(new AccessDeniedException("foreign boundary"));
         assertThrows(AccessDeniedException.class,
                 () -> controller.handleReadReceipt(Map.of("chatId", "5_1", "messageId", 8L), () -> "alice"));
-        verifyNoInteractions(chatService, template);
-        message.setChatId(5L);
+        verifyNoInteractions(template);
+        doReturn(Map.of("lastReadMessageId", 8L)).when(chatService).markAsReadBySharedChatId(1L, 5L, 8L);
         when(users.getUserBasicInfo(2L)).thenReturn(user(2L, "bob"));
         controller.handleReadReceipt(Map.of("chatId", "5_1", "messageId", 8L), () -> "alice");
-        verify(chatService).markAsReadBySharedChatId(1L, 5L);
-        verify(template).convertAndSendToUser(eq("bob"), eq("/queue/read-receipt"), any(Object.class));
+        verify(chatService, times(2)).markAsReadBySharedChatId(1L, 5L, 8L);
+        verifyNoInteractions(template);
     }
 
     private static User user(Long id, String username) {

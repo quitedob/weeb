@@ -26,6 +26,9 @@ public class Message implements Serializable {
     
     private String clientMessageId; // 客户端消息ID（用于幂等性）
 
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+    private Long reactionVersion = 0L;
+
     private Long senderId; // 发送者ID
     private Long receiverId; // 接收者ID（私聊时使用）
     private Long groupId; // 群组ID（群聊时使用）

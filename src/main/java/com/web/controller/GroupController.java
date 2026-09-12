@@ -350,13 +350,19 @@ public class GroupController {
      * 搜索群组
      * GET /api/groups/search?q=keyword&limit=10
      */
-    @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<Group>>> searchGroups(
-            @RequestParam("q") String keyword,
-            @RequestParam(defaultValue = "10") int limit) {
+            String keyword, int limit) {
+        return searchGroupsForUser(null, keyword, limit);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<Group>>> searchGroupsForUser(@Userid Long userId,
+            @RequestParam("q") String keyword, @RequestParam(defaultValue = "10") int limit) {
         try {
-            List<Group> groups = groupService.searchGroups(keyword, limit);
+            List<Group> groups = groupService.withCurrentUserRoles(userId, groupService.searchGroups(keyword, limit));
             return ApiResponseUtil.successGroupList(groups);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionGroupList(e, "搜索群组", keyword, limit);
         }
@@ -366,7 +372,7 @@ public class GroupController {
      * 获取用户加入的群组列表
      * GET /api/groups/my-groups
      */
-    @GetMapping("/my-groups")
+    @GetMapping(value = "/my-groups", params = {"!page", "!size", "!excludeOwned"})
     public ResponseEntity<ApiResponse<List<GroupDto>>> getMyGroups(@Userid Long userId) {
         try {
             List<GroupDto> groups = groupService.getUserGroupsWithDetails(userId);
@@ -381,7 +387,7 @@ public class GroupController {
      * 获取用户创建的群组列表
      * GET /api/groups/my-created
      */
-    @GetMapping("/my-created")
+    @GetMapping(value = "/my-created", params = {"!page", "!size"})
     public ResponseEntity<ApiResponse<List<GroupDto>>> getMyCreatedGroups(@Userid Long userId) {
         try {
             List<GroupDto> groups = groupService.getUserCreatedGroupsWithDetails(userId);
@@ -390,5 +396,22 @@ public class GroupController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("获取用户创建的群组失败: " + e.getMessage()));
         }
+    }
+
+    @GetMapping(value = "/my-groups", params = {"page", "size"})
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getMyGroupsPage(@Userid Long userId,
+            @RequestParam int page, @RequestParam int size, @RequestParam(defaultValue = "false") boolean excludeOwned) {
+        return ResponseEntity.ok(ApiResponse.success(groupService.getUserGroupsPage(userId, page, size, excludeOwned)));
+    }
+
+    @GetMapping(value = "/my-created", params = {"page", "size"})
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getMyCreatedGroupsPage(@Userid Long userId,
+            @RequestParam int page, @RequestParam int size) {
+        return ResponseEntity.ok(ApiResponse.success(groupService.getUserCreatedGroupsPage(userId, page, size)));
+    }
+
+    @GetMapping({"/my-groups", "/my-created"})
+    public ResponseEntity<ApiResponse<Object>> rejectIncompleteGroupPagination() {
+        throw new IllegalArgumentException("Provide page and size together for group pagination");
     }
 }

@@ -18,17 +18,21 @@ ESLint and Prettier are not configured. A successful build is not a substitute f
 
 ## API contracts
 
-`src/api/axiosInstance.js` returns the backend envelope `{code,message,data}`. `code === 0` is success; business failures reject. HTTP status 200 is not the business success code. HTTP 401 clears local authentication; 403 and ordinary business failures do not log the user out. Mutating requests are not retried automatically.
+`src/api/axiosInstance.js` returns the backend envelope `{code,message,data}`. `code === 0` is success; business failures reject. Successful HTTP 204 responses are normalized to `{code:0,message:'',data:null}` for delete/leave callers. HTTP status 200 is not the business success code. HTTP 401 clears local authentication; 403 and ordinary business failures do not log the user out. Mutating requests are not retried automatically.
 
-In development, HTTP requests use relative `/api` paths and Vite forwards them to `VITE_API_BASE_URL` (default `http://localhost:8080`). Production HTTP requests use that base URL directly. SockJS uses the full `VITE_WS_URL` endpoint (default `http://localhost:8080/ws`) directly from the browser. Although Vite also declares a `/ws` proxy, the default chat connection bypasses it. Set the SockJS variable to a browser-reachable HTTP(S) URL including `/ws`; do not store secrets in client environment variables.
+HTTP and SockJS default to the current browser origin at `/api` and `/ws`. Vite proxies API, uploads and SockJS traffic to the local backend (default port8080); production needs the corresponding reverse proxy. Explicit `VITE_API_BASE_URL` and full HTTP(S) `VITE_WS_URL` overrides remain supported. The proxy targets the endpoint origin without duplicating `/ws`. Client variables contain no secrets.
 
 The actual HTTP routes are documented in `docs/backend.md` and declared in backend controllers. API modules must match their HTTP verbs, path parameters, query parameters and JSON bodies. In particular:
 
-- Registration/login use `/api/auth`; password reset submits `resetToken`, `newPassword`, `confirmPassword`.
+- Registration/login use `/api/auth`; `/forget` sends a scalar email through the API wrapper, producing `{email}`; password reset submits `resetToken`, `newPassword`, `confirmPassword`.
 - User profiles use `/api/users/me`; avatar upload uses multipart field `file` at `/api/users/avatar` and returns an avatar URL.
-- Following uses the implemented `/api/users/{id}/follow`, `/following`, `/followers` and count/status contracts.
+- Following uses `/api/users/{id}/follow`; POST/DELETE `/api/follow/{id}` are implemented aliases. Following/follower lists and count/status contracts remain supported.
 - Group applications are processed with `PUT /api/groups/{groupId}/applications/{applicationId}` and JSON `{action,reason}`.
-- Message reactions pass `reactionType` as a query parameter.
+- Group creation sends `groupDescription`; simple discovery sends `q`, while paginated discovery sends `keyword` and a zero-based page. Group chat navigation keeps both canonical `sharedChatId` and `groupId`.
+- GET `/api/users/{id}` returns `data.user` and `data.userStats`; group owner/applicant displays unwrap the user fields.
+- Message reactions pass `reactionType` as a query parameter and render server aggregates after the toggle; history preserves the same emoji/count/user-ID structure.
+- Notifications use server `totalCount` and `totalPages`; deleting read items reloads server pagination. Shared presentation maps actual lowercase social event types and retained uppercase aliases to text and active routes.
+- Shared search sort controls translate into each resource's supported sort fields/directions. Article list calls retain their selected sorting parameters; see [backend search semantics](backend.md#search-ordering).
 - User level history/current/count use `/api/user-level-history/user/{userId}` and its subpaths; upgrade progress comes from `/api/users/me/level/upgrade-progress`.
 
 ## Shared UI and security
@@ -39,6 +43,12 @@ The header provides the light/dark/system theme control. Theme variables live in
 
 Interface accents use blue and neutral shades in every theme. Purple tokens, gradients, badges and faint violet grays were removed from all active CSS/Vue files; see `docs/color-audit.md` for the inventory and verification.
 
-Live emoji data is in `src/constant/emoji`; both Vite and IDE/test aliases map `@constant` there. The active paginated picker preserves searchable emoji packages from the old unrouted chat page. Abandoned thread UI prototypes are preserved as non-executable text in `docs/legacy/thread-prototypes`, outside the production source tree. `src/api/modules/messageThread.js` and backend `/api/threads` handlers remain, but the SQL create scripts omit their `message_threads` and `thread_participants` tables. Thread functionality is unsupported in a fresh deployment.
+Live emoji data is in `src/constant/emoji`; both Vite and IDE/test aliases map `@constant` there. The active paginated picker preserves searchable emoji packages and all 15 formerly available common icons, with a regression that searches and selects each. Abandoned thread UI prototypes are preserved as non-executable text in `docs/legacy/thread-prototypes`, outside the production source tree. `src/api/modules/messageThread.js` and backend `/api/threads` handlers remain, but the SQL create scripts omit their `message_threads` and `thread_participants` tables. Thread functionality is unsupported in a fresh deployment.
 
 Debug commands are in `Vue/scripts/debug-commands.js`, outside `public`, so production builds do not copy them. See `docs/remediation-plan.md` for actual verification status and any outstanding integration work.
+
+## Session and recovery contracts
+
+The nonpersisted session epoch, captured request token and socket instance fence late responses, retries, errors and cleanup after account changes. Login, renewal, router/profile/settings continuations share this boundary. Temporary auth dependency failures preserve the current session; a late401 from an old account or superseded token cannot clear a new session.
+
+Chat sends keep a stable clientMessageId across retry/fallback, reconcile sender confirmations before duplicate filtering, and preserve persistence versus receipt states. Reconnect catches up with SQL cursors and refreshes loaded message state; bounded read receipts preserve newer unread messages. Explicit PUT/DELETE reactions and monotonic reactionVersion merging avoid toggle replay and stale aggregate replacement. See [contracts](contracts.json) and [release gates](release.md).

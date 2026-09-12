@@ -11,10 +11,19 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 
-/** Message search uses current SQL membership, including for pagination and totals. */
+/**
+ * Message search uses current SQL membership, including for pagination and totals.
+ * Whitespace separates case-insensitive literal substring terms; any term can match. Relevance prefers
+ * the complete query, then its contiguous phrase, then more distinct matching terms.
+ * Equal relevance uses newest message time and ID. This does not use ES stemming.
+ */
 @Service
 @Transactional(readOnly = true)
 public class MessageSearchService {
+    public static final int MAX_KEYWORD_LENGTH = 100;
+    public static final int MAX_DISTINCT_TERMS = 10;
+    public static final int MAX_PAGE_SIZE = 100;
+    public static final int MAX_RESULT_WINDOW = 10_000;
     private final NamedParameterJdbcTemplate jdbc;
 
     public MessageSearchService(NamedParameterJdbcTemplate jdbc) {
@@ -22,26 +31,38 @@ public class MessageSearchService {
     }
 
     private static final String CONTENT = "JSON_UNQUOTE(JSON_EXTRACT(m.content, '$.content'))";
-    private static final String FROM = " FROM message m JOIN shared_chat sc ON sc.id = m.chat_id "
-            + "LEFT JOIN `user` sender ON sender.id = m.sender_id "
-            + "LEFT JOIN `group` g ON g.shared_chat_id = sc.id AND sc.chat_type = 'GROUP' "
-            + "AND g.status = 1 AND EXISTS (SELECT 1 FROM group_member gm WHERE gm.group_id = g.id "
-            + "AND gm.user_id = :actor AND gm.join_status = 'ACCEPTED' AND gm.kicked_at IS NULL) ";
-    private static final String VISIBLE = " WHERE COALESCE(m.is_recalled, 0) = 0 AND "
-            + "((sc.chat_type = 'PRIVATE' AND (sc.participant_1_id = :actor OR sc.participant_2_id = :actor)) "
-            + "OR (sc.chat_type = 'GROUP' AND g.id IS NOT NULL)) ";
+    private static final String MATCH_CONTENT = "m.search_text";
+
+    /** UNION materializes current access once per chat; duplicate legacy group mappings remain visible. */
+    private static String visibleChats(boolean details, boolean groupFiltered) {
+        String privateColumns = details ? ", 'PRIVATE' AS chat_type, NULL AS group_id" : "";
+        String groupColumns = details ? ", 'GROUP' AS chat_type, g.id AS group_id" : "";
+        return "SELECT sc.id AS chat_id" + privateColumns + " FROM shared_chat sc "
+                + "WHERE sc.chat_type = 'PRIVATE' AND (sc.participant_1_id = :actor OR sc.participant_2_id = :actor) "
+                + (groupFiltered ? "AND 1 = 0 " : "")
+                + (details ? "UNION ALL " : "UNION ")
+                + "SELECT sc.id AS chat_id" + groupColumns + " FROM group_member gm "
+                + "JOIN `group` g ON g.id = gm.group_id JOIN shared_chat sc ON sc.id = g.shared_chat_id "
+                + "WHERE gm.user_id = :actor AND gm.join_status = 'ACCEPTED' AND gm.kicked_at IS NULL "
+                + "AND g.status = 1 AND sc.chat_type = 'GROUP' "
+                + (groupFiltered ? "AND g.id IN (:groups) " : "");
+    }
 
     public Map<String, Object> search(Long userId, String keyword, int page, int size,
                                       String startDate, String endDate, String messageTypes,
                                       String userIds, String groupIds, String sortBy) {
-        validateRequest(userId, keyword, page, size);
-        String order = switch (sortBy == null ? "relevance" : sortBy) {
-            case "relevance", "time_desc" -> "m.created_at DESC, m.id DESC";
+        validateMessageRequest(userId, keyword, page, size);
+        String sort = sortBy == null ? "relevance" : sortBy;
+        String order = switch (sort) {
+            case "relevance" -> "match_quality DESC, matched_terms DESC, m.created_at DESC, m.id DESC";
+            case "time_desc" -> "m.created_at DESC, m.id DESC";
             case "time_asc" -> "m.created_at ASC, m.id ASC";
-            case "username_asc" -> "sender.username ASC, m.created_at DESC, m.id DESC";
-            case "username_desc" -> "sender.username DESC, m.created_at DESC, m.id DESC";
+            case "username_asc" -> "sender_sort_name ASC, m.created_at DESC, m.id DESC";
+            case "username_desc" -> "sender_sort_name DESC, m.created_at DESC, m.id DESC";
             default -> throw new IllegalArgumentException("Invalid message sort order");
         };
+        boolean relevance = "relevance".equals(sort);
+        boolean usernameOrder = sort.startsWith("username_");
         LocalDate start = date(startDate);
         LocalDate end = date(endDate);
         if (start != null && end != null && start.isAfter(end)) {
@@ -51,11 +72,23 @@ public class MessageSearchService {
         if (types.stream().anyMatch(type -> type > 3)) throw new IllegalArgumentException("Invalid message type");
         List<Long> senders = ids(userIds);
         List<Long> groups = ids(groupIds);
+        String phrase = keyword.replaceAll("(?U)\\s+", " ").strip();
+        if (phrase.isEmpty()) throw new IllegalArgumentException("Search keyword must contain a non-whitespace term");
         MapSqlParameterSource params = new MapSqlParameterSource("actor", userId)
-                .addValue("keyword", "%" + escapeLike(keyword.trim()) + "%")
+                .addValue("exactKeyword", phrase)
+                .addValue("keyword", "%" + escapeLike(phrase) + "%")
                 .addValue("size", size).addValue("offset", (long) page * size);
-        StringBuilder where = new StringBuilder(VISIBLE).append(" AND ").append(CONTENT)
-                .append(" LIKE :keyword ESCAPE '!' ");
+        List<String> conditions = new ArrayList<>();
+        List<String> termScores = new ArrayList<>();
+        for (String term : new LinkedHashSet<>(List.of(phrase.toLowerCase(Locale.ROOT).split(" ")))) {
+            String parameter = "term" + conditions.size();
+            params.addValue(parameter, "%" + escapeLike(term) + "%");
+            String condition = MATCH_CONTENT + " LIKE :" + parameter + " ESCAPE '!'";
+            conditions.add(condition);
+            termScores.add("CASE WHEN " + condition + " THEN 1 ELSE 0 END");
+        }
+        StringBuilder where = new StringBuilder(" WHERE COALESCE(m.is_recalled, 0) = 0 AND (")
+                .append(String.join(" OR ", conditions)).append(") ");
         if (start != null) {
             where.append(" AND m.created_at >= :start ");
             params.addValue("start", Timestamp.valueOf(start.atStartOfDay()));
@@ -66,12 +99,29 @@ public class MessageSearchService {
         }
         filter(where, params, "m.message_type", "types", types);
         filter(where, params, "m.sender_id", "senders", senders);
-        filter(where, params, "g.id", "groups", groups);
-        Long total = jdbc.queryForObject("SELECT COUNT(DISTINCT m.id)" + FROM + where, params, Long.class);
-        String select = "SELECT DISTINCT m.id, m.sender_id, sender.username AS sender_name, "
-                + CONTENT + " AS message_content, m.created_at, m.message_type, sc.chat_type, sc.id AS shared_chat_id, "
-                + "g.id AS group_id, g.group_name " + FROM + where + " ORDER BY " + order
-                + " LIMIT :size OFFSET :offset";
+        if (!groups.isEmpty()) params.addValue("groups", groups);
+        // The counting chat set is unique, so each message is counted once without metadata joins or DISTINCT message IDs.
+        String countFrom = " FROM (" + visibleChats(false, !groups.isEmpty())
+                + ") visible JOIN message m ON m.chat_id = visible.chat_id ";
+        Long total = jdbc.queryForObject("SELECT COUNT(*)" + countFrom + where, params, Long.class);
+        String scores = relevance ? ", CASE WHEN " + MATCH_CONTENT + " = LOWER(:exactKeyword) THEN 2 WHEN "
+                + MATCH_CONTENT + " LIKE LOWER(:keyword) ESCAPE '!' THEN 1 ELSE 0 END AS match_quality, ("
+                + String.join(" + ", termScores) + ") AS matched_terms" : "";
+        // Rank only IDs and small sort columns. Content and display metadata are fetched for the requested page.
+        String candidates = "SELECT m.id, m.sender_id, m.created_at, m.message_type, visible.chat_type, "
+                + "visible.chat_id AS shared_chat_id, visible.group_id" + scores
+                + (usernameOrder ? ", sort_sender.username AS sender_sort_name" : "")
+                + " FROM (" + visibleChats(true, !groups.isEmpty()) + ") visible JOIN message m ON m.chat_id = visible.chat_id "
+                + (usernameOrder ? "LEFT JOIN `user` sort_sender ON sort_sender.id = m.sender_id " : "")
+                + where + " ORDER BY " + order + ", visible.group_id ASC LIMIT :size OFFSET :offset";
+        String outerOrder = order.replace("m.", "ranked.").replace("match_quality", "ranked.match_quality")
+                .replace("matched_terms", "ranked.matched_terms").replace("sender_sort_name", "ranked.sender_sort_name");
+        String select = "SELECT ranked.id, ranked.sender_id, sender.username AS sender_name, "
+                + CONTENT + " AS message_content, ranked.created_at, ranked.message_type, ranked.chat_type, "
+                + "ranked.shared_chat_id, ranked.group_id, display_group.group_name FROM (" + candidates + ") ranked "
+                + "JOIN message m ON m.id = ranked.id LEFT JOIN `user` sender ON sender.id = ranked.sender_id "
+                + "LEFT JOIN `group` display_group ON display_group.id = ranked.group_id "
+                + "ORDER BY " + outerOrder + ", ranked.group_id ASC";
         List<Map<String, Object>> list = jdbc.query(select, params, (rs, index) -> {
             Map<String, Object> message = new LinkedHashMap<>();
             long sharedChatId = rs.getLong("shared_chat_id");
@@ -97,10 +147,22 @@ public class MessageSearchService {
 
     public static void validateRequest(Long userId, String keyword, int page, int size) {
         if (userId == null || userId <= 0) throw new AccessDeniedException("Authenticated user required");
-        if (keyword == null || keyword.isBlank() || keyword.trim().length() > 100) {
+        if (keyword == null || keyword.isBlank() || keyword.length() > MAX_KEYWORD_LENGTH) {
             throw new IllegalArgumentException("Search keyword must contain 1 to 100 characters");
         }
-        if (page < 0 || size < 1 || size > 100) throw new IllegalArgumentException("Invalid search pagination");
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) throw new IllegalArgumentException("Invalid search pagination");
+        if ((long) page * size + size > MAX_RESULT_WINDOW) {
+            throw new IllegalArgumentException("Search result window exceeds 10000; narrow the search or date filters");
+        }
+    }
+
+    public static void validateMessageRequest(Long userId, String keyword, int page, int size) {
+        validateRequest(userId, keyword, page, size);
+        String phrase = keyword.replaceAll("(?U)\\s+", " ").strip();
+        if (phrase.isEmpty()) throw new IllegalArgumentException("Search keyword must contain a non-whitespace term");
+        if (new LinkedHashSet<>(List.of(phrase.toLowerCase(Locale.ROOT).split(" "))).size() > MAX_DISTINCT_TERMS) {
+            throw new IllegalArgumentException("Message search supports at most 10 distinct terms");
+        }
     }
 
     private static void filter(StringBuilder sql, MapSqlParameterSource params, String column,

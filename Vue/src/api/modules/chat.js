@@ -36,6 +36,13 @@ const getChatMessages = (chatId, params = {}) => {
   });
 };
 
+const syncMessages = (chatId, afterMessageId = '0', size = 100) =>
+  axiosInstance.get(`/api/chats/${chatId}/sync`, { params: { afterMessageId, size } });
+
+const getMessageState = (chatId, ids) => axiosInstance.get(`/api/chats/${chatId}/messages/state`, {
+  params: { ids: ids.join(',') }
+});
+
 /**
  * 发送聊天消息
  * POST /api/chats/{chatId}/messages
@@ -51,8 +58,8 @@ const sendMessage = (chatId, data) => {
  * POST /api/chats/{chatId}/read
  * @param {Number} chatId - 聊天ID
  */
-const markAsRead = (chatId) => {
-  return axiosInstance.post(`/api/chats/${chatId}/read`);
+const markAsRead = (chatId, lastReadMessageId) => {
+  return axiosInstance.post(`/api/chats/${chatId}/read`, lastReadMessageId == null ? undefined : { lastReadMessageId });
 };
 
 /**
@@ -75,6 +82,10 @@ const addReaction = (messageId, reactionType) => {
     params: { reactionType }
   });
 };
+
+const setReaction = (messageId, reactionType, present) => present
+  ? axiosInstance.put(`/api/chats/messages/${messageId}/react`, null, { params: { reactionType } })
+  : axiosInstance.delete(`/api/chats/messages/${messageId}/react`, { params: { reactionType } });
 
 // ==================== 未读计数相关API ====================
 
@@ -147,10 +158,13 @@ export default {
   getChatList,
   createChat,
   getChatMessages,
+  syncMessages,
+  getMessageState,
   sendMessage,
   markAsRead,
   deleteChat,
   addReaction,
+  setReaction,
   recallMessage,
   getOnlineUsers,
   checkUserOnline,

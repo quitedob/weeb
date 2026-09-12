@@ -8,6 +8,16 @@ import jakarta.validation.constraints.NotNull;
  */
 public class ChatMessageVo {
 
+    @jakarta.validation.constraints.Size(min = 1, max = 100)
+    private String clientMessageId;
+
+    private Long replyToMessageId;
+
+    public String getClientMessageId() { return clientMessageId; }
+    public void setClientMessageId(String value) { clientMessageId = value; }
+    public Long getReplyToMessageId() { return replyToMessageId; }
+    public void setReplyToMessageId(Long value) { replyToMessageId = value; }
+
     @NotNull(message = "消息内容不能为空")
     private Object content; // 消息内容（JSON格式）
 

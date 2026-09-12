@@ -94,6 +94,37 @@ class WebSocketOutboundAuthorizationTest {
     }
 
     @Test
+    void ordinaryGroupUpdatesRecheckMembershipWhileTerminalNoticesRemainDeliverable() {
+        send(frame(StompCommand.SUBSCRIBE, "/user/queue/group-info-change", "info"));
+        send(frame(StompCommand.SUBSCRIBE, "/user/queue/group-member-change", "members"));
+        var group = new com.web.model.Group(); group.setId(9L); group.setSharedChatId(5L);
+        when(chats.selectGroupById(9L)).thenReturn(group);
+        var info = delivery("session-1", "info", "/queue/group-info-change-usersession-1",
+                "{\"type\":\"GROUP_INFO_CHANGE\",\"groupId\":9,\"changeType\":\"INFO_UPDATED\",\"newGroupDescription\":\"private notes\"}");
+        var member = delivery("session-1", "members", "/queue/group-member-change-usersession-1",
+                "{\"type\":\"GROUP_MEMBER_CHANGE\",\"groupId\":9,\"changeType\":\"ROLE_CHANGED\",\"affectedUserId\":2}");
+        assertSame(info, outbound.preSend(info, null));
+        assertSame(member, outbound.preSend(member, null));
+        when(chats.canUserAccessSharedChat(1L, 5L)).thenReturn(false);
+        assertNull(outbound.preSend(info, null));
+        assertNull(outbound.preSend(member, null));
+        for (String change : new String[] {"MEMBER_REMOVED", "MEMBER_LEFT"}) {
+            var ownRemoval = delivery("session-1", "members", "/queue/group-member-change-usersession-1",
+                    "{\"type\":\"GROUP_MEMBER_CHANGE\",\"groupId\":9,\"changeType\":\"" + change + "\",\"affectedUserId\":1}");
+            assertSame(ownRemoval, outbound.preSend(ownRemoval, null));
+        }
+        var otherRemoval = delivery("session-1", "members", "/queue/group-member-change-usersession-1",
+                "{\"type\":\"GROUP_MEMBER_CHANGE\",\"groupId\":9,\"changeType\":\"MEMBER_REMOVED\",\"affectedUserId\":2}");
+        assertNull(outbound.preSend(otherRemoval, null));
+        when(chats.selectGroupById(9L)).thenReturn(null);
+        var dissolved = delivery("session-1", "info", "/queue/group-info-change-usersession-1",
+                "{\"type\":\"GROUP_INFO_CHANGE\",\"groupId\":9,\"changeType\":\"GROUP_DISSOLVED\"}");
+        assertSame(dissolved, outbound.preSend(dissolved, null));
+        user.setStatus(0);
+        assertNull(outbound.preSend(dissolved, null), "Terminal events still require an enabled authenticated account");
+    }
+
+    @Test
     void unsubscribeAndDisconnectRemoveDeliveryRightsButProtocolFramesRemainUsable() {
         send(frame(StompCommand.SUBSCRIBE, "/user/queue/notifications", "events"));
         var push = delivery("session-1", "events", "/queue/notifications-usersession-1", "{}");

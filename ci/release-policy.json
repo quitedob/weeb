@@ -1,0 +1,64 @@
+{
+  "formatVersion": 1,
+  "backendRequiredSuites": [
+    "AuthRevocationMySqlRedisIntegrationTest",
+    "SchemaMigrationIntegrationTest",
+    "MessageReliabilityMySqlIntegrationTest",
+    "MySqlContractIntegrationTest",
+    "MySqlUserLevelIntegrationTest",
+    "GroupMembershipMySqlIntegrationTest",
+    "GroupPaginationMySqlIntegrationTest",
+    "ContactAcceptanceMySqlIntegrationTest",
+    "CommentReactionMySqlIntegrationTest",
+    "MessageSearchRelevanceMySqlIntegrationTest",
+    "RedisTokenIntegrationTest",
+    "SmtpPasswordResetDeliveryIntegrationTest",
+    "WebSocketConnectionLifecycleTest",
+    "UserPreferencesServiceTest$MySqlPersistence"
+  ],
+  "serviceImages": {
+    "mysql": "mysql@sha256:4af1f8815716546f5b12410f7621f37f93db8dd11a184706ef59111930b8c2ff",
+    "redis": "redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf"
+  },
+  "supportedDeployment": "single application instance",
+  "capacity": {
+    "scope": "LOCAL_SINGLE_JVM_BASELINE",
+    "concurrencyStages": [1, 5, 20],
+    "minimumMessages": 100000,
+    "minimumGroups": 1000,
+    "minimumRequestsPerStage": 75,
+    "p95MsMaximum": 1000,
+    "endpoints": ["search", "history", "unread", "owned_groups", "joined_groups"]
+  },
+  "externalGates": [
+    "provider credential revocation evidence",
+    "certificate replacement evidence",
+    "approved history publication",
+    "target environment migration and domain validation"
+  ],
+  "runtimeRequiredChecks": [
+    "registration",
+    "expiryUnits",
+    "profileContract",
+    "followAliases",
+    "privateChatCreation",
+    "outsiderSyncDenied",
+    "retryReturnsSameMessage",
+    "idCollisionRejected",
+    "recipientDelivery",
+    "senderAcknowledgement",
+    "sqlSyncDeduplicates",
+    "newerMessagePersisted",
+    "boundedRead",
+    "browserLogin",
+    "browserMessagePersisted",
+    "browserStompSend",
+    "browserMessageRendered",
+    "browserSameOriginSockJs",
+    "browserNoUncaughtExceptions",
+    "browserNoApiServerErrors",
+    "logoutRevokesHttp",
+    "messageAfterLogoutPersists",
+    "passiveRevokedSocketDenied"
+  ]
+}

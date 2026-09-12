@@ -23,45 +23,11 @@ public class MigrationRunner implements CommandLineRunner {
     private DatabaseMigrationExecutor migrationExecutor;
     
     @Override
-    public void run(String... args) throws Exception {
-        logger.info("=== DATABASE MIGRATION STARTED ===");
-        logger.info("Profile: migration");
-        logger.info("Arguments: {}", String.join(" ", args));
-        
-        boolean dryRun = false;
-        boolean skipValidation = false;
-        boolean forceExecution = false;
-        
-        // Parse command line arguments
-        for (String arg : args) {
-            switch (arg.toLowerCase()) {
-                case "--dry-run":
-                    dryRun = true;
-                    logger.info("Dry run mode enabled - no actual changes will be made");
-                    break;
-                case "--skip-validation":
-                    skipValidation = true;
-                    logger.warn("Validation skip requested - this is not recommended");
-                    break;
-                case "--force":
-                    forceExecution = true;
-                    logger.warn("Force execution enabled - will proceed even if user_stats table exists");
-                    break;
-                case "--help":
-                    printUsage();
-                    return;
-            }
-        }
-        
-        if (dryRun) {
-            executeDryRun();
-        } else {
-            executeActualMigration(skipValidation, forceExecution);
-        }
-        
-        logger.info("=== DATABASE MIGRATION COMPLETED ===");
+    public void run(String... args) {
+        // The full application would start HTTP and schedulers before migration completes.
+        throw new IllegalStateException("Use SchemaMigrationCli via PropertiesLauncher; the legacy migration profile is unsupported");
     }
-    
+
     private void executeDryRun() {
         logger.info("=== DRY RUN MODE ===");
         logger.info("This is a simulation - no actual database changes will be made");

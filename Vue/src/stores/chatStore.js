@@ -13,6 +13,9 @@ import {
   isMessageFailed
 } from '@/utils/messageStatus';
 import bugReporter from '@/utils/bugReporter';
+import { captureSession, isCurrentSession } from '@/utils/session';
+import { socketUrl } from '@/utils/serviceUrls';
+import { canonicalMessage, mergeMessage, sameId, isPersistedId, compareIds, highestMessageId } from '@/utils/chatProtocol';
 
 export const useChatStore = defineStore('chat', {
   persist: {
@@ -24,11 +27,24 @@ export const useChatStore = defineStore('chat', {
     activeChatSession: null, // Stores currently active chat session object
                              // e.g., { id: 'group101', name: 'Tech Talk', type: 'GROUP', ... }
     chatMessages: {},        // Object to store messages per chatId: { chatId1: [msg1, msg2], chatId2: [...] }
+    cacheEntries: {},
+    cacheClock: 0,
+    historyRequests: {},
+    recentMessageIds: {},
+    newerIncomingIds: {},
+    maxCachedChats: 50,
+    maxCachedMessages: 200,
+    syncCursors: {},
+    syncRequests: {},
+    readCursors: {},
+    readRequests: {},
+    reactionSnapshots: {},
     chatPagination: {},      // Pagination info per chat: { chatId1: { hasMore: true, page: 1 }, ... }
     recentSessions: [],      // List of recent chat sessions for a chat list panel
     unreadCounts: {},        // Unread message counts per chatId: { chatId1: 2, chatId2: 0 }
     unreadCountMap: {},      // ✅ 新增：未读计数映射 { chatId: unreadCount }
     connectionStatus: 'disconnected', // STOMP connection status: 'disconnected', 'connecting', 'connected', 'error'
+    notificationSubscriptionReady: false,
     stompClient: null,       // STOMP client instance
     reconnectAttempts: 0,    // Number of reconnection attempts
     maxReconnectAttempts: 5, // Maximum reconnection attempts
@@ -79,6 +95,7 @@ export const useChatStore = defineStore('chat', {
     // STOMP WebSocket Connection Methods
     connectWebSocket() {
       const authStore = useAuthStore();
+      const session = captureSession();
 
       // authStore使用accessToken，不是token
       const token = authStore.accessToken;
@@ -108,11 +125,12 @@ export const useChatStore = defineStore('chat', {
       }
 
       this.connectionStatus = 'connecting';
+      this.notificationSubscriptionReady = false;
       console.log('⏳ WebSocket连接状态: connecting');
 
       try {
         // 获取WebSocket URL（根据环境配置）
-        const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws';
+        const wsUrl = socketUrl();
         console.log('🌐 WebSocket URL:', wsUrl);
 
         // ✅ 修复2：创建STOMP客户端（增强认证）
@@ -126,6 +144,7 @@ export const useChatStore = defineStore('chat', {
 
             // ✅ 修复2：增强错误处理
             sockJS.onclose = (event) => {
+              if (this.stompClient !== client || !isCurrentSession(session)) return;
               console.log('🔌 SockJS连接关闭:', event.code, event.reason);
               console.log('🔌 关闭详情:', {
                 code: event.code,
@@ -147,6 +166,7 @@ export const useChatStore = defineStore('chat', {
             };
 
             sockJS.onerror = (error) => {
+              if (this.stompClient !== client || !isCurrentSession(session)) return;
               console.error('❌ SockJS连接错误:', error);
               console.error('❌ 错误详情:', {
                 type: error.type,
@@ -173,16 +193,20 @@ export const useChatStore = defineStore('chat', {
         const client = this.stompClient;
 
         this.stompClient.beforeConnect = async () => {
+          if (this.stompClient !== client || !isCurrentSession(session)) {
+            await client.deactivate();
+            return;
+          }
           if (!authStore.accessToken) {
             this.disconnectWebSocket();
             return;
           }
-          this.stompClient.connectHeaders.Authorization = `Bearer ${authStore.accessToken}`;
+          client.connectHeaders.Authorization = `Bearer ${authStore.accessToken}`;
         };
 
         // Connection successful
         this.stompClient.onConnect = (frame) => {
-          if (this.stompClient !== client) return;
+          if (this.stompClient !== client || !isCurrentSession(session)) return;
           console.log('✅ WebSocket连接成功!');
           console.log('Frame:', frame);
           log.info('STOMP connected:', frame);
@@ -208,7 +232,7 @@ export const useChatStore = defineStore('chat', {
 
         // Connection error
         this.stompClient.onStompError = (frame) => {
-          if (this.stompClient !== client) return;
+          if (this.stompClient !== client || !isCurrentSession(session)) return;
           this.stopHeartbeat();
           console.error('❌ WebSocket STOMP错误:', frame);
           console.error('错误详情:', frame.headers);
@@ -221,6 +245,7 @@ export const useChatStore = defineStore('chat', {
             const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
 
             setTimeout(() => {
+              if (this.stompClient !== client || !isCurrentSession(session)) return;
               if (this.connectionStatus === 'error') { // 只有在错误状态时才重连
                 this.reconnectAttempts++;
                 console.log(`🔄 尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts}), 延迟: ${delay}ms`);
@@ -234,7 +259,7 @@ export const useChatStore = defineStore('chat', {
 
         // Connection lost
         this.stompClient.onDisconnect = () => {
-          if (this.stompClient !== client) return;
+          if (this.stompClient !== client || !isCurrentSession(session)) return;
           console.log('⚠️ WebSocket断开连接');
           this.connectionStatus = 'disconnected';
           this.stopHeartbeat();
@@ -242,14 +267,14 @@ export const useChatStore = defineStore('chat', {
 
         // Web Socket error
         this.stompClient.onWebSocketError = (error) => {
-          if (this.stompClient !== client) return;
+          if (this.stompClient !== client || !isCurrentSession(session)) return;
           this.stopHeartbeat();
           console.error('❌ WebSocket底层错误:', error);
           this.connectionStatus = 'error';
         };
 
         this.stompClient.onWebSocketClose = () => {
-          if (this.stompClient !== client) return;
+          if (this.stompClient !== client || !isCurrentSession(session)) return;
           this.stopHeartbeat();
           this.connectionStatus = 'disconnected';
         };
@@ -299,9 +324,15 @@ export const useChatStore = defineStore('chat', {
         return;
       }
 
+      const client = this.stompClient;
+      const session = captureSession();
+      const isCurrent = () => this.stompClient === client && isCurrentSession(session);
+      const subscribe = (destination, callback) => client.subscribe(destination, message => {
+        if (isCurrent()) callback(message);
+      });
       try {
         // ✅ 订阅私聊消息
-        this.stompClient.subscribe(`/user/queue/private`, (message) => {
+        subscribe(`/user/queue/private`, (message) => {
           try {
             const parsedMessage = JSON.parse(message.body);
             console.log('📨 收到私聊消息:', parsedMessage);
@@ -312,7 +343,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅聊天列表更新
-        this.stompClient.subscribe(`/user/queue/chat-list-update`, (message) => {
+        subscribe(`/user/queue/chat-list-update`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('📋 聊天列表已更新:', data);
@@ -323,7 +354,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅消息状态更新
-        this.stompClient.subscribe(`/user/queue/message-status`, (message) => {
+        subscribe(`/user/queue/message-status`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('✓ 消息状态更新:', data);
@@ -334,7 +365,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅已读回执
-        this.stompClient.subscribe(`/user/queue/read-receipt`, (message) => {
+        subscribe(`/user/queue/read-receipt`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('👁️ 收到已读回执:', data);
@@ -345,7 +376,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅群组成员变更事件
-        this.stompClient.subscribe(`/user/queue/group-member-change`, (message) => {
+        subscribe(`/user/queue/group-member-change`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('👥 收到群组成员变更事件:', data);
@@ -356,7 +387,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅群组信息变更事件
-        this.stompClient.subscribe(`/user/queue/group-info-change`, (message) => {
+        subscribe(`/user/queue/group-info-change`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('ℹ️ 收到群组信息变更事件:', data);
@@ -367,7 +398,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // ✅ 订阅消息反应变更事件
-        this.stompClient.subscribe(`/user/queue/reaction-change`, (message) => {
+        subscribe(`/user/queue/reaction-change`, (message) => {
           try {
             const data = JSON.parse(message.body);
             console.log('😊 收到消息反应变更事件:', data);
@@ -378,7 +409,7 @@ export const useChatStore = defineStore('chat', {
         });
 
         // Subscribe to error messages
-        this.stompClient.subscribe(`/user/queue/errors`, (message) => {
+        subscribe(`/user/queue/errors`, (message) => {
           try {
             const errorMessage = JSON.parse(message.body);
             console.error('❌ STOMP错误消息:', errorMessage);
@@ -392,17 +423,18 @@ export const useChatStore = defineStore('chat', {
           }
         });
 
-        this.stompClient.subscribe('/user/queue/notifications', message => {
+        subscribe('/user/queue/notifications', message => {
           try {
             const notification = JSON.parse(message.body);
             import('./notificationStore').then(({ useNotificationStore }) => {
+              if (!isCurrent()) return;
               const store = useNotificationStore();
               store.addNotification(notification);
-              store.fetchUnreadCount();
             });
           } catch (error) { console.error('处理通知失败:', error); }
         });
-        this.stompClient.subscribe('/user/queue/contacts', message => {
+        this.notificationSubscriptionReady = true;
+        subscribe('/user/queue/contacts', message => {
           try {
             window.dispatchEvent(new CustomEvent('contact-notification', { detail: JSON.parse(message.body) }));
           } catch (error) { console.error('处理联系人通知失败:', error); }
@@ -457,153 +489,31 @@ export const useChatStore = defineStore('chat', {
     },
 
     handleIncomingChatMessage(message) {
-      console.log('📥 处理接收到的消息:', message);
-      
-      // ✅ 修复3：优先使用sharedChatId
-      const sharedChatId = message.sharedChatId || message.chatId;
-      const chatId = sharedChatId || message.roomId || message.data?.chatId || message.data?.targetId || message.targetId;
-      const authStore = useAuthStore();
-      const currentUserId = authStore.currentUser?.id;
-      
-      // ✅ 判断是否是自己发的消息
-      const isFromMe = message.isFromMe !== undefined 
-        ? message.isFromMe 
-        : (message.fromId || message.data?.fromUserId) === currentUserId;
-
-      console.log('📊 消息信息: chatId=', chatId, 'sharedChatId=', sharedChatId, 'isFromMe=', isFromMe, 'currentUserId=', currentUserId);
-
-      // Parse message content for file messages
-      let content, displayContent, fileData;
-
-      if (message.content !== undefined) {
-        // Spring WebSocket format
-        content = message.content;
-        displayContent = message.content;
-      } else if (message.msgContent !== undefined) {
-        // MessageResponse format
-        content = message.msgContent;
-        displayContent = message.msgContent;
-      } else if (message.data?.content !== undefined) {
-        // Old format
-        content = message.data.content;
-        displayContent = message.data.content;
+      const normalized = canonicalMessage(message, null, useAuthStore().currentUser?.id);
+      if (!normalized || !isPersistedId(normalized.id)) return;
+      const chatId = String(normalized.sharedChatId);
+      const wasNew = this.mergeConfirmedMessage(chatId, normalized);
+      if (!wasNew || compareIds(normalized.id, this.syncCursors[chatId] ?? 0) <= 0) return;
+      if (!normalized.isFromMe && this.chatPagination[chatId]?.hasNewer) {
+        const ids = (this.newerIncomingIds[chatId] ||= []);
+        ids.push(String(normalized.id));
+        if (ids.length > this.maxCachedMessages) ids.shift();
       }
-
-      if (message.messageType === 2 || message.type === 2 || message.data?.messageType === 2) {
-        // File message - parse JSON content
-        try {
-          fileData = JSON.parse(content);
-          displayContent = `[文件] ${fileData.fileName}`;
-        } catch (error) {
-          console.error('Failed to parse file message content:', error);
-          displayContent = '[文件消息]';
-        }
-      }
-
-      // ✅ 修复3：创建标准化消息对象，包含sharedChatId
-      const standardizedMessage = {
-        id: message.id || message.messageId || Date.now(),
-        tempId: message.tempId,
-        clientMessageId: message.clientMessageId,
-        fromId: message.fromId || message.data?.fromUserId,
-        fromName: message.fromName || message.data?.fromName || 'Unknown',
-        msgContent: displayContent,
-        content: content,
-        isRecalled: message.isRecalled || 0,
-        messageType: message.messageType || message.type || message.data?.messageType || 1,
-        chatType: message.type === 'private' ? 'PRIVATE' : (message.data?.chatType || 'PRIVATE'),
-        targetId: chatId,
-        chatId: chatId,
-        sharedChatId: sharedChatId, // ✅ 保存sharedChatId
-        timestamp: message.timestamp || message.data?.timestamp || new Date(),
-        isFromMe: isFromMe,
-        msgType: message.messageType || message.type || message.data?.messageType || 1,
-        fileData: fileData,
-        reactions: Array.isArray(message.reactions) ? message.reactions
-          : (Array.isArray(message.data?.reactions) ? message.data.reactions : []),
-        // ✅ 使用后端返回的状态
-        status: message.status !== undefined ? message.status : MESSAGE_STATUS.SENT
-      };
-
-      console.log('📦 标准化消息:', standardizedMessage);
-
-      // 标准化消息对象，确保状态字段正确
-      const normalizedMessage = normalizeMessage(standardizedMessage);
-
-      // ✅ 消息去重检查
-      if (this.isDuplicateMessage(chatId, message.id, message.clientMessageId)) {
-        console.log('⚠️ 重复消息已忽略');
-        return;
-      }
-
-      // ✅ 如果有clientMessageId，先查找并更新临时消息
-      if (message.clientMessageId) {
-        console.log('🔄 更新临时消息: clientMessageId=', message.clientMessageId);
-        this.updateMessageStatus(message.id, message.status, message.clientMessageId);
-        // 如果找到了临时消息，就不再添加新消息
-        const found = this.findMessageByTempId(chatId, message.clientMessageId);
-        if (found) {
-          console.log('✅ 临时消息已更新，不重复添加');
-          return;
-        }
-      }
-
-      // ✅ 添加消息到聊天
-      console.log('➕ 添加消息到聊天: chatId=', chatId);
-      this.addMessage(chatId, normalizedMessage);
-
-      // ✅ 更新未读计数（仅对接收的消息）
-      if (!isFromMe) {
-        if (chatId !== this.currentChatId) {
-          console.log('📬 增加未读计数: chatId=', chatId);
-          this.incrementUnreadCount(chatId);
-          // ✅ 使用新的未读计数系统
-          this.updateUnreadOnNewMessage(chatId, false);
-        } else {
-          console.log('👁️ 当前聊天，发送已读回执');
-          // 如果当前在该聊天，发送已读确认
-          this.sendReadReceipt(chatId, normalizedMessage.id);
-        }
-      }
-
-      // ✅ 更新聊天列表
-      console.log('📋 更新聊天列表');
-      this.updateRecentSession(chatId, {
-        content: displayContent,
-        timestamp: standardizedMessage.timestamp,
-        fromUserId: standardizedMessage.fromId,
-        messageType: standardizedMessage.messageType
-      });
-
-      console.log('✅ 消息处理完成');
+      this.updateUnreadOnNewMessage(chatId, normalized.isFromMe);
+      this.updateRecentSession(chatId, { content: normalized.msgContent, timestamp: normalized.timestamp });
+      // Reading is acknowledged only after ChatPage renders the confirmed message.
     },
 
     /**
      * ✅ 新增：处理聊天列表更新
      */
     handleChatListUpdate(chatList) {
-      console.log('📋 处理聊天列表更新:', chatList);
-      
-      const existingIndex = this.recentSessions.findIndex(
-        session => session.id === chatList.id
-      );
-
-      if (existingIndex >= 0) {
-        // 更新现有会话
-        this.recentSessions.splice(existingIndex, 1);
-      }
-
-      // 将更新的会话移到列表顶部
-      this.recentSessions.unshift({
-        id: chatList.id,
-        targetId: chatList.targetId,
-        targetInfo: chatList.targetInfo,
-        lastMessage: chatList.lastMessage,
-        lastMessageTime: chatList.updateTime,
-        unreadCount: chatList.unreadCount || 0
-      });
-
-      console.log('✅ 聊天列表已更新');
+      const id = chatList.sharedChatId ?? chatList.shared_chat_id ?? chatList.id;
+      const existingIndex = this.recentSessions.findIndex(session => sameId(session.sharedChatId ?? session.id, id));
+      const previous = existingIndex < 0 ? {} : this.recentSessions.splice(existingIndex, 1)[0];
+      this.recentSessions.unshift({ ...previous, ...chatList, id, sharedChatId: id,
+        lastMessageTime: chatList.updateTime ?? chatList.lastMessageTime,
+        unreadCount: chatList.unreadCount ?? previous.unreadCount ?? 0 });
     },
 
     /**
@@ -621,21 +531,39 @@ export const useChatStore = defineStore('chat', {
      * ✅ 新增：处理已读回执
      */
     handleReadReceipt(data) {
-      console.log('👁️ 处理已读回执:', data);
-      
-      const { chatId, messageId, timestamp } = data;
-      
-      // 更新该聊天中所有消息的状态为已读
-      if (this.chatMessages[chatId]) {
-        this.chatMessages[chatId].forEach(msg => {
-          // 只更新已发送或已送达的消息为已读
-          if (msg.isFromMe && msg.status < MESSAGE_STATUS.READ) {
-            msg.status = MESSAGE_STATUS.READ;
-          }
-        });
+      const chatId = data.sharedChatId ?? data.chatId;
+      const boundary = data.lastReadMessageId ?? data.messageId;
+      if (chatId == null || !isPersistedId(boundary) || data.readerId == null) return;
+      this.touchChat(chatId);
+      if (!this.cacheEntries[chatId]) return;
+      const readerKey = `${chatId}:${data.readerId}`;
+      if (compareIds(boundary, this.readCursors[readerKey] ?? 0) <= 0) return;
+      this.readCursors[readerKey] = String(boundary);
+      if (sameId(data.readerId, useAuthStore().currentUser?.id)) {
+        if (Number.isFinite(data.unreadCount)) {
+          const knownNewer = new Set([
+            ...(this.chatMessages[chatId] || []).filter(message => !message.isFromMe && !message.isRecalled
+              && isPersistedId(message.id) && compareIds(message.id, boundary) > 0).map(message => String(message.id)),
+            ...(this.newerIncomingIds[chatId] || []).filter(id => compareIds(id, boundary) > 0)
+          ]).size;
+          const unreadCount = Math.max(data.unreadCount, knownNewer);
+          this.unreadCounts[chatId] = unreadCount;
+          this.unreadCountMap[chatId] = unreadCount;
+          this.newerIncomingIds[chatId] = (this.newerIncomingIds[chatId] || []).filter(id => compareIds(id, boundary) > 0);
+        }
+        return;
       }
-      
-      console.log('✅ 已读回执处理完成');
+      const session = sameId(this.currentChatId, chatId) ? this.activeChatSession
+        : this.recentSessions.find(item => sameId(item.sharedChatId ?? item.id, chatId));
+      for (const message of this.chatMessages[chatId] || []) {
+        if (!message.isFromMe || !isPersistedId(message.id) || compareIds(message.id, boundary) > 0) continue;
+        if (session?.type === 'GROUP' || session?.chatType === 'GROUP') {
+          // One group reader is not a receipt from every member.
+          message.readBy = [...new Set([...(message.readBy || []), String(data.readerId)])];
+        } else if (session?.type === 'PRIVATE' || session?.chatType === 'PRIVATE') {
+          message.status = MESSAGE_STATUS.READ;
+        }
+      }
     },
 
     /**
@@ -678,28 +606,7 @@ export const useChatStore = defineStore('chat', {
      * ✅ 发送已读回执
      */
     async sendReadReceipt(chatId, messageId) {
-      try {
-        console.log('📨 发送已读回执: chatId=', chatId, 'messageId=', messageId);
-        
-        // 通过HTTP API标记消息为已读
-        await api.chat.markAsRead(chatId);
-        
-        // 通过WebSocket通知发送者消息已读
-        if (this.stompClient && this.stompClient.connected) {
-          this.stompClient.publish({
-            destination: '/app/chat/read-receipt',
-            body: JSON.stringify({
-              chatId: chatId,
-              messageId: messageId,
-              timestamp: new Date().toISOString()
-            })
-          });
-        }
-        
-        console.log('✅ 已读回执发送成功');
-      } catch (error) {
-        console.error('❌ 发送已读回执失败:', error);
-      }
+      return this.markChatAsRead(chatId, messageId);
     },
 
     handleUserStatusChange(message) {
@@ -714,12 +621,14 @@ export const useChatStore = defineStore('chat', {
     startHeartbeat() {
       this.stopHeartbeat();
       const client = this.stompClient;
+      const session = captureSession();
       if (!client?.connected || !useAuthStore().accessToken) return;
       // The Redis session lease is refreshed by the authenticated application endpoint.
       // STOMP transport heartbeats do not invoke that endpoint.
-      this.heartbeatInterval = setInterval(() => {
-        if (this.stompClient !== client || !client.connected || !useAuthStore().accessToken) {
-          this.stopHeartbeat();
+      const interval = setInterval(() => {
+        if (this.stompClient !== client || !client.connected || !isCurrentSession(session) || !useAuthStore().accessToken) {
+          clearInterval(interval);
+          if (this.heartbeatInterval === interval) this.heartbeatInterval = null;
           return;
         }
         try {
@@ -728,6 +637,7 @@ export const useChatStore = defineStore('chat', {
           log.warn('Unable to send the application heartbeat');
         }
       }, 30000);
+      this.heartbeatInterval = interval;
     },
 
     stopHeartbeat() {
@@ -768,6 +678,7 @@ export const useChatStore = defineStore('chat', {
       };
 
       this.activeChatSession = normalizedSession;
+      this.touchChat(normalizedSession.id);
 
       console.log('✅ ChatStore: 活跃聊天已设置:', {
         id: normalizedSession.id,
@@ -777,11 +688,7 @@ export const useChatStore = defineStore('chat', {
       });
 
       // ✅ 修复：使用sharedChatId标记已读
-      const chatIdForRead = normalizedSession.sharedChatId || normalizedSession.id;
-      if (chatIdForRead && this.unreadCounts[chatIdForRead]) {
-        console.log('👁️ 标记聊天已读:', chatIdForRead);
-        this.markAsRead(chatIdForRead);
-      }
+
     },
 
     clearActiveChat() {
@@ -798,190 +705,255 @@ export const useChatStore = defineStore('chat', {
       // 确保消息包含status字段
       const normalizedMsg = normalizeMessage(message);
       this.chatMessages[normalizedChatId].push(normalizedMsg);
+      this.touchChat(normalizedChatId);
+      this.trimChatWindow(normalizedChatId);
     },
 
     setMessages(chatId, messages) {
       this.chatMessages[chatId] = messages;
+      this.touchChat(chatId);
+      this.trimChatWindow(chatId);
     },
 
-    async sendMessage(content, targetId, chatType = 'PRIVATE', messageType = 1) {
-      if (!content || !targetId) {
-        throw new Error('Content and targetId are required');
-      }
+    async sendMessage(content, targetId, chatType = 'PRIVATE', messageType = 1, clientMessageId = null) {
+      const sharedChatId = this.activeChatSession?.sharedChatId ?? this.activeChatSession?.id;
+      if (!content || !sharedChatId) throw new Error('Content and sharedChatId are required');
+      const id = clientMessageId || `temp_${globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}`}`;
+      const payload = { content, targetId: this.activeChatSession?.targetId ?? targetId,
+        chatType, messageType, sharedChatId, clientMessageId: id };
+      const user = useAuthStore().currentUser;
+      if (!this.findMessageByTempId(sharedChatId, id)) this.addMessage(sharedChatId, {
+        id, tempId: id, clientMessageId: id, fromId: user?.id, fromName: user?.username,
+        msgContent: typeof content === 'object' ? content.content : content, content,
+        chatId: sharedChatId, sharedChatId, targetId: payload.targetId, chatType, messageType,
+        timestamp: new Date().toISOString(), isFromMe: true, status: MESSAGE_STATUS.SENDING,
+        reactions: [], sendPayload: payload
+      });
+      return this.deliverMessage(payload);
+    },
 
-      // ✅ 修复：使用sharedChatId而不是targetId
-      const sharedChatId = this.activeChatSession?.sharedChatId || this.activeChatSession?.id;
-      
-      if (!sharedChatId) {
-        console.error('🐛 BUG REPORT: Missing sharedChatId in activeChatSession', {
-          activeChatSession: this.activeChatSession,
-          targetId: targetId,
-          timestamp: new Date().toISOString()
-        });
-        throw new Error('无法发送消息：缺少sharedChatId');
-      }
+    async retryMessage(message) {
+      if (message.status !== MESSAGE_STATUS.FAILED || !message.sendPayload || !message.isFromMe) return;
+      return this.deliverMessage(message.sendPayload);
+    },
 
-      console.log('📤 发送消息: sharedChatId=', sharedChatId, 'targetId=', targetId);
-
-      // 生成临时消息ID用于跟踪
-      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // 创建临时消息对象（立即显示在UI中）
-      const authStore = useAuthStore();
-      const tempMessage = {
-        id: tempId,
-        tempId: tempId,
-        fromId: authStore.currentUser?.id,
-        fromName: authStore.currentUser?.username,
-        msgContent: content,
-        content: content,
-        messageType: messageType,
-        chatType: chatType,
-        targetId: targetId,
-        chatId: sharedChatId, // ✅ 使用sharedChatId
-        sharedChatId: sharedChatId, // ✅ 明确保存sharedChatId
-        timestamp: new Date(),
-        isFromMe: true,
-        status: MESSAGE_STATUS.SENDING, // 设置为发送中状态
-        isRecalled: 0
-      };
-
-      // ✅ 修复：使用sharedChatId添加到消息列表
-      this.addMessage(sharedChatId, tempMessage);
-
-      // 发送消息
-      const message = {
-        type: 'chat',
-        data: {
-          content,
-          targetId,
-          chatType,
-          messageType,
-          chatId: sharedChatId, // ✅ 使用sharedChatId
-          sharedChatId: sharedChatId, // ✅ 明确发送sharedChatId
-          clientMessageId: tempId // 传递临时ID用于后端关联
-        }
-      };
-
+    async deliverMessage(payload) {
+      const session = captureSession();
+      this.updateMessageStatus(null, MESSAGE_STATUS.SENDING, payload.clientMessageId);
       try {
-        console.log('📡 通过WebSocket发送消息:', message);
-        this.sendWebSocketMessage(message);
-        // 消息发送后，状态会通过WebSocket回调更新
-      } catch (error) {
-        console.error('🐛 BUG REPORT: sendWebSocketMessage failed', {
-          error: error.message,
-          stack: error.stack,
-          message: message,
-          timestamp: new Date().toISOString()
+        if (this.stompClient?.connected) {
+          try {
+            this.sendWebSocketMessage({ type: 'chat', data: payload });
+            return;
+          } catch { /* Retry the same client ID over HTTP if publishing fails. */ }
+        }
+        const content = typeof payload.content === 'object' ? payload.content
+          : { content: payload.content, contentType: 1, url: null, atUidList: [] };
+        const response = await api.chat.sendMessage(payload.sharedChatId, {
+          content, messageType: payload.messageType, clientMessageId: payload.clientMessageId
         });
-        // 发送失败，更新消息状态为失败
-        this.updateMessageStatus(null, MESSAGE_STATUS.FAILED, tempId);
+        if (!isCurrentSession(session)) return;
+        if (response.code !== 0 || !response.data) throw new Error(response.message || 'Message send failed');
+        this.handleIncomingChatMessage({ ...response.data, sharedChatId: payload.sharedChatId,
+          clientMessageId: payload.clientMessageId, senderId: useAuthStore().currentUser?.id });
+      } catch (error) {
+        if (!isCurrentSession(session)) return;
+        this.updateMessageStatus(null, MESSAGE_STATUS.FAILED, payload.clientMessageId);
         throw error;
       }
     },
 
-    async fetchMessagesForChat(chatId, page = 1, limit = null) {
-      try {
-        const batchSize = limit || this.messageBatchSize;
-        const authStore = useAuthStore();
-        const currentUserId = authStore.currentUser?.id;
-        
-        // ✅ 修复3：确保使用正确的chatId（优先使用sharedChatId）
-        const normalizedChatId = String(chatId);
-        console.log('📥 获取聊天消息: chatId=', normalizedChatId);
-        
-        // 使用新的chat API
-        const response = await api.chat.getChatMessages(normalizedChatId, {
-          page,
-          size: batchSize
-        });
+    touchChat(chatId) {
+      const key = String(chatId);
+      this.cacheEntries[key] ||= { token: ++this.cacheClock, used: this.cacheClock };
+      this.cacheEntries[key].used = ++this.cacheClock;
+      this.chatMessages[key] ||= [];
+      this.enforceChatCacheLimit();
+      return this.cacheEntries[key]?.token;
+    },
 
-        if (response.code === 0 && response.data) {
-          // ✅ 修复：处理不同的响应结构
-          const messages = Array.isArray(response.data) 
-            ? response.data 
-            : (response.data.data || response.data.list || []);
-          
-          const hasMore = messages.length === batchSize;
+    enforceChatCacheLimit() {
+      const candidates = Object.keys(this.cacheEntries).sort((a, b) => this.cacheEntries[a].used - this.cacheEntries[b].used);
+      for (const key of candidates) {
+        if (Object.keys(this.cacheEntries).length <= this.maxCachedChats) break;
+        if (sameId(key, this.currentChatId) || (this.chatMessages[key] || []).some(message => message.sendPayload
+          || (!isPersistedId(message.id) && [MESSAGE_STATUS.SENDING, MESSAGE_STATUS.FAILED].includes(message.status)))) continue;
+        this.clearChatMessages(key);
+      }
+    },
 
-          // 为每条消息添加isFromMe字段并标准化状态
-          const messagesWithFlag = messages.map(msg => ({
-            ...msg,
-            reactions: Array.isArray(msg.reactions) ? msg.reactions : [],
-            isFromMe: msg.senderId === currentUserId,
-            msgContent: typeof msg.content === 'object' ? msg.content.content : msg.content,
-            sharedChatId: msg.chatId // 保存sharedChatId
-          }));
+    trimChatWindow(chatId, direction = 'newer') {
+      const messages = this.chatMessages[chatId] || [];
+      const persisted = messages.filter(message => isPersistedId(message.id));
+      const kept = direction === 'older' ? persisted.slice(0, this.maxCachedMessages) : persisted.slice(-this.maxCachedMessages);
+      const ids = new Set(kept.map(message => String(message.id)));
+      this.chatMessages[chatId] = messages.filter(message => !isPersistedId(message.id) || ids.has(String(message.id)));
+      const snapshots = Object.keys(this.reactionSnapshots).filter(key => key.startsWith(`${chatId}:`));
+      for (const key of snapshots.slice(0, Math.max(0, snapshots.length - this.maxCachedMessages))) delete this.reactionSnapshots[key];
+    },
 
-          const normalizedMsgs = normalizeMessages(messagesWithFlag);
+    async fetchMessagesForChat(chatId, page = 1, limit = null, direction = page === 1 ? 'latest' : 'older') {
+      const session = captureSession();
+      const token = this.touchChat(chatId);
+      const request = ++this.cacheClock;
+      this.historyRequests[chatId] = request;
+      const current = () => isCurrentSession(session) && this.cacheEntries[chatId]?.token === token
+        && this.historyRequests[chatId] === request;
+      const batchSize = Math.min(limit || this.messageBatchSize, this.maxCachedMessages);
+      let response;
+      try { response = await api.chat.getChatMessages(String(chatId), { page, size: batchSize }); }
+      catch (error) { if (!current()) return null; delete this.historyRequests[chatId]; throw error; }
+      if (!current()) return null;
+      if (response.code !== 0 || !response.data) return;
+      const messages = Array.isArray(response.data) ? response.data : response.data.list || response.data.data || [];
+      const previous = this.chatPagination[chatId];
+      const pages = Math.max(1, Math.floor(this.maxCachedMessages / batchSize));
+      if (direction === 'latest' && previous?.hasNewer) {
+        this.chatMessages[chatId] = this.chatMessages[chatId].filter(message => !isPersistedId(message.id));
+      }
+      for (const message of messages) this.mergeConfirmedMessage(chatId, message, true);
+      this.trimChatWindow(chatId, direction);
+      if (direction === 'older') {
+        this.chatPagination[chatId] = { page, firstPage: Math.max(previous?.firstPage || 1, page - pages + 1),
+          hasMore: messages.length === batchSize, hasNewer: true };
+      } else if (direction === 'newer') {
+        const lastPage = Math.min(previous?.page || page, page + pages - 1);
+        this.chatPagination[chatId] = { page: lastPage, firstPage: page,
+          hasMore: lastPage < (previous?.page || 0) || previous?.hasMore || false, hasNewer: page > 1 };
+      } else {
+        this.chatPagination[chatId] = { page: 1, firstPage: 1, hasMore: messages.length === batchSize, hasNewer: false };
+      }
+      if (page === 1 && this.syncCursors[chatId] === undefined) this.syncCursors[chatId] = highestMessageId(messages);
+      if (this.historyRequests[chatId] === request) delete this.historyRequests[chatId];
+    },
 
-          // ✅ 修复3：使用sharedChatId作为key存储消息
-          const storageKey = normalizedChatId;
+    mergeConfirmedMessage(chatId, source, forceWindow = false) {
+      const incoming = canonicalMessage(source, chatId, useAuthStore().currentUser?.id);
+      if (!incoming || !isPersistedId(incoming.id)) return false;
+      this.touchChat(chatId);
+      if (!this.cacheEntries[chatId]) return false;
+      const key = `${chatId}:${incoming.id}`;
+      const snapshot = this.reactionSnapshots[key];
+      if (snapshot && compareIds(snapshot.reactionVersion, incoming.reactionVersion) >= 0) {
+        incoming.reactions = snapshot.reactions;
+        incoming.reactionVersion = snapshot.reactionVersion;
+      }
+      const rows = this.chatMessages[chatId];
+      const existing = rows.find(message => sameId(message.id, incoming.id)
+        || (incoming.clientMessageId && message.clientMessageId === incoming.clientMessageId && incoming.isFromMe && message.isFromMe));
+      const seen = (this.recentMessageIds[chatId] ||= []);
+      const duplicate = seen.includes(String(incoming.id));
+      if (!duplicate) { seen.push(String(incoming.id)); if (seen.length > this.maxCachedMessages) seen.shift(); }
+      const olderWindow = this.chatPagination[chatId]?.hasNewer;
+      if (!forceWindow && olderWindow && !existing) return !duplicate;
+      const added = mergeMessage(rows, incoming);
+      if (!forceWindow) this.trimChatWindow(chatId, olderWindow ? 'older' : 'newer');
+      this.enforceChatCacheLimit();
+      return added && !duplicate;
+    },
 
-          // 更新分页信息
-          this.chatPagination[storageKey] = {
-            hasMore,
-            page,
-            total: messages.length
-          };
-
-          if (page === 1) {
-            this.setMessages(storageKey, normalizedMsgs);
-          } else {
-            // Append messages for pagination
-            const existingMessages = this.chatMessages[storageKey] || [];
-            this.setMessages(storageKey, [...normalizedMsgs, ...existingMessages]);
+    async syncChatMessages(chatId) {
+      if (this.syncRequests[chatId]) return this.syncRequests[chatId];
+      const session = captureSession();
+      const token = this.touchChat(chatId);
+      const current = () => isCurrentSession(session) && this.cacheEntries[chatId]?.token === token;
+      const request = (async () => {
+        let cursor = this.syncCursors[chatId] ?? '0';
+        while (true) {
+          const response = await api.chat.syncMessages(chatId, cursor, 100);
+          if (!current()) return null;
+          if (response.code !== 0 || !Array.isArray(response.data?.list)) throw new Error('Invalid message sync response');
+          for (const message of response.data.list) this.mergeConfirmedMessage(chatId, message);
+          const next = String(response.data.nextAfterMessageId ?? cursor);
+          if (compareIds(next, cursor) < 0 || (response.data.hasMore && compareIds(next, cursor) <= 0)) {
+            throw new Error('Message sync cursor did not advance');
           }
-          
-          console.log('✅ 消息获取成功: count=', normalizedMsgs.length);
+          this.syncCursors[chatId] = next;
+          if (!response.data.hasMore) return;
+          cursor = next;
         }
-      } catch (error) {
-        console.error(`Failed to fetch messages for chat ${chatId}:`, error);
-        throw error;
+      })();
+      this.syncRequests[chatId] = request;
+      try { return await request; }
+      finally {
+        if (current() && this.syncRequests[chatId] === request) delete this.syncRequests[chatId];
       }
     },
 
-    // Load more messages for current chat
+    async refreshLoadedMessageState(chatId) {
+      const session = captureSession();
+      const token = this.touchChat(chatId);
+      const ids = (this.chatMessages[chatId] || []).map(message => message.id).filter(isPersistedId);
+      for (let offset = 0; offset < ids.length; offset += 100) {
+        const batch = ids.slice(offset, offset + 100);
+        const response = await api.chat.getMessageState(chatId, batch);
+        if (!isCurrentSession(session) || this.cacheEntries[chatId]?.token !== token) return null;
+        if (response.code !== 0 || !Array.isArray(response.data)) throw new Error('Invalid message state response');
+        const returnedIds = new Set(response.data.map(message => String(message.id)));
+        const requestedIds = new Set(batch.map(String));
+        this.chatMessages[chatId] = (this.chatMessages[chatId] || []).filter(message =>
+          !requestedIds.has(String(message.id)) || returnedIds.has(String(message.id)));
+        for (const message of response.data) {
+          if (this.chatMessages[chatId].some(row => sameId(row.id, message.id))) this.mergeConfirmedMessage(chatId, message, true);
+        }
+      }
+    },
+
     async loadMoreMessages() {
       if (!this.activeChatSession) return;
-
       const chatId = this.activeChatSession.id;
       const pagination = this.chatPagination[chatId] || { page: 0 };
-      const nextPage = pagination.page + 1;
-
-      await this.fetchMessagesForChat(chatId, nextPage);
+      await this.fetchMessagesForChat(chatId, pagination.page + 1, null, 'older');
     },
 
-    // Clear messages for a chat to free memory
+    async loadNewerMessages() {
+      if (!this.activeChatSession) return;
+      const chatId = this.activeChatSession.id;
+      const pagination = this.chatPagination[chatId];
+      if (pagination?.firstPage > 1) await this.fetchMessagesForChat(chatId, pagination.firstPage - 1, null, 'newer');
+      else await this.loadLatestMessages();
+    },
+
+    async loadLatestMessages() {
+      if (!this.activeChatSession) return;
+      const chatId = this.activeChatSession.id;
+      await this.fetchMessagesForChat(chatId, 1, null, 'latest');
+    },
+
     clearChatMessages(chatId) {
-      if (this.chatMessages[chatId]) {
-        delete this.chatMessages[chatId];
-        delete this.chatPagination[chatId];
+      for (const map of [this.chatMessages, this.cacheEntries, this.chatPagination, this.historyRequests,
+        this.syncCursors, this.syncRequests, this.recentMessageIds, this.newerIncomingIds, this.isTyping]) delete map[chatId];
+      for (const map of [this.readCursors, this.readRequests, this.reactionSnapshots]) {
+        for (const key of Object.keys(map)) if (key.startsWith(`${chatId}:`)) delete map[key];
       }
     },
 
     async fetchRecentChats() {
+      const requestSession = captureSession();
       try {
         // 使用新的chat API获取聊天列表
         const response = await api.chat.getChatList();
+        if (!isCurrentSession(requestSession)) return null;
         if (response.code === 0 && response.data) {
           // ✅ 修复：处理不同的响应结构
           const chatList = Array.isArray(response.data) 
             ? response.data 
             : (response.data.data || response.data.list || []);
-          this.recentSessions = chatList;
+          this.recentSessions = chatList.map(item => ({ ...item, id: item.sharedChatId ?? item.shared_chat_id ?? item.id, sharedChatId: item.sharedChatId ?? item.shared_chat_id ?? item.id }));
         }
       } catch (error) {
+        if (!isCurrentSession(requestSession)) return null;
         console.error('Failed to fetch recent chats:', error);
       }
     },
 
     updateRecentSession(chatId, lastMessage) {
-      const existingIndex = this.recentSessions.findIndex(session => session.id === chatId);
+      const existingIndex = this.recentSessions.findIndex(session => sameId(session.sharedChatId ?? session.id, chatId));
       const sessionData = {
-        id: chatId,
+        ...(existingIndex >= 0 ? this.recentSessions[existingIndex] : {}),
+        id: chatId, sharedChatId: chatId,
         lastMessage: lastMessage.content,
-        lastMessageTime: new Date(),
+        lastMessageTime: lastMessage.timestamp ?? new Date(),
         unreadCount: this.unreadCounts[chatId] || 0
       };
 
@@ -1001,12 +973,6 @@ export const useChatStore = defineStore('chat', {
 
     markAsRead(chatId) {
       this.unreadCounts[chatId] = 0;
-    },
-
-    clearChatMessages(chatId) {
-      if (this.chatMessages[chatId]) {
-        delete this.chatMessages[chatId];
-      }
     },
 
     // Typing indicators
@@ -1029,6 +995,7 @@ export const useChatStore = defineStore('chat', {
 
     // Handle typing indicator from WebSocket
     handleTypingIndicator(message) {
+      const session = captureSession();
       const { chatId, isTyping, userId } = message.data;
 
       // Update typing status for the specific chat
@@ -1042,6 +1009,7 @@ export const useChatStore = defineStore('chat', {
 
         // Auto-remove typing indicator after 3 seconds
         setTimeout(() => {
+          if (!isCurrentSession(session)) return;
           if (this.isTyping[chatId] && this.isTyping[chatId][userId]) {
             this.isTyping[chatId][userId] = false;
           }
@@ -1052,63 +1020,49 @@ export const useChatStore = defineStore('chat', {
     },
 
     // Update message status
-    updateMessageStatus(messageId, status, tempId = null) {
-      if (!messageId && !tempId) return;
-
-      // Search for the message in all chat messages
-      Object.keys(this.chatMessages).forEach(chatId => {
-        const messages = this.chatMessages[chatId];
-        let messageIndex = -1;
-
-        // First try to find by temporary ID (for new messages)
-        if (tempId) {
-          messageIndex = messages.findIndex(msg => msg.tempId === tempId);
+    updateMessageStatus(messageId, status, clientMessageId = null) {
+      for (const messages of Object.values(this.chatMessages)) {
+        const message = messages.find(item => (clientMessageId && (item.clientMessageId === clientMessageId || item.tempId === clientMessageId))
+          || sameId(item.id, messageId));
+        if (!message) continue;
+        if (isPersistedId(message.id) && (status === MESSAGE_STATUS.FAILED || status === MESSAGE_STATUS.SENDING)) continue;
+        if (messageId != null && isPersistedId(messageId)) {
+          message.id = messageId;
+          message.messageId = messageId;
+          delete message.tempId;
+          delete message.sendPayload;
         }
-
-        // If not found by tempId, try by real ID
-        if (messageIndex === -1 && messageId) {
-          messageIndex = messages.findIndex(msg => msg.id === messageId);
-        }
-
-        if (messageIndex !== -1) {
-          messages[messageIndex].status = status;
-          // Update real ID if available
-          if (messageId && !messages[messageIndex].id) {
-            messages[messageIndex].id = messageId;
-          }
-          // Remove temporary ID after successful association
-          if (tempId && messages[messageIndex].tempId === tempId) {
-            delete messages[messageIndex].tempId;
-          }
-        }
-      });
+        const wasConfirmed = message.status >= MESSAGE_STATUS.SENT && message.status <= MESSAGE_STATUS.READ;
+        message.status = wasConfirmed && status >= MESSAGE_STATUS.SENT && status <= MESSAGE_STATUS.READ
+          ? Math.max(message.status, status) : status ?? MESSAGE_STATUS.SENT;
+      }
     },
 
     /**
      * ✅ 拉取离线消息
      */
     async fetchOfflineMessages() {
-      try {
-        console.log('📥 拉取离线消息...');
-        
-        // 获取所有聊天列表
-        await this.fetchRecentChats();
-        
-        // 获取未读统计
-        await this.fetchUnreadStats();
-        
-        // 对于有未读消息的聊天，拉取最新消息
-        for (const session of this.recentSessions) {
-          if (session.unreadCount > 0) {
-            console.log(`📬 拉取聊天 ${session.id} 的离线消息`);
-            await this.fetchMessagesForChat(session.id, 1, session.unreadCount);
+      const session = captureSession();
+      await this.fetchRecentChats();
+      if (!isCurrentSession(session)) return null;
+      const chatIds = new Set(Object.keys(this.cacheEntries));
+      if (this.currentChatId != null) chatIds.add(String(this.currentChatId));
+      for (const chatId of chatIds) {
+        if (!isCurrentSession(session)) return null;
+        try {
+          if (this.syncCursors[chatId] === undefined) {
+            if (!sameId(chatId, this.currentChatId)) continue;
+            await this.fetchMessagesForChat(chatId);
           }
+          else await this.refreshLoadedMessageState(chatId);
+          if (!isCurrentSession(session)) return null;
+          await this.syncChatMessages(chatId);
+        } catch (error) {
+          if (!isCurrentSession(session)) return null;
+          log.warn('Unable to recover messages for chat', chatId);
         }
-        
-        console.log('✅ 离线消息拉取完成');
-      } catch (error) {
-        console.error('❌ 拉取离线消息失败:', error);
       }
+      if (isCurrentSession(session)) await this.fetchUnreadStats();
     },
 
     // ==================== 未读计数相关方法 ====================
@@ -1117,8 +1071,10 @@ export const useChatStore = defineStore('chat', {
      * ✅ 获取未读统计
      */
     async fetchUnreadStats() {
+      const requestSession = captureSession();
       try {
         const response = await api.chat.getUnreadStats();
+        if (!isCurrentSession(requestSession)) return null;
         if (response.code === 0 && response.data) {
           // 更新未读计数映射
           this.unreadCountMap = {};
@@ -1138,6 +1094,7 @@ export const useChatStore = defineStore('chat', {
           console.log('✅ 未读统计已更新:', this.totalUnreadCount);
         }
       } catch (error) {
+        if (!isCurrentSession(requestSession)) return null;
         console.error('❌ 获取未读统计失败:', error);
       }
     },
@@ -1152,18 +1109,25 @@ export const useChatStore = defineStore('chat', {
     /**
      * ✅ 标记聊天已读（增强版）
      */
-    async markChatAsRead(chatId) {
-      try {
-        await api.chat.markAsRead(chatId);
-        
-        // 更新本地状态
-        const oldUnread = this.unreadCountMap[chatId] || 0;
-        this.unreadCountMap[chatId] = 0;
-        this.unreadCounts[chatId] = 0; // 更新 unreadCounts 而不是直接修改 totalUnreadCount
-        
-        console.log('✅ 标记已读成功: chatId=', chatId);
-      } catch (error) {
-        console.error('❌ 标记已读失败:', error);
+    async markChatAsRead(chatId, lastReadMessageId = highestMessageId(this.chatMessages[chatId])) {
+      const session = captureSession();
+      if (!isPersistedId(lastReadMessageId)) return;
+      const token = this.touchChat(chatId);
+      const current = () => isCurrentSession(session) && this.cacheEntries[chatId]?.token === token;
+      const key = `${chatId}:${useAuthStore().currentUser?.id}`;
+      if (compareIds(lastReadMessageId, this.readCursors[key] ?? 0) <= 0) return;
+      const pending = this.readRequests[key];
+      if (pending && compareIds(lastReadMessageId, pending.boundary) <= 0) return pending.promise;
+      const request = (async () => {
+        const response = await api.chat.markAsRead(chatId, String(lastReadMessageId));
+        if (!current()) return;
+        if (response.code === 0 && response.data && typeof response.data === 'object') this.handleReadReceipt(response.data);
+      })();
+      this.readRequests[key] = { boundary: String(lastReadMessageId), promise: request };
+      try { return await request; }
+      catch (error) { if (isCurrentSession(session)) log.warn('Unable to acknowledge displayed messages'); }
+      finally {
+        if (current() && this.readRequests[key]?.promise === request) delete this.readRequests[key];
       }
     },
 
@@ -1171,8 +1135,10 @@ export const useChatStore = defineStore('chat', {
      * ✅ 批量标记已读
      */
     async batchMarkAsRead(chatIds) {
+      const requestSession = captureSession();
       try {
         await api.chat.batchMarkAsRead(chatIds);
+        if (!isCurrentSession(requestSession)) return null;
         
         // 更新本地状态
         chatIds.forEach(chatId => {
@@ -1182,6 +1148,7 @@ export const useChatStore = defineStore('chat', {
         
         console.log('✅ 批量标记已读成功');
       } catch (error) {
+        if (!isCurrentSession(requestSession)) return null;
         console.error('❌ 批量标记已读失败:', error);
       }
     },
@@ -1190,7 +1157,7 @@ export const useChatStore = defineStore('chat', {
      * ✅ 收到新消息时更新未读计数
      */
     updateUnreadOnNewMessage(chatId, isFromMe) {
-      if (!isFromMe && chatId !== this.currentChatId) {
+      if (!isFromMe && (!sameId(chatId, this.currentChatId) || this.chatPagination[chatId]?.hasNewer)) {
         this.unreadCountMap[chatId] = (this.unreadCountMap[chatId] || 0) + 1;
         this.unreadCounts[chatId] = (this.unreadCounts[chatId] || 0) + 1; // 更新 unreadCounts 而不是直接修改 totalUnreadCount
         console.log('📬 未读计数已更新: chatId=', chatId, 'total=', this.totalUnreadCount);
@@ -1337,11 +1304,13 @@ export const useChatStore = defineStore('chat', {
      * @param {Number} groupId - 群组ID
      */
     async refreshGroupInfo(groupId) {
+      const requestSession = captureSession();
       try {
         console.log('🔄 刷新群组信息: groupId=', groupId);
         
         // 调用API获取最新的群组信息
         const response = await api.group.getGroupDetails(groupId);
+        if (!isCurrentSession(requestSession)) return null;
         
         if (response.code === 0 && response.data) {
           // ✅ 修复：处理不同的响应结构
@@ -1377,6 +1346,7 @@ export const useChatStore = defineStore('chat', {
           console.log('✅ 群组信息刷新成功');
         }
       } catch (error) {
+        if (!isCurrentSession(requestSession)) return null;
         console.error('❌ 刷新群组信息失败:', error);
       }
     },
@@ -1386,43 +1356,22 @@ export const useChatStore = defineStore('chat', {
      * @param {Object} data - 反应变更数据
      */
     handleReactionChange(data) {
-      console.log('😊 处理消息反应变更:', data);
-
-      const { messageId, reactions } = data || {};
       const chatId = data?.sharedChatId ?? data?.chatId;
-
-      if (messageId == null || chatId == null || !Array.isArray(reactions)) {
-        console.warn('⚠️ 反应变更数据不完整:', data);
-        return;
-      }
-
-      // 查找对应的消息并更新反应
-      const messages = this.chatMessages[chatId];
-      if (messages && Array.isArray(messages)) {
-        const messageIndex = messages.findIndex(msg =>
-          (msg.id != null && String(msg.id) === String(messageId))
-          || (msg.messageId != null && String(msg.messageId) === String(messageId)));
-
-        if (messageIndex !== -1) {
-          // 更新消息的反应列表
-          messages[messageIndex].reactions = reactions;
-
-          console.log('✅ 消息反应已更新:', {
-            messageId,
-            chatId,
-            reactions: messages[messageIndex].reactions
-          });
-
-          // 触发自定义事件，通知UI更新
-          window.dispatchEvent(new CustomEvent('message-reaction-updated', {
-            detail: { messageId, chatId, reactions }
-          }));
-        } else {
-          console.warn('⚠️ 未找到对应的消息:', messageId);
-        }
-      } else {
-        console.warn('⚠️ 聊天消息列表不存在:', chatId);
-      }
+      const messageId = data?.messageId;
+      if (chatId == null || messageId == null || !Array.isArray(data.reactions)) return;
+      this.touchChat(chatId);
+      if (!this.cacheEntries[chatId]) return;
+      const key = `${chatId}:${messageId}`;
+      const message = this.chatMessages[chatId]?.find(item => sameId(item.id ?? item.messageId, messageId));
+      const previous = this.reactionSnapshots[key] ?? message;
+      const version = data.reactionVersion ?? 0;
+      if (previous && data.reactionVersion != null && compareIds(version, previous.reactionVersion ?? 0) <= 0) return;
+      if (data.reactionVersion == null && (previous?.reactionVersion ?? 0) > 0) return;
+      const snapshot = { reactions: data.reactions, reactionVersion: version };
+      this.reactionSnapshots[key] = snapshot;
+      if (message) Object.assign(message, snapshot);
+      this.trimChatWindow(chatId, this.chatPagination[chatId]?.hasNewer ? 'older' : 'newer');
+      window.dispatchEvent(new CustomEvent('message-reaction-updated', { detail: { messageId, chatId, ...snapshot } }));
     }
   }
 });

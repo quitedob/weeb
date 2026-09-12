@@ -776,6 +776,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
 
     @Override
     public List<Group> searchGroups(String keyword, int limit) {
+        if (limit < 1 || limit > 100) throw new IllegalArgumentException("Group search limit must be between 1 and 100");
         try {
             if (keyword == null || keyword.trim().isEmpty()) {
                 return new ArrayList<>();
@@ -1231,6 +1232,48 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, Group> implements
             log.error("获取用户创建的群组详细信息失败: userId={}", userId, e);
             throw new WeebException("获取用户创建的群组详细信息失败: " + e.getMessage());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getUserGroupsPage(Long userId, int page, int size, boolean excludeOwned) {
+        validateGroupPage(userId, page, size);
+        long total = groupMapper.countUserGroups(userId, excludeOwned);
+        List<GroupDto> groups = total == 0 ? List.of()
+                : groupMapper.selectUserGroupsPage(userId, (long) page * size, size, excludeOwned);
+        return Map.of("list", groups, "total", total, "page", page, "size", size);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getUserCreatedGroupsPage(Long userId, int page, int size) {
+        validateGroupPage(userId, page, size);
+        long total = groupMapper.countUserCreatedGroups(userId);
+        List<GroupDto> groups = total == 0 ? List.of()
+                : groupMapper.selectUserCreatedGroupsPage(userId, (long) page * size, size);
+        return Map.of("list", groups, "total", total, "page", page, "size", size);
+    }
+
+    private void validateGroupPage(Long userId, int page, int size) {
+        if (userId == null || userId <= 0) throw new AccessDeniedException("Authenticated user required");
+        if (page < 0 || size < 1 || size > 100) throw new IllegalArgumentException("Invalid group pagination");
+    }
+
+    /** One bounded membership query per returned search page, independent of the client's loaded groups. */
+    @Override
+    @Transactional(readOnly = true)
+    public List<Group> withCurrentUserRoles(Long userId, List<Group> groups) {
+        if (groups == null || groups.isEmpty()) return List.of();
+        if (groups.size() > 100) throw new IllegalArgumentException("Group result page exceeds 100 entries");
+        List<Long> ids = groups.stream().map(Group::getId).filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, String> roles = new HashMap<>();
+        if (userId != null && userId > 0 && !ids.isEmpty()) {
+            for (GroupDto role : groupMapper.selectCurrentUserRoles(userId, ids)) {
+                roles.put(role.getId(), role.getCurrentUserRole());
+            }
+        }
+        for (Group group : groups) group.setCurrentUserRole(roles.getOrDefault(group.getId(), "NON_MEMBER"));
+        return groups;
     }
 
     @Override

@@ -43,6 +43,7 @@ class CommentReactionMySqlIntegrationTest {
     private ChatService chat;
     private ArticleCommentService comments;
     private MessageBroadcastService broadcasts;
+    private MessageOutboxService outbox;
     private long authorId, receiverId, outsiderId, chatId, messageId, emptyMessageId, articleId, otherArticleId;
 
     @BeforeAll
@@ -95,10 +96,12 @@ class CommentReactionMySqlIntegrationTest {
         }
 
         broadcasts = mock(MessageBroadcastService.class);
+        outbox = mock(MessageOutboxService.class);
         var chatTarget = new ChatServiceImpl();
         ReflectionTestUtils.setField(chatTarget, "messageMapper", session.getMapper(MessageMapper.class));
         ReflectionTestUtils.setField(chatTarget, "messageReactionMapper", reactions);
         ReflectionTestUtils.setField(chatTarget, "messageBroadcastService", broadcasts);
+        ReflectionTestUtils.setField(chatTarget, "messageOutboxService", outbox);
         ReflectionTestUtils.setField(chatTarget, "chatAccessService", new ChatAccessService(session.getMapper(ChatListMapper.class)));
         chat = transactional(chatTarget, ChatService.class);
 
@@ -136,7 +139,7 @@ class CommentReactionMySqlIntegrationTest {
         Map<String, Object> expected = Map.of("emoji", "👍", "reactionType", "👍", "count", 1, "userIds", List.of(authorId));
         assertEquals(List.of(expected), historyMessage(messageId).getReactions());
         assertEquals(List.of(), historyMessage(emptyMessageId).getReactions());
-        verify(broadcasts).broadcastReactionChange(eq(chatId), argThat(event ->
+        verify(outbox).enqueue(anyString(), eq("REACTION"), eq(chatId), eq(messageId), anyList(), argThat(event ->
                 List.of(expected).equals(event.get("reactions")) && "add".equals(event.get("action"))));
     }
 

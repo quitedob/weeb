@@ -127,6 +127,8 @@ public class ChatController {
 
         Message message = new Message();
         message.setSenderId(userId);
+        message.setClientMessageId(chatMessageVo.getClientMessageId());
+        message.setReplyToMessageId(chatMessageVo.getReplyToMessageId());
         // ✅ 修复：直接使用sharedChatId
         message.setChatId(sharedChatId);
 
@@ -186,6 +188,8 @@ public class ChatController {
             return ResponseEntity.ok(ApiResponse.success(result));
         } catch (org.springframework.security.access.AccessDeniedException e) {
             throw e;
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         } catch (Exception e) {
             log.error("消息发送失败: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError()
@@ -205,10 +209,26 @@ public class ChatController {
      */
     @UrlLimit
     @PostMapping("/{sharedChatId}/read")
-    public ResponseEntity<ApiResponse<Boolean>> markAsRead(@PathVariable Long sharedChatId,
-                                                          @Userid Long userId) {
-        boolean result = chatService.markAsReadBySharedChatId(userId, sharedChatId);
-        return ResponseEntity.ok(ApiResponse.success(result));
+    public ResponseEntity<ApiResponse<?>> markAsRead(@PathVariable Long sharedChatId,
+            @Userid Long userId, @RequestBody(required = false) @Valid com.web.vo.chat.ReadMessageVo request) {
+        if (request == null) {
+            return ResponseEntity.ok(ApiResponse.success(chatService.markAsReadBySharedChatId(userId, sharedChatId)));
+        }
+        return ResponseEntity.ok(ApiResponse.success(chatService.markAsReadBySharedChatId(userId, sharedChatId,
+                request.getLastReadMessageId())));
+    }
+
+    @GetMapping("/{sharedChatId}/sync")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> syncMessages(@PathVariable Long sharedChatId,
+            @Userid Long userId, @RequestParam(defaultValue = "0") Long afterMessageId,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(ApiResponse.success(chatService.syncMessages(userId, sharedChatId, afterMessageId, size)));
+    }
+
+    @GetMapping("/{sharedChatId}/messages/state")
+    public ResponseEntity<ApiResponse<List<Message>>> getMessageStates(@PathVariable Long sharedChatId,
+            @Userid Long userId, @RequestParam List<Long> ids) {
+        return ResponseEntity.ok(ApiResponse.success(chatService.getMessageStates(userId, sharedChatId, ids)));
     }
 
     /**
@@ -246,6 +266,18 @@ public class ChatController {
                                                           @RequestParam String reactionType) {
         chatService.addReaction(userId, messageId, reactionType);
         return ResponseEntity.ok(ApiResponse.success("反应操作成功"));
+    }
+
+    @PutMapping("/messages/{messageId}/react")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> ensureReaction(@PathVariable Long messageId,
+            @Userid Long userId, @RequestParam String reactionType) {
+        return ResponseEntity.ok(ApiResponse.success(chatService.setReaction(userId, messageId, reactionType, true)));
+    }
+
+    @DeleteMapping("/messages/{messageId}/react")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> removeReaction(@PathVariable Long messageId,
+            @Userid Long userId, @RequestParam String reactionType) {
+        return ResponseEntity.ok(ApiResponse.success(chatService.setReaction(userId, messageId, reactionType, false)));
     }
 
     /**

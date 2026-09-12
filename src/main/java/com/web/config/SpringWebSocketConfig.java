@@ -101,11 +101,20 @@ public class SpringWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (!session.userId().equals(user.getId()) || !session.username().equals(user.getUsername())) return null;
                 // Use the captured subscription, since /user queues are rewritten to broker session destinations.
                 authorizeSubscription(user.getId(), destination);
+                if (Set.of("/user/queue/group-info-change", "/user/queue/group-member-change").contains(destination)) {
+                    JsonNode body = deliveryBody(message.getPayload());
+                    JsonNode group = body == null ? null : body.get("groupId");
+                    if (group == null || !group.asText().matches("[1-9][0-9]*")) return null;
+                    boolean dissolved = "GROUP_INFO_CHANGE".equals(body.path("type").asText())
+                            && "GROUP_DISSOLVED".equals(body.path("changeType").asText());
+                    boolean ownRemoval = "GROUP_MEMBER_CHANGE".equals(body.path("type").asText())
+                            && Set.of("MEMBER_REMOVED", "MEMBER_LEFT").contains(body.path("changeType").asText())
+                            && user.getId().equals(body.path("affectedUserId").asLong(-1));
+                    if (!dissolved && !ownRemoval) chatAccessService.resolveRoom(user.getId(), "group_" + group.asText());
+                }
                 if (Set.of("/user/queue/private", "/user/queue/chat-list-update", "/user/queue/read-receipt",
                         "/user/queue/message-status", "/user/queue/reaction-change").contains(destination)) {
-                    Object payload = message.getPayload();
-                    JsonNode body = payload instanceof byte[] bytes ? objectMapper.readTree(bytes)
-                            : payload instanceof String text ? objectMapper.readTree(text) : objectMapper.valueToTree(payload);
+                    JsonNode body = deliveryBody(message.getPayload());
                     JsonNode chat = body == null ? null : body.get("sharedChatId");
                     if (chat == null || chat.isNull()) chat = body == null ? null : body.get("chatId");
                     if (chat != null && !chat.isNull()) chatAccessService.resolveRoom(user.getId(), chat.asText());
@@ -116,6 +125,11 @@ public class SpringWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 // Do not log token-bearing headers or payloads on a denied delivery.
                 return null;
             }
+        }
+
+        private JsonNode deliveryBody(Object payload) throws java.io.IOException {
+            return payload instanceof byte[] bytes ? objectMapper.readTree(bytes)
+                    : payload instanceof String text ? objectMapper.readTree(text) : objectMapper.valueToTree(payload);
         }
     }
 

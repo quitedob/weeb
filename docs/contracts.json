@@ -1,0 +1,189 @@
+{
+  "formatVersion": 1,
+  "scope": "Maintained compatibility and reliability contracts; not an exhaustive OpenAPI schema",
+  "http": {
+    "success": {
+      "code": 0,
+      "emptySuccessStatus": 204
+    },
+    "auth": {
+      "renew": "POST /api/auth/refresh",
+      "credential": "unexpired Authorization Bearer token",
+      "expiresAt": "epoch milliseconds",
+      "expiresIn": "remaining seconds",
+      "invalid": 401,
+      "dependencyUnavailable": 503
+    },
+    "follow": {
+      "create": "POST /api/follow/{id}",
+      "remove": "DELETE /api/follow/{id}",
+      "aliases": [
+        "POST /api/users/{id}/follow",
+        "DELETE /api/users/{id}/follow"
+      ]
+    },
+    "history": {
+      "method": "GET",
+      "path": "/api/chats/{sharedChatId}/messages",
+      "pageBase": 1,
+      "maxSize": 100
+    },
+    "send": {
+      "method": "POST",
+      "path": "/api/chats/{sharedChatId}/messages",
+      "fields": [
+        "content",
+        "messageType",
+        "clientMessageId",
+        "replyToMessageId"
+      ],
+      "idempotencyScope": "senderId + binary clientMessageId",
+      "legacyIdOptional": true,
+      "conflictingReuse": "4xx; original message unchanged"
+    },
+    "sync": {
+      "method": "GET",
+      "path": "/api/chats/{sharedChatId}/sync",
+      "query": {
+        "afterMessageId": 0,
+        "size": 100
+      },
+      "response": [
+        "list",
+        "nextAfterMessageId",
+        "hasMore"
+      ],
+      "order": "ascending persisted message ID",
+      "authority": "MySQL and current conversation access"
+    },
+    "loadedMessageState": {
+      "method": "GET",
+      "path": "/api/chats/{sharedChatId}/messages/state",
+      "query": "ids=1,2,3",
+      "maxIds": 100,
+      "purpose": "Refresh loaded read/reaction/recall state after disconnect"
+    },
+    "read": {
+      "method": "POST",
+      "path": "/api/chats/{sharedChatId}/read",
+      "body": {
+        "lastReadMessageId": "visible persisted message ID"
+      },
+      "constraint": "monotonic, belongs to this conversation, never beyond its valid persisted range",
+      "legacyMissingBoundary": "explicit mark-all through current committed message"
+    },
+    "reaction": {
+      "path": "/api/chats/messages/{messageId}/react",
+      "query": "reactionType",
+      "add": "PUT",
+      "remove": "DELETE",
+      "legacyToggle": "POST; do not automatically retry",
+      "aggregateRevision": "reactionVersion"
+    },
+    "profile": {
+      "path": "/api/users/{id}",
+      "response": [
+        "user",
+        "userStats"
+      ]
+    },
+    "groupSearch": {
+      "path": "/api/search/group",
+      "query": [
+        "keyword",
+        "page",
+        "size"
+      ],
+      "pageBase": 0,
+      "membershipField": "currentUserRole: OWNER, ADMIN, MEMBER or NON_MEMBER; based on current persisted membership"
+    },
+    "groupLists": {
+      "joinedPath": "/api/groups/my-groups",
+      "createdPath": "/api/groups/my-created",
+      "pageBase": 0,
+      "maxSize": 100,
+      "query": "page and size must be provided together; joined supports excludeOwned=true",
+      "response": ["list", "total", "page", "size"],
+      "order": "create_time DESC, id DESC",
+      "filtering": "Membership and excludeOwned apply before COUNT and LIMIT",
+      "legacyNoParameters": "Retains the unpaginated array response for existing clients"
+    },
+    "messageSearch": {
+      "path": "/api/search/messages",
+      "query": "q, page, size, sortBy and optional filters",
+      "pageBase": 0,
+      "maxKeywordCharacters": 100,
+      "maxDistinctTerms": 10,
+      "maxSize": 100,
+      "maxResultWindow": 10000,
+      "semantics": "Case-insensitive literal substring OR; exact query then contiguous phrase then distinct term count; deterministic time/id ties",
+      "overLimit": "HTTP 400; narrow the query or date range"
+    },
+    "notifications": {
+      "path": "/api/notifications",
+      "pageBase": 1,
+      "response": [
+        "notifications",
+        "totalCount",
+        "totalPages",
+        "currentPage",
+        "pageSize"
+      ]
+    }
+  },
+  "stomp": {
+    "sockJsEndpoint": "/ws",
+    "connectCredential": "Authorization Bearer header in STOMP CONNECT",
+    "send": {
+      "private": "/app/chat/private",
+      "group": "/app/chat.sendMessage",
+      "read": "/app/chat/read-receipt",
+      "heartbeat": "/app/chat/heartbeat"
+    },
+    "subscribe": [
+      "/user/queue/private",
+      "/user/queue/chat-list-update",
+      "/user/queue/message-status",
+      "/user/queue/read-receipt",
+      "/user/queue/reaction-change",
+      "/user/queue/group-member-change",
+      "/user/queue/group-info-change",
+      "/user/queue/errors",
+      "/user/queue/notifications",
+      "/user/queue/contacts"
+    ],
+    "messageAck": {
+      "queue": "/user/queue/private",
+      "fields": [
+        "messageId",
+        "clientMessageId",
+        "chatId",
+        "isFromMe",
+        "status"
+      ],
+      "outboxAdditionalFields": [
+        "eventId",
+        "sharedChatId"
+      ],
+      "merge": "Immediate STOMP confirmation and outbox event can both arrive; merge by persisted messageId/clientMessageId"
+    },
+    "deliverySemantics": "at least once broker dispatch; SQL recovery and client deduplication; dispatch is not receipt",
+    "status": {
+      "1": "persisted / SENT",
+      "2": "DELIVERED only when explicitly established",
+      "3": "READ"
+    },
+    "payloadVersion": "formatVersion1 contract, additive fields; no negotiated wire version",
+    "authorization": "identity and current membership checked on input and sensitive output",
+    "topology": "single application instance; Simple Broker"
+  },
+  "deployment": {
+    "defaultHttp": "same-origin /api",
+    "defaultSockJs": "same-origin /ws",
+    "overrides": [
+      "VITE_API_BASE_URL",
+      "VITE_WS_URL"
+    ],
+    "passwordResetOrigin": "PASSWORD_RESET_FRONTEND_URL"
+  }
+}

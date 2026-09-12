@@ -1,6 +1,7 @@
 package com.web.controller;
 
 import com.web.common.ApiResponse;
+import com.web.exception.AuthStateUnavailableException;
 import com.web.model.User;
 import com.web.service.AuthService;
 import com.web.util.ApiResponseUtil;
@@ -14,6 +15,8 @@ import com.web.vo.auth.RegistrationVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataAccessException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -77,11 +80,14 @@ public class AuthController {
                 Map<String, Object> result = new HashMap<>();
                 result.put("user", registeredUser);
                 result.put("token", token);
+                addExpiry(result, token);
 
                 return ApiResponseUtil.successMap(result, "注册成功");
             } else {
                 return ApiResponseUtil.badRequestMap("注册失败");
             }
+        } catch (AuthStateUnavailableException | DataAccessException e) {
+            return authStorageUnavailable();
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionMap(e, "用户注册");
         }
@@ -101,12 +107,14 @@ public class AuthController {
                 Map<String, Object> result = new HashMap<>();
                 result.put("user", user);
                 result.put("token", token);
-                result.put("expiresIn", jwtUtil.getExpirationTimeSingle(token));
+                addExpiry(result, token);
 
                 return ApiResponseUtil.successMap(result, "登录成功");
             } else {
                 return ApiResponseUtil.badRequestMap("用户名或密码错误");
             }
+        } catch (AuthStateUnavailableException | DataAccessException e) {
+            return authStorageUnavailable();
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionMap(e, "用户登录");
         }
@@ -126,6 +134,8 @@ public class AuthController {
             }
 
             return ApiResponseUtil.successString("登出成功");
+        } catch (AuthStateUnavailableException | DataAccessException e) {
+            return authStorageUnavailable();
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionString(e, "用户登出");
         }
@@ -144,29 +154,17 @@ public class AuthController {
             }
 
             String oldToken = authorization.substring(7);
-            String username = jwtUtil.extractUsername(oldToken);
-
-            if (!jwtUtil.validateToken(oldToken)) {
-                return ApiResponseUtil.unauthorizedMap("令牌无效或已过期");
-            }
-
-            // 根据用户名获取用户ID
-            User user = authService.findByUsername(username);
-            if (user == null) {
-                return ApiResponseUtil.notFoundMap("用户不存在");
-            }
-
-            // 生成新令牌
-            String newToken = jwtUtil.generateToken(user.getId(), user.getUsername());
+            String newToken = jwtUtil.renewToken(oldToken);
 
             Map<String, Object> result = new HashMap<>();
             result.put("token", newToken);
-            result.put("expiresIn", jwtUtil.getExpirationTimeSingle(newToken));
-
-            // 将旧令牌加入黑名单
-            jwtUtil.blacklistToken(oldToken);
+            addExpiry(result, newToken);
 
             return ApiResponseUtil.successMap(result, "令牌刷新成功");
+        } catch (AccessDeniedException e) {
+            return ApiResponseUtil.unauthorizedMap("令牌无效、已过期或已被使用");
+        } catch (AuthStateUnavailableException | DataAccessException e) {
+            return authStorageUnavailable();
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionMap(e, "刷新令牌");
         }
@@ -192,6 +190,8 @@ public class AuthController {
             result.put("expiresAt", isValid ? jwtUtil.getExpirationDate(token) : null);
 
             return ApiResponseUtil.successMap(result);
+        } catch (AuthStateUnavailableException | DataAccessException e) {
+            return authStorageUnavailable();
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionMap(e, "验证令牌");
         }
@@ -245,6 +245,8 @@ public class AuthController {
             } else {
                 return ApiResponseUtil.badRequestString("密码修改失败");
             }
+        } catch (AuthStateUnavailableException | DataAccessException e) {
+            return authStorageUnavailable();
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionString(e, "修改密码");
         }
@@ -263,6 +265,8 @@ public class AuthController {
             } else {
                 return ApiResponseUtil.badRequestString("发送重置邮件失败");
             }
+        } catch (AuthStateUnavailableException | DataAccessException e) {
+            return authStorageUnavailable();
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionString(e, "发送重置邮件");
         }
@@ -286,6 +290,8 @@ public class AuthController {
             } else {
                 return ApiResponseUtil.badRequestString("重置令牌无效或已过期");
             }
+        } catch (AuthStateUnavailableException | DataAccessException e) {
+            return authStorageUnavailable();
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionString(e, "重置密码");
         }
@@ -300,8 +306,20 @@ public class AuthController {
         try {
             boolean valid = authService.verifyResetToken(token);
             return ApiResponseUtil.successBoolean(valid);
+        } catch (AuthStateUnavailableException | DataAccessException e) {
+            return authStorageUnavailable();
         } catch (Exception e) {
             return ApiResponseUtil.handleServiceExceptionBoolean(e, "验证重置令牌");
         }
+    }
+
+    private void addExpiry(Map<String, Object> result, String token) {
+        long expiresAt = jwtUtil.getExpirationTimeSingle(token);
+        result.put("expiresAt", expiresAt);
+        result.put("expiresIn", Math.max(0L, (expiresAt - System.currentTimeMillis() + 999L) / 1000L));
+    }
+
+    private <T> ResponseEntity<ApiResponse<T>> authStorageUnavailable() {
+        return ResponseEntity.status(503).body(ApiResponse.error(-1, "认证服务暂时不可用，请稍后重试"));
     }
 }

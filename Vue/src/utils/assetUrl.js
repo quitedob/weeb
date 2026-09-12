@@ -3,7 +3,7 @@ const uploadedAvatar = /^\/uploads\/avatars\/[0-9a-f-]{36}\.png$/i;
 // Development serves these paths through Vite's upload proxy. Production may use a separate API origin.
 export function resolveAssetUrl(value) {
   if (typeof value !== 'string' || !uploadedAvatar.test(value) || import.meta.env.DEV) return value;
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+  const apiBase = import.meta.env.VITE_API_BASE_URL || '/';
   return new URL(value, new URL(apiBase, window.location.origin)).href;
 }
 

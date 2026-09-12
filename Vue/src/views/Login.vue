@@ -81,6 +81,7 @@ import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import appleMessage from '@/utils/appleMessage'
+import { captureSession, isCurrentSession } from '@/utils/session'
 import api from '@/api'
 
 const router = useRouter()
@@ -107,13 +108,16 @@ const handleLogin = async () => {
   loading.value = true
   error.value = ''
 
+  let requestSession
   try {
     // authStore.login 已经处理了token保存和用户信息获取
-    await authStore.login({
+    const pendingLogin = authStore.login({
       username: loginForm.username,
       password: loginForm.password,
       rememberMe: loginForm.rememberMe
     })
+    requestSession = captureSession()
+    if (!await pendingLogin || !isCurrentSession(requestSession)) return
 
     appleMessage.success('登录成功')
 
@@ -121,10 +125,11 @@ const handleLogin = async () => {
     const redirectPath = route.query.redirect || '/'
     router.push(redirectPath)
   } catch (err) {
+    if (requestSession && !isCurrentSession(requestSession)) return
     console.error('登录错误:', err)
     error.value = err.message || '登录失败，请稍后重试'
   } finally {
-    loading.value = false
+    if (!requestSession || isCurrentSession(requestSession)) loading.value = false
   }
 }
 </script>

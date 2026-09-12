@@ -21,7 +21,7 @@ sql/
 - `02_check_table_structure.sql` - 表结构检查
 
 ### 表创建脚本 (create/)
-**总计: 30张表**（包含编号 `06_5`、`28` 和 `29` 的脚本）
+**基线30张业务表；V003新增2张认证表，V004新增1张outbox表，加迁移记录共34张表。** 当前注册表由 `schema-manifest.json` 定义。
 
 #### 用户管理模块 (5张)
 - `01_create_user_table.sql` - 用户基础信息表
@@ -77,24 +77,24 @@ sql/
 
 ## 使用说明
 
-1. **开发环境**: DatabaseInitializer.java 按显式清单执行建表、初始分类/标签、索引和检查脚本；迁移脚本需单独执行
-2. **生产环境**: 需要手动执行 SQL 文件或使用数据库迁移工具
-3. **修改规范**: 新库结构修改对应 create/ 文件；既有数据库的结构变更另提供 migration/ 脚本
+1. **开发环境**: `DatabaseInitializer` 按 `schema-manifest.json` 执行唯一的版本化迁移清单。
+2. **生产环境**: 启动只读校验；先用独立 `SchemaMigrationCli` 查看 `--plan`，核查备份后 `--apply`，再 `--validate`，详见[迁移说明](../../../../../docs/schema-migrations.md)。
+3. **修改规范**: 已应用版本与基线建表文件不再修改；新增后续迁移版本。失败保留记录，MySQL DDL可能已部分提交，人工核查后才允许同校验和的 `--apply --resume-failed`。
 
 ## 执行顺序
 
 1. 从配置的 MySQL URL 确定数据库，确保数据库存在并检查连接
 2. 创建表结构
-3. 插入初始数据
+3. 插入初始数据；分类使用 `04_insert_article_categories_by_name.sql` 按名称解析父分类，保留旧库非标准ID
 4. 查询数据库元数据，仅创建尚不存在的同名索引
-5. 执行连接和表结构检查脚本
+5. 执行连接和表结构检查脚本，再依次应用V002历史兼容、V003认证持久化、V004消息可靠性迁移
 
 ## 注意事项
 
 - 建表脚本使用 `CREATE TABLE IF NOT EXISTS`；检查、初始数据和迁移脚本应按各自语义执行
 - 手工执行索引脚本前应检查已有索引，避免同名索引重复创建
 - 初始化器通过数据库元数据跳过已存在的索引；其余 SQL 执行失败会中止初始化
-- 现有数据库不会因 CREATE TABLE IF NOT EXISTS 自动更新列；部署前需执行对应 migration/ 脚本
+- 现有数据库不会因 CREATE TABLE IF NOT EXISTS 自动更新列；必须执行注册表中的迁移，旧 `db/migration` 原型和旧分类种子不作为第二套活动入口
 - 消息线索后端引用的 `message_threads` 和 `thread_participants` 不在上述 30 张表内，当前没有对应建表脚本；全新部署不支持线索功能
 
 ---

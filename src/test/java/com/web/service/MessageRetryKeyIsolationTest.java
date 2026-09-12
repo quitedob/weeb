@@ -32,6 +32,9 @@ class MessageRetryKeyIsolationTest {
         ReflectionTestUtils.setField(service, "unifiedMessageService", messages);
         ReflectionTestUtils.setField(service, "objectMapper", new ObjectMapper());
         when(redis.opsForHash()).thenReturn(hashes);
+        ValueOperations<String, Object> values = mock(ValueOperations.class);
+        when(redis.opsForValue()).thenReturn(values);
+        when(values.setIfAbsent(anyString(), any(), eq(90L), eq(java.util.concurrent.TimeUnit.SECONDS))).thenReturn(true);
         when(redis.opsForSet()).thenReturn(mock(SetOperations.class));
         Cursor<String> cursor = mock(Cursor.class);
         Iterator<String> iterator = List.of(INDEX, RECORD, "message:failed:metadata", RECORD).iterator();

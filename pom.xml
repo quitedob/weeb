@@ -23,6 +23,8 @@
 		<maven.compiler.source>17</maven.compiler.source>
 		<maven.compiler.target>17</maven.compiler.target>
 		<spring-ai.version>1.0.0-M1</spring-ai.version>
+		<!-- Release tooling supplies the immutable source revision time for reproducible archives. -->
+		<project.build.outputTimestamp>2026-09-12T00:00:00Z</project.build.outputTimestamp>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -310,6 +312,7 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
+					<mainClass>com.web.WeebApplication</mainClass>
 					<excludes>
 						<exclude>
 							<groupId>org.projectlombok</groupId>

@@ -3,6 +3,21 @@ import { describe, expect, it } from 'vitest'
 import PaginatedEmojiPicker from './PaginatedEmojiPicker.vue'
 
 describe('emoji pagination carryover', () => {
+  it('keeps every formerly available common emoji searchable and selectable without duplicates', async () => {
+    const wrapper = mount(PaginatedEmojiPicker)
+    const commonEmojis = ['😊', '😂', '❤️', '👍', '👎', '🎉', '😢', '😡', '🤔', '👏', '🙏', '💪', '🔥', '✨', '🎈']
+
+    for (const emoji of commonEmojis) {
+      await wrapper.find('input').setValue(emoji)
+      const matches = wrapper.findAll('.emoji-grid button').filter(button => button.text() === emoji)
+      expect(matches, `Expected one selectable ${emoji}`).toHaveLength(1)
+      await matches[0].trigger('click')
+      expect(wrapper.emitted('select').at(-1)).toEqual([emoji])
+    }
+
+    wrapper.unmount()
+  })
+
   it('paginates, resets the page after searching, and emits selected emoji', async () => {
     const wrapper = mount(PaginatedEmojiPicker)
     expect(wrapper.findAll('.emoji-grid button').length).toBeLessThanOrEqual(30)

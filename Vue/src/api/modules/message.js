@@ -46,8 +46,14 @@ export function createChat(targetId) {
 }
 
 // 标记消息为已读 - 使用新的统一API路径
-export function markAsRead(chatId) {
-  return axiosInstance.post(`/api/chats/${chatId}/read`);
+export function markAsRead(chatId, lastReadMessageId) {
+  return axiosInstance.post(`/api/chats/${chatId}/read`, lastReadMessageId == null ? undefined : { lastReadMessageId });
+}
+
+export function setReaction(messageId, reactionType, present) {
+  return present
+    ? axiosInstance.put(`/api/chats/messages/${messageId}/react`, null, { params: { reactionType } })
+    : axiosInstance.delete(`/api/chats/messages/${messageId}/react`, { params: { reactionType } });
 }
 
 // 删除聊天会话 - 使用新的统一API路径
@@ -92,6 +98,7 @@ export default {
   markAsRead,
   deleteChat,
   addReaction,
+  setReaction,
   getUnreadStats,
   getUnreadCount,
   batchMarkAsRead,

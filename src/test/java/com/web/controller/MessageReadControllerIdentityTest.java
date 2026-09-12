@@ -26,6 +26,7 @@ class MessageReadControllerIdentityTest {
         ReflectionTestUtils.setField(controller, "messageSearchService", messages);
         ReflectionTestUtils.setField(controller, "searchService", mock(SearchService.class));
         ReflectionTestUtils.setField(controller, "articleService", mock(ArticleService.class));
+        ReflectionTestUtils.setField(controller, "groupService", mock(GroupService.class));
         var mvc = standaloneSetup(controller).setCustomArgumentResolvers(new UserInfoArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
         for (String route : List.of("/api/search/messages", "/api/search/all", "/api/search?type=message", "/api/search?type=all")) {

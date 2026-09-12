@@ -1,6 +1,7 @@
 package com.web.service.impl;
 
 import com.web.dto.UserDetailsDTO;
+import com.web.exception.AuthStateUnavailableException;
 import com.web.mapper.AuthMapper;
 import com.web.mapper.UserMapper;
 import com.web.model.User;
@@ -8,6 +9,7 @@ import com.web.service.UserSecurityService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
@@ -146,6 +148,8 @@ public class UserSecurityServiceImpl implements UserSecurityService {
             log.debug("User {} has authorities: {}", userId, authorities);
             return authorities;
 
+        } catch (DataAccessException e) {
+            throw new AuthStateUnavailableException(e);
         } catch (Exception e) {
             log.error("Error loading authorities for userId: {}", userId, e);
             return Collections.emptyList();
@@ -157,6 +161,8 @@ public class UserSecurityServiceImpl implements UserSecurityService {
         try {
             User user = authMapper.findByUserID(userId);
             return user != null && user.getStatus() != null && user.getStatus() == 1;
+        } catch (DataAccessException e) {
+            throw new AuthStateUnavailableException(e);
         } catch (Exception e) {
             log.error("Error checking user active status for userId: {}", userId, e);
             return false;
@@ -177,6 +183,8 @@ public class UserSecurityServiceImpl implements UserSecurityService {
             // 可以根据实际业务需求细化这个逻辑
             return user.getStatus() != null && user.getStatus() < 0;
 
+        } catch (DataAccessException e) {
+            throw new AuthStateUnavailableException(e);
         } catch (Exception e) {
             log.error("Error checking user locked status for userId: {}", userId, e);
             return true; // 出错时默认认为是锁定的，更安全

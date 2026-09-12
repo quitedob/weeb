@@ -57,7 +57,6 @@ public class MessageRetryServiceImpl implements MessageRetryService {
             failedRecord.put("errorMessage", errorMessage);
             failedRecord.put("retryCount", 0);
             failedRecord.put("createdAt", LocalDateTime.now().toString());
-            failedRecord.put("lastRetryAt", null);
             failedRecord.put("status", "PENDING");
 
             // 保存失败记录
@@ -88,6 +87,11 @@ public class MessageRetryServiceImpl implements MessageRetryService {
             return false;
         }
 
+        String leaseKey = FAILED_MESSAGE_KEY_PREFIX + retryId + ":lease";
+        String leaseToken = UUID.randomUUID().toString();
+        if (!Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(leaseKey, leaseToken, 90, TimeUnit.SECONDS))) {
+            return false;
+        }
         try {
             String key = FAILED_MESSAGE_KEY_PREFIX + retryId;
             Map<Object, Object> record = redisTemplate.opsForHash().entries(key);
@@ -117,6 +121,9 @@ public class MessageRetryServiceImpl implements MessageRetryService {
 
             // 转换SendMessageVo
             SendMessageVo sendMessageVo = objectMapper.convertValue(sendMessageVoObj, SendMessageVo.class);
+            sendMessageVo.setRetryAttempt(true);
+            // Old retry records receive a deterministic key, retained across crashes and repeated attempts.
+            if (sendMessageVo.getClientMessageId() == null) sendMessageVo.setClientMessageId("retry:" + retryId);
 
             // 尝试重新发送
             try {
@@ -155,6 +162,12 @@ public class MessageRetryServiceImpl implements MessageRetryService {
         } catch (Exception e) {
             log.error("重试失败消息失败: retryId={}", retryId, e);
             return false;
+        } finally {
+            try {
+                redisTemplate.execute(new org.springframework.data.redis.core.script.DefaultRedisScript<Long>(
+                        "if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('del',KEYS[1]) else return 0 end", Long.class),
+                        List.of(leaseKey), leaseToken);
+            } catch (RuntimeException ignored) { /* The lease expires; the message's SQL key prevents duplicate insertion. */ }
         }
     }
 

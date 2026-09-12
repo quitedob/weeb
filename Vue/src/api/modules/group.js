@@ -114,16 +114,16 @@ export default {
    * 获取用户加入的群组列表
    * @returns {Promise}
    */
-  getMyGroups() {
-    return axiosInstance.get('/api/groups/my-groups');
+  getMyGroups(params, options = {}) {
+    return axiosInstance.get('/api/groups/my-groups', { params, ...options });
   },
 
   /**
    * 获取用户创建的群组列表
    * @returns {Promise}
    */
-  getMyCreatedGroups() {
-    return axiosInstance.get('/api/groups/my-created');
+  getMyCreatedGroups(params, options = {}) {
+    return axiosInstance.get('/api/groups/my-created', { params, ...options });
   },
 
   /**
@@ -139,8 +139,8 @@ export default {
    * 获取用户加入的群组列表（别名）
    * @returns {Promise}
    */
-  getUserJoinedGroups() {
-    return this.getMyGroups();
+  getUserJoinedGroups(params, options) {
+    return this.getMyGroups(params, options);
   },
 
   /**

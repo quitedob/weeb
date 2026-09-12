@@ -19,6 +19,17 @@ import java.util.List;
 @Service
 public class MessageBroadcastService {
 
+    /** Called only for a committed outbox event. Let dispatch failures reach the retry worker. */
+    public void dispatchOutboxEvent(String username, String type, java.util.Map<String, Object> payload) {
+        String destination = switch (type) {
+            case "MESSAGE" -> "/queue/private";
+            case "READ" -> "/queue/read-receipt";
+            case "REACTION" -> "/queue/reaction-change";
+            default -> throw new IllegalArgumentException("Unsupported message event");
+        };
+        messagingTemplate.convertAndSendToUser(username, destination, payload);
+    }
+
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
@@ -252,7 +263,7 @@ public class MessageBroadcastService {
             response.setContent(extractContent(message));
             response.setMsgContent(extractContent(message));
             response.setTimestamp(message.getCreatedAt());
-            response.setStatus(1); // SENT状态
+            response.setStatus(message.getStatus() == null ? Message.STATUS_SENT : message.getStatus());
             response.setIsFromMe(true);
             response.setMessageType(message.getMessageType());
             response.setChatId(String.valueOf(message.getChatId()));

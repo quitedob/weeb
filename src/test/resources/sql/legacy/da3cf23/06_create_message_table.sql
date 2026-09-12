@@ -1,0 +1,46 @@
+-- 消息内容表（status字段统一管理消息状态，支持已读回执和离线消息）
+-- Creation Date: 2025-11-10
+-- Description: 存储所有聊天消息，支持私聊和群聊消息，包含消息状态管理和幂等性控制
+
+CREATE TABLE IF NOT EXISTS `message` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '消息ID',
+    `client_message_id` VARCHAR(100) NULL COMMENT '客户端消息ID（用于幂等性）',
+    `sender_id` BIGINT NOT NULL COMMENT '发送者ID',
+    `receiver_id` BIGINT COMMENT '接收者ID（私聊时使用）',
+    `group_id` BIGINT COMMENT '群组ID（群聊时使用）',
+    `chat_id` BIGINT COMMENT '聊天列表ID',
+    `content` JSON NOT NULL COMMENT '消息内容（JSON格式）',
+    `message_type` INT DEFAULT 1 COMMENT '消息类型：1文本，2图片，3文件等',
+    `status` INT DEFAULT 1 COMMENT '统一消息状态：0=发送中，1=已发送，2=已送达，3=已读，4=失败',
+    `read_status` INT DEFAULT 0 COMMENT '【已废弃】读取状态：0未读，1已读（保留用于向后兼容）',
+    `is_read` TINYINT(1) DEFAULT 0 COMMENT '【已废弃】是否已读：0未读，1已读（保留用于向后兼容）',
+    `is_recalled` INT DEFAULT 0 COMMENT '是否撤回：0否，1是',
+    `user_ip` VARCHAR(45) COMMENT '发送者IP地址',
+    `source` VARCHAR(50) COMMENT '消息来源：WEB、MOBILE、API等',
+    `is_show_time` INT DEFAULT 0 COMMENT '是否显示时间：0否，1是',
+    `reply_to_message_id` BIGINT COMMENT '回复的消息ID',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_client_message_id` (`client_message_id`),
+    KEY `idx_sender_id` (`sender_id`),
+    KEY `idx_receiver_id` (`receiver_id`),
+    KEY `idx_group_id` (`group_id`),
+    KEY `idx_chat_id` (`chat_id`),
+    KEY `idx_created_at` (`created_at`),
+    KEY `idx_message_type` (`message_type`),
+    KEY `idx_status` (`status`),
+    KEY `idx_is_recalled` (`is_recalled`),
+    KEY `idx_reply_to_message_id` (`reply_to_message_id`),
+    KEY `idx_sender_client_msg` (`sender_id`, `client_message_id`),
+    KEY `idx_message_private_chat` (`sender_id`, `receiver_id`, `created_at` DESC),
+    KEY `idx_message_group_chat` (`group_id`, `created_at` DESC),
+    KEY `idx_message_receiver_status` (`receiver_id`, `status`, `created_at` DESC),
+    KEY `idx_message_type_time` (`message_type`, `created_at` DESC),
+    KEY `idx_message_status_time` (`status`, `created_at` DESC),
+    KEY `idx_message_chat_status` (`chat_id`, `status`, `created_at` DESC) COMMENT '聊天消息状态查询优化',
+    KEY `idx_message_sender_status` (`sender_id`, `status`, `created_at` DESC) COMMENT '发送者消息状态查询优化',
+    CONSTRAINT `fk_message_sender` FOREIGN KEY (`sender_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_message_reply` FOREIGN KEY (`reply_to_message_id`) REFERENCES `message` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='消息内容表（status字段统一管理消息状态，支持已读回执和离线消息）';

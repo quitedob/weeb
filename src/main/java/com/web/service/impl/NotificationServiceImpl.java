@@ -45,8 +45,9 @@ public class NotificationServiceImpl extends ServiceImpl<NotificationMapper, Not
 
     @Override
     public void createAndPublishNotification(Long recipientId, Long actorId, String type, String entityType, Long entityId) {
-        // 不给自己发通知
-        if (recipientId.equals(actorId) || !preferencesService.isNotificationEnabled(recipientId, type)) {
+        // Ordinary actions do not notify their actor; the explicit delivery diagnostic targets itself.
+        if ((recipientId.equals(actorId) && !"TEST_NOTIFICATION".equals(type))
+                || !preferencesService.isNotificationEnabled(recipientId, type)) {
             return;
         }
         

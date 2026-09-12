@@ -24,7 +24,7 @@ import java.util.*;
 
 /** Alternate message and retry entry points use the same persisted chat membership as HTTP/STOMP. */
 @Service
-@Transactional(rollbackFor = Exception.class)
+@Transactional(rollbackFor = Exception.class, isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
 public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     @Autowired private MessageMapper messageMapper;
     @Autowired private ChatListMapper chatListMapper;
@@ -41,19 +41,20 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     public Message sendMessage(SendMessageVo request, Long userId) {
         MessageValidator.validateSendMessageVo(request);
         requireActiveSender(userId);
+        if (request.getClientMessageId() == null) request.setClientMessageId(UUID.randomUUID().toString());
         String content = MessageValidator.sanitizeContent(request.getContent().toString());
         try {
             Message message = "GROUP".equalsIgnoreCase(request.getTargetType())
-                    ? sendGroupMessage(request.getTargetId(), content, userId)
-                    : sendPrivateMessage(request.getTargetId(), content, userId);
+                    ? sendGroupMessage(request.getTargetId(), content, userId, request.getClientMessageId())
+                    : sendPrivateMessage(request.getTargetId(), content, userId, request.getClientMessageId());
             messageCacheService.cacheMessage(message);
             messageCacheService.evictMessageList(message.getChatId());
             return message;
-        } catch (AccessDeniedException | WeebException e) {
+        } catch (AccessDeniedException | WeebException | IllegalArgumentException e) {
             // A denied request must never be persisted as a retry that can bypass current membership/privacy.
             throw e;
         } catch (RuntimeException e) {
-            messageRetryService.recordFailedMessage(request, userId, e.getMessage());
+            if (!request.isRetryAttempt()) messageRetryService.recordFailedMessage(request, userId, e.getMessage());
             throw e;
         }
     }
@@ -72,8 +73,6 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
         }
         ChatList chat = chatService.createChat(senderId, targetUserId);
         chatAccessService.requireAccess(senderId, chat.getSharedChatId());
-        Message existing = existingMessage(clientMessageId, senderId, chat.getSharedChatId());
-        if (existing != null) return existing;
         return chatService.sendMessage(senderId, chat.getId(), newMessage(content, senderId, clientMessageId));
     }
 
@@ -86,23 +85,8 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
         requireActiveSender(senderId);
         MessageValidator.validateMessageContent(content);
         Long sharedChatId = requireGroupChat(groupId, senderId);
-        Message existing = existingMessage(clientMessageId, senderId, sharedChatId);
-        if (existing != null) return existing;
         return chatService.sendMessageBySharedChatId(senderId, sharedChatId,
                 newMessage(content, senderId, clientMessageId));
-    }
-
-    private Message existingMessage(String clientId, Long userId, Long sharedChatId) {
-        if (clientId == null || clientId.isBlank()) return null;
-        Message existing = messageMapper.selectOne(new QueryWrapper<Message>()
-                .eq("client_message_id", clientId).eq("sender_id", userId));
-        if (existing != null) {
-            chatAccessService.requireAccess(userId, existing.getChatId());
-            if (!sharedChatId.equals(existing.getChatId())) {
-                throw new AccessDeniedException("Client message ID belongs to another conversation");
-            }
-        }
-        return existing;
     }
 
     private Message newMessage(String text, Long senderId, String clientId) {
@@ -196,7 +180,8 @@ public class UnifiedMessageServiceImpl implements UnifiedMessageService {
     @Override
     public boolean markMessageAsRead(Long messageId, Long userId) {
         Message message = requireMessage(messageId, userId);
-        return chatService.markAsReadBySharedChatId(userId, message.getChatId());
+        chatService.markAsReadBySharedChatId(userId, message.getChatId(), messageId);
+        return true;
     }
 
     @Override

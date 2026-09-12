@@ -8,6 +8,7 @@
     <resultMap id="MessageResultMap" type="com.web.model.Message">
         <id column="id" property="id" />
         <result column="client_message_id" property="clientMessageId" />
+        <result column="reaction_version" property="reactionVersion" />
         <result column="sender_id" property="senderId" />
         <result column="receiver_id" property="receiverId" />
         <result column="group_id" property="groupId" />
@@ -29,7 +30,7 @@
     <select id="getPreviousShowTimeMsg" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
-            client_message_id,
+            client_message_id, reaction_version,
             sender_id, receiver_id, group_id, status,
             chat_id,
             content,
@@ -52,7 +53,7 @@
     <select id="record" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
-            client_message_id,
+            client_message_id, reaction_version,
             sender_id, receiver_id, group_id, status,
             chat_id,
             content,
@@ -77,7 +78,7 @@
     <select id="selectMessagesByUsers" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
-            client_message_id,
+            client_message_id, reaction_version,
             sender_id, receiver_id, group_id, status,
             chat_id,
             content,
@@ -125,7 +126,7 @@
     <select id="selectMessageById" parameterType="java.lang.Long" resultMap="MessageResultMap">
         SELECT 
             id,
-            client_message_id,
+            client_message_id, reaction_version,
             sender_id, receiver_id, group_id, status,
             chat_id,
             content,
@@ -173,7 +174,7 @@
     <select id="selectLastMessageByChatId" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
-            client_message_id,
+            client_message_id, reaction_version,
             sender_id, receiver_id, group_id, status,
             chat_id,
             content,
@@ -188,7 +189,7 @@
             updated_at
         FROM message
         WHERE chat_id = #{chatId}
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, id DESC
         LIMIT 1
     </select>
 
@@ -196,7 +197,7 @@
     <select id="selectMessagesByChatId" parameterType="map" resultMap="MessageResultMap">
         SELECT 
             id,
-            client_message_id,
+            client_message_id, reaction_version,
             sender_id, receiver_id, group_id, status,
             chat_id,
             content,
@@ -221,7 +222,7 @@
     <select id="selectThreadMessages" parameterType="map" resultMap="MessageResultMap">
         SELECT
             id,
-            client_message_id,
+            client_message_id, reaction_version,
             sender_id, receiver_id, group_id, status,
             chat_id,
             content,
@@ -295,7 +296,7 @@
     <select id="selectMessagesByTwoChatIds" resultMap="MessageResultMap">
         SELECT 
             id,
-            client_message_id,
+            client_message_id, reaction_version,
             sender_id, receiver_id, group_id, status,
             chat_id,
             content,
@@ -318,7 +319,7 @@
     <select id="selectMessagesBySharedChatId" resultMap="MessageResultMap">
         SELECT 
             id,
-            client_message_id,
+            client_message_id, reaction_version,
             sender_id, receiver_id, group_id, status,
             chat_id,
             content,
@@ -337,4 +338,19 @@
         LIMIT #{offset}, #{size}
     </select>
 
+    <select id="selectBySenderAndClientIdForUpdate" resultMap="MessageResultMap">
+        SELECT * FROM message WHERE sender_id = #{senderId} AND client_message_id = #{clientMessageId} FOR UPDATE
+    </select>
+    <select id="selectMessageForUpdate" resultMap="MessageResultMap">
+        SELECT * FROM message WHERE id = #{msgId} FOR UPDATE
+    </select>
+    <select id="selectMessagesAfter" resultMap="MessageResultMap">
+        SELECT * FROM message WHERE chat_id = #{chatId} AND id &gt; #{afterId}
+          AND COALESCE(is_recalled, 0) = 0 ORDER BY id ASC LIMIT #{size}
+    </select>
+    <select id="selectMessageStates" resultMap="MessageResultMap">
+        SELECT * FROM message WHERE chat_id = #{chatId} AND id IN
+        <foreach collection="messageIds" item="messageId" open="(" separator="," close=")">#{messageId}</foreach>
+        ORDER BY id ASC
+    </select>
 </mapper>

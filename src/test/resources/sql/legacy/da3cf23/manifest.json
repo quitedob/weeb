@@ -1,0 +1,21 @@
+{
+  "sourceCommit": "da3cf23",
+  "files": [
+    {
+      "path": "src/main/resources/sql/create/01_create_user_table.sql",
+      "sha256": "8348175b1ab310cfa22b0e3596999f6611f0d08e42b866bf90f2e1e7016efdd8"
+    },
+    {
+      "path": "src/main/resources/sql/create/03_create_group_table.sql",
+      "sha256": "63736a15250936b2b083c3307ef977d6be3e21c5f9e619d0a31c98a3121a0b9a"
+    },
+    {
+      "path": "src/main/resources/sql/create/04_create_shared_chat_table.sql",
+      "sha256": "a241f37dcf5877d41e0ee465f2b76b4f82f689af7412b5543def8e8fe6146ee3"
+    },
+    {
+      "path": "src/main/resources/sql/create/06_create_message_table.sql",
+      "sha256": "56758269623deb0b2fac05c78603255da7c6bf220c1023ece14523da23cb27d5"
+    }
+  ]
+}

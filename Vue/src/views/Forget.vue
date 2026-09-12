@@ -58,6 +58,7 @@
 
         <!-- 步骤2：重置密码 -->
         <div v-if="currentStep === 2" class="step-content">
+          <p>请打开邮件中的链接设置新密码。如果已有重置令牌，也可在下方输入。</p>
           <form @submit.prevent="resetPassword" class="forget-form">
             <div class="form-group">
               <label class="apple-label" for="resetToken">重置令牌</label>
@@ -66,7 +67,7 @@
                 v-model="formData.resetToken"
                 type="text"
                 class="apple-input"
-                placeholder="请输入发送到邮箱的重置令牌"
+                placeholder="请输入重置令牌"
                 required
                 :disabled="loading"
               />
@@ -83,6 +84,7 @@
                 required
                 :disabled="loading"
                 minlength="6"
+                maxlength="50"
               />
               <div class="password-strength" v-if="formData.newPassword">
                 <div class="strength-bar">
@@ -107,6 +109,7 @@
                 required
                 :disabled="loading"
                 minlength="6"
+                maxlength="50"
               />
               <div class="password-match" v-if="formData.confirmPassword">
                 <span :class="{ match: passwordsMatch, mismatch: !passwordsMatch }">
@@ -169,9 +172,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { instance as axiosInstance } from '@/api/axiosInstance'
+import { ElMessage } from 'element-plus'
+import authApi from '@/api/modules/auth'
 
 const router = useRouter()
 
@@ -189,7 +193,9 @@ const formData = ref({
 
 // 计算属性
 const passwordsMatch = computed(() => {
-  return formData.value.newPassword && 
+  return formData.value.newPassword &&
+         formData.value.newPassword.length >= 6 &&
+         formData.value.newPassword.length <= 50 &&
          formData.value.confirmPassword && 
          formData.value.newPassword === formData.value.confirmPassword
 })
@@ -227,7 +233,8 @@ const canSubmit = computed(() => {
 // 方法
 
 const sendResetEmail = async () => {
-  if (!formData.value.email) {
+  if (loading.value) return
+  if (!formData.value.email.trim()) {
     error.value = '请输入邮箱地址'
     return
   }
@@ -237,12 +244,10 @@ const sendResetEmail = async () => {
     error.value = ''
 
     // 调用后端发送重置邮件接口
-    const response = await api.auth.forgotPassword({
-      email: formData.value.email
-    })
+    const response = await authApi.forgotPassword(formData.value.email.trim())
 
     if (response.code === 0) {
-      ElMessage.success('重置邮件已发送到您的邮箱，请查收')
+      ElMessage.success('如果邮箱已注册，重置链接已发送，请查收邮件')
       currentStep.value = 2
     } else {
       throw new Error(response.message || '发送重置邮件失败')
@@ -258,6 +263,7 @@ const sendResetEmail = async () => {
 }
 
 const resetPassword = async () => {
+  if (loading.value) return
   if (!canSubmit.value) {
     error.value = '请检查密码输入'
     return
@@ -267,10 +273,10 @@ const resetPassword = async () => {
     loading.value = true
     error.value = ''
 
-    const response = await api.auth.resetPassword({
-      email: formData.value.email,
-      token: formData.value.resetToken,
-      newPassword: formData.value.newPassword
+    const response = await authApi.resetPassword({
+      resetToken: formData.value.resetToken.trim(),
+      newPassword: formData.value.newPassword,
+      confirmPassword: formData.value.confirmPassword
     })
 
     if (response.code === 0) {
@@ -297,10 +303,6 @@ const goToLogin = () => {
   router.push('/login')
 }
 
-// 生命周期
-onMounted(() => {
-  // 页面加载时的初始化逻辑
-})
 </script>
 
 <style scoped>

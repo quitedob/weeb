@@ -17,7 +17,7 @@
           <el-descriptions-item label="群名称">{{ group.groupName }}</el-descriptions-item>
           <el-descriptions-item label="群ID">{{ group.groupId }}</el-descriptions-item>
           <el-descriptions-item label="群主">
-            {{ ownerInfo ? ownerInfo.username : group.ownerId }}
+            {{ ownerInfo?.username || group.ownerUsername || group.ownerId }}
             <el-tag v-if="ownerInfo" size="small" style="margin-left: 5px;">{{ group.ownerId }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ formatDate(group.createdAt) }}</el-descriptions-item>
@@ -247,7 +247,7 @@ const fetchGroupDetails = async () => {
           try {
             // ✅ 修复：使用正确的API方法名 getUserById
             const ownerRes = await api.user.getUserById(group.value.ownerId);
-            if(ownerRes.code === 0 && ownerRes.data) ownerInfo.value = ownerRes.data;
+            if(ownerRes.code === 0 && ownerRes.data) ownerInfo.value = ownerRes.data.user || ownerRes.data;
           } catch (e) { console.warn("获取群主信息失败", e)}
       }
       if (isMember.value) {
@@ -610,10 +610,11 @@ const fetchApplications = async (status = 'pending') => {
           try {
             // ✅ 修复：使用正确的API方法名 getUserById
             const userRes = await api.user.getUserById(app.userId);
+            const applicant = userRes.data?.user || userRes.data;
             return {
               ...app,
-              username: userRes.data?.username || `用户${app.userId}`,
-              userAvatar: userRes.data?.avatar || defaultAvatar
+              username: applicant?.username || `用户${app.userId}`,
+              userAvatar: applicant?.avatar || defaultAvatar
             };
           } catch (error) {
             console.warn(`获取用户${app.userId}信息失败:`, error);

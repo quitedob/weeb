@@ -35,6 +35,9 @@ public class SearchController {
     @Autowired
     private ArticleService articleService; // 注入文章服务
 
+    @Autowired
+    private com.web.service.GroupService groupService;
+
     /**
      * 搜索消息内容（分页）
      * @param q 关键词
@@ -74,8 +77,13 @@ public class SearchController {
      * @param sortBy 排序方式 (可选)
      * @return 搜索结果：{ list: 群组列表, total: 总数 }
      */
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchGroups(String keyword, int page, int size,
+            String startDate, String endDate, String sortBy) {
+        return searchGroupsForUser(null, keyword, page, size, startDate, endDate, sortBy);
+    }
+
     @GetMapping("/group")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> searchGroups(@RequestParam("keyword") String keyword,
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchGroupsForUser(@Userid Long userId, @RequestParam("keyword") String keyword,
                                             @RequestParam(defaultValue = "0") int page,
                                             @RequestParam(defaultValue = "10") int size,
                                             @RequestParam(required = false) String startDate,
@@ -120,7 +128,8 @@ public class SearchController {
             log.info("搜索群组：keyword={}, page={}, size={}, startDate={}, endDate={}, sortBy={}",
                 keyword, page, size, startDate, endDate, sortBy);
 
-            Map<String, Object> data = searchService.searchGroupsWithFilters(keyword, page, size, startDate, endDate, sortBy);
+            Map<String, Object> data = withGroupRoles(userId,
+                    searchService.searchGroupsWithFilters(keyword, page, size, startDate, endDate, sortBy));
 
             log.info("搜索群组完成：找到 {} 个群组", data.get("list") != null ? ((List<?>)data.get("list")).size() : 0);
 
@@ -318,7 +327,8 @@ public class SearchController {
         try {
             switch (type.toLowerCase(java.util.Locale.ROOT)) {
                 case "group":
-                    Map<String, Object> groupData = searchService.searchGroupsWithFilters(q, page, size, null, null, "relevance");
+                    Map<String, Object> groupData = withGroupRoles(userId,
+                            searchService.searchGroupsWithFilters(q, page, size, null, null, "relevance"));
                     return ResponseEntity.ok(ApiResponse.success(groupData));
                     
                 case "user":
@@ -361,7 +371,7 @@ public class SearchController {
             @RequestParam("q") String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size) {
-        MessageSearchService.validateRequest(userId, q, page, size);
+        MessageSearchService.validateMessageRequest(userId, q, page, size);
         try {
             log.info("综合搜索：q={}, page={}, size={}", q, page, size);
 
@@ -378,7 +388,7 @@ public class SearchController {
             }
 
             try {
-                result.put("groups", searchService.searchGroups(q, page, size));
+                result.put("groups", withGroupRoles(userId, searchService.searchGroups(q, page, size)));
             } catch (AccessDeniedException | IllegalArgumentException e) {
                 throw e;
             } catch (Exception e) {
@@ -408,5 +418,12 @@ public class SearchController {
             return ResponseEntity.status(500)
                 .body(ApiResponse.error(ApiResponse.ErrorCode.SYSTEM_ERROR, "综合搜索失败", Map.of()));
         }
+    }
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> withGroupRoles(Long userId, Map<String, Object> page) {
+        Map<String, Object> result = new HashMap<>(page);
+        List<com.web.model.Group> groups = (List<com.web.model.Group>) page.getOrDefault("list", List.of());
+        result.put("list", groupService.withCurrentUserRoles(userId, groups));
+        return result;
     }
 }

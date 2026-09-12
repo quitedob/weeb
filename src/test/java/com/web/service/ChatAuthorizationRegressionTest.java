@@ -24,6 +24,7 @@ class ChatAuthorizationRegressionTest {
     private MessageMapper messages;
     private MessageReactionMapper reactions;
     private MessageBroadcastService broadcast;
+    private MessageOutboxService outbox;
     private ChatUnreadCountService unread;
     private ChatAccessService access;
     private ChatServiceImpl service;
@@ -34,6 +35,9 @@ class ChatAuthorizationRegressionTest {
         messages = mock(MessageMapper.class);
         reactions = mock(MessageReactionMapper.class);
         broadcast = mock(MessageBroadcastService.class);
+        outbox = mock(MessageOutboxService.class);
+        when(messages.lockSharedChat(anyLong())).thenAnswer(call -> call.getArgument(0));
+        when(messages.selectCurrentRecipients(5L)).thenReturn(List.of(1L, 2L));
         unread = mock(ChatUnreadCountService.class);
         access = new ChatAccessService(chats);
         service = new ChatServiceImpl();
@@ -41,6 +45,7 @@ class ChatAuthorizationRegressionTest {
         ReflectionTestUtils.setField(service, "messageMapper", messages);
         ReflectionTestUtils.setField(service, "messageReactionMapper", reactions);
         ReflectionTestUtils.setField(service, "messageBroadcastService", broadcast);
+        ReflectionTestUtils.setField(service, "messageOutboxService", outbox);
         ReflectionTestUtils.setField(service, "chatUnreadCountService", unread);
         ReflectionTestUtils.setField(service, "chatAccessService", access);
         UserPreferencesService preferences = mock(UserPreferencesService.class);
@@ -87,7 +92,7 @@ class ChatAuthorizationRegressionTest {
         when(chats.selectChatListByUserAndTarget(2L, 1L)).thenReturn(chat("5_2", 2L, 1L));
         when(chats.canUserAccessSharedChat(1L, 5L)).thenReturn(true);
         for (boolean useSharedId : List.of(false, true)) {
-            clearInvocations(messages, broadcast, unread, chats);
+            clearInvocations(messages, broadcast, unread, chats, outbox);
             Message forged = message();
             forged.setSenderId(999L);
             forged.setReceiverId(888L);
@@ -102,7 +107,8 @@ class ChatAuthorizationRegressionTest {
             verify(chats).updateLastMessage("5_1", "hello");
             verify(chats, never()).updateLastMessageAndUnreadCount(eq("5_1"), anyString());
             verify(unread).incrementUnreadCount(2L, 5L, 1);
-            verify(broadcast).broadcastMessageToReceiver(saved, 2L);
+            verify(outbox).enqueueMessage(saved, List.of(1L, 2L));
+            verifyNoInteractions(broadcast);
         }
     }
 
@@ -129,13 +135,15 @@ class ChatAuthorizationRegressionTest {
         Message saved = service.sendMessageBySharedChatId(1L, 5L, message());
         assertEquals(90L, saved.getGroupId());
         verify(chats).insertChatList(argThat(c -> c.getGroupId().equals(90L) && c.getSharedChatId().equals(5L)));
-        verify(broadcast).broadcastMessageToGroup(saved, 90L);
+        verify(outbox).enqueueMessage(saved, List.of(1L, 2L));
+        verifyNoInteractions(broadcast);
     }
 
     @Test
     void referencesAndReactionsCannotCrossConversationBoundary() {
         when(chats.canUserAccessSharedChat(1L, 5L)).thenReturn(true);
         when(chats.selectChatListByIdString("5_1")).thenReturn(chat("5_1", 1L, 2L));
+        when(chats.selectChatListByUserIdAndSharedChatId(1L, 5L)).thenReturn(chat("5_1", 1L, 2L));
         Message foreign = message();
         foreign.setChatId(6L);
         when(messages.selectMessageById(99L)).thenReturn(foreign);

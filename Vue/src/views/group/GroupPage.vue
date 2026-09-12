@@ -16,7 +16,7 @@
           <el-empty description="您还没有创建任何群组，快创建一个吧！" />
         </div>
         <div v-else class="group-list">
-          <el-card v-for="group in pagedManagedGroups" :key="group.id" shadow="hover" class="group-card" @click="navigateToGroupDetail(group.id)">
+          <el-card v-for="group in managedGroups" :key="group.id" shadow="hover" class="group-card" @click="navigateToGroupDetail(group.id)">
             <template #header>
               <div class="card-header">
                 <span>{{ group.groupName }}</span>
@@ -44,7 +44,8 @@
             v-model:page-size="managedPagination.pageSize"
             :total="managedPagination.total"
             layout="total, sizes, prev, pager, next, jumper"
-            @size-change="managedPagination.page = 1"
+            @size-change="size => fetchManagedGroups(1, size)"
+            @current-change="page => fetchManagedGroups(page, managedPagination.pageSize)"
           />
         </div>
       </el-tab-pane>
@@ -57,7 +58,7 @@
           <el-empty description="您还没有加入任何群组，可以通过搜索或邀请加入" />
         </div>
         <div v-else class="group-list">
-          <el-card v-for="group in pagedJoinedGroups" :key="group.id" shadow="hover" class="group-card" @click="navigateToGroupDetail(group.id)">
+          <el-card v-for="group in joinedGroups" :key="group.id" shadow="hover" class="group-card" @click="navigateToGroupDetail(group.id)">
             <template #header>
               <div class="card-header">
                 <span>{{ group.groupName }}</span>
@@ -88,7 +89,8 @@
             v-model:page-size="joinedPagination.pageSize"
             :total="joinedPagination.total"
             layout="total, sizes, prev, pager, next, jumper"
-            @size-change="joinedPagination.page = 1"
+            @size-change="size => fetchJoinedGroups(1, size)"
+            @current-change="page => fetchJoinedGroups(page, joinedPagination.pageSize)"
           />
         </div>
       </el-tab-pane>
@@ -129,8 +131,8 @@
                 <p>成员数: {{ group.memberCount }}</p>
               </div>
               <template #footer>
-                <el-button type="success" @click="applyToJoinGroup(group.id)" :disabled="isMemberOf(group.id)">
-                  {{ isMemberOf(group.id) ? '已加入' : '申请加入' }}
+                <el-button type="success" @click="applyToJoinGroup(group.id)" :disabled="isMemberOf(group)">
+                  {{ isMemberOf(group) ? '已加入' : '申请加入' }}
                 </el-button>
               </template>
             </el-card>
@@ -172,7 +174,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, computed } from 'vue';
+import { ref, onMounted, onUnmounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -181,9 +183,16 @@ import { Plus, Search } from '@element-plus/icons-vue';
 import groupApi from '@/api/modules/group';
 import searchApi from '@/api/modules/search';
 
+import { createRequestScope } from '@/utils/requestScope';
+
 const router = useRouter();
 const authStore = useAuthStore();
 const chatStore = useChatStore();
+
+const managedRequests = createRequestScope();
+const joinedRequests = createRequestScope();
+const discoveryRequests = createRequestScope();
+onUnmounted(() => { managedRequests.cancel(); joinedRequests.cancel(); discoveryRequests.cancel(); });
 
 const activeTab = ref('managedGroups');
 const managedGroups = ref([]);
@@ -214,15 +223,6 @@ const discoveredPagination = reactive({
   total: 0
 });
 
-const pagedManagedGroups = computed(() => managedGroups.value.slice(
-  (managedPagination.page - 1) * managedPagination.pageSize,
-  managedPagination.page * managedPagination.pageSize
-));
-const pagedJoinedGroups = computed(() => joinedGroups.value.slice(
-  (joinedPagination.page - 1) * joinedPagination.pageSize,
-  joinedPagination.page * joinedPagination.pageSize
-));
-
 const createGroupDialogVisible = ref(false);
 const creatingGroup = ref(false);
 const createGroupFormRef = ref(null);
@@ -240,21 +240,25 @@ const createGroupRules = {
 
 // 获取我管理的群组
 const fetchManagedGroups = async (page = managedPagination.page, pageSize = managedPagination.pageSize) => {
+  const request = managedRequests.begin();
   loadingManagedGroups.value = true;
   try {
     // 使用正确的API方法名
-    const response = await groupApi.getMyCreatedGroups();
+    const response = await groupApi.getMyCreatedGroups({ page: page - 1, size: pageSize }, { signal: request.signal });
+    if (!request.isCurrent()) return;
     console.log('📦 获取管理的群组响应:', response);
     
     if (response.code === 0 && response.data) {
       // Handle new GroupDto field structure - map createTime to createdAt if needed
-      managedGroups.value = response.data.map(group => ({
+      managedGroups.value = response.data.list.map(group => ({
         ...group,
         createdAt: group.createdAt || group.createTime,
         // Ensure consistent field naming
         ownerUsername: group.ownerUsername || group.owner?.username
       }));
-      managedPagination.total = response.data.length;
+      managedPagination.total = response.data.total;
+      const lastPage = Math.max(1, Math.ceil(response.data.total / pageSize));
+      if (page > lastPage) return fetchManagedGroups(lastPage, pageSize);
       managedPagination.page = Math.min(page, Math.max(1, Math.ceil(managedPagination.total / pageSize)));
       managedPagination.pageSize = pageSize;
       
@@ -270,6 +274,7 @@ const fetchManagedGroups = async (page = managedPagination.page, pageSize = mana
       }
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('获取管理的群组失败:', error);
     // 只在真正的错误时才显示提示，空列表不算错误
     if (error.response && error.response.status !== 404) {
@@ -278,19 +283,20 @@ const fetchManagedGroups = async (page = managedPagination.page, pageSize = mana
     managedGroups.value = [];
     managedPagination.total = 0;
   } finally {
-    loadingManagedGroups.value = false;
+    if (request.isCurrent()) loadingManagedGroups.value = false;
   }
 };
 
 // 获取我加入的群组
 const fetchJoinedGroups = async (page = joinedPagination.page, pageSize = joinedPagination.pageSize) => {
+  const request = joinedRequests.begin();
   loadingJoinedGroups.value = true;
   try {
-    const response = await groupApi.getUserJoinedGroups();
+    const response = await groupApi.getUserJoinedGroups({ page: page - 1, size: pageSize, excludeOwned: true }, { signal: request.signal });
+    if (!request.isCurrent()) return;
     if (response.code === 0 && response.data) {
       // Handle new GroupDto field structure and filter out owned groups
-      const memberGroups = response.data
-        .filter(group => String(group.ownerId) !== String(authStore.currentUser?.id))
+      const memberGroups = response.data.list
         .map(group => ({
           ...group,
           createdAt: group.createdAt || group.createTime,
@@ -301,7 +307,9 @@ const fetchJoinedGroups = async (page = joinedPagination.page, pageSize = joined
         }));
 
       joinedGroups.value = memberGroups;
-      joinedPagination.total = memberGroups.length;
+      joinedPagination.total = response.data.total;
+      const lastPage = Math.max(1, Math.ceil(response.data.total / pageSize));
+      if (page > lastPage) return fetchJoinedGroups(lastPage, pageSize);
       joinedPagination.page = Math.min(page, Math.max(1, Math.ceil(joinedPagination.total / pageSize)));
       joinedPagination.pageSize = pageSize;
     } else {
@@ -310,18 +318,22 @@ const fetchJoinedGroups = async (page = joinedPagination.page, pageSize = joined
       ElMessage.error(response.message || '获取加入的群组失败');
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('获取加入的群组失败:', error);
     ElMessage.error('获取加入的群组失败');
     joinedGroups.value = [];
     joinedPagination.total = 0;
   } finally {
-    loadingJoinedGroups.value = false;
+    if (request.isCurrent()) loadingJoinedGroups.value = false;
   }
 };
 
 // 搜索公开群组
 const searchPublicGroups = async (page = 1, pageSize = 10) => {
+  const request = discoveryRequests.begin();
   if (!searchQuery.value.trim()) {
+    discoveredPagination.total = 0;
+    if (request.isCurrent()) loadingDiscoveredGroups.value = false;
     discoveredGroups.value = [];
     initialDiscoverLoad.value = true;
     return;
@@ -331,7 +343,8 @@ const searchPublicGroups = async (page = 1, pageSize = 10) => {
   initialDiscoverLoad.value = false;
 
   try {
-    const response = await searchApi.searchGroups(searchQuery.value, page - 1, pageSize);
+    const response = await searchApi.searchGroups(searchQuery.value, page - 1, pageSize, {}, { signal: request.signal });
+    if (!request.isCurrent()) return;
     if (response.code === 0 && response.data) {
       // Handle new GroupDto field structure
       const groups = (response.data.list || response.data || []).map(group => ({
@@ -350,12 +363,13 @@ const searchPublicGroups = async (page = 1, pageSize = 10) => {
       ElMessage.error(response.message || '搜索群组失败');
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('搜索群组失败:', error);
     ElMessage.error('搜索群组失败');
     discoveredGroups.value = [];
     discoveredPagination.total = 0;
   } finally {
-    loadingDiscoveredGroups.value = false;
+    if (request.isCurrent()) loadingDiscoveredGroups.value = false;
   }
 };
 
@@ -467,11 +481,7 @@ const confirmLeaveGroup = (groupId) => {
 };
 
 // 检查是否已经是成员
-const isMemberOf = (groupId) => {
-  return joinedGroups.value.some(group => String(group.id) === String(groupId)) ||
-         managedGroups.value.some(group => String(group.id) === String(groupId));
-};
-
+const isMemberOf = group => ['OWNER', 'ADMIN', 'MEMBER'].includes(group.currentUserRole);
 // 导航到群组详情页
 const navigateToGroupDetail = (groupId) => {
   router.push(`/group/${groupId}`);

@@ -42,6 +42,11 @@
             </template>
           </el-card>
         </div>
+        <el-pagination v-if="myPagination.total > 0"
+          v-model:current-page="myPagination.page" v-model:page-size="myPagination.pageSize"
+          :total="myPagination.total" layout="total, sizes, prev, pager, next, jumper"
+          @size-change="size => fetchMyGroups(1, size)"
+          @current-change="page => fetchMyGroups(page, myPagination.pageSize)" />
       </el-tab-pane>
 
       <el-tab-pane label="发现群组" name="discoverGroups">
@@ -50,11 +55,11 @@
             v-model="searchQuery"
             placeholder="搜索群组名称或ID"
             clearable
-            @keyup.enter="searchPublicGroups"
+            @keyup.enter="searchPublicGroups(1, discoveredPagination.pageSize)"
             style="margin-bottom: 20px; max-width: 400px;"
           >
             <template #append>
-              <el-button @click="searchPublicGroups"><el-icon><Search /></el-icon></el-button>
+              <el-button @click="searchPublicGroups(1, discoveredPagination.pageSize)"><el-icon><Search /></el-icon></el-button>
             </template>
           </el-input>
 
@@ -80,13 +85,18 @@
                 <p>成员数: {{ group.memberCount }}</p>
               </div>
               <template #footer>
-                <el-button type="success" @click="applyToJoinGroup(group.id)" :disabled="isMemberOf(group.id)">
-                  {{ isMemberOf(group.id) ? '已加入' : '申请加入' }}
+                <el-button type="success" @click="applyToJoinGroup(group.id)" :disabled="isMemberOf(group)">
+                  {{ isMemberOf(group) ? '已加入' : '申请加入' }}
                 </el-button>
               </template>
             </el-card>
           </div>
         </div>
+        <el-pagination v-if="discoveredPagination.total > 0"
+          v-model:current-page="discoveredPagination.page" v-model:page-size="discoveredPagination.pageSize"
+          :total="discoveredPagination.total" layout="total, sizes, prev, pager, next, jumper"
+          @size-change="size => searchPublicGroups(1, size)"
+          @current-change="page => searchPublicGroups(page, discoveredPagination.pageSize)" />
       </el-tab-pane>
     </el-tabs>
 
@@ -110,7 +120,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive } from 'vue';
+import { ref, onMounted, onUnmounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/api';
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus';
@@ -118,9 +128,17 @@ import { Plus, Search, Setting } from '@element-plus/icons-vue';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore'; // Added
 
+import { createRequestScope } from '@/utils/requestScope';
+
 const router = useRouter();
 const chatStore = useChatStore();
 const authStore = useAuthStore(); // Added
+
+const myGroupsRequests = createRequestScope();
+const discoveryRequests = createRequestScope();
+onUnmounted(() => { myGroupsRequests.cancel(); discoveryRequests.cancel(); });
+const myPagination = reactive({ page: 1, pageSize: 10, total: 0 });
+const discoveredPagination = reactive({ page: 1, pageSize: 10, total: 0 });
 
 const activeTab = ref('myGroups');
 const myGroups = ref([]);
@@ -145,31 +163,42 @@ const createGroupRules = {
   ]
 };
 
-const fetchMyGroups = async () => {
+const fetchMyGroups = async (page = myPagination.page, pageSize = myPagination.pageSize) => {
+  const request = myGroupsRequests.begin();
   loadingMyGroups.value = true;
   try {
-    const response = await api.group.getUserJoinedGroups();
+    const response = await api.group.getUserJoinedGroups({ page: page - 1, size: pageSize }, { signal: request.signal });
+    if (!request.isCurrent()) return;
     if (response && response.code === 0 && response.data) {
-        myGroups.value = response.data.map(group => ({
+        myGroups.value = response.data.list.map(group => ({
             ...group,
             role: group.currentUserRole || { 1: 'OWNER', 2: 'ADMIN', 3: 'MEMBER' }[Number(group.role)] ||
               (String(group.ownerId) === String(authStore.currentUser?.id) ? 'OWNER' : 'MEMBER')
         }));
+        myPagination.total = response.data.total;
+        const lastPage = Math.max(1, Math.ceil(response.data.total / pageSize));
+        if (page > lastPage) return fetchMyGroups(lastPage, pageSize);
+        myPagination.page = page;
+        myPagination.pageSize = pageSize;
     } else {
         myGroups.value = [];
         ElMessage.error(response.message || '获取我的群组列表失败');
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('获取我的群组列表失败:', error);
     ElMessage.error('获取我的群组列表失败');
     myGroups.value = [];
   } finally {
-    loadingMyGroups.value = false;
+    if (request.isCurrent()) loadingMyGroups.value = false;
   }
 };
 
-const searchPublicGroups = async () => {
+const searchPublicGroups = async (page = 1, pageSize = discoveredPagination.pageSize) => {
+  const request = discoveryRequests.begin();
   if (!searchQuery.value.trim()) {
+    discoveredPagination.total = 0;
+    if (request.isCurrent()) loadingDiscoveredGroups.value = false;
     discoveredGroups.value = [];
     initialDiscoverLoad.value = true;
     return;
@@ -177,10 +206,14 @@ const searchPublicGroups = async () => {
   loadingDiscoveredGroups.value = true;
   initialDiscoverLoad.value = false;
   try {
-    const response = await api.group.searchGroups(searchQuery.value);
+    const response = await api.search.searchGroups(searchQuery.value, page - 1, pageSize, {}, { signal: request.signal });
+    if (!request.isCurrent()) return;
      if (response && response.code === 0 && response.data) {
         // Handle both list format and direct array format
-        const groupList = response.data.list || response.data;
+        const groupList = response.data.list;
+        discoveredPagination.total = response.data.total;
+        discoveredPagination.page = page;
+        discoveredPagination.pageSize = pageSize;
         discoveredGroups.value = groupList.map(group => ({
             ...group,
             // Assuming backend sends 'id', 'groupName', 'ownerUsername', 'memberCount'
@@ -190,11 +223,12 @@ const searchPublicGroups = async () => {
         // ElMessage.error(response.message || '未找到群组'); // Optionally show message
     }
   } catch (error) {
+    if (!request.isCurrent()) return;
     console.error('搜索群组失败:', error);
     ElMessage.error('搜索群组失败');
     discoveredGroups.value = [];
   } finally {
-    loadingDiscoveredGroups.value = false;
+    if (request.isCurrent()) loadingDiscoveredGroups.value = false;
   }
 };
 
@@ -277,10 +311,7 @@ const applyToJoinGroup = async (groupId) => {
   });
 };
 
-const isMemberOf = (groupId) => {
-  return myGroups.value.some(group => String(group.id) === String(groupId));
-};
-
+const isMemberOf = group => ['OWNER', 'ADMIN', 'MEMBER'].includes(group.currentUserRole);
 const navigateToGroupDetail = (groupId) => {
   router.push(`/group/${groupId}`);
 };

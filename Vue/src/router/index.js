@@ -1,6 +1,7 @@
 // Vue/src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '../stores/authStore';
+import { captureSession, isCurrentSession, isCurrentCredential } from '@/utils/session';
 
 // Layout component (keep eager since it's used by all authenticated routes)
 import Layout from '../layout/Layout.vue';
@@ -177,19 +178,35 @@ router.beforeEach(async (to, from, next) => {
       return;
     }
 
+    const authStore = useAuthStore();
+    let requestSession = captureSession();
+    const login = { name: 'Login', query: { redirect: to.fullPath } };
     try {
-      const authStore = useAuthStore();
       // **关键**：如果 currentUser 不存在，才去后端验证
       if (!authStore.currentUser) {
-        await authStore.fetchUserInfo();
+        try {
+          await authStore.fetchUserInfo();
+        } catch (error) {
+          // A renewal can revoke the old credential while this profile read is pending.
+          if (!isCurrentSession(requestSession) || isCurrentCredential(requestSession) || !authStore.accessToken) throw error;
+          requestSession = captureSession();
+          await authStore.fetchUserInfo();
+        }
+      }
+      if (!isCurrentSession(requestSession)) {
+        next(authStore.accessToken ? false : login);
+        return;
+      }
+      if (!authStore.accessToken || !authStore.currentUser) {
+        next(login);
+        return;
       }
       next();
     } catch (error) {
-      // fetchUserInfo 失败会抛出错误，在这里捕获
-      console.warn('Router Guard: Token validation failed, redirecting to login.');
-      const authStore = useAuthStore();
-      authStore.logoutCleanup(); // 直接调用清理函数
-      next({ name: 'Login', query: { redirect: to.fullPath } });
+      // The interceptor owns current-credential authentication failures. A late
+      // response or a temporary network failure must not clear a newer session.
+      next(authStore.accessToken ? false : login);
+      return;
     }
   } else if ((to.name === 'Login' || to.name === 'Register') && token) {
     next({ path: '/' });

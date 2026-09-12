@@ -94,8 +94,6 @@ function setupStoreWatchers() {
         // 开始自动刷新通知
         notificationStore.startAutoRefresh();
         
-        // 获取初始数据
-        notificationStore.fetchUnreadCount();
         
       } else if (!isLoggedIn && wasLoggedIn) {
         // 用户登出
@@ -131,6 +129,11 @@ function setupStoreWatchers() {
   );
 
   // 监听WebSocket连接状态
+  watch(
+    () => chatStore.isConnected && chatStore.notificationSubscriptionReady,
+    connected => notificationStore.setRealtimeConnected(!!connected),
+    { immediate: true }
+  );
   watch(
     () => chatStore.connectionStatus,
     (status, oldStatus) => {
@@ -221,6 +224,7 @@ function setupCrossTabSync() {
     const authStore = useAuthStore();
     const chatStore = useChatStore();
     const notificationStore = useNotificationStore();
+    notificationStore.refreshVisibility();
 
     if (!document.hidden) {
       console.log('👁️ 页面可见，刷新数据');
@@ -237,8 +241,6 @@ function setupCrossTabSync() {
           chatStore.connectWebSocket();
         }
 
-        // 刷新未读计数
-        notificationStore.fetchUnreadCount();
       }
     } else {
       console.log('👁️ 页面隐藏');
@@ -251,6 +253,7 @@ function setupCrossTabSync() {
     
     const authStore = useAuthStore();
     const chatStore = useChatStore();
+    useNotificationStore().refreshVisibility();
 
     if (authStore.isLoggedIn) {
       // 重新连接WebSocket
@@ -259,6 +262,7 @@ function setupCrossTabSync() {
   });
 
   window.addEventListener('offline', () => {
+    useNotificationStore().refreshVisibility();
     console.log('🌐 网络已断开');
   });
 }

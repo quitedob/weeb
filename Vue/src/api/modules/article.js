@@ -28,8 +28,8 @@ export const getStatusTag = (status) => {
 };
 
 // [修改] 获取所有文章列表（分页）
-export const getAllArticles = (page, pageSize) => {
-    return axiosInstance.get('/api/articles/getall', { params: { page, pageSize } });
+export const getAllArticles = (page, pageSize, sortBy, sortOrder) => {
+    return axiosInstance.get('/api/articles/getall', { params: { page, pageSize, sortBy, sortOrder } });
 };
 
 // 根据文章 ID 获取文章详情

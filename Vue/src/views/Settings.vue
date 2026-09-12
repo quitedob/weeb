@@ -188,6 +188,7 @@
 
 <script setup>
 import appleMessage from '@/utils/appleMessage';
+import { captureSession, isCurrentSession } from '@/utils/session';
 import { ref, onMounted } from 'vue';
 import api from '@/api';
 import axiosInstance from '@/api/axiosInstance';
@@ -247,28 +248,34 @@ const emailForm = ref({
 });
 
 onMounted(async () => {
+  const requestSession = captureSession();
   await loadUserInfo();
+  if (!isCurrentSession(requestSession)) return;
   try {
     const settings = await authStore.loadPreferences();
+    if (!isCurrentSession(requestSession)) return;
     if (settings) {
       privacySettings.value = { ...settings.privacy };
       notificationSettings.value = { ...settings.notifications };
       settingsLoaded.value = true;
     }
   } catch (error) {
+    if (!isCurrentSession(requestSession)) return;
     showMessage('读取设置失败: ' + error.message, 'error');
   }
 });
 
 const loadUserInfo = async () => {
+  const requestSession = captureSession();
   try {
     let userInfo;
     if (authStore.currentUser) {
       userInfo = authStore.currentUser;
     } else {
       const response = await api.user.getCurrentUser();
+      if (!isCurrentSession(requestSession)) return;
       if (response.code === 0 && response.data) {
-        userInfo = response.data;
+        userInfo = response.data.user || response.data;
         authStore.setCurrentUser(userInfo);
       } else {
         showMessage('获取用户信息失败: ' + (response.message || 'Unknown error'), 'error');
@@ -284,18 +291,21 @@ const loadUserInfo = async () => {
       avatar: userInfo.avatar || '',
     };
   } catch (error) {
+    if (!isCurrentSession(requestSession)) return;
     showMessage('网络请求失败: ' + (error.message || 'Unknown error'), 'error');
   }
 };
 
 const showMessage = (msg, type = 'success') => {
+  const requestSession = captureSession();
   message.value = msg;
   messageType.value = type;
   appleMessage[type](msg);
-  setTimeout(() => (message.value = ''), 3000);
+  setTimeout(() => { if (isCurrentSession(requestSession)) message.value = ''; }, 3000);
 };
 
 const updateProfile = async () => {
+  const requestSession = captureSession();
   if (!form.value) return;
   loading.value = true;
   try {
@@ -306,6 +316,7 @@ const updateProfile = async () => {
       avatar: form.value.avatar,
     };
     const response = await api.user.updateCurrentUser(payload);
+    if (!isCurrentSession(requestSession)) return;
     if (response.code === 0 && response.data) {
       authStore.setCurrentUser(response.data);
       user.value = { ...response.data };
@@ -314,41 +325,49 @@ const updateProfile = async () => {
       showMessage('更新失败: ' + (response.message || 'Unknown error'), 'error');
     }
   } catch (error) {
+    if (!isCurrentSession(requestSession)) return;
     showMessage('网络请求失败: ' + (error.message || 'Unknown error'), 'error');
   } finally {
-    loading.value = false;
+    if (isCurrentSession(requestSession)) loading.value = false;
   }
 };
 
 const updatePrivacySettings = async () => {
+  const requestSession = captureSession();
   loading.value = true;
   try {
     const privacy = await authStore.savePrivacyPreferences(privacySettings.value);
+    if (!isCurrentSession(requestSession)) return;
     if (!privacy) return;
     privacySettings.value = { ...privacy };
     showMessage('隐私设置已保存', 'success');
   } catch (error) {
+    if (!isCurrentSession(requestSession)) return;
     showMessage('保存失败: ' + error.message, 'error');
   } finally {
-    loading.value = false;
+    if (isCurrentSession(requestSession)) loading.value = false;
   }
 };
 
 const updateNotificationSettings = async () => {
+  const requestSession = captureSession();
   loading.value = true;
   try {
     const notifications = await authStore.saveNotificationPreferences(notificationSettings.value);
+    if (!isCurrentSession(requestSession)) return;
     if (!notifications) return;
     notificationSettings.value = { ...notifications };
     showMessage('通知设置已保存', 'success');
   } catch (error) {
+    if (!isCurrentSession(requestSession)) return;
     showMessage('保存失败: ' + error.message, 'error');
   } finally {
-    loading.value = false;
+    if (isCurrentSession(requestSession)) loading.value = false;
   }
 };
 
 const changePassword = async () => {
+  const requestSession = captureSession();
   if (!passwordForm.value.currentPassword || !passwordForm.value.newPassword) {
     showMessage('请填写完整信息', 'error');
     return;
@@ -367,6 +386,7 @@ const changePassword = async () => {
   loading.value = true;
   try {
     const response = await axiosInstance.post('/api/auth/change-password', passwordForm.value);
+    if (!isCurrentSession(requestSession)) return;
     if (response.code !== 0) throw new Error(response.message || '修改密码失败');
     showMessage('密码修改成功，请重新登录', 'success');
     authStore.logoutCleanup();
@@ -378,13 +398,15 @@ const changePassword = async () => {
       confirmPassword: '',
     };
   } catch (error) {
+    if (!isCurrentSession(requestSession)) return;
     showMessage('修改失败: ' + error.message, 'error');
   } finally {
-    loading.value = false;
+    if (isCurrentSession(requestSession)) loading.value = false;
   }
 };
 
 const changeEmail = async () => {
+  const requestSession = captureSession();
   if (!emailForm.value.newEmail) {
     showMessage('请输入新邮箱地址', 'error');
     return;
@@ -399,16 +421,19 @@ const changeEmail = async () => {
   loading.value = true;
   try {
     const response = await api.user.updateProfile({ email: emailForm.value.newEmail.trim() });
+    if (!isCurrentSession(requestSession)) return;
     if (response.code !== 0) throw new Error(response.message || '修改邮箱失败');
     authStore.setCurrentUser(response.data);
     user.value = response.data;
     showMessage('邮箱修改成功', 'success');
     emailForm.value.newEmail = '';
-    await loadUserInfo(); // 重新加载用户信息
+    await loadUserInfo();
+    if (!isCurrentSession(requestSession)) return; // 重新加载用户信息
   } catch (error) {
+    if (!isCurrentSession(requestSession)) return;
     showMessage('修改失败: ' + error.message, 'error');
   } finally {
-    loading.value = false;
+    if (isCurrentSession(requestSession)) loading.value = false;
   }
 };
 
